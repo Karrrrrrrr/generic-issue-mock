@@ -4,27 +4,17 @@ import (
 	"generic-mock/enums"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
-	"gorm.io/gorm"
 	"gorm.io/plugin/soft_delete"
 )
 
 type ID = string
 
 type BaseModel struct {
-	ID        ID                    `gorm:"type:uuid;primaryKey"`
+	ID        ID                    `gorm:"type:uuid;default:uuidv7();primaryKey"`
 	CreatedAt time.Time             `gorm:"not null"`
 	UpdatedAt time.Time             `gorm:"not null"`
 	DeletedAt soft_delete.DeletedAt `gorm:"softDelete"`
-}
-
-func (m *BaseModel) BeforeCreate(_ *gorm.DB) error {
-	if m.ID == "" {
-		m.ID = uuid.NewString()
-	}
-
-	return nil
 }
 
 type Card struct {
@@ -34,9 +24,9 @@ type Card struct {
 	Cvv                    string
 	ExpireTime             string
 	Status                 enums.CardStatus
-	VirtualAccountID       ID // 为空表示普通卡，非空表示虚拟账户卡，共享余额。
-	BalanceID              ID // 虚拟账户卡指向虚拟账户的钱包 ID，减少一次查询。
-	CardHolderID           ID // 持卡人 ID，允许为空。
+	VirtualAccountID       *ID // nil 表示普通卡，非 nil 表示虚拟账户卡，共享余额。
+	BalanceID              *ID // 虚拟账户卡指向虚拟账户的钱包 ID，减少一次查询。
+	CardHolderID           ID  // 持卡人 ID，允许为空。
 	FormType               enums.CardFormType
 	RequestID              string `gorm:"uniqueIndex"`
 	LastOperationRequestID string `gorm:"uniqueIndex"`

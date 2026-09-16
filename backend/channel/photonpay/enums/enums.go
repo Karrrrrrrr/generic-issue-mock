@@ -5,9 +5,10 @@ import generic "generic-mock/enums"
 type ResponseCode string
 
 const (
-	ResponseCode_Success  ResponseCode = "0000"
-	ResponseCode_BadInput ResponseCode = "4000"
-	ResponseCode_NotFound ResponseCode = "VCC1039"
+	ResponseCode_Success       ResponseCode = "0000"
+	ResponseCode_BadInput      ResponseCode = "4000"
+	ResponseCode_NotFound      ResponseCode = "VCC1039"
+	ResponseCode_InternalError ResponseCode = "5000"
 )
 
 type AccountType string

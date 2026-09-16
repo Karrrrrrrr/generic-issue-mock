@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"mime/multipart"
+	"net/http"
 	"time"
 
 	"generic-mock/channel/photonpay/biz"
@@ -10,23 +11,20 @@ import (
 	common "generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
+
+	kratosErrors "github.com/go-kratos/kratos/v2/errors"
+	"github.com/samber/do"
 )
 
 type Service struct {
 	usecase *biz.Usecase
 }
 
-func NewService(usecase *biz.Usecase) *Service {
-	return &Service{usecase: usecase}
+func NewService(injector *do.Injector) (*Service, error) {
+	return &Service{
+		usecase: do.MustInvoke[*biz.Usecase](injector),
+	}, nil
 }
-
-type Response[T any] struct {
-	Code photon.ResponseCode `json:"code"`
-	Msg  string              `json:"msg"`
-	Data T                   `json:"data"`
-}
-
-const successMessage = "success"
 
 type AccessTokenRequest struct {
 	GrantType    string `form:"grant_type" json:"grant_type" binding:"required"`
@@ -41,13 +39,13 @@ type AccessTokenData struct {
 	Token            string `json:"token"`
 }
 
-func (s *Service) AccessToken(_ context.Context, _ *AccessTokenRequest) (*Response[AccessTokenData], error) {
-	return success(AccessTokenData{
+func (s *Service) AccessToken(_ context.Context, _ *AccessTokenRequest) (*AccessTokenData, error) {
+	return &AccessTokenData{
 		ExpiresIn:        3600,
 		RefreshExpiresIn: 7200,
 		RefreshToken:     "photonpay-mock-refresh-token",
 		Token:            "photonpay-mock-token",
-	}), nil
+	}, nil
 }
 
 type AccountSingleRequest struct {
@@ -67,7 +65,7 @@ type AccountSingleData struct {
 	ReturnedAt      string             `json:"returnedAt"`
 }
 
-func (s *Service) AccountSingle(_ context.Context, req *AccountSingleRequest) (*Response[AccountSingleData], error) {
+func (s *Service) AccountSingle(_ context.Context, req *AccountSingleRequest) (*AccountSingleData, error) {
 	currency := common.Currency_USD
 	if req.Currency != nil {
 		currency = common.Currency(*req.Currency)
@@ -76,14 +74,14 @@ func (s *Service) AccountSingle(_ context.Context, req *AccountSingleRequest) (*
 	if req.AccountType != nil {
 		accountType = *req.AccountType
 	}
-	return success(AccountSingleData{
+	return &AccountSingleData{
 		MemberID:        photon.MemberID,
 		AccountNo:       photon.AccountNumber,
 		AccountType:     accountType,
 		Currency:        currency,
 		RealTimeBalance: biz.DefaultBalance().InexactFloat64(),
 		ReturnedAt:      time.Now().UTC().Format(time.RFC3339),
-	}), nil
+	}, nil
 }
 
 type CreateCardHolderRequest struct {
@@ -118,7 +116,7 @@ type CardHolderData struct {
 	Reason                 string                        `json:"reason"`
 }
 
-func (s *Service) CreateCardHolder(ctx context.Context, req *CreateCardHolderRequest) (*Response[CardHolderData], error) {
+func (s *Service) CreateCardHolder(ctx context.Context, req *CreateCardHolderRequest) (*CardHolderData, error) {
 	holder, err := s.usecase.CreateCardHolder(ctx, &biz.CreateCardHolderRequest{
 		FirstName:              req.FirstName,
 		LastName:               req.LastName,
@@ -139,9 +137,10 @@ func (s *Service) CreateCardHolder(ctx context.Context, req *CreateCardHolderReq
 		ReverseSide:            types.Value(req.ReverseSide),
 	})
 	if err != nil {
-		return nil, err
+		return nil, photonError(err)
 	}
-	return success(cardHolderData(holder)), nil
+
+	return cardHolderData(holder), nil
 }
 
 type EditCardHolderRequest struct {
@@ -151,12 +150,18 @@ type EditCardHolderRequest struct {
 	MobilePrefix *string `json:"mobilePrefix"`
 }
 
-func (s *Service) EditCardHolder(ctx context.Context, req *EditCardHolderRequest) (*Response[CardHolderData], error) {
-	holder, err := s.usecase.UpdateCardHolder(ctx, req.CardholderID, req.Email, req.Mobile, req.MobilePrefix)
+func (s *Service) EditCardHolder(ctx context.Context, req *EditCardHolderRequest) (*CardHolderData, error) {
+	holder, err := s.usecase.UpdateCardHolder(ctx, &biz.UpdateCardHolderRequest{
+		CardholderID: req.CardholderID,
+		Email:        req.Email,
+		Mobile:       req.Mobile,
+		MobilePrefix: req.MobilePrefix,
+	})
 	if err != nil {
-		return nil, err
+		return nil, photonError(err)
 	}
-	return success(cardHolderData(holder)), nil
+
+	return cardHolderData(holder), nil
 }
 
 type ListCardHolderRequest struct {
@@ -175,11 +180,14 @@ type CardHolderListItem struct {
 	CardholderReviewStatus common.CardHolderReviewStatus `json:"cardholderReviewStatus"`
 }
 
-func (s *Service) ListCardHolders(ctx context.Context, req *ListCardHolderRequest) (*Response[[]CardHolderListItem], error) {
+func (s *Service) ListCardHolders(ctx context.Context, req *ListCardHolderRequest) (*[]CardHolderListItem, error) {
 	page, size := types.NormalizePagination(req.PageIndex, req.PageSize)
-	holders, err := s.usecase.ListCardHolders(ctx, page, size)
+	holders, err := s.usecase.ListCardHolders(ctx, &biz.ListRequest{
+		Offset: (page - 1) * size,
+		Limit:  size,
+	})
 	if err != nil {
-		return nil, err
+		return nil, photonError(err)
 	}
 	items := make([]CardHolderListItem, 0, len(holders))
 	for _, holder := range holders {
@@ -195,7 +203,7 @@ func (s *Service) ListCardHolders(ctx context.Context, req *ListCardHolderReques
 			CardholderReviewStatus: holder.ReviewStatus,
 		})
 	}
-	return success(items), nil
+	return &items, nil
 }
 
 type CardBinRequest struct {
@@ -212,8 +220,8 @@ type CardBinData struct {
 	RemainingAvailableCard string                `json:"remainingAvailableCard"`
 }
 
-func (s *Service) CardBins(_ context.Context, _ *CardBinRequest) (*Response[[]CardBinData], error) {
-	return success([]CardBinData{
+func (s *Service) CardBins(_ context.Context, _ *CardBinRequest) (*[]CardBinData, error) {
+	data := []CardBinData{
 		{
 			CardBin:                photon.DefaultCardBin,
 			CardCurrency:           common.Currency_USD,
@@ -222,7 +230,9 @@ func (s *Service) CardBins(_ context.Context, _ *CardBinRequest) (*Response[[]Ca
 			CardFormFactor:         photon.CardFormFactor_Virtual,
 			RemainingAvailableCard: "Unlimited",
 		},
-	}), nil
+	}
+
+	return &data, nil
 }
 
 type OpenCardRequest struct {
@@ -263,12 +273,12 @@ type CardData struct {
 	CreatedAt      string                `json:"createdAt"`
 }
 type OpenCardData struct {
-	CardDetail CardData               `json:"cardDetail"`
+	CardDetail *CardData              `json:"cardDetail"`
 	RequestID  string                 `json:"requestId"`
 	Status     photon.OperationStatus `json:"status"`
 }
 
-func (s *Service) OpenCard(ctx context.Context, req *OpenCardRequest) (*Response[OpenCardData], error) {
+func (s *Service) OpenCard(ctx context.Context, req *OpenCardRequest) (*OpenCardData, error) {
 	formFactor := req.CardFormFactor
 	if formFactor == "" {
 		formFactor = photon.CardFormFactor_Virtual
@@ -284,44 +294,53 @@ func (s *Service) OpenCard(ctx context.Context, req *OpenCardRequest) (*Response
 		ExpirationMonths: types.Value(req.CardExpirationDate),
 	})
 	if err != nil {
-		return nil, err
+		return nil, photonError(err)
 	}
-	return success(OpenCardData{
+
+	return &OpenCardData{
 		CardDetail: cardData(card),
 		RequestID:  card.RequestID,
 		Status:     photon.OperationStatus_Succeed,
-	}), nil
+	}, nil
 }
 
 type CardIDRequest struct {
 	CardID string `form:"cardId" json:"cardId" binding:"required"`
 }
 
-func (s *Service) CardDetail(ctx context.Context, req *CardIDRequest) (*Response[CardData], error) {
+func (s *Service) CardDetail(ctx context.Context, req *CardIDRequest) (*CardData, error) {
 	card, err := s.usecase.GetCard(ctx, req.CardID)
 	if err != nil {
-		return nil, err
+		return nil, photonError(err)
 	}
-	return success(cardData(card)), nil
+
+	return cardData(card), nil
 }
-func (s *Service) CardCVV(ctx context.Context, req *CardIDRequest) (*Response[CardData], error) {
-	return s.CardDetail(ctx, req)
+
+func (s *Service) CardCVV(ctx context.Context, req *CardIDRequest) (*CardData, error) {
+	card, err := s.usecase.GetCard(ctx, req.CardID)
+	if err != nil {
+		return nil, photonError(err)
+	}
+
+	return cardData(card), nil
 }
 
 type RequestResultRequest struct {
 	RequestID string `form:"requestId" json:"requestId" binding:"required"`
 }
 
-func (s *Service) RequestResult(ctx context.Context, req *RequestResultRequest) (*Response[OpenCardData], error) {
+func (s *Service) RequestResult(ctx context.Context, req *RequestResultRequest) (*OpenCardData, error) {
 	card, err := s.usecase.GetRequestResult(ctx, req.RequestID)
 	if err != nil {
-		return nil, err
+		return nil, photonError(err)
 	}
-	return success(OpenCardData{
+
+	return &OpenCardData{
 		CardDetail: cardData(card),
 		RequestID:  card.RequestID,
 		Status:     photon.OperationStatus_Succeed,
-	}), nil
+	}, nil
 }
 
 type ChangeCardStatusRequest struct {
@@ -330,19 +349,32 @@ type ChangeCardStatusRequest struct {
 	Status    photon.CardStatus `json:"status"`
 }
 
-func (s *Service) FreezeCard(ctx context.Context, req *ChangeCardStatusRequest) (*Response[CardData], error) {
-	card, err := s.usecase.ChangeCardStatus(ctx, req.CardID, req.RequestID, common.CardStatus_Frozen, common.OperationType_FreezeCard)
+func (s *Service) FreezeCard(ctx context.Context, req *ChangeCardStatusRequest) (*CardData, error) {
+	card, err := s.usecase.ChangeCardStatus(ctx, &biz.ChangeCardStatusRequest{
+		CardID:    req.CardID,
+		RequestID: req.RequestID,
+		Status:    common.CardStatus_Frozen,
+		Operation: common.OperationType_FreezeCard,
+	})
 	if err != nil {
-		return nil, err
+		return nil, photonError(err)
 	}
-	return success(cardData(card)), nil
+
+	return cardData(card), nil
 }
-func (s *Service) CancelCard(ctx context.Context, req *ChangeCardStatusRequest) (*Response[CardData], error) {
-	card, err := s.usecase.ChangeCardStatus(ctx, req.CardID, req.RequestID, common.CardStatus_Deleted, common.OperationType_CancelCard)
+
+func (s *Service) CancelCard(ctx context.Context, req *ChangeCardStatusRequest) (*CardData, error) {
+	card, err := s.usecase.ChangeCardStatus(ctx, &biz.ChangeCardStatusRequest{
+		CardID:    req.CardID,
+		RequestID: req.RequestID,
+		Status:    common.CardStatus_Deleted,
+		Operation: common.OperationType_CancelCard,
+	})
 	if err != nil {
-		return nil, err
+		return nil, photonError(err)
 	}
-	return success(cardData(card)), nil
+
+	return cardData(card), nil
 }
 
 type ListTradeRequest struct {
@@ -359,11 +391,14 @@ type TradeData struct {
 	Status              common.CardTransactionStatus `json:"status"`
 }
 
-func (s *Service) ListTrades(ctx context.Context, req *ListTradeRequest) (*Response[[]TradeData], error) {
+func (s *Service) ListTrades(ctx context.Context, req *ListTradeRequest) (*[]TradeData, error) {
 	page, size := types.NormalizePagination(req.PageIndex, req.PageSize)
-	transactions, err := s.usecase.ListTransactions(ctx, page, size)
+	transactions, err := s.usecase.ListTransactions(ctx, &biz.ListRequest{
+		Offset: (page - 1) * size,
+		Limit:  size,
+	})
 	if err != nil {
-		return nil, err
+		return nil, photonError(err)
 	}
 	items := make([]TradeData, 0, len(transactions))
 	for _, transaction := range transactions {
@@ -377,7 +412,7 @@ func (s *Service) ListTrades(ctx context.Context, req *ListTradeRequest) (*Respo
 			Status:              transaction.Status,
 		})
 	}
-	return success(items), nil
+	return &items, nil
 }
 
 type UploadRequest struct {
@@ -388,20 +423,14 @@ type UploadData struct {
 	FileURL string `json:"fileUrl"`
 }
 
-func (s *Service) Upload(_ context.Context, req *UploadRequest) (*Response[UploadData], error) {
-	return success(UploadData{FileURL: "mock://photonpay/" + req.BusinessKey + "/" + req.File.Filename}), nil
+func (s *Service) Upload(_ context.Context, req *UploadRequest) (*UploadData, error) {
+	return &UploadData{
+		FileURL: "mock://photonpay/" + req.BusinessKey + "/" + req.File.Filename,
+	}, nil
 }
 
-func success[T any](data T) *Response[T] {
-	return &Response[T]{
-		Code: photon.ResponseCode_Success,
-		Msg:  successMessage,
-		Data: data,
-	}
-}
-
-func cardHolderData(holder *model.CardHolder) CardHolderData {
-	return CardHolderData{
+func cardHolderData(holder *model.CardHolder) *CardHolderData {
+	return &CardHolderData{
 		CardholderID:           holder.ID,
 		MemberID:               photon.MemberID,
 		Status:                 holder.Status,
@@ -410,8 +439,8 @@ func cardHolderData(holder *model.CardHolder) CardHolderData {
 	}
 }
 
-func cardData(card *model.Card) CardData {
-	return CardData{
+func cardData(card *model.Card) *CardData {
+	return &CardData{
 		CardID:         card.ID,
 		CardNo:         card.CardNumber,
 		CVV:            card.Cvv,
@@ -424,4 +453,19 @@ func cardData(card *model.Card) CardData {
 		CardholderID:   card.CardHolderID,
 		CreatedAt:      card.CreatedAt.UTC().Format(time.RFC3339),
 	}
+}
+
+func photonError(err error) error {
+	appError := kratosErrors.FromError(err)
+	if appError.Code == http.StatusNotFound {
+		return kratosErrors.NotFound(
+			string(photon.ResponseCode_NotFound),
+			appError.Message,
+		)
+	}
+
+	return kratosErrors.InternalServer(
+		string(photon.ResponseCode_InternalError),
+		"internal server error",
+	)
 }

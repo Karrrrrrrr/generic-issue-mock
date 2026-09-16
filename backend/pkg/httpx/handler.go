@@ -2,48 +2,37 @@ package httpx
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 type ServiceFunc[Req any, Resp any] func(context.Context, *Req) (*Resp, error)
 
-type Error interface {
-	error
-	HTTPStatus() int
-}
+type SuccessEncoder[Resp any] func(*Resp) any
 
-func Bind[Req any, Resp any](fn ServiceFunc[Req, Resp]) gin.HandlerFunc {
+type ErrorEncoder func(error) (int, any)
+
+func Bind[Req any, Resp any](
+	fn ServiceFunc[Req, Resp],
+	successEncoder SuccessEncoder[Resp],
+	bindingErrorEncoder ErrorEncoder,
+	errorEncoder ErrorEncoder,
+) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var request Req
 		if err := ctx.ShouldBind(&request); err != nil {
-			ctx.JSON(http.StatusBadRequest, errorResponse{
-				Code:    "4000",
-				Message: err.Error(),
-			})
+			status, response := bindingErrorEncoder(err)
+			ctx.JSON(status, response)
 			return
 		}
 
 		response, err := fn(ctx.Request.Context(), &request)
 		if err != nil {
-			status := http.StatusInternalServerError
-			if appError, ok := err.(Error); ok {
-				status = appError.HTTPStatus()
-			}
-			ctx.JSON(status, errorResponse{
-				Code:    "5000",
-				Message: err.Error(),
-			})
+			status, errorResponse := errorEncoder(err)
+			ctx.JSON(status, errorResponse)
 			return
 		}
 
-		ctx.JSON(http.StatusOK, response)
+		ctx.JSON(200, successEncoder(response))
 	}
-}
-
-type errorResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"msg"`
-	Data    any    `json:"data"`
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 
 	"generic-mock/channel/photonpay/biz"
@@ -13,10 +12,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/samber/do"
-	"gorm.io/gorm"
+	"go.uber.org/zap"
 )
 
 func main() {
+	logger, err := zap.NewProduction()
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		_ = logger.Sync()
+	}()
+	zap.ReplaceGlobals(logger)
+
 	dsn := os.Getenv("DATABASE_DSN")
 	if dsn == "" {
 		dsn = data.DefaultPostgresDSN
@@ -24,21 +32,18 @@ func main() {
 
 	db, err := data.NewPostgresDB(dsn)
 	if err != nil {
-		log.Fatalf("connect database: %v", err)
+		zap.S().Fatalw("connect database", "error", err)
 	}
 
 	injector := do.New()
 	do.ProvideValue(injector, db)
-	do.Provide(injector, func(i *do.Injector) (*photonData.Repository, error) {
-		return photonData.NewRepository(do.MustInvoke[*gorm.DB](i)), nil
-	})
-	do.Provide(injector, func(i *do.Injector) (*biz.Usecase, error) {
-		repository := do.MustInvoke[*photonData.Repository](i)
-		return biz.NewUsecase(repository, repository, repository), nil
-	})
-	do.Provide(injector, func(i *do.Injector) (*photonService.Service, error) {
-		return photonService.NewService(do.MustInvoke[*biz.Usecase](i)), nil
-	})
+	do.Provide(injector, photonData.NewRepository)
+	do.Provide(injector, photonData.NewTransaction)
+	do.Provide(injector, photonData.NewCardHolderRepository)
+	do.Provide(injector, photonData.NewCardRepository)
+	do.Provide(injector, photonData.NewCardTransactionRepository)
+	do.Provide(injector, biz.NewUsecase)
+	do.Provide(injector, photonService.NewService)
 
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
@@ -49,10 +54,10 @@ func main() {
 	}
 
 	if err := data.Ping(context.Background(), db); err != nil {
-		log.Fatalf("ping database: %v", err)
+		zap.S().Fatalw("ping database", "error", err)
 	}
 
 	if err := router.Run(addr); err != nil {
-		log.Fatalf("run http server: %v", err)
+		zap.S().Fatalw("run http server", "error", err)
 	}
 }
