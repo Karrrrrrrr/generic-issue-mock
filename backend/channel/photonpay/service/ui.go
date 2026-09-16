@@ -177,6 +177,7 @@ type UISimulateAuthorizationRequest struct {
 	MerchantName         string  `json:"merchant_name" binding:"required"`
 	MerchantCategoryCode string  `json:"merchant_category_code" binding:"required"`
 	MerchantCountry      string  `json:"merchant_country"`
+	MerchantCity         string  `json:"merchant_city"` // Invalid: generic model has no merchant city field.
 }
 
 type UISimulateAuthorizationData struct {

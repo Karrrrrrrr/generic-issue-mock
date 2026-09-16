@@ -6,10 +6,12 @@ const isDark = ref(false);
 
 function syncTheme() {
   isDark.value = localStorage.getItem("generic-mock-theme") === "dark";
+  document.documentElement.dataset.theme = isDark.value ? "dark" : "light";
 }
 
+syncTheme();
+
 onMounted(() => {
-  syncTheme();
   window.addEventListener("generic-mock-theme-change", syncTheme);
 });
 onUnmounted(() => window.removeEventListener("generic-mock-theme-change", syncTheme));

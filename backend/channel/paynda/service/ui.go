@@ -129,6 +129,7 @@ type PayndaUISimulateAuthorizationRequest struct {
 	Currency        common.Currency `json:"transaction_currency" binding:"required"`
 	MerchantName    string          `json:"merchant_name"`
 	MerchantCountry string          `json:"merchant_country"`
+	MerchantCity    string          `json:"merchant_city"` // Invalid: generic model has no merchant city field.
 	MerchantMCC     string          `json:"merchant_category_code"`
 }
 

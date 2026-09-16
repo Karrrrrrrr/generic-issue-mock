@@ -19,6 +19,7 @@ export function authorizationPayload(payload: {
   merchantName: string;
   merchantMCC: string;
   merchantCountry: string;
+  merchantCity: string;
 }) {
   return {
     card_id: payload.cardID,
@@ -27,5 +28,6 @@ export function authorizationPayload(payload: {
     merchant_name: payload.merchantName,
     merchant_category_code: payload.merchantMCC,
     merchant_country: payload.merchantCountry,
+    merchant_city: payload.merchantCity,
   };
 }

@@ -26,11 +26,12 @@ const refundResult = ref("");
 const activeTab = ref("authorization");
 const form = ref({
   cardID: "",
-  amount: 1,
+  amount: 100,
   currency: "USD",
-  merchantName: "",
+  merchantName: "Amazon",
   merchantMCC: "",
   merchantCountry: "US",
+  merchantCity: "",
 });
 const refundForm = ref({
   card_id: "",
@@ -38,7 +39,7 @@ const refundForm = ref({
   currency: "USD",
   merchant_name: "Amazon",
   merchant_category_code: "",
-  merchant_country: "",
+  merchant_country: "US",
   merchant_city: "",
 });
 const options = computed(() =>
@@ -137,7 +138,7 @@ onMounted(() => {
             :options="[
               { label: 'USD', value: 'USD' },
               { label: 'GBP', value: 'GBP' },
-              { label: 'CNY', value: 'CNY' },
+              { label: 'EUR', value: 'EUR' },
             ]"
           />
         </n-form-item>
@@ -150,15 +151,12 @@ onMounted(() => {
         <n-form-item label="MCC" required>
           <n-input v-model:value="form.merchantMCC" placeholder="例如 5411" />
         </n-form-item>
-        <n-form-item class="form-wide" label="商户国家">
+        <n-form-item label="商户国家">
           <n-input v-model:value="form.merchantCountry" />
         </n-form-item>
+        <n-form-item label="地区"><n-input v-model:value="form.merchantCity" placeholder="例如 Seattle" /></n-form-item>
       </div>
-      <n-space justify="end">
-        <n-button type="primary" :loading="loading" @click="submit"
-          >创建授权</n-button
-        >
-      </n-space>
+      <n-button type="primary" block :loading="loading" @click="submit">模拟授权</n-button>
         </n-form>
         <n-alert
       v-if="result"

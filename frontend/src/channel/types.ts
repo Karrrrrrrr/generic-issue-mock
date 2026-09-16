@@ -57,6 +57,7 @@ export interface ChannelAPI {
     merchantName: string;
     merchantMCC: string;
     merchantCountry: string;
+    merchantCity: string;
   }): Promise<void>;
   applyTransactionStep(
     id: string,
