@@ -14,9 +14,6 @@
 
 ## 数据模型与 ID
 1. 所有通用表使用数据库自增主键 `id` 作为内部关联键, 不使用 UUID。
-2. 每张需要被渠道 OpenAPI 暴露的表都必须增加 `display_id`。`display_id` 是对外资源 ID, 其生成规则和格式必须以对应渠道 SDK 的实际请求、响应和调用方消费方式为准。
-3. `display_id` 只用于渠道 API 和外部幂等关联; 表关联、事务和仓储查询默认使用内部 `id`。
-4. 不得为了兼容某个渠道在通用表添加渠道视角的重复资源 ID。渠道 SDK 未实际使用的字段仅保留在该渠道 service DTO, 并标记 `Invalid:`。
 
 ## 功能
 1. 开卡
@@ -59,7 +56,11 @@
 
 ## 后端技术
 1. gin
-2. di(依赖注入)
+2. do(依赖注入)
 3. gorm-gen
 4. postgres
 5. resty-v3 (发送webhook)
+
+
+下游仓库 `/home/kar/workspace/ptm/marxo` 写之前先阅读这个仓库
+mock参照物 `/home/kar/workspace/github/slash-mock` , 只参照前端和逻辑, 不参照后端kratos
