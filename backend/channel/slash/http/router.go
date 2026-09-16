@@ -36,6 +36,10 @@ func Register(router *gin.RouterGroup, service *service.SlashUIService, openAPIS
 	router.POST("/ui/transactions/:id/clear", bind(service.ClearTransaction))
 	router.POST("/ui/transactions/:id/reverse", bind(service.ReverseTransaction))
 	router.POST("/ui/transactions/:id/refund", bind(service.RefundTransaction))
+	router.GET("/ui/webhooks", bind(service.ListWebhooks))
+	router.POST("/ui/webhooks", bind(service.CreateWebhook))
+	router.PUT("/ui/webhooks/:id", bind(service.UpdateWebhook))
+	router.DELETE("/ui/webhooks/:id", bind(service.DeleteWebhook))
 }
 
 func bind[Req any, Resp any](fn httpx.ServiceFunc[Req, Resp]) gin.HandlerFunc {

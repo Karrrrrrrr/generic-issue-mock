@@ -24,6 +24,10 @@ export const router = createRouter({
           path: "authorization",
           component: () => import("@/channel/slash/AuthorizationView.vue"),
         },
+        {
+          path: "webhooks",
+          component: () => import("@/channel/slash/WebhooksView.vue"),
+        },
       ],
     },
     {

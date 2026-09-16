@@ -29,6 +29,70 @@ type ListRequest struct {
 	PageSize   int `form:"page_size"`
 }
 
+type WebhookData struct {
+	ID        string    `json:"id"`
+	Event     string    `json:"event"`
+	TargetURL string    `json:"target_url"`
+	Enabled   bool      `json:"enabled"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type CreateWebhookRequest struct {
+	Event     string `json:"event" binding:"required"`
+	TargetURL string `json:"target_url" binding:"required,url"`
+	Enabled   bool   `json:"enabled"`
+}
+
+func (s *SlashUIService) CreateWebhook(ctx context.Context, req *CreateWebhookRequest) (*WebhookData, error) {
+	item, err := s.usecase.CreateWebhook(ctx, &biz.CreateWebhookRequest{Event: req.Event, TargetURL: req.TargetURL, Enabled: req.Enabled})
+	if err != nil {
+		return nil, err
+	}
+	return webhookData(item), nil
+}
+
+func (s *SlashUIService) ListWebhooks(ctx context.Context, _ *struct{}) (*[]WebhookData, error) {
+	items, err := s.usecase.ListWebhooks(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]WebhookData, 0, len(items))
+	for _, item := range items {
+		result = append(result, *webhookData(item))
+	}
+	return &result, nil
+}
+
+type UpdateWebhookRequest struct {
+	ID        string `uri:"id" binding:"required"`
+	TargetURL string `json:"target_url" binding:"required,url"`
+	Enabled   bool   `json:"enabled"`
+}
+
+func (s *SlashUIService) UpdateWebhook(ctx context.Context, req *UpdateWebhookRequest) (*WebhookData, error) {
+	id, err := slashID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.UpdateWebhook(ctx, &biz.UpdateWebhookRequest{ID: id, TargetURL: req.TargetURL, Enabled: req.Enabled})
+	if err != nil {
+		return nil, err
+	}
+	return webhookData(item), nil
+}
+
+func (s *SlashUIService) DeleteWebhook(ctx context.Context, req *IDRequest) (*struct{}, error) {
+	id, err := slashID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.usecase.DeleteWebhook(ctx, id); err != nil {
+		return nil, err
+	}
+	return &struct{}{}, nil
+}
+
 type ListResponse[T any] struct {
 	TotalItems int64 `json:"total_items"`
 	Data       []T   `json:"data"`
@@ -426,6 +490,17 @@ func cardHolderData(item *model.CardHolder) *CardHolderData {
 		Email:     item.Email,
 		Mobile:    item.Mobile,
 		Status:    slash.CardHolderStatusFromGeneric(item.Status),
+		CreatedAt: item.CreatedAt,
+		UpdatedAt: item.UpdatedAt,
+	}
+}
+
+func webhookData(item *model.WebhookConfig) *WebhookData {
+	return &WebhookData{
+		ID:        slashIDString(item.ID),
+		Event:     item.Event,
+		TargetURL: item.TargetURL,
+		Enabled:   item.Enabled,
 		CreatedAt: item.CreatedAt,
 		UpdatedAt: item.UpdatedAt,
 	}

@@ -73,6 +73,15 @@ type SlashWalletRepository interface {
 	Save(context.Context, *model.Wallet) error
 }
 
+type SlashWebhookConfigRepository interface {
+	Create(context.Context, *model.WebhookConfig) error
+	ExistByID(context.Context, model.ID) (bool, error)
+	FindByID(context.Context, model.ID) (*model.WebhookConfig, error)
+	List(context.Context) ([]*model.WebhookConfig, error)
+	Save(context.Context, *model.WebhookConfig) error
+	Delete(context.Context, model.ID) error
+}
+
 type SlashUIUsecase struct {
 	transaction               SlashTransaction
 	cardHolderRepository      SlashCardHolderRepository
@@ -80,6 +89,7 @@ type SlashUIUsecase struct {
 	cardProductRepository     SlashCardProductRepository
 	authorizationRepository   SlashAuthorizationRepository
 	cardTransactionRepository SlashCardTransactionRepository
+	webhookConfigRepository   SlashWebhookConfigRepository
 }
 
 func NewSlashUIUsecase(injector *do.Injector) (*SlashUIUsecase, error) {
@@ -90,6 +100,7 @@ func NewSlashUIUsecase(injector *do.Injector) (*SlashUIUsecase, error) {
 		cardProductRepository:     do.MustInvoke[SlashCardProductRepository](injector),
 		authorizationRepository:   do.MustInvoke[SlashAuthorizationRepository](injector),
 		cardTransactionRepository: do.MustInvoke[SlashCardTransactionRepository](injector),
+		webhookConfigRepository:   do.MustInvoke[SlashWebhookConfigRepository](injector),
 	}, nil
 }
 
@@ -163,6 +174,75 @@ func (u *SlashUIUsecase) ListCardHolders(ctx context.Context, req *ListCardHolde
 	}
 
 	return items, total, nil
+}
+
+type CreateWebhookRequest struct {
+	Event     string
+	TargetURL string
+	Enabled   bool
+}
+
+func (u *SlashUIUsecase) CreateWebhook(ctx context.Context, req *CreateWebhookRequest) (*model.WebhookConfig, error) {
+	item := &model.WebhookConfig{Channel: enums.Channel_Slash, Event: req.Event, TargetURL: req.TargetURL, Enabled: req.Enabled}
+	if err := u.webhookConfigRepository.Create(ctx, item); err != nil {
+		zap.S().Errorw("create slash webhook", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return item, nil
+}
+
+func (u *SlashUIUsecase) ListWebhooks(ctx context.Context) ([]*model.WebhookConfig, error) {
+	items, err := u.webhookConfigRepository.List(ctx)
+	if err != nil {
+		zap.S().Errorw("list slash webhooks", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return items, nil
+}
+
+type UpdateWebhookRequest struct {
+	ID        model.ID
+	TargetURL string
+	Enabled   bool
+}
+
+func (u *SlashUIUsecase) UpdateWebhook(ctx context.Context, req *UpdateWebhookRequest) (*model.WebhookConfig, error) {
+	exists, err := u.webhookConfigRepository.ExistByID(ctx, req.ID)
+	if err != nil {
+		zap.S().Errorw("check slash webhook", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
+	item, err := u.webhookConfigRepository.FindByID(ctx, req.ID)
+	if err != nil {
+		zap.S().Errorw("find slash webhook", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	item.TargetURL = req.TargetURL
+	item.Enabled = req.Enabled
+	if err := u.webhookConfigRepository.Save(ctx, item); err != nil {
+		zap.S().Errorw("update slash webhook", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return item, nil
+}
+
+func (u *SlashUIUsecase) DeleteWebhook(ctx context.Context, id model.ID) error {
+	exists, err := u.webhookConfigRepository.ExistByID(ctx, id)
+	if err != nil {
+		zap.S().Errorw("check slash webhook", "error", err)
+		return ErrDatabaseOperation
+	}
+	if !exists {
+		return ErrResourceNotFound
+	}
+	if err := u.webhookConfigRepository.Delete(ctx, id); err != nil {
+		zap.S().Errorw("delete slash webhook", "error", err)
+		return ErrDatabaseOperation
+	}
+	return nil
 }
 
 type CreateCardRequest struct {

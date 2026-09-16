@@ -15,6 +15,7 @@ const items = [
   { label: "卡片", key: "/slash/cards" },
   { label: "交易处理", key: "/slash/transactions" },
   { label: "授权模拟", key: "/slash/authorization" },
+  { label: "Webhook", key: "/slash/webhooks" },
 ];
 </script>
 
