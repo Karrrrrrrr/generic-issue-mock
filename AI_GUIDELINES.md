@@ -3,8 +3,8 @@
 ## Model Ownership
 
 - This repository simulates third-party channels for downstream systems. In this repository, a channel is the service being simulated; never carry downstream names such as `ThirdPartyID` into a generic model.
-- Generic models use an auto-incrementing `int64` primary key `ID` for relations and transactions. Every resource exposed by a channel has a `display_id` external ID; do not expose `ID` outside the repository or add any other channel-specific resource token.
-- A channel service must resolve every incoming mock-owned resource `display_id` through a channel repository `ExistByDisplayID` then `FindByDisplayID` flow before invoking a usecase that accepts an internal `ID`. Never parse, cast, derive, or otherwise treat `display_id` as `ID`; return the model's stored `DisplayID` in channel DTOs.
+- Generic models use an auto-incrementing `int64` primary key `ID` for relations and transactions. A channel service derives every external resource ID from that key with its channel formatter; do not persist `display_id`, expose a raw `ID`, or add another resource token.
+- A channel service parses every incoming mock-owned resource ID with its channel `service/id.go` helper before invoking a usecase that accepts an internal `ID`. The formatter and parser must be reversible and validate the channel format; responses derive IDs from the relevant model or relation ID at the service boundary.
 - Generic models are shared by every channel. Add a field only when a current channel implementation needs it and it represents a channel-neutral concept.
 - A card product is the configured card BIN. Every new card stores both `CardProductID` and the selected product prefix in `CardBin`; derive the prefix from the product rather than accepting it as independent card state.
 - Do not add a field merely because it exists in a downstream SDK request or response. Keep such unused fields in the channel service DTO with an `Invalid:` comment and ignore them.
