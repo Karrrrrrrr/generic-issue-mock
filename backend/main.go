@@ -4,12 +4,10 @@ import (
 	"context"
 	"os"
 
-	"generic-mock/channel/photonpay/biz"
-	photonData "generic-mock/channel/photonpay/data"
+	"generic-mock/channel/photonpay"
 	photonHTTP "generic-mock/channel/photonpay/http"
 	photonService "generic-mock/channel/photonpay/service"
-	slashBiz "generic-mock/channel/slash/biz"
-	slashData "generic-mock/channel/slash/data"
+	"generic-mock/channel/slash"
 	slashHTTP "generic-mock/channel/slash/http"
 	slashService "generic-mock/channel/slash/service"
 	"generic-mock/data"
@@ -38,26 +36,14 @@ func main() {
 	if err != nil {
 		zap.S().Fatalw("connect database", "error", err)
 	}
+	if err := data.SeedInitialData(context.Background(), db); err != nil {
+		zap.S().Fatalw("seed initial data", "error", err)
+	}
 
 	injector := do.New()
 	do.ProvideValue(injector, db)
-	do.Provide(injector, photonData.NewRepository)
-	do.Provide(injector, photonData.NewTransaction)
-	do.Provide(injector, photonData.NewCardHolderRepository)
-	do.Provide(injector, photonData.NewCardRepository)
-	do.Provide(injector, photonData.NewCardProductRepository)
-	do.Provide(injector, photonData.NewCardTransactionRepository)
-	do.Provide(injector, biz.NewUsecase)
-	do.Provide(injector, photonService.NewService)
-	do.Provide(injector, slashData.NewRepository)
-	do.ProvideNamed(injector, "slash.transaction", slashData.NewTransaction)
-	do.ProvideNamed(injector, "slash.card-holder-repository", slashData.NewCardHolderRepository)
-	do.ProvideNamed(injector, "slash.card-repository", slashData.NewCardRepository)
-	do.ProvideNamed(injector, "slash.card-product-repository", slashData.NewCardProductRepository)
-	do.ProvideNamed(injector, "slash.authorization-repository", slashData.NewAuthorizationRepository)
-	do.ProvideNamed(injector, "slash.card-transaction-repository", slashData.NewCardTransactionRepository)
-	do.ProvideNamed(injector, "slash.usecase", slashBiz.NewUsecase)
-	do.ProvideNamed(injector, "slash.service", slashService.NewService)
+	photonpay.RegisterProviders(injector)
+	slash.RegisterProviders(injector)
 
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())

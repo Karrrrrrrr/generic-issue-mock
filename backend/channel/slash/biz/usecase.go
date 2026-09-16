@@ -18,8 +18,6 @@ type Transaction interface {
 	InTx(context.Context, func(context.Context) error) error
 }
 
-const defaultCardBinPrefix = "424242"
-
 type CardHolderRepository interface {
 	Create(context.Context, *model.CardHolder) error
 	ExistByID(context.Context, model.ID) (bool, error)
@@ -39,12 +37,9 @@ type CardRepository interface {
 }
 
 type CardProductRepository interface {
-	Create(context.Context, *model.CardProduct) error
 	ExistByID(context.Context, model.ID) (bool, error)
-	FindByID(context.Context, model.ID) (*model.CardProduct, error)
 	FindByIDForUpdate(context.Context, model.ID) (*model.CardProduct, error)
 	ExistDefault(context.Context) (bool, error)
-	FindDefault(context.Context) (*model.CardProduct, error)
 	FindDefaultForUpdate(context.Context) (*model.CardProduct, error)
 	List(context.Context) ([]*model.CardProduct, error)
 	Save(context.Context, *model.CardProduct) error
@@ -237,13 +232,6 @@ type CardProductInfo struct {
 }
 
 func (u *Usecase) ListCardProducts(ctx context.Context) ([]*CardProductInfo, error) {
-	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		_, err := u.getCardProduct(txCtx, "")
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
 	products, err := u.cardProductRepository.List(ctx)
 	if err != nil {
 		zap.S().Errorw("list slash card products", "error", err)
@@ -533,48 +521,6 @@ func (u *Usecase) requireCardTransaction(ctx context.Context, id model.ID) error
 	return nil
 }
 
-func (u *Usecase) getCardProduct(ctx context.Context, id model.ID) (*model.CardProduct, error) {
-	if id == "" {
-		exists, err := u.cardProductRepository.ExistDefault(ctx)
-		if err != nil {
-			zap.S().Errorw("check slash default card product", "error", err)
-			return nil, ErrDatabaseOperation
-		}
-		if !exists {
-			product := &model.CardProduct{
-				Channel:   enums.Channel_Slash,
-				Prefix:    defaultCardBinPrefix,
-				IsDefault: true,
-			}
-			if err := u.cardProductRepository.Create(ctx, product); err != nil {
-				zap.S().Errorw("create slash default card product", "error", err)
-				return nil, ErrDatabaseOperation
-			}
-
-			return product, nil
-		}
-
-		product, err := u.cardProductRepository.FindDefault(ctx)
-		if err != nil {
-			zap.S().Errorw("find slash default card product", "error", err)
-			return nil, ErrDatabaseOperation
-		}
-
-		return product, nil
-	}
-
-	if err := u.requireCardProduct(ctx, id); err != nil {
-		return nil, err
-	}
-	product, err := u.cardProductRepository.FindByID(ctx, id)
-	if err != nil {
-		zap.S().Errorw("find slash card product", "error", err)
-		return nil, ErrDatabaseOperation
-	}
-
-	return product, nil
-}
-
 func (u *Usecase) getCardProductForUpdate(ctx context.Context, id model.ID) (*model.CardProduct, error) {
 	if id == "" {
 		exists, err := u.cardProductRepository.ExistDefault(ctx)
@@ -583,17 +529,7 @@ func (u *Usecase) getCardProductForUpdate(ctx context.Context, id model.ID) (*mo
 			return nil, ErrDatabaseOperation
 		}
 		if !exists {
-			product := &model.CardProduct{
-				Channel:   enums.Channel_Slash,
-				Prefix:    defaultCardBinPrefix,
-				IsDefault: true,
-			}
-			if err := u.cardProductRepository.Create(ctx, product); err != nil {
-				zap.S().Errorw("create slash default card product", "error", err)
-				return nil, ErrDatabaseOperation
-			}
-
-			return product, nil
+			return nil, ErrResourceNotFound
 		}
 
 		product, err := u.cardProductRepository.FindDefaultForUpdate(ctx)

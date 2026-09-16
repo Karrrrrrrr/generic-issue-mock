@@ -21,20 +21,6 @@ func NewCardProductRepository(injector *do.Injector) (biz.CardProductRepository,
 	}, nil
 }
 
-func (r *cardProductRepository) Create(ctx context.Context, item *model.CardProduct) error {
-	return r.repository.DB(ctx).CardProduct.WithContext(ctx).Create(item)
-}
-
-func (r *cardProductRepository) ExistDefault(ctx context.Context) (bool, error) {
-	db := r.repository.DB(ctx)
-	count, err := db.CardProduct.WithContext(ctx).Where(
-		db.CardProduct.Channel.Eq(string(enums.Channel_PhotonPay)),
-		db.CardProduct.IsDefault.Is(true),
-	).Count()
-
-	return count > 0, err
-}
-
 func (r *cardProductRepository) ExistByPrefix(ctx context.Context, prefix string) (bool, error) {
 	db := r.repository.DB(ctx)
 	count, err := db.CardProduct.WithContext(ctx).Where(
@@ -43,15 +29,6 @@ func (r *cardProductRepository) ExistByPrefix(ctx context.Context, prefix string
 	).Count()
 
 	return count > 0, err
-}
-
-func (r *cardProductRepository) FindByPrefix(ctx context.Context, prefix string) (*model.CardProduct, error) {
-	db := r.repository.DB(ctx)
-
-	return db.CardProduct.WithContext(ctx).Where(
-		db.CardProduct.Channel.Eq(string(enums.Channel_PhotonPay)),
-		db.CardProduct.Prefix.Eq(prefix),
-	).Order(db.CardProduct.ID.Desc()).First()
 }
 
 func (r *cardProductRepository) FindByPrefixForUpdate(ctx context.Context, prefix string) (*model.CardProduct, error) {
