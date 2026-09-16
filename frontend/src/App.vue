@@ -31,9 +31,7 @@ const cardholders = ref<Cardholder[]>([])
 const cards = ref<Card[]>([])
 const transactions = ref<Transaction[]>([])
 const cardholderModalVisible = ref(false)
-const cardModalVisible = ref(false)
 const holderForm = ref({ firstName: '', lastName: '', email: '', mobile: '' })
-const cardForm = ref({ cardholderID: '', currency: 'USD' })
 const authorizationForm = ref({ cardID: '', amount: 1, currency: 'USD', merchantName: '', merchantMCC: '', merchantCountry: 'US' })
 
 const menuOptions = computed(() => {
@@ -83,15 +81,13 @@ const transactionColumns = [
   {
     title: '操作',
     key: 'actions',
-    render: (row: Transaction) => channel !== 'photonpay'
-      ? h(NSpace, { size: 4 }, {
-        default: () => [
-          h(NButton, { size: 'tiny', onClick: () => applyStep(row.id, 'clear') }, { default: () => '清算' }),
-          h(NButton, { size: 'tiny', onClick: () => applyStep(row.id, 'reverse') }, { default: () => '撤销' }),
-          h(NButton, { size: 'tiny', type: 'warning', onClick: () => applyStep(row.id, 'refund') }, { default: () => '退款' }),
-        ],
-      })
-      : null,
+    render: (row: Transaction) => h(NSpace, { size: 4 }, {
+      default: () => [
+        h(NButton, { size: 'tiny', onClick: () => applyStep(row.id, 'clear') }, { default: () => '清算' }),
+        h(NButton, { size: 'tiny', onClick: () => applyStep(row.id, 'reverse') }, { default: () => '撤销' }),
+        h(NButton, { size: 'tiny', type: 'warning', onClick: () => applyStep(row.id, 'refund') }, { default: () => '退款' }),
+      ],
+    }),
   },
 ]
 
@@ -130,17 +126,6 @@ async function createCardholder() {
     message.success('持卡人已创建')
   } catch (error) {
     message.error(error instanceof Error ? error.message : '创建持卡人失败')
-  }
-}
-
-async function createCard() {
-  try {
-    await api.createCard(cardForm.value.cardholderID, cardForm.value.currency)
-    cardModalVisible.value = false
-    await loadCards()
-    message.success('卡片已创建')
-  } catch (error) {
-    message.error(error instanceof Error ? error.message : '开卡失败')
   }
 }
 
@@ -193,9 +178,6 @@ onMounted(refresh)
 
           <section v-else-if="selectedPage === 'cards'">
             <n-card title="卡片" :bordered="false">
-              <template #header-extra>
-                <n-button type="primary" size="small" @click="cardModalVisible = true">开卡</n-button>
-              </template>
               <n-data-table :columns="cardColumns" :data="cards" :loading="loading" :bordered="false" />
             </n-card>
           </section>
@@ -243,19 +225,6 @@ onMounted(refresh)
         </n-form>
         <n-divider />
         <n-space justify="end"><n-button @click="cardholderModalVisible = false">取消</n-button><n-button type="primary" @click="createCardholder">创建</n-button></n-space>
-      </n-modal>
-
-      <n-modal v-model:show="cardModalVisible" preset="card" title="开卡" style="width: 480px">
-        <n-form label-placement="top">
-          <n-form-item label="持卡人" required>
-            <n-select v-model:value="cardForm.cardholderID" :options="cardholderOptions" filterable />
-          </n-form-item>
-          <n-form-item label="币种">
-            <n-select v-model:value="cardForm.currency" :options="[{ label: 'USD', value: 'USD' }, { label: 'GBP', value: 'GBP' }, { label: 'CNY', value: 'CNY' }]" />
-          </n-form-item>
-        </n-form>
-        <n-divider />
-        <n-space justify="end"><n-button @click="cardModalVisible = false">取消</n-button><n-button type="primary" @click="createCard">开卡</n-button></n-space>
       </n-modal>
   </n-config-provider>
 </template>

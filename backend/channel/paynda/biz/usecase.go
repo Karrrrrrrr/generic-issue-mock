@@ -62,6 +62,7 @@ type PayndaAccountRepository interface {
 
 type PayndaCardTransactionRepository interface {
 	Create(context.Context, *model.CardTransaction) error
+	Save(context.Context, *model.CardTransaction) error
 	ExistByID(context.Context, model.ID) (bool, error)
 	ExistByRequestID(context.Context, string) (bool, error)
 	FindByID(context.Context, model.ID) (*model.CardTransaction, error)
@@ -800,7 +801,19 @@ func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCar
 		if len(products) == 0 {
 			return ErrResourceNotFound
 		}
-		product, err := u.cardProductRepository.FindByIDForUpdate(txCtx, products[0].ID)
+
+		var defaultProduct *model.CardProduct
+		for _, item := range products {
+			if item.IsDefault {
+				defaultProduct = item
+				break
+			}
+		}
+		if defaultProduct == nil {
+			return ErrResourceNotFound
+		}
+
+		product, err := u.cardProductRepository.FindByIDForUpdate(txCtx, defaultProduct.ID)
 		if err != nil {
 			zap.S().Errorw("lock paynda UI card product", "error", err)
 			return ErrDatabaseOperation
@@ -814,16 +827,29 @@ func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCar
 			zap.S().Errorw("advance paynda UI card product sequence", "error", err)
 			return ErrDatabaseOperation
 		}
-		wallet := &model.Wallet{Amount: decimal.Zero, Type: enums.WalletType_Card, Currency: req.Currency}
+		wallet := &model.Wallet{
+			Amount:   decimal.Zero,
+			Type:     enums.WalletType_Card,
+			Currency: req.Currency,
+		}
 		if err := u.walletRepository.Create(txCtx, wallet); err != nil {
 			zap.S().Errorw("create paynda UI card wallet", "error", err)
 			return ErrDatabaseOperation
 		}
 		card = &model.Card{
-			Channel: enums.Channel_Paynda, CardProductID: product.ID, CardBin: product.Prefix, CardNumber: cardNumber,
-			Cvv: randomx.Digits(3), ExpireAt: time.Now().UTC().AddDate(2, 0, 0), Status: enums.CardStatus_Active,
-			WalletID: &wallet.ID, CardHolderID: req.CardHolderID, FormType: enums.CardFormType_Virtual,
-			CardCurrency: req.Currency, CardScheme: enums.CardScheme_MasterCard, CardType: enums.CardType_Single,
+			Channel:       enums.Channel_Paynda,
+			CardProductID: product.ID,
+			CardBin:       product.Prefix,
+			CardNumber:    cardNumber,
+			Cvv:           randomx.Digits(3),
+			ExpireAt:      time.Now().UTC().AddDate(2, 0, 0),
+			Status:        enums.CardStatus_Active,
+			WalletID:      &wallet.ID,
+			CardHolderID:  req.CardHolderID,
+			FormType:      enums.CardFormType_Virtual,
+			CardCurrency:  req.Currency,
+			CardScheme:    enums.CardScheme_MasterCard,
+			CardType:      enums.CardType_Single,
 		}
 		if err := u.cardRepository.Create(txCtx, card); err != nil {
 			zap.S().Errorw("create paynda UI card", "error", err)
@@ -892,7 +918,9 @@ func (u *PayndaUIUsecase) ListCardHolders(ctx context.Context, req *PayndaListRe
 }
 
 func (u *PayndaUIUsecase) ListTransactions(ctx context.Context, req *PayndaListRequest) ([]*model.CardTransaction, error) {
-	items, err := u.cardTransactionRepository.List(ctx, &PayndaListTransactionsRequest{PayndaListRequest: *req})
+	items, err := u.cardTransactionRepository.List(ctx, &PayndaListTransactionsRequest{
+		PayndaListRequest: *req,
+	})
 	if err != nil {
 		zap.S().Errorw("list paynda UI transactions", "error", err)
 		return nil, ErrDatabaseOperation
@@ -1017,11 +1045,73 @@ func (u *PayndaUIUsecase) ApplyTransactionStep(ctx context.Context, req *PayndaU
 		if !amount.IsPositive() || amount.GreaterThan(origin.TxAmount) {
 			return ErrInvalidOperation
 		}
-		status := enums.TransactionStatus_SUCCEED
-		if req.Type == enums.CardTransactionType_VOID {
-			status = enums.TransactionStatus_VOID
+		if origin.CardID == 0 {
+			return ErrInvalidOperation
 		}
-		next = &model.CardTransaction{Channel: enums.Channel_Paynda, OriginCardTransactionID: origin.ID, AuthorizationID: origin.AuthorizationID, CardID: origin.CardID, Status: status, Type: req.Type, Currency: origin.Currency, TxAmount: amount, TxCurrency: origin.TxCurrency, MerchantName: origin.MerchantName, MerchantCountry: origin.MerchantCountry, MerchantMCC: origin.MerchantMCC, AuthorizationCode: origin.AuthorizationCode, OccurredAt: time.Now().UTC()}
+
+		card, err := u.cardRepository.FindByID(txCtx, origin.CardID)
+		if err != nil {
+			zap.S().Errorw("find paynda UI transaction card", "error", err)
+			return ErrDatabaseOperation
+		}
+		if card.WalletID == nil {
+			return ErrResourceNotFound
+		}
+		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, *card.WalletID)
+		if err != nil {
+			zap.S().Errorw("lock paynda UI card wallet", "error", err)
+			return ErrDatabaseOperation
+		}
+
+		status := enums.TransactionStatus_SUCCEED
+		switch req.Type {
+		case enums.CardTransactionType_CLEAR:
+			if origin.Type != enums.CardTransactionType_AUTH || origin.Status != enums.TransactionStatus_AUTHORIZED || wallet.Amount.LessThan(amount) {
+				return ErrInvalidOperation
+			}
+			wallet.Amount = wallet.Amount.Sub(amount)
+			wallet.Out = wallet.Out.Add(amount)
+			origin.Status = enums.TransactionStatus_SUCCEED
+		case enums.CardTransactionType_VOID:
+			if origin.Type != enums.CardTransactionType_AUTH || origin.Status != enums.TransactionStatus_AUTHORIZED {
+				return ErrInvalidOperation
+			}
+			status = enums.TransactionStatus_VOID
+			origin.Status = enums.TransactionStatus_VOID
+		case enums.CardTransactionType_REFUND:
+			if origin.Type != enums.CardTransactionType_CLEAR || origin.Status != enums.TransactionStatus_SUCCEED {
+				return ErrInvalidOperation
+			}
+			wallet.Amount = wallet.Amount.Add(amount)
+			wallet.In = wallet.In.Add(amount)
+			origin.Status = enums.TransactionStatus_VOID
+		default:
+			return ErrInvalidOperation
+		}
+		if err := u.walletRepository.Save(txCtx, wallet); err != nil {
+			zap.S().Errorw("save paynda UI card wallet", "error", err)
+			return ErrDatabaseOperation
+		}
+		if err := u.cardTransactionRepository.Save(txCtx, origin); err != nil {
+			zap.S().Errorw("update paynda UI origin transaction", "error", err)
+			return ErrDatabaseOperation
+		}
+		next = &model.CardTransaction{
+			Channel:                 enums.Channel_Paynda,
+			OriginCardTransactionID: origin.ID,
+			AuthorizationID:         origin.AuthorizationID,
+			CardID:                  origin.CardID,
+			Status:                  status,
+			Type:                    req.Type,
+			Currency:                origin.Currency,
+			TxAmount:                amount,
+			TxCurrency:              origin.TxCurrency,
+			MerchantName:            origin.MerchantName,
+			MerchantCountry:         origin.MerchantCountry,
+			MerchantMCC:             origin.MerchantMCC,
+			AuthorizationCode:       origin.AuthorizationCode,
+			OccurredAt:              time.Now().UTC(),
+		}
 		if err := u.cardTransactionRepository.Create(txCtx, next); err != nil {
 			zap.S().Errorw("create paynda UI transaction step", "error", err)
 			return ErrDatabaseOperation

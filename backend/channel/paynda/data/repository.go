@@ -315,6 +315,10 @@ func (r *cardTransactionRepository) Create(ctx context.Context, item *model.Card
 	return r.repository.DB(ctx).CardTransaction.WithContext(ctx).Create(item)
 }
 
+func (r *cardTransactionRepository) Save(ctx context.Context, item *model.CardTransaction) error {
+	return r.repository.DB(ctx).CardTransaction.WithContext(ctx).Save(item)
+}
+
 func (r *cardTransactionRepository) ExistByID(ctx context.Context, id model.ID) (bool, error) {
 	db := r.repository.DB(ctx)
 	count, err := db.CardTransaction.WithContext(ctx).Where(
