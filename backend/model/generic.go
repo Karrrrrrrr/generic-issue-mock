@@ -19,6 +19,7 @@ type BaseModel struct {
 
 type Card struct {
 	BaseModel
+	Channel                enums.Channel
 	CardBin                string
 	CardNumber             string `gorm:"uniqueIndex"`
 	Cvv                    string
@@ -83,6 +84,7 @@ type Account struct {
 
 type CardTransaction struct {
 	BaseModel
+	Channel                 enums.Channel
 	OriginCardTransactionID ID
 	AuthorizationID         ID
 	CardID                  ID
@@ -107,6 +109,7 @@ type CardTransaction struct {
 
 type Authorization struct {
 	BaseModel
+	Channel enums.Channel
 
 	CardID                ID
 	OriginAuthorizationID ID
@@ -125,6 +128,7 @@ type Authorization struct {
 
 type CardHolder struct {
 	BaseModel
+	Channel                enums.Channel
 	FirstName              string
 	LastName               string
 	Email                  string

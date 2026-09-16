@@ -1,0 +1,35 @@
+:root {
+  color: #18212f;
+  background: #eef2f7;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; }
+
+.app-shell { min-height: 100vh; }
+
+.app-header {
+  height: 56px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border-bottom: 1px solid #dfe5ec;
+}
+
+.app-header div { display: flex; align-items: baseline; gap: 10px; }
+.app-header strong { color: #114b72; font-size: 17px; }
+.app-header span { color: #627084; font-size: 13px; }
+
+.sidebar {
+  width: 188px;
+  padding: 16px 8px;
+  background: #ffffff;
+  border-right: 1px solid #dfe5ec;
+}
+
+.content { padding: 24px; }
+.simulation-card { max-width: 680px; }

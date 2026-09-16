@@ -77,6 +77,7 @@ type CreateCardHolderRequest struct {
 
 func (u *Usecase) CreateCardHolder(ctx context.Context, req *CreateCardHolderRequest) (*model.CardHolder, error) {
 	holder := &model.CardHolder{
+		Channel:                common.Channel_PhotonPay,
 		FirstName:              req.FirstName,
 		LastName:               req.LastName,
 		Email:                  req.Email,
@@ -191,6 +192,7 @@ func (u *Usecase) OpenCard(ctx context.Context, req *OpenCardRequest) (*model.Ca
 			months = 24
 		}
 		card = &model.Card{
+			Channel:                common.Channel_PhotonPay,
 			CardBin:                req.CardBin,
 			CardNumber:             req.CardBin + randomDigits(10),
 			Cvv:                    randomDigits(3),

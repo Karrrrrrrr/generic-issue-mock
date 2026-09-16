@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"generic-mock/channel/photonpay/biz"
+	"generic-mock/enums"
 	"generic-mock/model"
 
 	"github.com/samber/do"
@@ -23,6 +24,7 @@ func (r *cardTransactionRepository) ListTransactions(ctx context.Context, req *b
 	db := r.repository.DB(ctx)
 
 	return db.CardTransaction.WithContext(ctx).
+		Where(db.CardTransaction.Channel.Eq(string(enums.Channel_PhotonPay))).
 		Order(db.CardTransaction.ID.Desc()).
 		Offset(req.Offset).
 		Limit(req.Limit).

@@ -94,3 +94,5 @@ skills-lock.json
 
 *.gen.go
 gen.go
+node_modules
+dist

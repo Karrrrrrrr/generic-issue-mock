@@ -45,6 +45,7 @@ type CardTransactionType string
 
 const (
 	CardTransactionType_AUTH         CardTransactionType = "auth"         // 消费
+	CardTransactionType_CLEAR        CardTransactionType = "clear"        // 清算
 	CardTransactionType_VERIFICATION CardTransactionType = "verification" // 验证
 	CardTransactionType_VOID         CardTransactionType = "void"         // 撤销
 	CardTransactionType_REFUND       CardTransactionType = "refund"       // 退款
@@ -78,6 +79,7 @@ type Channel string
 
 const (
 	Channel_PhotonPay Channel = "photonpay"
+	Channel_Slash     Channel = "slash"
 )
 
 type OperationType string

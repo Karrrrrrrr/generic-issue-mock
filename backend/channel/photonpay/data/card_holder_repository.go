@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"generic-mock/channel/photonpay/biz"
+	"generic-mock/enums"
 	"generic-mock/model"
 
 	"github.com/samber/do"
@@ -26,7 +27,10 @@ func (r *cardHolderRepository) Create(ctx context.Context, holder *model.CardHol
 func (r *cardHolderRepository) ExistCardHolderByID(ctx context.Context, id model.ID) (bool, error) {
 	db := r.repository.DB(ctx)
 	count, err := db.CardHolder.WithContext(ctx).
-		Where(db.CardHolder.ID.Eq(id)).
+		Where(
+			db.CardHolder.ID.Eq(id),
+			db.CardHolder.Channel.Eq(string(enums.Channel_PhotonPay)),
+		).
 		Count()
 
 	return count > 0, err
@@ -36,7 +40,10 @@ func (r *cardHolderRepository) FindCardHolderByID(ctx context.Context, id model.
 	db := r.repository.DB(ctx)
 
 	return db.CardHolder.WithContext(ctx).
-		Where(db.CardHolder.ID.Eq(id)).
+		Where(
+			db.CardHolder.ID.Eq(id),
+			db.CardHolder.Channel.Eq(string(enums.Channel_PhotonPay)),
+		).
 		First()
 }
 
@@ -48,6 +55,7 @@ func (r *cardHolderRepository) List(ctx context.Context, req *biz.ListRequest) (
 	db := r.repository.DB(ctx)
 
 	return db.CardHolder.WithContext(ctx).
+		Where(db.CardHolder.Channel.Eq(string(enums.Channel_PhotonPay))).
 		Order(db.CardHolder.ID.Desc()).
 		Offset(req.Offset).
 		Limit(req.Limit).
