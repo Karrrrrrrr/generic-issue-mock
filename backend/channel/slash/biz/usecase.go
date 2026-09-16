@@ -90,6 +90,7 @@ type SlashUIUsecase struct {
 	authorizationRepository   SlashAuthorizationRepository
 	cardTransactionRepository SlashCardTransactionRepository
 	webhookConfigRepository   SlashWebhookConfigRepository
+	virtualAccountRepository  SlashVirtualAccountRepository
 }
 
 func NewSlashUIUsecase(injector *do.Injector) (*SlashUIUsecase, error) {
@@ -101,6 +102,7 @@ func NewSlashUIUsecase(injector *do.Injector) (*SlashUIUsecase, error) {
 		authorizationRepository:   do.MustInvoke[SlashAuthorizationRepository](injector),
 		cardTransactionRepository: do.MustInvoke[SlashCardTransactionRepository](injector),
 		webhookConfigRepository:   do.MustInvoke[SlashWebhookConfigRepository](injector),
+		virtualAccountRepository:  do.MustInvoke[SlashVirtualAccountRepository](injector),
 	}, nil
 }
 
@@ -335,6 +337,15 @@ func (u *SlashUIUsecase) ListCardProducts(ctx context.Context) ([]*CardProductIn
 		})
 	}
 
+	return items, nil
+}
+
+func (u *SlashUIUsecase) ListVirtualAccounts(ctx context.Context) ([]*model.VirtualAccount, error) {
+	items, err := u.virtualAccountRepository.List(ctx)
+	if err != nil {
+		zap.S().Errorw("list slash virtual accounts", "error", err)
+		return nil, ErrDatabaseOperation
+	}
 	return items, nil
 }
 

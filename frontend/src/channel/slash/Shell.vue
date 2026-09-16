@@ -7,10 +7,13 @@ import {
   NMenu,
 } from "naive-ui";
 import { useRoute, useRouter } from "vue-router";
+import ChannelSwitcher from "@/channel/ChannelSwitcher.vue";
 
 const route = useRoute();
 const router = useRouter();
 const items = [
+  { label: "卡产品", key: "/slash/card-products" },
+  { label: "虚拟账户", key: "/slash/virtual-accounts" },
   { label: "持卡人", key: "/slash/cardholders" },
   { label: "卡片", key: "/slash/cards" },
   { label: "交易处理", key: "/slash/transactions" },
@@ -32,7 +35,7 @@ const items = [
     <n-layout>
       <n-layout-header class="app-header">
         <span>Generic Mock</span>
-        <span>Slash</span>
+        <ChannelSwitcher current="slash" />
       </n-layout-header>
       <n-layout-content class="content">
         <router-view />

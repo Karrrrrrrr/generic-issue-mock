@@ -1,17 +1,24 @@
 <script setup lang="ts">
-import { h, onMounted, ref } from "vue";
+import { computed, h, onMounted, ref } from "vue";
 import {
   NButton,
   NCard,
   NDataTable,
+  NForm,
+  NFormItem,
+  NInputNumber,
+  NModal,
   NSpace,
   NTag,
   createDiscreteApi,
 } from "naive-ui";
-import { api } from "./api";
+import { api, applyTransactionAmount } from "./api";
 import type { Transaction } from "@/channel/types";
 const { message } = createDiscreteApi(["message"]);
 const rows = ref<Transaction[]>([]);
+const refunding = ref<Transaction | null>(null);
+const refundAmount = ref<number | null>(null);
+const refundVisible = computed({ get: () => refunding.value !== null, set: (value) => { if (!value) refunding.value = null; } });
 async function load() {
   rows.value = (await api.listTransactions()).data;
 }
@@ -21,6 +28,20 @@ async function apply(id: string, action: "clear" | "reverse" | "refund") {
     await load();
   } catch (e) {
     message.error(e instanceof Error ? e.message : "操作失败");
+  }
+}
+function openRefund(row: Transaction) {
+  refunding.value = row;
+  refundAmount.value = Number(row.amount);
+}
+async function submitRefund() {
+  if (!refunding.value || !refundAmount.value || refundAmount.value <= 0) return;
+  try {
+    await applyTransactionAmount(refunding.value.id, "refund", refundAmount.value);
+    refunding.value = null;
+    await load();
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : "退款失败");
   }
 }
 function actions(row: Transaction) {
@@ -48,7 +69,7 @@ function actions(row: Transaction) {
         {
           size: "small",
           type: "warning",
-          onClick: () => apply(row.id, "refund"),
+          onClick: () => openRefund(row),
         },
         { default: () => "退款" },
       ),
@@ -83,4 +104,11 @@ onMounted(() => void load());
   <n-card :bordered="false">
     <n-data-table :columns="columns" :data="rows" />
   </n-card>
+  <n-modal v-model:show="refundVisible" preset="card" title="创建退款" style="width: min(440px, calc(100vw - 32px))">
+    <n-form label-placement="top">
+      <n-form-item label="原交易"><span>{{ refunding?.merchant_name }} · {{ refunding?.currency }} {{ refunding?.amount }}</span></n-form-item>
+      <n-form-item label="退款金额"><n-input-number v-model:value="refundAmount" :min="0.01" :max="Number(refunding?.amount || 0)" :precision="2" style="width: 100%" /></n-form-item>
+    </n-form>
+    <template #action><n-space justify="end"><n-button @click="refunding = null">取消</n-button><n-button type="warning" @click="submitRefund">创建退款</n-button></n-space></template>
+  </n-modal>
 </template>

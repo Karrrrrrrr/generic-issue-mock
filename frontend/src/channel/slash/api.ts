@@ -33,6 +33,18 @@ export const webhookApi = {
   },
 };
 
+export interface CardProduct { id: string; prefix: string; is_default: boolean; }
+export interface VirtualAccount { id: string; name: string; currency: string; balance: string; spend: string; created_at: string; }
+
+export const managementApi = {
+  async cardProducts() { return (await request.get<{ items: CardProduct[] }>(`${baseURL}/card-products`)).data.items; },
+  async virtualAccounts() { return (await request.get<VirtualAccount[]>(`${baseURL}/virtual-accounts`)).data; },
+};
+
+export async function applyTransactionAmount(id: string, action: "clear" | "reverse" | "refund", amount: number) {
+  return (await request.post<Transaction>(`${baseURL}/transactions/${id}/${action}`, { amount })).data;
+}
+
 export const api: ChannelAPI = {
   async listCardholders() {
     return (

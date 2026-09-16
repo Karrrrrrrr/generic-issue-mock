@@ -127,6 +127,30 @@ func (s *SlashUIService) ListCardProducts(ctx context.Context, _ *ListCardProduc
 	}, nil
 }
 
+type VirtualAccountData struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Currency  string    `json:"currency"`
+	Balance   string    `json:"balance"`
+	Spend     string    `json:"spend"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (s *SlashUIService) ListVirtualAccounts(ctx context.Context, _ *struct{}) (*[]VirtualAccountData, error) {
+	items, err := s.usecase.ListVirtualAccounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]VirtualAccountData, 0, len(items))
+	for _, item := range items {
+		result = append(result, VirtualAccountData{
+			ID: slashIDString(item.ID), Name: item.Name, Currency: string(item.Wallet.Currency),
+			Balance: item.Wallet.Amount.String(), Spend: item.Wallet.Out.String(), CreatedAt: item.CreatedAt,
+		})
+	}
+	return &result, nil
+}
+
 type CardHolderRequest struct {
 	FirstName string `json:"first_name" binding:"required"`
 	LastName  string `json:"last_name" binding:"required"`

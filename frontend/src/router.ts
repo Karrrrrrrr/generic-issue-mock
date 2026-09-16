@@ -9,6 +9,14 @@ export const router = createRouter({
       children: [
         { path: "", redirect: "/slash/cardholders" },
         {
+          path: "card-products",
+          component: () => import("@/channel/slash/CardProductsView.vue"),
+        },
+        {
+          path: "virtual-accounts",
+          component: () => import("@/channel/slash/VirtualAccountsView.vue"),
+        },
+        {
           path: "cardholders",
           component: () => import("@/channel/slash/CardholdersView.vue"),
         },

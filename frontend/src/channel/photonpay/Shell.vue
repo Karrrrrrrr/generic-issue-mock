@@ -7,6 +7,7 @@ import {
   NMenu,
 } from "naive-ui";
 import { useRoute, useRouter } from "vue-router";
+import ChannelSwitcher from "@/channel/ChannelSwitcher.vue";
 const route = useRoute();
 const router = useRouter();
 const items = [
@@ -29,7 +30,7 @@ const items = [
     <n-layout>
       <n-layout-header class="app-header">
         <span>Generic Mock</span>
-        <span>PhotonPay</span>
+        <ChannelSwitcher current="photonpay" />
       </n-layout-header>
       <n-layout-content class="content">
         <router-view />
