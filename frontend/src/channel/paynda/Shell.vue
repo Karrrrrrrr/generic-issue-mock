@@ -17,14 +17,15 @@ const items = [
     { label: "卡片管理", key: "/paynda/cards" },
   ] },
   { type: "group", label: "交易", key: "transactions", children: [
+    { label: "授权管理", key: "/paynda/authorizations" },
     { label: "卡交易", key: "/paynda/transactions" },
     { label: "模拟交易", key: "/paynda/authorization" },
   ] },
 ];
 </script>
 <template>
-  <n-layout class="app-shell" has-sider>
-    <n-layout-sider class="sidebar" :width="208" bordered>
+  <n-layout class="app-shell" has-sider native-scrollbar>
+    <n-layout-sider class="sidebar" :width="208" bordered native-scrollbar>
       <div class="channel-logo">Paynda Mock</div>
       <n-menu
         :value="route.path"
@@ -32,13 +33,17 @@ const items = [
         @update:value="(path) => router.push(String(path))"
       />
     </n-layout-sider>
-    <n-layout>
+    <n-layout class="main-layout" native-scrollbar>
       <n-layout-header class="app-header">
         <span></span>
         <div class="header-actions"><ThemeToggle /><ChannelSwitcher current="paynda" /></div>
       </n-layout-header>
-      <n-layout-content class="content">
-        <router-view />
+      <n-layout-content class="content" native-scrollbar>
+        <router-view v-slot="{ Component, route: currentRoute }">
+          <transition name="slide" mode="out-in">
+            <div :key="currentRoute.path" class="route-page"><component :is="Component" /></div>
+          </transition>
+        </router-view>
       </n-layout-content>
     </n-layout>
   </n-layout>

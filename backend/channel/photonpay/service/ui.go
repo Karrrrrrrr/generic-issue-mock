@@ -124,6 +124,14 @@ func (s *PhotonPayUIService) ListCards(ctx context.Context, req *UIListRequest) 
 	}, nil
 }
 
+func (s *PhotonPayUIService) ListAuthorizations(ctx context.Context, req *UIListRequest) (*UIListResponse[*UIAuthorizationData], error) {
+	items, err := s.usecase.ListAuthorizations(ctx, photonPayUIListRequest(req))
+	if err != nil {
+		return nil, err
+	}
+	return &UIListResponse[*UIAuthorizationData]{TotalItems: len(items), Data: types.BulkConvertSlice(items, photonPayUIAuthorizationData)}, nil
+}
+
 type UIUpdateCardStatusRequest struct {
 	ID         string            `uri:"id" binding:"required"`
 	CardStatus photon.CardStatus `json:"card_status" binding:"required"`

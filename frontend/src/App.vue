@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { darkTheme, NConfigProvider, NDialogProvider, NMessageProvider } from "naive-ui";
 
 const isDark = ref(false);
@@ -16,7 +16,7 @@ onMounted(() => {
 });
 onUnmounted(() => window.removeEventListener("generic-mock-theme-change", syncTheme));
 
-const themeOverrides = {
+const themeOverrides = computed(() => ({
   common: {
     primaryColor: "#12B89A",
     primaryColorHover: "#0FA385",
@@ -31,12 +31,20 @@ const themeOverrides = {
   Input: { borderRadius: "10px", heightMedium: "38px" },
   Select: { borderRadius: "10px", heightMedium: "38px" },
   Menu: {
+    color: isDark.value ? "#242428" : "#ffffff",
+    groupTextColor: isDark.value ? "#a6adbb" : "#8a94a6",
     itemHeightMedium: "44px",
-    itemTextColor: "#666980",
+    itemTextColor: isDark.value ? "#e0e0e0" : "#666980",
     itemTextColorHover: "#12B89A",
     itemTextColorActive: "#12B89A",
+    itemColorHover: isDark.value ? "#2c3334" : "#edf8f6",
+    itemColorActive: isDark.value ? "#203c37" : "#e3f6f3",
+    itemColorActiveHover: isDark.value ? "#203c37" : "#e3f6f3",
+    itemIconColor: isDark.value ? "#e0e0e0" : "#666980",
+    itemIconColorHover: "#12B89A",
+    itemIconColorActive: "#12B89A",
   },
-};
+}));
 </script>
 
 <template>

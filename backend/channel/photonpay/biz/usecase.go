@@ -55,6 +55,7 @@ type CardTransactionRepository interface {
 
 type AuthorizationRepository interface {
 	Create(context.Context, *model.Authorization) error
+	List(context.Context, *ListRequest) ([]*model.Authorization, error)
 }
 
 type PhotonPayOpenAPIUsecase struct {

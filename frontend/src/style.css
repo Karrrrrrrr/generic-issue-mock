@@ -32,20 +32,20 @@ html[data-theme="dark"] {
 html[data-theme="dark"] body,
 html[data-theme="dark"] .app-shell,
 html[data-theme="dark"] .content {
-  background: #0f0f0f;
+  background: #18181c;
   color: #e0e0e0;
 }
 
 html[data-theme="dark"] .sidebar,
 html[data-theme="dark"] .app-header {
-  background: #1a1a1a;
-  border-color: #333333;
+  background: #242428;
+  border-color: #3a3a40;
 }
 
 html[data-theme="dark"] .channel-logo {
   color: #12b89a;
-  background: #1a1a1a;
-  border-color: #333333;
+  background: #202024;
+  border-color: #3a3a40;
 }
 
 html[data-theme="dark"] .simulation-heading p,
@@ -56,10 +56,24 @@ html[data-theme="dark"] .page-heading p {
 .app-shell {
   height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
 }
-.app-shell > .n-layout-sider,
-.app-shell > .n-layout {
+.app-shell > .n-layout-scroll-container {
+  display: flex;
   height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+.main-layout {
+  height: 100%;
+  min-width: 0;
+}
+.main-layout > .n-layout-scroll-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .app-header {
@@ -89,8 +103,20 @@ html[data-theme="dark"] .page-heading p {
 .sidebar {
   width: 208px;
   padding: 0 10px 18px;
+  overflow: hidden;
   background: #ffffff;
   border-right: 1px solid #e5e7eb;
+}
+.sidebar .n-layout-sider-scroll-container {
+  height: 100%;
+  overflow-x: hidden !important;
+  overflow-y: auto;
+}
+.sidebar .n-menu,
+.sidebar .n-menu-item,
+.sidebar .n-menu-item-content {
+  max-width: 100%;
+  min-width: 0;
 }
 .channel-logo {
   height: 60px;
@@ -105,17 +131,24 @@ html[data-theme="dark"] .page-heading p {
 }
 
 .content {
-  padding: 16px 40px;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
   min-width: 0;
   background: #f5f5f5;
+}
+.content > .n-layout-scroll-container {
+  height: 100%;
+  padding: 16px 40px;
+  overflow-y: auto;
+}
+.route-page {
+  min-width: 0;
 }
 .simulation-card {
   max-width: 760px;
 }
 .simulation-page {
-  padding: 24px;
-}
-.content:has(.simulation-page) {
   padding: 0;
 }
 .simulation-heading h2 {
@@ -158,6 +191,19 @@ html[data-theme="dark"] .page-heading p {
   grid-column: 1 / -1;
 }
 
+.slide-enter-active,
+.slide-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.slide-enter-from {
+  opacity: 0;
+  transform: translateX(30px);
+}
+.slide-leave-to {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
 @media (max-width: 720px) {
   .app-header {
     padding: 0 16px;
@@ -166,10 +212,10 @@ html[data-theme="dark"] .page-heading p {
     width: 168px;
   }
   .content {
-    padding: 16px;
-  }
-  .content:has(.simulation-page) {
     padding: 0;
+  }
+  .content > .n-layout-scroll-container {
+    padding: 16px;
   }
   .simulation-page {
     padding: 0;

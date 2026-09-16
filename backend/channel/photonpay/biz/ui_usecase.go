@@ -219,6 +219,15 @@ func (u *PhotonPayUIUsecase) ListTransactions(ctx context.Context, req *ListRequ
 	return transactions, nil
 }
 
+func (u *PhotonPayUIUsecase) ListAuthorizations(ctx context.Context, req *ListRequest) ([]*model.Authorization, error) {
+	items, err := u.authorizationRepo.List(ctx, req)
+	if err != nil {
+		zap.S().Errorw("list photonpay UI authorizations", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return items, nil
+}
+
 type UISimulateAuthorizationRequest struct {
 	CardID          model.ID
 	Amount          decimal.Decimal

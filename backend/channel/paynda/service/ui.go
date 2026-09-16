@@ -91,6 +91,14 @@ func (s *PayndaUIService) ListCards(ctx context.Context, req *PayndaUIListReques
 	return &PayndaUIListResponse[*PayndaUICardData]{TotalItems: len(items), Data: types.BulkConvertSlice(items, payndaUICardData)}, nil
 }
 
+func (s *PayndaUIService) ListAuthorizations(ctx context.Context, req *PayndaUIListRequest) (*PayndaUIListResponse[*PayndaUIAuthorizationData], error) {
+	items, err := s.usecase.ListAuthorizations(ctx, payndaUIListRequest(req))
+	if err != nil {
+		return nil, err
+	}
+	return &PayndaUIListResponse[*PayndaUIAuthorizationData]{TotalItems: len(items), Data: types.BulkConvertSlice(items, payndaUIAuthorizationData)}, nil
+}
+
 func (s *PayndaUIService) ListCardHolders(ctx context.Context, req *PayndaUIListRequest) (*PayndaUIListResponse[*PayndaUICardHolderData], error) {
 	items, err := s.usecase.ListCardHolders(ctx, payndaUIListRequest(req))
 	if err != nil {

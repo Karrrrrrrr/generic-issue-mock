@@ -72,6 +72,7 @@ type PayndaCardTransactionRepository interface {
 
 type PayndaAuthorizationRepository interface {
 	Create(context.Context, *model.Authorization) error
+	List(context.Context, *PayndaListRequest) ([]*model.Authorization, error)
 }
 
 type PayndaListRequest struct {
@@ -738,6 +739,15 @@ type PayndaUIUsecase struct {
 	walletRepository          PayndaWalletRepository
 	cardTransactionRepository PayndaCardTransactionRepository
 	authorizationRepository   PayndaAuthorizationRepository
+}
+
+func (u *PayndaUIUsecase) ListAuthorizations(ctx context.Context, req *PayndaListRequest) ([]*model.Authorization, error) {
+	items, err := u.authorizationRepository.List(ctx, req)
+	if err != nil {
+		zap.S().Errorw("list paynda UI authorizations", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return items, nil
 }
 
 func NewPayndaUIUsecase(injector *do.Injector) (*PayndaUIUsecase, error) {

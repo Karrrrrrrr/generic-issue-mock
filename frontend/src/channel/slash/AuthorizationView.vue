@@ -120,7 +120,7 @@ onMounted(() => {
         <h2>模拟交易</h2>
         <p>用于模拟授权和独立退款交易。</p>
       </div>
-      <n-tabs v-model:value="activeTab" type="line">
+      <n-tabs v-model:value="activeTab" type="line" animated>
     <n-tab-pane name="authorization" tab="模拟授权">
       <n-card title="授权配置" hover style="max-width: 720px">
         <n-form label-placement="top">

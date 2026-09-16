@@ -29,6 +29,10 @@ export const router = createRouter({
           component: () => import("@/channel/slash/TransactionsView.vue"),
         },
         {
+          path: "authorizations",
+          component: () => import("@/channel/slash/AuthorizationsView.vue"),
+        },
+        {
           path: "authorization",
           component: () => import("@/channel/slash/AuthorizationView.vue"),
         },
@@ -56,6 +60,10 @@ export const router = createRouter({
           component: () => import("@/channel/photonpay/TransactionsView.vue"),
         },
         {
+          path: "authorizations",
+          component: () => import("@/channel/photonpay/AuthorizationsView.vue"),
+        },
+        {
           path: "authorization",
           component: () => import("@/channel/photonpay/AuthorizationView.vue"),
         },
@@ -77,6 +85,10 @@ export const router = createRouter({
         {
           path: "transactions",
           component: () => import("@/channel/paynda/TransactionsView.vue"),
+        },
+        {
+          path: "authorizations",
+          component: () => import("@/channel/paynda/AuthorizationsView.vue"),
         },
         {
           path: "authorization",
