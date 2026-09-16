@@ -45,6 +45,20 @@ export async function applyTransactionAmount(id: string, action: "clear" | "reve
   return (await request.post<Transaction>(`${baseURL}/transactions/${id}/${action}`, { amount })).data;
 }
 
+export const refundApi = {
+  async simulate(payload: {
+    card_id: string;
+    amount: number;
+    currency: string;
+    merchant_name: string;
+    merchant_category_code: string;
+    merchant_country: string;
+    merchant_city: string;
+  }) {
+    return (await request.post<Transaction>(`${baseURL}/simulate/refunds`, payload)).data;
+  },
+};
+
 export const api: ChannelAPI = {
   async listCardholders() {
     return (
@@ -90,7 +104,7 @@ export const api: ChannelAPI = {
       authorizationPayload(payload),
     );
   },
-  async applyTransactionStep(id, action) {
-    await request.post(`${baseURL}/transactions/${id}/${action}`, {});
+  async applyTransactionStep(id, action, amount) {
+    await request.post(`${baseURL}/transactions/${id}/${action}`, { amount });
   },
 };

@@ -17,6 +17,7 @@ func Register(
 	router.POST("/ui/cards", bindUI(uiService.CreateCard))
 	router.PUT("/ui/cards/:id/status", bindUI(uiService.UpdateCardStatus))
 	router.POST("/ui/simulate/authorizations", bindUI(uiService.SimulateAuthorization))
+	router.POST("/ui/simulate/refunds", bindUI(uiService.SimulateRefund))
 	router.GET("/ui/transactions", bindUI(uiService.ListTransactions))
 	router.POST("/ui/transactions/:id/clear", bindUI(uiService.ClearTransaction))
 	router.POST("/ui/transactions/:id/reverse", bindUI(uiService.ReverseTransaction))

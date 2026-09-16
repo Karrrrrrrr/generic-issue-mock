@@ -61,5 +61,6 @@ export interface ChannelAPI {
   applyTransactionStep(
     id: string,
     action: "clear" | "reverse" | "refund",
+    amount?: number,
   ): Promise<void>;
 }

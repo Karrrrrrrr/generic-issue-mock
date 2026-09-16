@@ -186,6 +186,35 @@ type UISimulateAuthorizationData struct {
 	Transaction   *UITransactionData       `json:"transaction"`
 }
 
+type UISimulateRefundRequest struct {
+	CardID               string  `json:"card_id" binding:"required"`
+	Amount               float64 `json:"amount" binding:"required,gt=0"`
+	Currency             string  `json:"currency" binding:"required"`
+	MerchantName         string  `json:"merchant_name" binding:"required"`
+	MerchantCategoryCode string  `json:"merchant_category_code" binding:"required"`
+	MerchantCountry      string  `json:"merchant_country" binding:"required"`
+	MerchantCity         string  `json:"merchant_city"` // Invalid: generic model has no merchant city field.
+}
+
+func (s *PhotonPayUIService) SimulateRefund(ctx context.Context, req *UISimulateRefundRequest) (*UITransactionData, error) {
+	cardID, err := photonPayID(req.CardID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.SimulateRefund(ctx, &biz.UISimulateRefundRequest{
+		CardID:          cardID,
+		Amount:          decimal.NewFromFloat(req.Amount),
+		Currency:        common.Currency(req.Currency),
+		MerchantName:    req.MerchantName,
+		MerchantCountry: req.MerchantCountry,
+		MerchantMCC:     req.MerchantCategoryCode,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return photonPayUITransactionData(item), nil
+}
+
 func (s *PhotonPayUIService) SimulateAuthorization(ctx context.Context, req *UISimulateAuthorizationRequest) (*UISimulateAuthorizationData, error) {
 	cardID, err := photonPayID(req.CardID)
 	if err != nil {

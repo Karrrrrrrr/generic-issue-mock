@@ -30,6 +30,7 @@ func Register(router *gin.RouterGroup, service *service.SlashUIService, openAPIS
 	router.POST("/ui/cards", bind(service.CreateCard))
 	router.PUT("/ui/cards/:id/status", bind(service.UpdateCardStatus))
 	router.POST("/ui/simulate/authorizations", bind(service.SimulateAuthorization))
+	router.POST("/ui/simulate/refunds", bind(service.SimulateRefund))
 	router.GET("/ui/authorizations", bind(service.ListAuthorizations))
 	router.GET("/ui/authorizations/:id", bind(service.GetAuthorization))
 	router.GET("/ui/transactions", bind(service.ListTransactions))

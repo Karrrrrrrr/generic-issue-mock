@@ -322,6 +322,35 @@ type SimulateAuthorizationData struct {
 	Transaction   TransactionData         `json:"transaction"`
 }
 
+type SimulateRefundRequest struct {
+	CardID               string  `json:"card_id" binding:"required"`
+	Amount               float64 `json:"amount" binding:"required,gt=0"`
+	Currency             string  `json:"currency" binding:"required"`
+	MerchantName         string  `json:"merchant_name" binding:"required"`
+	MerchantCategoryCode string  `json:"merchant_category_code" binding:"required"`
+	MerchantCountry      string  `json:"merchant_country" binding:"required"`
+	MerchantCity         string  `json:"merchant_city"` // Invalid: generic model has no merchant city field.
+}
+
+func (s *SlashUIService) SimulateRefund(ctx context.Context, req *SimulateRefundRequest) (*TransactionData, error) {
+	cardID, err := slashID(req.CardID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.SimulateRefund(ctx, &biz.SimulateRefundRequest{
+		CardID:          cardID,
+		Amount:          decimal.NewFromFloat(req.Amount),
+		Currency:        common.Currency(req.Currency),
+		MerchantName:    req.MerchantName,
+		MerchantCountry: req.MerchantCountry,
+		MerchantMCC:     req.MerchantCategoryCode,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return transactionData(item), nil
+}
+
 func (s *SlashUIService) SimulateAuthorization(ctx context.Context, req *SimulateAuthorizationRequest) (*SimulateAuthorizationData, error) {
 	cardID, err := slashID(req.CardID)
 	if err != nil {

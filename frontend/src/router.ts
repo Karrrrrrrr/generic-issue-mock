@@ -28,6 +28,7 @@ export const router = createRouter({
           path: "transactions",
           component: () => import("@/channel/slash/TransactionsView.vue"),
         },
+        { path: "refunds", component: () => import("@/channel/slash/RefundView.vue") },
         {
           path: "authorization",
           component: () => import("@/channel/slash/AuthorizationView.vue"),
@@ -55,6 +56,7 @@ export const router = createRouter({
           path: "transactions",
           component: () => import("@/channel/photonpay/TransactionsView.vue"),
         },
+        { path: "refunds", component: () => import("@/channel/photonpay/RefundView.vue") },
         {
           path: "authorization",
           component: () => import("@/channel/photonpay/AuthorizationView.vue"),
@@ -78,6 +80,7 @@ export const router = createRouter({
           path: "transactions",
           component: () => import("@/channel/paynda/TransactionsView.vue"),
         },
+        { path: "refunds", component: () => import("@/channel/paynda/RefundView.vue") },
         {
           path: "authorization",
           component: () => import("@/channel/paynda/AuthorizationView.vue"),

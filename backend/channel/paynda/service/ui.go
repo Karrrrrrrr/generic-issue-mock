@@ -136,6 +136,36 @@ type PayndaUISimulateAuthorizationData struct {
 	Authorization   *PayndaUIAuthorizationData `json:"authorization"`
 	CardTransaction *PayndaUITransactionData   `json:"transaction"`
 }
+
+type PayndaUISimulateRefundRequest struct {
+	CardID               string          `json:"card_id" binding:"required"`
+	Amount               decimal.Decimal `json:"amount" binding:"required"`
+	Currency             common.Currency `json:"currency" binding:"required"`
+	MerchantName         string          `json:"merchant_name" binding:"required"`
+	MerchantCategoryCode string          `json:"merchant_category_code" binding:"required"`
+	MerchantCountry      string          `json:"merchant_country" binding:"required"`
+	MerchantCity         string          `json:"merchant_city"` // Invalid: generic model has no merchant city field.
+}
+
+func (s *PayndaUIService) SimulateRefund(ctx context.Context, req *PayndaUISimulateRefundRequest) (*PayndaUITransactionData, error) {
+	cardID, err := payndaID(req.CardID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.SimulateRefund(ctx, &biz.PayndaSimulateRefundRequest{
+		CardID:          cardID,
+		Amount:          req.Amount,
+		Currency:        req.Currency,
+		MerchantName:    req.MerchantName,
+		MerchantCountry: req.MerchantCountry,
+		MerchantMCC:     req.MerchantCategoryCode,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return payndaUITransactionData(item), nil
+}
+
 type PayndaUIAuthorizationData struct {
 	ID                   string    `json:"id"`
 	CardID               string    `json:"card_id"`

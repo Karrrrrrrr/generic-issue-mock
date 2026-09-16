@@ -233,6 +233,15 @@ type UISimulateAuthorizationResult struct {
 	CardTransaction *model.CardTransaction
 }
 
+type UISimulateRefundRequest struct {
+	CardID          model.ID
+	Amount          decimal.Decimal
+	Currency        enums.Currency
+	MerchantName    string
+	MerchantCountry string
+	MerchantMCC     string
+}
+
 func (u *PhotonPayUIUsecase) SimulateAuthorization(ctx context.Context, req *UISimulateAuthorizationRequest) (*UISimulateAuthorizationResult, error) {
 	var result *UISimulateAuthorizationResult
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
@@ -296,6 +305,46 @@ func (u *PhotonPayUIUsecase) SimulateAuthorization(ctx context.Context, req *UIS
 	}
 
 	return result, nil
+}
+
+// SimulateRefund creates a posted refund directly for an active card.
+func (u *PhotonPayUIUsecase) SimulateRefund(ctx context.Context, req *UISimulateRefundRequest) (*model.CardTransaction, error) {
+	if !req.Amount.IsPositive() {
+		return nil, ErrInvalidOperation
+	}
+	var transaction *model.CardTransaction
+	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		card, err := u.getCard(txCtx, req.CardID)
+		if err != nil {
+			return err
+		}
+		if card.Status != enums.CardStatus_Active {
+			return ErrInvalidOperation
+		}
+		transaction = &model.CardTransaction{
+			Channel:           enums.Channel_PhotonPay,
+			CardID:            card.ID,
+			Status:            enums.TransactionStatus_SUCCEED,
+			Type:              enums.CardTransactionType_REFUND,
+			Currency:          req.Currency,
+			TxAmount:          req.Amount,
+			TxCurrency:        req.Currency,
+			MerchantName:      req.MerchantName,
+			MerchantCountry:   req.MerchantCountry,
+			MerchantMCC:       req.MerchantMCC,
+			AuthorizationCode: randomx.Digits(6),
+			OccurredAt:        time.Now().UTC(),
+		}
+		if err := u.cardTransactionRepo.Create(txCtx, transaction); err != nil {
+			zap.S().Errorw("create photonpay UI simulated refund", "error", err)
+			return ErrDatabaseOperation
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return transaction, nil
 }
 
 type UIApplyTransactionStepRequest struct {

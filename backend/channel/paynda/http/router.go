@@ -84,6 +84,7 @@ func Register(router *gin.RouterGroup, openapi *service.PayndaOpenAPIService, ui
 	router.POST("/ui/cards", bindUI(ui.CreateCard))
 	router.PUT("/ui/cards/:id/status", bindUI(ui.UpdateCardStatus))
 	router.POST("/ui/simulate/authorizations", bindUI(ui.SimulateAuthorization))
+	router.POST("/ui/simulate/refunds", bindUI(ui.SimulateRefund))
 	router.GET("/ui/transactions", bindUI(ui.ListTransactions))
 	router.POST("/ui/transactions/:id/clear", bindUI(ui.ClearTransaction))
 	router.POST("/ui/transactions/:id/reverse", bindUI(ui.ReverseTransaction))

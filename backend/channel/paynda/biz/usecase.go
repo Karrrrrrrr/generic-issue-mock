@@ -942,6 +942,15 @@ type PayndaSimulateAuthorizationResult struct {
 	CardTransaction *model.CardTransaction
 }
 
+type PayndaSimulateRefundRequest struct {
+	CardID          model.ID
+	Amount          decimal.Decimal
+	Currency        enums.Currency
+	MerchantName    string
+	MerchantCountry string
+	MerchantMCC     string
+}
+
 func (u *PayndaUIUsecase) SimulateAuthorization(
 	ctx context.Context,
 	req *PayndaSimulateAuthorizationRequest,
@@ -1014,6 +1023,55 @@ func (u *PayndaUIUsecase) SimulateAuthorization(
 	}
 
 	return result, nil
+}
+
+// SimulateRefund creates a posted refund directly for an active card.
+func (u *PayndaUIUsecase) SimulateRefund(ctx context.Context, req *PayndaSimulateRefundRequest) (*model.CardTransaction, error) {
+	if !req.Amount.IsPositive() {
+		return nil, ErrInvalidOperation
+	}
+	var transaction *model.CardTransaction
+	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		exists, err := u.cardRepository.ExistByID(txCtx, req.CardID)
+		if err != nil {
+			zap.S().Errorw("check paynda UI card for simulated refund", "error", err)
+			return ErrDatabaseOperation
+		}
+		if !exists {
+			return ErrResourceNotFound
+		}
+		card, err := u.cardRepository.FindByID(txCtx, req.CardID)
+		if err != nil {
+			zap.S().Errorw("find paynda UI card for simulated refund", "error", err)
+			return ErrDatabaseOperation
+		}
+		if card.Status != enums.CardStatus_Active {
+			return ErrInvalidOperation
+		}
+		transaction = &model.CardTransaction{
+			Channel:           enums.Channel_Paynda,
+			CardID:            card.ID,
+			Status:            enums.TransactionStatus_SUCCEED,
+			Type:              enums.CardTransactionType_REFUND,
+			Currency:          req.Currency,
+			TxAmount:          req.Amount,
+			TxCurrency:        req.Currency,
+			MerchantName:      req.MerchantName,
+			MerchantCountry:   req.MerchantCountry,
+			MerchantMCC:       req.MerchantMCC,
+			AuthorizationCode: randomx.Digits(6),
+			OccurredAt:        time.Now().UTC(),
+		}
+		if err := u.cardTransactionRepository.Create(txCtx, transaction); err != nil {
+			zap.S().Errorw("create paynda UI simulated refund", "error", err)
+			return ErrDatabaseOperation
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return transaction, nil
 }
 
 type PayndaUIApplyTransactionStepRequest struct {
