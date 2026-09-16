@@ -71,7 +71,12 @@ type PayndaUIUpdateCardStatusRequest struct {
 }
 
 func (s *PayndaUIService) CreateCardHolder(ctx context.Context, req *PayndaUICardHolderRequest) (*PayndaUICardHolderData, error) {
-	item, err := s.usecase.CreateCardHolder(ctx, &biz.PayndaUICreateCardHolderRequest{FirstName: req.FirstName, LastName: req.LastName, Email: req.Email, Mobile: req.Mobile})
+	item, err := s.usecase.CreateCardHolder(ctx, &biz.PayndaUICreateCardHolderRequest{
+		FirstName: req.FirstName,
+		LastName:  req.LastName,
+		Email:     req.Email,
+		Mobile:    req.Mobile,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +206,11 @@ func (s *PayndaUIService) ListTransactions(ctx context.Context, req *PayndaUILis
 	}
 	return &PayndaUIListResponse[*PayndaUITransactionData]{TotalItems: len(items), Data: types.BulkConvertSlice(items, payndaUITransactionData)}, nil
 }
-func (s *PayndaUIService) applyTransactionStep(ctx context.Context, req *PayndaUIApplyTransactionStepRequest, kind common.CardTransactionType) (*PayndaUITransactionData, error) {
+func (s *PayndaUIService) applyTransactionStep(
+	ctx context.Context,
+	req *PayndaUIApplyTransactionStepRequest,
+	kind common.CardTransactionType,
+) (*PayndaUITransactionData, error) {
 	id, err := payndaID(req.ID)
 	if err != nil {
 		return nil, err
@@ -217,14 +226,52 @@ func payndaUIListRequest(req *PayndaUIListRequest) *biz.PayndaListRequest {
 	return &biz.PayndaListRequest{Offset: (page - 1) * size, Limit: size}
 }
 func payndaUICardHolderData(item *model.CardHolder) *PayndaUICardHolderData {
-	return &PayndaUICardHolderData{ID: payndaIDString(item.ID), FirstName: item.FirstName, LastName: item.LastName, Email: item.Email, Mobile: item.Mobile, Status: string(item.Status), CreatedAt: item.CreatedAt}
+	return &PayndaUICardHolderData{
+		ID:        payndaIDString(item.ID),
+		FirstName: item.FirstName,
+		LastName:  item.LastName,
+		Email:     item.Email,
+		Mobile:    item.Mobile,
+		Status:    string(item.Status),
+		CreatedAt: item.CreatedAt,
+	}
 }
 func payndaUICardData(item *model.Card) *PayndaUICardData {
-	return &PayndaUICardData{ID: payndaIDString(item.ID), CardHolderID: payndaIDString(item.CardHolderID), CardNumber: item.CardNumber, CardBin: item.CardBin, CardCurrency: string(item.CardCurrency), CardStatus: string(paynda.CardStatusFromGeneric(item.Status)), Cvv: item.Cvv, ExpiresAt: item.ExpireAt, CreatedAt: item.CreatedAt}
+	return &PayndaUICardData{
+		ID:           payndaIDString(item.ID),
+		CardHolderID: payndaIDString(item.CardHolderID),
+		CardNumber:   item.CardNumber,
+		CardBin:      item.CardBin,
+		CardCurrency: string(item.CardCurrency),
+		CardStatus:   string(paynda.CardStatusFromGeneric(item.Status)),
+		Cvv:          item.Cvv,
+		ExpiresAt:    item.ExpireAt,
+		CreatedAt:    item.CreatedAt,
+	}
 }
 func payndaUIAuthorizationData(item *model.Authorization) *PayndaUIAuthorizationData {
-	return &PayndaUIAuthorizationData{ID: payndaIDString(item.ID), CardID: payndaIDString(item.CardID), Status: string(item.Status), AuthorizedAmount: item.Amount.String(), Currency: string(item.Currency), MerchantName: item.MerchantName, MerchantCategoryCode: item.MerchantMCC, AuthorizedAt: item.OccurredAt}
+	return &PayndaUIAuthorizationData{
+		ID:                   payndaIDString(item.ID),
+		CardID:               payndaIDString(item.CardID),
+		Status:               string(item.Status),
+		AuthorizedAmount:     item.Amount.String(),
+		Currency:             string(item.Currency),
+		MerchantName:         item.MerchantName,
+		MerchantCategoryCode: item.MerchantMCC,
+		AuthorizedAt:         item.OccurredAt,
+	}
 }
 func payndaUITransactionData(item *model.CardTransaction) *PayndaUITransactionData {
-	return &PayndaUITransactionData{ID: payndaIDString(item.ID), CardID: payndaIDString(item.CardID), AuthorizationID: payndaIDString(item.AuthorizationID), TransactionType: string(paynda.TransactionTypeFromGeneric(item.Type)), Status: string(item.Status), Amount: item.TxAmount.String(), Currency: string(item.TxCurrency), MerchantName: item.MerchantName, MerchantCategoryCode: item.MerchantMCC, TransactedAt: item.OccurredAt}
+	return &PayndaUITransactionData{
+		ID:                   payndaIDString(item.ID),
+		CardID:               payndaIDString(item.CardID),
+		AuthorizationID:      payndaIDString(item.AuthorizationID),
+		TransactionType:      string(paynda.TransactionTypeFromGeneric(item.Type)),
+		Status:               string(item.Status),
+		Amount:               item.TxAmount.String(),
+		Currency:             string(item.TxCurrency),
+		MerchantName:         item.MerchantName,
+		MerchantCategoryCode: item.MerchantMCC,
+		TransactedAt:         item.OccurredAt,
+	}
 }
