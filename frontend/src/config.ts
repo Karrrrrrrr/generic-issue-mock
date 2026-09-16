@@ -13,7 +13,7 @@ export const channelConfig = {
   },
   photonpay: {
     label: 'PhotonPay',
-    supportsAuthorizationSimulation: false,
+    supportsAuthorizationSimulation: true,
     supportsCardStatus: true,
     supportsCardholder: true,
   },

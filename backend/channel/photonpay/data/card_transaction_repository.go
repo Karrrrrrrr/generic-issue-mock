@@ -20,6 +20,29 @@ func NewCardTransactionRepository(injector *do.Injector) (biz.CardTransactionRep
 	}, nil
 }
 
+func (r *cardTransactionRepository) Create(ctx context.Context, item *model.CardTransaction) error {
+	return r.repository.DB(ctx).CardTransaction.WithContext(ctx).Create(item)
+}
+
+func (r *cardTransactionRepository) ExistByID(ctx context.Context, id model.ID) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.CardTransaction.WithContext(ctx).Where(
+		db.CardTransaction.ID.Eq(id),
+		db.CardTransaction.Channel.Eq(string(enums.Channel_PhotonPay)),
+	).Count()
+
+	return count > 0, err
+}
+
+func (r *cardTransactionRepository) FindByID(ctx context.Context, id model.ID) (*model.CardTransaction, error) {
+	db := r.repository.DB(ctx)
+
+	return db.CardTransaction.WithContext(ctx).Where(
+		db.CardTransaction.ID.Eq(id),
+		db.CardTransaction.Channel.Eq(string(enums.Channel_PhotonPay)),
+	).First()
+}
+
 func (r *cardTransactionRepository) ListTransactions(ctx context.Context, req *biz.ListRequest) ([]*model.CardTransaction, error) {
 	db := r.repository.DB(ctx)
 

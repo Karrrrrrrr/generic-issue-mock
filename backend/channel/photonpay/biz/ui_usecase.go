@@ -2,32 +2,35 @@ package biz
 
 import (
 	"context"
-	"crypto/rand"
 	"time"
 
 	photon "generic-mock/channel/photonpay/enums"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/cardnumber"
+	"generic-mock/pkg/randomx"
 
 	"github.com/samber/do"
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
-type UIUsecase struct {
+type PhotonPayUIUsecase struct {
 	transaction         Transaction
 	cardHolderRepo      CardHolderRepository
 	cardRepo            CardRepository
 	cardProductRepo     CardProductRepository
+	authorizationRepo   AuthorizationRepository
 	cardTransactionRepo CardTransactionRepository
 }
 
-func NewUIUsecase(injector *do.Injector) (*UIUsecase, error) {
-	return &UIUsecase{
+func NewPhotonPayUIUsecase(injector *do.Injector) (*PhotonPayUIUsecase, error) {
+	return &PhotonPayUIUsecase{
 		transaction:         do.MustInvoke[Transaction](injector),
 		cardHolderRepo:      do.MustInvoke[CardHolderRepository](injector),
 		cardRepo:            do.MustInvoke[CardRepository](injector),
 		cardProductRepo:     do.MustInvoke[CardProductRepository](injector),
+		authorizationRepo:   do.MustInvoke[AuthorizationRepository](injector),
 		cardTransactionRepo: do.MustInvoke[CardTransactionRepository](injector),
 	}, nil
 }
@@ -39,7 +42,7 @@ type UICreateCardHolderRequest struct {
 	Mobile    string
 }
 
-func (u *UIUsecase) CreateCardHolder(ctx context.Context, req *UICreateCardHolderRequest) (*model.CardHolder, error) {
+func (u *PhotonPayUIUsecase) CreateCardHolder(ctx context.Context, req *UICreateCardHolderRequest) (*model.CardHolder, error) {
 	dateOfBirth := time.Date(1990, time.January, 1, 0, 0, 0, 0, time.UTC)
 	holder := &model.CardHolder{
 		Channel:                enums.Channel_PhotonPay,
@@ -47,9 +50,9 @@ func (u *UIUsecase) CreateCardHolder(ctx context.Context, req *UICreateCardHolde
 		LastName:               req.LastName,
 		Email:                  req.Email,
 		Mobile:                 req.Mobile,
-		MobilePrefix:           "+1",
+		MobilePrefix:           photon.DefaultMobilePrefix,
 		DateOfBirth:            &dateOfBirth,
-		NationalityCountryCode: "US",
+		NationalityCountryCode: photon.DefaultNationalityCountryCode,
 		Status:                 enums.CardHolderStatus_Normal,
 		ReviewStatus:           enums.CardHolderReviewStatus_Approved,
 	}
@@ -62,7 +65,7 @@ func (u *UIUsecase) CreateCardHolder(ctx context.Context, req *UICreateCardHolde
 	return holder, nil
 }
 
-func (u *UIUsecase) ListCardHolders(ctx context.Context, req *ListRequest) ([]*model.CardHolder, error) {
+func (u *PhotonPayUIUsecase) ListCardHolders(ctx context.Context, req *ListRequest) ([]*model.CardHolder, error) {
 	holders, err := u.cardHolderRepo.List(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list photonpay UI card holders", "error", err)
@@ -79,7 +82,7 @@ type UIOpenCardRequest struct {
 	RequestID    string
 }
 
-func (u *UIUsecase) OpenCard(ctx context.Context, req *UIOpenCardRequest) (*model.Card, error) {
+func (u *PhotonPayUIUsecase) OpenCard(ctx context.Context, req *UIOpenCardRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		exists, err := u.cardHolderRepo.ExistCardHolderByID(txCtx, req.CardHolderID)
@@ -125,7 +128,7 @@ func (u *UIUsecase) OpenCard(ctx context.Context, req *UIOpenCardRequest) (*mode
 			CardProductID:          product.ID,
 			CardBin:                product.Prefix,
 			CardNumber:             cardNumber,
-			Cvv:                    uiRandomDigits(3),
+			Cvv:                    randomx.Digits(3),
 			ExpireAt:               time.Now().UTC().AddDate(0, 24, 0),
 			Status:                 enums.CardStatus_Active,
 			CardHolderID:           req.CardHolderID,
@@ -153,7 +156,7 @@ func (u *UIUsecase) OpenCard(ctx context.Context, req *UIOpenCardRequest) (*mode
 	return card, nil
 }
 
-func (u *UIUsecase) ListCards(ctx context.Context, req *ListRequest) ([]*model.Card, error) {
+func (u *PhotonPayUIUsecase) ListCards(ctx context.Context, req *ListRequest) ([]*model.Card, error) {
 	cards, err := u.cardRepo.ListCards(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list photonpay UI cards", "error", err)
@@ -169,7 +172,7 @@ type UIChangeCardStatusRequest struct {
 	Status enums.CardStatus
 }
 
-func (u *UIUsecase) ChangeCardStatus(ctx context.Context, req *UIChangeCardStatusRequest) (*model.Card, error) {
+func (u *PhotonPayUIUsecase) ChangeCardStatus(ctx context.Context, req *UIChangeCardStatusRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		exists, err := u.cardRepo.ExistCardByID(txCtx, req.CardID)
@@ -205,7 +208,7 @@ func (u *UIUsecase) ChangeCardStatus(ctx context.Context, req *UIChangeCardStatu
 	return card, nil
 }
 
-func (u *UIUsecase) ListTransactions(ctx context.Context, req *ListRequest) ([]*model.CardTransaction, error) {
+func (u *PhotonPayUIUsecase) ListTransactions(ctx context.Context, req *ListRequest) ([]*model.CardTransaction, error) {
 	transactions, err := u.cardTransactionRepo.ListTransactions(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list photonpay UI card transactions", "error", err)
@@ -216,12 +219,181 @@ func (u *UIUsecase) ListTransactions(ctx context.Context, req *ListRequest) ([]*
 	return transactions, nil
 }
 
-func uiRandomDigits(length int) string {
-	bytes := make([]byte, length)
-	_, _ = rand.Read(bytes)
-	for index := range bytes {
-		bytes[index] = '0' + bytes[index]%10
+type UISimulateAuthorizationRequest struct {
+	CardID          model.ID
+	Amount          decimal.Decimal
+	Currency        enums.Currency
+	MerchantName    string
+	MerchantCountry string
+	MerchantMCC     string
+}
+
+type UISimulateAuthorizationResult struct {
+	Authorization   *model.Authorization
+	CardTransaction *model.CardTransaction
+}
+
+func (u *PhotonPayUIUsecase) SimulateAuthorization(ctx context.Context, req *UISimulateAuthorizationRequest) (*UISimulateAuthorizationResult, error) {
+	var result *UISimulateAuthorizationResult
+	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		card, err := u.getCard(txCtx, req.CardID)
+		if err != nil {
+			return err
+		}
+		if card.Status != enums.CardStatus_Active {
+			return ErrInvalidOperation
+		}
+
+		now := time.Now().UTC()
+		authorization := &model.Authorization{
+			Channel:           enums.Channel_PhotonPay,
+			CardID:            card.ID,
+			Currency:          req.Currency,
+			Amount:            req.Amount,
+			MerchantName:      req.MerchantName,
+			MerchantCountry:   req.MerchantCountry,
+			MerchantMCC:       req.MerchantMCC,
+			AuthorizationCode: randomx.Digits(6),
+			Status:            enums.TransactionStatus_AUTHORIZED,
+			OccurredAt:        now,
+		}
+		if err := u.authorizationRepo.Create(txCtx, authorization); err != nil {
+			zap.S().Errorw("create photonpay UI authorization", "error", err)
+
+			return ErrDatabaseOperation
+		}
+
+		transaction := &model.CardTransaction{
+			Channel:           enums.Channel_PhotonPay,
+			AuthorizationID:   authorization.ID,
+			CardID:            card.ID,
+			Status:            enums.TransactionStatus_AUTHORIZED,
+			Type:              enums.CardTransactionType_AUTH,
+			Currency:          req.Currency,
+			TxAmount:          req.Amount,
+			TxCurrency:        req.Currency,
+			MerchantName:      req.MerchantName,
+			MerchantCountry:   req.MerchantCountry,
+			MerchantMCC:       req.MerchantMCC,
+			AuthorizationCode: authorization.AuthorizationCode,
+			OccurredAt:        now,
+		}
+		if err := u.cardTransactionRepo.Create(txCtx, transaction); err != nil {
+			zap.S().Errorw("create photonpay UI authorization transaction", "error", err)
+
+			return ErrDatabaseOperation
+		}
+
+		result = &UISimulateAuthorizationResult{
+			Authorization:   authorization,
+			CardTransaction: transaction,
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	return string(bytes)
+	return result, nil
+}
+
+type UIApplyTransactionStepRequest struct {
+	CardTransactionID model.ID
+	Type              enums.CardTransactionType
+	Amount            decimal.Decimal
+}
+
+func (u *PhotonPayUIUsecase) ApplyTransactionStep(ctx context.Context, req *UIApplyTransactionStepRequest) (*model.CardTransaction, error) {
+	var next *model.CardTransaction
+	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		origin, err := u.getCardTransaction(txCtx, req.CardTransactionID)
+		if err != nil {
+			return err
+		}
+
+		amount := req.Amount
+		if amount.IsZero() {
+			amount = origin.TxAmount
+		}
+		if !amount.IsPositive() || amount.GreaterThan(origin.TxAmount) {
+			return ErrInvalidOperation
+		}
+
+		status := enums.TransactionStatus_SUCCEED
+		if req.Type == enums.CardTransactionType_VOID {
+			status = enums.TransactionStatus_VOID
+		}
+
+		next = &model.CardTransaction{
+			Channel:                 enums.Channel_PhotonPay,
+			OriginCardTransactionID: origin.ID,
+			AuthorizationID:         origin.AuthorizationID,
+			CardID:                  origin.CardID,
+			Status:                  status,
+			Type:                    req.Type,
+			Currency:                origin.Currency,
+			TxAmount:                amount,
+			TxCurrency:              origin.TxCurrency,
+			MerchantName:            origin.MerchantName,
+			MerchantCountry:         origin.MerchantCountry,
+			MerchantMCC:             origin.MerchantMCC,
+			AuthorizationCode:       origin.AuthorizationCode,
+			OccurredAt:              time.Now().UTC(),
+		}
+		if err := u.cardTransactionRepo.Create(txCtx, next); err != nil {
+			zap.S().Errorw("create photonpay UI card transaction step", "error", err)
+
+			return ErrDatabaseOperation
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return next, nil
+}
+
+func (u *PhotonPayUIUsecase) getCard(ctx context.Context, id model.ID) (*model.Card, error) {
+	exists, err := u.cardRepo.ExistCardByID(ctx, id)
+	if err != nil {
+		zap.S().Errorw("check photonpay UI card", "error", err)
+
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
+
+	card, err := u.cardRepo.FindCardByID(ctx, id)
+	if err != nil {
+		zap.S().Errorw("find photonpay UI card", "error", err)
+
+		return nil, ErrDatabaseOperation
+	}
+
+	return card, nil
+}
+
+func (u *PhotonPayUIUsecase) getCardTransaction(ctx context.Context, id model.ID) (*model.CardTransaction, error) {
+	exists, err := u.cardTransactionRepo.ExistByID(ctx, id)
+	if err != nil {
+		zap.S().Errorw("check photonpay UI card transaction", "error", err)
+
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
+
+	transaction, err := u.cardTransactionRepo.FindByID(ctx, id)
+	if err != nil {
+		zap.S().Errorw("find photonpay UI card transaction", "error", err)
+
+		return nil, ErrDatabaseOperation
+	}
+
+	return transaction, nil
 }

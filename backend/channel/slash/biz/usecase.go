@@ -2,12 +2,13 @@ package biz
 
 import (
 	"context"
-	"crypto/rand"
 	"time"
 
+	slash "generic-mock/channel/slash/enums"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/cardnumber"
+	"generic-mock/pkg/randomx"
 
 	"github.com/samber/do"
 	"github.com/shopspring/decimal"
@@ -62,7 +63,7 @@ type CardTransactionRepository interface {
 	List(context.Context, *ListCardTransactionsRequest) ([]*model.CardTransaction, error)
 }
 
-type Usecase struct {
+type SlashUIUsecase struct {
 	transaction               Transaction
 	cardHolderRepository      CardHolderRepository
 	cardRepository            CardRepository
@@ -71,14 +72,14 @@ type Usecase struct {
 	cardTransactionRepository CardTransactionRepository
 }
 
-func NewUsecase(injector *do.Injector) (*Usecase, error) {
-	return &Usecase{
-		transaction:               do.MustInvokeNamed[Transaction](injector, "slash.transaction"),
-		cardHolderRepository:      do.MustInvokeNamed[CardHolderRepository](injector, "slash.card-holder-repository"),
-		cardRepository:            do.MustInvokeNamed[CardRepository](injector, "slash.card-repository"),
-		cardProductRepository:     do.MustInvokeNamed[CardProductRepository](injector, "slash.card-product-repository"),
-		authorizationRepository:   do.MustInvokeNamed[AuthorizationRepository](injector, "slash.authorization-repository"),
-		cardTransactionRepository: do.MustInvokeNamed[CardTransactionRepository](injector, "slash.card-transaction-repository"),
+func NewSlashUIUsecase(injector *do.Injector) (*SlashUIUsecase, error) {
+	return &SlashUIUsecase{
+		transaction:               do.MustInvoke[Transaction](injector),
+		cardHolderRepository:      do.MustInvoke[CardHolderRepository](injector),
+		cardRepository:            do.MustInvoke[CardRepository](injector),
+		cardProductRepository:     do.MustInvoke[CardProductRepository](injector),
+		authorizationRepository:   do.MustInvoke[AuthorizationRepository](injector),
+		cardTransactionRepository: do.MustInvoke[CardTransactionRepository](injector),
 	}, nil
 }
 
@@ -120,7 +121,7 @@ type CreateCardHolderRequest struct {
 	Mobile    string
 }
 
-func (u *Usecase) CreateCardHolder(ctx context.Context, req *CreateCardHolderRequest) (*model.CardHolder, error) {
+func (u *SlashUIUsecase) CreateCardHolder(ctx context.Context, req *CreateCardHolderRequest) (*model.CardHolder, error) {
 	holder := &model.CardHolder{
 		Channel:      enums.Channel_Slash,
 		FirstName:    req.FirstName,
@@ -139,7 +140,7 @@ func (u *Usecase) CreateCardHolder(ctx context.Context, req *CreateCardHolderReq
 	return holder, nil
 }
 
-func (u *Usecase) ListCardHolders(ctx context.Context, req *ListCardHoldersRequest) ([]*model.CardHolder, int64, error) {
+func (u *SlashUIUsecase) ListCardHolders(ctx context.Context, req *ListCardHoldersRequest) ([]*model.CardHolder, int64, error) {
 	items, err := u.cardHolderRepository.List(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list slash card holders", "error", err)
@@ -160,7 +161,7 @@ type CreateCardRequest struct {
 	Currency      enums.Currency
 }
 
-func (u *Usecase) CreateCard(ctx context.Context, req *CreateCardRequest) (*model.Card, error) {
+func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		if err := u.requireCardHolder(txCtx, req.CardHolderID); err != nil {
@@ -187,16 +188,16 @@ func (u *Usecase) CreateCard(ctx context.Context, req *CreateCardRequest) (*mode
 			CardProductID:          product.ID,
 			CardBin:                product.Prefix,
 			CardNumber:             cardNumber,
-			Cvv:                    randomDigits(3),
+			Cvv:                    randomx.Digits(3),
 			ExpireAt:               time.Now().UTC().AddDate(2, 0, 0),
 			Status:                 enums.CardStatus_Active,
 			CardHolderID:           req.CardHolderID,
 			FormType:               enums.CardFormType_Virtual,
 			CardCurrency:           req.Currency,
-			CardScheme:             "VISA",
+			CardScheme:             slash.CardScheme,
 			CardType:               enums.CardType_Single,
-			RequestID:              randomDigits(20),
-			LastOperationRequestID: randomDigits(20),
+			RequestID:              randomx.Digits(20),
+			LastOperationRequestID: randomx.Digits(20),
 		}
 		if err := u.cardRepository.Create(txCtx, card); err != nil {
 			zap.S().Errorw("create slash card", "error", err)
@@ -212,7 +213,7 @@ func (u *Usecase) CreateCard(ctx context.Context, req *CreateCardRequest) (*mode
 	return card, nil
 }
 
-func (u *Usecase) ListCards(ctx context.Context, req *ListCardsRequest) ([]*model.Card, int64, error) {
+func (u *SlashUIUsecase) ListCards(ctx context.Context, req *ListCardsRequest) ([]*model.Card, int64, error) {
 	items, err := u.cardRepository.List(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list slash cards", "error", err)
@@ -231,7 +232,7 @@ type CardProductInfo struct {
 	Product *model.CardProduct
 }
 
-func (u *Usecase) ListCardProducts(ctx context.Context) ([]*CardProductInfo, error) {
+func (u *SlashUIUsecase) ListCardProducts(ctx context.Context) ([]*CardProductInfo, error) {
 	products, err := u.cardProductRepository.List(ctx)
 	if err != nil {
 		zap.S().Errorw("list slash card products", "error", err)
@@ -247,7 +248,7 @@ func (u *Usecase) ListCardProducts(ctx context.Context) ([]*CardProductInfo, err
 	return items, nil
 }
 
-func (u *Usecase) GetCard(ctx context.Context, id model.ID) (*model.Card, error) {
+func (u *SlashUIUsecase) GetCard(ctx context.Context, id model.ID) (*model.Card, error) {
 	if err := u.requireCard(ctx, id); err != nil {
 		return nil, err
 	}
@@ -265,7 +266,7 @@ type UpdateCardStatusRequest struct {
 	Status enums.CardStatus
 }
 
-func (u *Usecase) UpdateCardStatus(ctx context.Context, req *UpdateCardStatusRequest) (*model.Card, error) {
+func (u *SlashUIUsecase) UpdateCardStatus(ctx context.Context, req *UpdateCardStatusRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		if err := u.requireCard(txCtx, req.ID); err != nil {
@@ -305,7 +306,7 @@ type SimulateAuthorizationResult struct {
 	CardTransaction *model.CardTransaction
 }
 
-func (u *Usecase) SimulateAuthorization(ctx context.Context, req *SimulateAuthorizationRequest) (*SimulateAuthorizationResult, error) {
+func (u *SlashUIUsecase) SimulateAuthorization(ctx context.Context, req *SimulateAuthorizationRequest) (*SimulateAuthorizationResult, error) {
 	var result *SimulateAuthorizationResult
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		card, err := u.GetCard(txCtx, req.CardID)
@@ -324,7 +325,7 @@ func (u *Usecase) SimulateAuthorization(ctx context.Context, req *SimulateAuthor
 			MerchantName:      req.MerchantName,
 			MerchantCountry:   req.MerchantCountry,
 			MerchantMCC:       req.MerchantMCC,
-			AuthorizationCode: randomDigits(6),
+			AuthorizationCode: randomx.Digits(6),
 			Status:            enums.TransactionStatus_AUTHORIZED,
 			OccurredAt:        now,
 		}
@@ -364,7 +365,7 @@ func (u *Usecase) SimulateAuthorization(ctx context.Context, req *SimulateAuthor
 	return result, nil
 }
 
-func (u *Usecase) ListAuthorizations(ctx context.Context, req *ListAuthorizationsRequest) ([]*model.Authorization, int64, error) {
+func (u *SlashUIUsecase) ListAuthorizations(ctx context.Context, req *ListAuthorizationsRequest) ([]*model.Authorization, int64, error) {
 	items, err := u.authorizationRepository.List(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list slash authorizations", "error", err)
@@ -379,7 +380,7 @@ func (u *Usecase) ListAuthorizations(ctx context.Context, req *ListAuthorization
 	return items, total, nil
 }
 
-func (u *Usecase) GetAuthorization(ctx context.Context, id model.ID) (*model.Authorization, error) {
+func (u *SlashUIUsecase) GetAuthorization(ctx context.Context, id model.ID) (*model.Authorization, error) {
 	if err := u.requireAuthorization(ctx, id); err != nil {
 		return nil, err
 	}
@@ -392,7 +393,7 @@ func (u *Usecase) GetAuthorization(ctx context.Context, id model.ID) (*model.Aut
 	return item, nil
 }
 
-func (u *Usecase) ListCardTransactions(ctx context.Context, req *ListCardTransactionsRequest) ([]*model.CardTransaction, int64, error) {
+func (u *SlashUIUsecase) ListCardTransactions(ctx context.Context, req *ListCardTransactionsRequest) ([]*model.CardTransaction, int64, error) {
 	items, err := u.cardTransactionRepository.List(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list slash card transactions", "error", err)
@@ -407,7 +408,7 @@ func (u *Usecase) ListCardTransactions(ctx context.Context, req *ListCardTransac
 	return items, total, nil
 }
 
-func (u *Usecase) GetCardTransaction(ctx context.Context, id model.ID) (*model.CardTransaction, error) {
+func (u *SlashUIUsecase) GetCardTransaction(ctx context.Context, id model.ID) (*model.CardTransaction, error) {
 	if err := u.requireCardTransaction(ctx, id); err != nil {
 		return nil, err
 	}
@@ -426,7 +427,7 @@ type ApplyTransactionStepRequest struct {
 	Amount            decimal.Decimal
 }
 
-func (u *Usecase) ApplyTransactionStep(ctx context.Context, req *ApplyTransactionStepRequest) (*model.CardTransaction, error) {
+func (u *SlashUIUsecase) ApplyTransactionStep(ctx context.Context, req *ApplyTransactionStepRequest) (*model.CardTransaction, error) {
 	var next *model.CardTransaction
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		origin, err := u.GetCardTransaction(txCtx, req.CardTransactionID)
@@ -473,7 +474,7 @@ func (u *Usecase) ApplyTransactionStep(ctx context.Context, req *ApplyTransactio
 	return next, nil
 }
 
-func (u *Usecase) requireCardHolder(ctx context.Context, id model.ID) error {
+func (u *SlashUIUsecase) requireCardHolder(ctx context.Context, id model.ID) error {
 	exists, err := u.cardHolderRepository.ExistByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check slash card holder", "error", err)
@@ -485,7 +486,7 @@ func (u *Usecase) requireCardHolder(ctx context.Context, id model.ID) error {
 	return nil
 }
 
-func (u *Usecase) requireCard(ctx context.Context, id model.ID) error {
+func (u *SlashUIUsecase) requireCard(ctx context.Context, id model.ID) error {
 	exists, err := u.cardRepository.ExistByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check slash card", "error", err)
@@ -497,7 +498,7 @@ func (u *Usecase) requireCard(ctx context.Context, id model.ID) error {
 	return nil
 }
 
-func (u *Usecase) requireAuthorization(ctx context.Context, id model.ID) error {
+func (u *SlashUIUsecase) requireAuthorization(ctx context.Context, id model.ID) error {
 	exists, err := u.authorizationRepository.ExistByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check slash authorization", "error", err)
@@ -509,7 +510,7 @@ func (u *Usecase) requireAuthorization(ctx context.Context, id model.ID) error {
 	return nil
 }
 
-func (u *Usecase) requireCardTransaction(ctx context.Context, id model.ID) error {
+func (u *SlashUIUsecase) requireCardTransaction(ctx context.Context, id model.ID) error {
 	exists, err := u.cardTransactionRepository.ExistByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check slash card transaction", "error", err)
@@ -521,7 +522,7 @@ func (u *Usecase) requireCardTransaction(ctx context.Context, id model.ID) error
 	return nil
 }
 
-func (u *Usecase) getCardProductForUpdate(ctx context.Context, id model.ID) (*model.CardProduct, error) {
+func (u *SlashUIUsecase) getCardProductForUpdate(ctx context.Context, id model.ID) (*model.CardProduct, error) {
 	if id == "" {
 		exists, err := u.cardProductRepository.ExistDefault(ctx)
 		if err != nil {
@@ -553,7 +554,7 @@ func (u *Usecase) getCardProductForUpdate(ctx context.Context, id model.ID) (*mo
 	return product, nil
 }
 
-func (u *Usecase) requireCardProduct(ctx context.Context, id model.ID) error {
+func (u *SlashUIUsecase) requireCardProduct(ctx context.Context, id model.ID) error {
 	exists, err := u.cardProductRepository.ExistByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check slash card product", "error", err)
@@ -564,13 +565,4 @@ func (u *Usecase) requireCardProduct(ctx context.Context, id model.ID) error {
 	}
 
 	return nil
-}
-
-func randomDigits(length int) string {
-	bytes := make([]byte, length)
-	_, _ = rand.Read(bytes)
-	for index := range bytes {
-		bytes[index] = '0' + bytes[index]%10
-	}
-	return string(bytes)
 }

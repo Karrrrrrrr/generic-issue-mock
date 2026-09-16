@@ -13,13 +13,13 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type Service struct {
-	usecase *biz.Usecase
+type SlashUIService struct {
+	usecase *biz.SlashUIUsecase
 }
 
-func NewService(injector *do.Injector) (*Service, error) {
-	return &Service{
-		usecase: do.MustInvokeNamed[*biz.Usecase](injector, "slash.usecase"),
+func NewSlashUIService(injector *do.Injector) (*SlashUIService, error) {
+	return &SlashUIService{
+		usecase: do.MustInvoke[*biz.SlashUIUsecase](injector),
 	}, nil
 }
 
@@ -45,7 +45,7 @@ type ListCardProductsData struct {
 
 type ListCardProductsRequest struct{}
 
-func (s *Service) ListCardProducts(ctx context.Context, _ *ListCardProductsRequest) (*ListCardProductsData, error) {
+func (s *SlashUIService) ListCardProducts(ctx context.Context, _ *ListCardProductsRequest) (*ListCardProductsData, error) {
 	items, err := s.usecase.ListCardProducts(ctx)
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ type CardHolderData struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func (s *Service) CreateCardHolder(ctx context.Context, req *CardHolderRequest) (*CardHolderData, error) {
+func (s *SlashUIService) CreateCardHolder(ctx context.Context, req *CardHolderRequest) (*CardHolderData, error) {
 	item, err := s.usecase.CreateCardHolder(ctx, &biz.CreateCardHolderRequest{
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
@@ -93,7 +93,7 @@ func (s *Service) CreateCardHolder(ctx context.Context, req *CardHolderRequest) 
 	return cardHolderData(item), nil
 }
 
-func (s *Service) ListCardHolders(ctx context.Context, req *ListRequest) (*ListResponse[CardHolderData], error) {
+func (s *SlashUIService) ListCardHolders(ctx context.Context, req *ListRequest) (*ListResponse[*CardHolderData], error) {
 	offset, limit := pagination(req.PageNumber, req.PageSize)
 	items, total, err := s.usecase.ListCardHolders(ctx, &biz.ListCardHoldersRequest{
 		Offset: offset,
@@ -102,11 +102,9 @@ func (s *Service) ListCardHolders(ctx context.Context, req *ListRequest) (*ListR
 	if err != nil {
 		return nil, err
 	}
-	return &ListResponse[CardHolderData]{
+	return &ListResponse[*CardHolderData]{
 		TotalItems: total,
-		Data: types.BulkConvertSlice(items, func(item *model.CardHolder) CardHolderData {
-			return *cardHolderData(item)
-		}),
+		Data:       types.BulkConvertSlice(items, cardHolderData),
 	}, nil
 }
 
@@ -138,7 +136,7 @@ type CardData struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
-func (s *Service) CreateCard(ctx context.Context, req *CreateCardRequest) (*CardData, error) {
+func (s *SlashUIService) CreateCard(ctx context.Context, req *CreateCardRequest) (*CardData, error) {
 	item, err := s.usecase.CreateCard(ctx, &biz.CreateCardRequest{
 		CardHolderID:  model.ID(req.CardHolderID),
 		CardProductID: model.ID(req.CardProductID),
@@ -157,7 +155,7 @@ type ListCardsRequest struct {
 	CardStatus string `form:"card_status"`
 }
 
-func (s *Service) ListCards(ctx context.Context, req *ListCardsRequest) (*ListResponse[CardData], error) {
+func (s *SlashUIService) ListCards(ctx context.Context, req *ListCardsRequest) (*ListResponse[*CardData], error) {
 	offset, limit := pagination(req.PageNumber, req.PageSize)
 	items, total, err := s.usecase.ListCards(ctx, &biz.ListCardsRequest{
 		Offset:     offset,
@@ -169,11 +167,9 @@ func (s *Service) ListCards(ctx context.Context, req *ListCardsRequest) (*ListRe
 	if err != nil {
 		return nil, err
 	}
-	return &ListResponse[CardData]{
+	return &ListResponse[*CardData]{
 		TotalItems: total,
-		Data: types.BulkConvertSlice(items, func(item *model.Card) CardData {
-			return *cardData(item)
-		}),
+		Data:       types.BulkConvertSlice(items, cardData),
 	}, nil
 }
 
@@ -181,7 +177,7 @@ type IDRequest struct {
 	ID string `uri:"id" binding:"required"`
 }
 
-func (s *Service) GetCard(ctx context.Context, req *IDRequest) (*CardData, error) {
+func (s *SlashUIService) GetCard(ctx context.Context, req *IDRequest) (*CardData, error) {
 	item, err := s.usecase.GetCard(ctx, model.ID(req.ID))
 	if err != nil {
 		return nil, err
@@ -194,7 +190,7 @@ type UpdateCardRequest struct {
 	UpdateCardStatusRequest
 }
 
-func (s *Service) UpdateCardStatus(ctx context.Context, req *UpdateCardRequest) (*CardData, error) {
+func (s *SlashUIService) UpdateCardStatus(ctx context.Context, req *UpdateCardRequest) (*CardData, error) {
 	item, err := s.usecase.UpdateCardStatus(ctx, &biz.UpdateCardStatusRequest{
 		ID:     model.ID(req.ID),
 		Status: enums.CardStatus(req.CardStatus),
@@ -221,7 +217,7 @@ type SimulateAuthorizationData struct {
 	Transaction   TransactionData   `json:"transaction"`
 }
 
-func (s *Service) SimulateAuthorization(ctx context.Context, req *SimulateAuthorizationRequest) (*SimulateAuthorizationData, error) {
+func (s *SlashUIService) SimulateAuthorization(ctx context.Context, req *SimulateAuthorizationRequest) (*SimulateAuthorizationData, error) {
 	result, err := s.usecase.SimulateAuthorization(ctx, &biz.SimulateAuthorizationRequest{
 		CardID:          model.ID(req.CardID),
 		Amount:          decimal.NewFromFloat(req.TransactionAmount),
@@ -261,7 +257,7 @@ type AuthorizationData struct {
 	CreatedAt            time.Time `json:"created_at"`
 }
 
-func (s *Service) ListAuthorizations(ctx context.Context, req *ListAuthorizationsRequest) (*ListResponse[AuthorizationData], error) {
+func (s *SlashUIService) ListAuthorizations(ctx context.Context, req *ListAuthorizationsRequest) (*ListResponse[*AuthorizationData], error) {
 	offset, limit := pagination(req.PageNumber, req.PageSize)
 	items, total, err := s.usecase.ListAuthorizations(ctx, &biz.ListAuthorizationsRequest{
 		Offset: offset,
@@ -273,15 +269,13 @@ func (s *Service) ListAuthorizations(ctx context.Context, req *ListAuthorization
 	if err != nil {
 		return nil, err
 	}
-	return &ListResponse[AuthorizationData]{
+	return &ListResponse[*AuthorizationData]{
 		TotalItems: total,
-		Data: types.BulkConvertSlice(items, func(item *model.Authorization) AuthorizationData {
-			return *authorizationData(item)
-		}),
+		Data:       types.BulkConvertSlice(items, authorizationData),
 	}, nil
 }
 
-func (s *Service) GetAuthorization(ctx context.Context, req *IDRequest) (*AuthorizationData, error) {
+func (s *SlashUIService) GetAuthorization(ctx context.Context, req *IDRequest) (*AuthorizationData, error) {
 	item, err := s.usecase.GetAuthorization(ctx, model.ID(req.ID))
 	if err != nil {
 		return nil, err
@@ -314,7 +308,7 @@ type TransactionData struct {
 	CreatedAt            time.Time `json:"created_at"`
 }
 
-func (s *Service) ListTransactions(ctx context.Context, req *ListTransactionsRequest) (*ListResponse[TransactionData], error) {
+func (s *SlashUIService) ListTransactions(ctx context.Context, req *ListTransactionsRequest) (*ListResponse[*TransactionData], error) {
 	offset, limit := pagination(req.PageNumber, req.PageSize)
 	items, total, err := s.usecase.ListCardTransactions(ctx, &biz.ListCardTransactionsRequest{
 		Offset:          offset,
@@ -328,15 +322,13 @@ func (s *Service) ListTransactions(ctx context.Context, req *ListTransactionsReq
 	if err != nil {
 		return nil, err
 	}
-	return &ListResponse[TransactionData]{
+	return &ListResponse[*TransactionData]{
 		TotalItems: total,
-		Data: types.BulkConvertSlice(items, func(item *model.CardTransaction) TransactionData {
-			return *transactionData(item)
-		}),
+		Data:       types.BulkConvertSlice(items, transactionData),
 	}, nil
 }
 
-func (s *Service) GetTransaction(ctx context.Context, req *IDRequest) (*TransactionData, error) {
+func (s *SlashUIService) GetTransaction(ctx context.Context, req *IDRequest) (*TransactionData, error) {
 	item, err := s.usecase.GetCardTransaction(ctx, model.ID(req.ID))
 	if err != nil {
 		return nil, err
@@ -349,19 +341,19 @@ type ApplyTransactionStepRequest struct {
 	Amount float64 `json:"amount"`
 }
 
-func (s *Service) ClearTransaction(ctx context.Context, req *ApplyTransactionStepRequest) (*TransactionData, error) {
+func (s *SlashUIService) ClearTransaction(ctx context.Context, req *ApplyTransactionStepRequest) (*TransactionData, error) {
 	return s.applyTransactionStep(ctx, req, enums.CardTransactionType_CLEAR)
 }
 
-func (s *Service) ReverseTransaction(ctx context.Context, req *ApplyTransactionStepRequest) (*TransactionData, error) {
+func (s *SlashUIService) ReverseTransaction(ctx context.Context, req *ApplyTransactionStepRequest) (*TransactionData, error) {
 	return s.applyTransactionStep(ctx, req, enums.CardTransactionType_VOID)
 }
 
-func (s *Service) RefundTransaction(ctx context.Context, req *ApplyTransactionStepRequest) (*TransactionData, error) {
+func (s *SlashUIService) RefundTransaction(ctx context.Context, req *ApplyTransactionStepRequest) (*TransactionData, error) {
 	return s.applyTransactionStep(ctx, req, enums.CardTransactionType_REFUND)
 }
 
-func (s *Service) applyTransactionStep(ctx context.Context, req *ApplyTransactionStepRequest, transactionType enums.CardTransactionType) (*TransactionData, error) {
+func (s *SlashUIService) applyTransactionStep(ctx context.Context, req *ApplyTransactionStepRequest, transactionType enums.CardTransactionType) (*TransactionData, error) {
 	item, err := s.usecase.ApplyTransactionStep(ctx, &biz.ApplyTransactionStepRequest{
 		CardTransactionID: model.ID(req.ID),
 		Type:              transactionType,

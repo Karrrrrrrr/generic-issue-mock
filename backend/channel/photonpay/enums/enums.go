@@ -47,10 +47,13 @@ const (
 )
 
 const (
-	MemberID       = "photonpay-mock-member"
-	AccountNumber  = "photonpay-mock-account"
-	DefaultCardBin = "543210"
-	CardScheme     = "MasterCard"
+	MemberID                        = "photonpay-mock-member"
+	AccountNumber                   = "photonpay-mock-account"
+	DefaultCardBin                  = "543210"
+	CardScheme                      = "MasterCard"
+	DefaultMobilePrefix             = "+1"
+	DefaultNationalityCountryCode   = "US"
+	RemainingAvailableCardUnlimited = "Unlimited"
 )
 
 func CardTypeFromGeneric(value generic.CardType) CardType {

@@ -2,13 +2,13 @@ package biz
 
 import (
 	"context"
-	"crypto/rand"
 	"time"
 
 	photon "generic-mock/channel/photonpay/enums"
 	common "generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/cardnumber"
+	"generic-mock/pkg/randomx"
 
 	"github.com/samber/do"
 	"github.com/shopspring/decimal"
@@ -45,10 +45,17 @@ type CardProductRepository interface {
 }
 
 type CardTransactionRepository interface {
+	Create(context.Context, *model.CardTransaction) error
+	ExistByID(context.Context, model.ID) (bool, error)
+	FindByID(context.Context, model.ID) (*model.CardTransaction, error)
 	ListTransactions(context.Context, *ListRequest) ([]*model.CardTransaction, error)
 }
 
-type Usecase struct {
+type AuthorizationRepository interface {
+	Create(context.Context, *model.Authorization) error
+}
+
+type PhotonPayOpenAPIUsecase struct {
 	transaction         Transaction
 	cardHolderRepo      CardHolderRepository
 	cardRepo            CardRepository
@@ -56,8 +63,8 @@ type Usecase struct {
 	cardTransactionRepo CardTransactionRepository
 }
 
-func NewUsecase(injector *do.Injector) (*Usecase, error) {
-	return &Usecase{
+func NewPhotonPayOpenAPIUsecase(injector *do.Injector) (*PhotonPayOpenAPIUsecase, error) {
+	return &PhotonPayOpenAPIUsecase{
 		transaction:         do.MustInvoke[Transaction](injector),
 		cardHolderRepo:      do.MustInvoke[CardHolderRepository](injector),
 		cardRepo:            do.MustInvoke[CardRepository](injector),
@@ -86,7 +93,7 @@ type CreateCardHolderRequest struct {
 	ReverseSide            string
 }
 
-func (u *Usecase) CreateCardHolder(ctx context.Context, req *CreateCardHolderRequest) (*model.CardHolder, error) {
+func (u *PhotonPayOpenAPIUsecase) CreateCardHolder(ctx context.Context, req *CreateCardHolderRequest) (*model.CardHolder, error) {
 	holder := &model.CardHolder{
 		Channel:                common.Channel_PhotonPay,
 		FirstName:              req.FirstName,
@@ -124,7 +131,7 @@ type UpdateCardHolderRequest struct {
 	MobilePrefix *string
 }
 
-func (u *Usecase) UpdateCardHolder(ctx context.Context, req *UpdateCardHolderRequest) (*model.CardHolder, error) {
+func (u *PhotonPayOpenAPIUsecase) UpdateCardHolder(ctx context.Context, req *UpdateCardHolderRequest) (*model.CardHolder, error) {
 	var holder *model.CardHolder
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		if err := u.requireCardHolder(txCtx, req.CardholderID); err != nil {
@@ -169,7 +176,7 @@ type ListRequest struct {
 	Limit  int
 }
 
-func (u *Usecase) ListCardHolders(ctx context.Context, req *ListRequest) ([]*model.CardHolder, error) {
+func (u *PhotonPayOpenAPIUsecase) ListCardHolders(ctx context.Context, req *ListRequest) ([]*model.CardHolder, error) {
 	holders, err := u.cardHolderRepo.List(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list photonpay card holders", "error", err)
@@ -191,7 +198,7 @@ type OpenCardRequest struct {
 	ExpirationMonths int
 }
 
-func (u *Usecase) OpenCard(ctx context.Context, req *OpenCardRequest) (*model.Card, error) {
+func (u *PhotonPayOpenAPIUsecase) OpenCard(ctx context.Context, req *OpenCardRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		if err := u.requireCardHolder(txCtx, req.CardholderID); err != nil {
@@ -221,7 +228,7 @@ func (u *Usecase) OpenCard(ctx context.Context, req *OpenCardRequest) (*model.Ca
 			CardProductID:          product.ID,
 			CardBin:                product.Prefix,
 			CardNumber:             cardNumber,
-			Cvv:                    randomDigits(3),
+			Cvv:                    randomx.Digits(3),
 			ExpireAt:               time.Now().UTC().AddDate(0, months, 0),
 			Status:                 common.CardStatus_Active,
 			CardHolderID:           req.CardholderID,
@@ -250,7 +257,7 @@ func (u *Usecase) OpenCard(ctx context.Context, req *OpenCardRequest) (*model.Ca
 	return card, nil
 }
 
-func (u *Usecase) ListCardProducts(ctx context.Context) ([]*model.CardProduct, error) {
+func (u *PhotonPayOpenAPIUsecase) ListCardProducts(ctx context.Context) ([]*model.CardProduct, error) {
 	products, err := u.cardProductRepo.List(ctx)
 	if err != nil {
 		zap.S().Errorw("list photonpay card products", "error", err)
@@ -260,7 +267,7 @@ func (u *Usecase) ListCardProducts(ctx context.Context) ([]*model.CardProduct, e
 	return products, nil
 }
 
-func (u *Usecase) GetCard(ctx context.Context, cardID model.ID) (*model.Card, error) {
+func (u *PhotonPayOpenAPIUsecase) GetCard(ctx context.Context, cardID model.ID) (*model.Card, error) {
 	if err := u.requireCard(ctx, cardID); err != nil {
 		return nil, err
 	}
@@ -275,7 +282,7 @@ func (u *Usecase) GetCard(ctx context.Context, cardID model.ID) (*model.Card, er
 	return card, nil
 }
 
-func (u *Usecase) ListCards(ctx context.Context, req *ListRequest) ([]*model.Card, error) {
+func (u *PhotonPayOpenAPIUsecase) ListCards(ctx context.Context, req *ListRequest) ([]*model.Card, error) {
 	cards, err := u.cardRepo.ListCards(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list photonpay cards", "error", err)
@@ -286,7 +293,7 @@ func (u *Usecase) ListCards(ctx context.Context, req *ListRequest) ([]*model.Car
 	return cards, nil
 }
 
-func (u *Usecase) GetRequestResult(ctx context.Context, requestID string) (*model.Card, error) {
+func (u *PhotonPayOpenAPIUsecase) GetRequestResult(ctx context.Context, requestID string) (*model.Card, error) {
 	exists, err := u.cardRepo.ExistCardByRequestID(ctx, requestID)
 	if err != nil {
 		zap.S().Errorw("check photonpay card request", "error", err)
@@ -314,7 +321,7 @@ type ChangeCardStatusRequest struct {
 	Operation common.OperationType
 }
 
-func (u *Usecase) ChangeCardStatus(ctx context.Context, req *ChangeCardStatusRequest) (*model.Card, error) {
+func (u *PhotonPayOpenAPIUsecase) ChangeCardStatus(ctx context.Context, req *ChangeCardStatusRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		if err := u.requireCard(txCtx, req.CardID); err != nil {
@@ -349,7 +356,7 @@ func (u *Usecase) ChangeCardStatus(ctx context.Context, req *ChangeCardStatusReq
 	return card, nil
 }
 
-func (u *Usecase) ListTransactions(ctx context.Context, req *ListRequest) ([]*model.CardTransaction, error) {
+func (u *PhotonPayOpenAPIUsecase) ListTransactions(ctx context.Context, req *ListRequest) ([]*model.CardTransaction, error) {
 	transactions, err := u.cardTransactionRepo.ListTransactions(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list photonpay card transactions", "error", err)
@@ -364,16 +371,7 @@ func DefaultBalance() decimal.Decimal {
 	return decimal.NewFromInt(1_000_000)
 }
 
-func randomDigits(length int) string {
-	bytes := make([]byte, length)
-	_, _ = rand.Read(bytes)
-	for index := range bytes {
-		bytes[index] = '0' + bytes[index]%10
-	}
-	return string(bytes)
-}
-
-func (u *Usecase) requireCardHolder(ctx context.Context, id model.ID) error {
+func (u *PhotonPayOpenAPIUsecase) requireCardHolder(ctx context.Context, id model.ID) error {
 	exists, err := u.cardHolderRepo.ExistCardHolderByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check photonpay card holder", "error", err)
@@ -387,7 +385,7 @@ func (u *Usecase) requireCardHolder(ctx context.Context, id model.ID) error {
 	return nil
 }
 
-func (u *Usecase) requireCard(ctx context.Context, id model.ID) error {
+func (u *PhotonPayOpenAPIUsecase) requireCard(ctx context.Context, id model.ID) error {
 	exists, err := u.cardRepo.ExistCardByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check photonpay card", "error", err)
@@ -401,7 +399,7 @@ func (u *Usecase) requireCard(ctx context.Context, id model.ID) error {
 	return nil
 }
 
-func (u *Usecase) getCardProductByBinPrefix(
+func (u *PhotonPayOpenAPIUsecase) getCardProductByBinPrefix(
 	ctx context.Context,
 	prefix string,
 ) (*model.CardProduct, error) {

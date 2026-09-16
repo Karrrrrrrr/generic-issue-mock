@@ -2,18 +2,19 @@ package biz
 
 import (
 	"context"
-	"crypto/rand"
 	"time"
 
+	slash "generic-mock/channel/slash/enums"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/cardnumber"
+	"generic-mock/pkg/randomx"
 
 	"github.com/samber/do"
 	"go.uber.org/zap"
 )
 
-type OpenAPIUsecase struct {
+type SlashOpenAPIUsecase struct {
 	transaction               Transaction
 	cardHolderRepository      CardHolderRepository
 	cardRepository            CardRepository
@@ -21,13 +22,13 @@ type OpenAPIUsecase struct {
 	cardTransactionRepository CardTransactionRepository
 }
 
-func NewOpenAPIUsecase(injector *do.Injector) (*OpenAPIUsecase, error) {
-	return &OpenAPIUsecase{
-		transaction:               do.MustInvokeNamed[Transaction](injector, "slash.transaction"),
-		cardHolderRepository:      do.MustInvokeNamed[CardHolderRepository](injector, "slash.card-holder-repository"),
-		cardRepository:            do.MustInvokeNamed[CardRepository](injector, "slash.card-repository"),
-		cardProductRepository:     do.MustInvokeNamed[CardProductRepository](injector, "slash.card-product-repository"),
-		cardTransactionRepository: do.MustInvokeNamed[CardTransactionRepository](injector, "slash.card-transaction-repository"),
+func NewSlashOpenAPIUsecase(injector *do.Injector) (*SlashOpenAPIUsecase, error) {
+	return &SlashOpenAPIUsecase{
+		transaction:               do.MustInvoke[Transaction](injector),
+		cardHolderRepository:      do.MustInvoke[CardHolderRepository](injector),
+		cardRepository:            do.MustInvoke[CardRepository](injector),
+		cardProductRepository:     do.MustInvoke[CardProductRepository](injector),
+		cardTransactionRepository: do.MustInvoke[CardTransactionRepository](injector),
 	}, nil
 }
 
@@ -37,7 +38,7 @@ type OpenAPIListCardsRequest struct {
 	Status enums.CardStatus
 }
 
-func (u *OpenAPIUsecase) ListCards(ctx context.Context, req *OpenAPIListCardsRequest) ([]*model.Card, error) {
+func (u *SlashOpenAPIUsecase) ListCards(ctx context.Context, req *OpenAPIListCardsRequest) ([]*model.Card, error) {
 	items, err := u.cardRepository.List(ctx, &ListCardsRequest{
 		Offset: req.Offset,
 		Limit:  req.Limit,
@@ -58,7 +59,7 @@ type OpenAPICreateCardRequest struct {
 	Currency      enums.Currency
 }
 
-func (u *OpenAPIUsecase) CreateCard(ctx context.Context, req *OpenAPICreateCardRequest) (*model.Card, error) {
+func (u *SlashOpenAPIUsecase) CreateCard(ctx context.Context, req *OpenAPICreateCardRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		holderExists, err := u.cardHolderRepository.ExistByID(txCtx, req.CardHolderID)
@@ -104,16 +105,16 @@ func (u *OpenAPIUsecase) CreateCard(ctx context.Context, req *OpenAPICreateCardR
 			CardProductID:          product.ID,
 			CardBin:                product.Prefix,
 			CardNumber:             cardNumber,
-			Cvv:                    openAPIRandomDigits(3),
+			Cvv:                    randomx.Digits(3),
 			ExpireAt:               time.Now().UTC().AddDate(2, 0, 0),
 			Status:                 enums.CardStatus_Active,
 			CardHolderID:           req.CardHolderID,
 			FormType:               enums.CardFormType_Virtual,
 			CardCurrency:           req.Currency,
-			CardScheme:             "VISA",
+			CardScheme:             slash.CardScheme,
 			CardType:               enums.CardType_Single,
-			RequestID:              openAPIRandomDigits(20),
-			LastOperationRequestID: openAPIRandomDigits(20),
+			RequestID:              randomx.Digits(20),
+			LastOperationRequestID: randomx.Digits(20),
 		}
 		if err := u.cardRepository.Create(txCtx, card); err != nil {
 			zap.S().Errorw("create slash openapi card", "error", err)
@@ -130,7 +131,7 @@ func (u *OpenAPIUsecase) CreateCard(ctx context.Context, req *OpenAPICreateCardR
 	return card, nil
 }
 
-func (u *OpenAPIUsecase) GetCard(ctx context.Context, id model.ID) (*model.Card, error) {
+func (u *SlashOpenAPIUsecase) GetCard(ctx context.Context, id model.ID) (*model.Card, error) {
 	exists, err := u.cardRepository.ExistByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check slash openapi card", "error", err)
@@ -156,7 +157,7 @@ type OpenAPIUpdateCardRequest struct {
 	Status enums.CardStatus
 }
 
-func (u *OpenAPIUsecase) UpdateCard(ctx context.Context, req *OpenAPIUpdateCardRequest) (*model.Card, error) {
+func (u *SlashOpenAPIUsecase) UpdateCard(ctx context.Context, req *OpenAPIUpdateCardRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		exists, err := u.cardRepository.ExistByID(txCtx, req.ID)
@@ -192,7 +193,7 @@ func (u *OpenAPIUsecase) UpdateCard(ctx context.Context, req *OpenAPIUpdateCardR
 	return card, nil
 }
 
-func (u *OpenAPIUsecase) ListCardProducts(ctx context.Context) ([]*model.CardProduct, error) {
+func (u *SlashOpenAPIUsecase) ListCardProducts(ctx context.Context) ([]*model.CardProduct, error) {
 	items, err := u.cardProductRepository.List(ctx)
 	if err != nil {
 		zap.S().Errorw("list slash openapi card products", "error", err)
@@ -209,7 +210,7 @@ type OpenAPIListTransactionsRequest struct {
 	CardID model.ID
 }
 
-func (u *OpenAPIUsecase) ListTransactions(ctx context.Context, req *OpenAPIListTransactionsRequest) ([]*model.CardTransaction, error) {
+func (u *SlashOpenAPIUsecase) ListTransactions(ctx context.Context, req *OpenAPIListTransactionsRequest) ([]*model.CardTransaction, error) {
 	items, err := u.cardTransactionRepository.List(ctx, &ListCardTransactionsRequest{
 		Offset: req.Offset,
 		Limit:  req.Limit,
@@ -224,7 +225,7 @@ func (u *OpenAPIUsecase) ListTransactions(ctx context.Context, req *OpenAPIListT
 	return items, nil
 }
 
-func (u *OpenAPIUsecase) GetTransaction(ctx context.Context, id model.ID) (*model.CardTransaction, error) {
+func (u *SlashOpenAPIUsecase) GetTransaction(ctx context.Context, id model.ID) (*model.CardTransaction, error) {
 	exists, err := u.cardTransactionRepository.ExistByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check slash openapi transaction", "error", err)
@@ -243,14 +244,4 @@ func (u *OpenAPIUsecase) GetTransaction(ctx context.Context, id model.ID) (*mode
 	}
 
 	return item, nil
-}
-
-func openAPIRandomDigits(length int) string {
-	bytes := make([]byte, length)
-	_, _ = rand.Read(bytes)
-	for index := range bytes {
-		bytes[index] = '0' + bytes[index]%10
-	}
-
-	return string(bytes)
 }

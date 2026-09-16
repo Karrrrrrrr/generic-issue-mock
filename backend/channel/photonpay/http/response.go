@@ -37,20 +37,28 @@ func failure(err error) (int, any) {
 		status = http.StatusInternalServerError
 	}
 
-	code := enums.ResponseCode(appError.Reason)
-	if code == "" {
-		if status == http.StatusBadRequest {
-			code = enums.ResponseCode_BadInput
-		} else {
-			code = enums.ResponseCode_InternalError
-		}
-	}
+	code := photonResponseCode(status, appError.Reason)
 
 	return status, response[any]{
 		Code: code,
 		Msg:  appError.Message,
 		Data: nil,
 	}
+}
+
+func photonResponseCode(status int, reason string) enums.ResponseCode {
+	code := enums.ResponseCode(reason)
+	if code != "" {
+		return code
+	}
+	if status == http.StatusNotFound {
+		return enums.ResponseCode_NotFound
+	}
+	if status == http.StatusBadRequest {
+		return enums.ResponseCode_BadInput
+	}
+
+	return enums.ResponseCode_InternalError
 }
 
 func bindingFailure(err error) (int, any) {

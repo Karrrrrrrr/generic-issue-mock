@@ -49,13 +49,13 @@ func main() {
 	router.Use(gin.Logger(), gin.Recovery())
 	photonHTTP.Register(
 		router.Group("/photonpay"),
-		do.MustInvoke[*photonService.Service](injector),
-		do.MustInvokeNamed[*photonService.UIService](injector, "photonpay.ui-service"),
+		do.MustInvoke[*photonService.PhotonPayOpenAPIService](injector),
+		do.MustInvoke[*photonService.PhotonPayUIService](injector),
 	)
 	slashHTTP.Register(
 		router.Group("/slash"),
-		do.MustInvokeNamed[*slashService.Service](injector, "slash.service"),
-		do.MustInvokeNamed[*slashService.OpenAPIService](injector, "slash.openapi-service"),
+		do.MustInvoke[*slashService.SlashUIService](injector),
+		do.MustInvoke[*slashService.SlashOpenAPIService](injector),
 	)
 	addr := os.Getenv("HTTP_ADDR")
 	if addr == "" {

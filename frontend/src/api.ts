@@ -93,7 +93,7 @@ export const api = {
     return (await request.get<SlashList<Transaction>>('/photonpay/ui/transactions')).data
   },
   async simulateAuthorization(payload: { cardID: string; amount: number; currency: string; merchantName: string; merchantMCC: string; merchantCountry: string }): Promise<void> {
-    await request.post('/slash/ui/simulate/authorizations', {
+    await request.post(`/${channel}/ui/simulate/authorizations`, {
       card_id: payload.cardID,
       transaction_amount: payload.amount,
       transaction_currency: payload.currency,
@@ -103,6 +103,6 @@ export const api = {
     })
   },
   async applyTransactionStep(id: string, action: 'clear' | 'reverse' | 'refund'): Promise<void> {
-    await request.post(`/slash/ui/transactions/${id}/${action}`, {})
+    await request.post(`/${channel}/ui/transactions/${id}/${action}`, {})
   },
 }

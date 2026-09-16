@@ -12,13 +12,13 @@ import (
 	"github.com/samber/do"
 )
 
-type OpenAPIService struct {
-	usecase *biz.OpenAPIUsecase
+type SlashOpenAPIService struct {
+	usecase *biz.SlashOpenAPIUsecase
 }
 
-func NewOpenAPIService(injector *do.Injector) (*OpenAPIService, error) {
-	return &OpenAPIService{
-		usecase: do.MustInvokeNamed[*biz.OpenAPIUsecase](injector, "slash.openapi-usecase"),
+func NewSlashOpenAPIService(injector *do.Injector) (*SlashOpenAPIService, error) {
+	return &SlashOpenAPIService{
+		usecase: do.MustInvoke[*biz.SlashOpenAPIUsecase](injector),
 	}, nil
 }
 
@@ -50,11 +50,11 @@ type OpenAPIListCardsRequest struct {
 }
 
 type OpenAPIListCardsData struct {
-	Items    []OpenAPICard   `json:"items"`
+	Items    []*OpenAPICard  `json:"items"`
 	Metadata OpenAPIMetadata `json:"metadata"`
 }
 
-func (s *OpenAPIService) ListCards(ctx context.Context, req *OpenAPIListCardsRequest) (*OpenAPIListCardsData, error) {
+func (s *SlashOpenAPIService) ListCards(ctx context.Context, req *OpenAPIListCardsRequest) (*OpenAPIListCardsData, error) {
 	offset, limit := openAPIPagination(req.PageNumber, req.PageSize)
 	items, err := s.usecase.ListCards(ctx, &biz.OpenAPIListCardsRequest{
 		Offset: offset,
@@ -66,9 +66,7 @@ func (s *OpenAPIService) ListCards(ctx context.Context, req *OpenAPIListCardsReq
 	}
 
 	return &OpenAPIListCardsData{
-		Items: types.BulkConvertSlice(items, func(item *model.Card) OpenAPICard {
-			return *openAPICard(item)
-		}),
+		Items: types.BulkConvertSlice(items, openAPICard),
 		Metadata: OpenAPIMetadata{
 			Count: len(items),
 		},
@@ -81,7 +79,7 @@ type OpenAPICreateCardRequest struct {
 	Currency      string `json:"currency" binding:"required"`
 }
 
-func (s *OpenAPIService) CreateCard(ctx context.Context, req *OpenAPICreateCardRequest) (*OpenAPICard, error) {
+func (s *SlashOpenAPIService) CreateCard(ctx context.Context, req *OpenAPICreateCardRequest) (*OpenAPICard, error) {
 	item, err := s.usecase.CreateCard(ctx, &biz.OpenAPICreateCardRequest{
 		CardHolderID:  model.ID(req.CardholderID),
 		CardProductID: model.ID(req.CardProductID),
@@ -98,7 +96,7 @@ type OpenAPIIDRequest struct {
 	ID string `uri:"id" binding:"required"`
 }
 
-func (s *OpenAPIService) GetCard(ctx context.Context, req *OpenAPIIDRequest) (*OpenAPICard, error) {
+func (s *SlashOpenAPIService) GetCard(ctx context.Context, req *OpenAPIIDRequest) (*OpenAPICard, error) {
 	item, err := s.usecase.GetCard(ctx, model.ID(req.ID))
 	if err != nil {
 		return nil, err
@@ -112,7 +110,7 @@ type OpenAPIUpdateCardRequest struct {
 	Status string `json:"status" binding:"required"`
 }
 
-func (s *OpenAPIService) UpdateCard(ctx context.Context, req *OpenAPIUpdateCardRequest) (*OpenAPICard, error) {
+func (s *SlashOpenAPIService) UpdateCard(ctx context.Context, req *OpenAPIUpdateCardRequest) (*OpenAPICard, error) {
 	item, err := s.usecase.UpdateCard(ctx, &biz.OpenAPIUpdateCardRequest{
 		ID:     model.ID(req.ID),
 		Status: enums.CardStatus(req.Status),
@@ -133,18 +131,18 @@ type OpenAPICardProduct struct {
 type OpenAPIListCardProductsRequest struct{}
 
 type OpenAPIListCardProductsData struct {
-	Items []OpenAPICardProduct `json:"items"`
+	Items []*OpenAPICardProduct `json:"items"`
 }
 
-func (s *OpenAPIService) ListCardProducts(ctx context.Context, _ *OpenAPIListCardProductsRequest) (*OpenAPIListCardProductsData, error) {
+func (s *SlashOpenAPIService) ListCardProducts(ctx context.Context, _ *OpenAPIListCardProductsRequest) (*OpenAPIListCardProductsData, error) {
 	items, err := s.usecase.ListCardProducts(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	return &OpenAPIListCardProductsData{
-		Items: types.BulkConvertSlice(items, func(item *model.CardProduct) OpenAPICardProduct {
-			return OpenAPICardProduct{
+		Items: types.BulkConvertSlice(items, func(item *model.CardProduct) *OpenAPICardProduct {
+			return &OpenAPICardProduct{
 				ID:        item.ID,
 				Prefix:    item.Prefix,
 				IsDefault: item.IsDefault,
@@ -171,11 +169,11 @@ type OpenAPIListTransactionsRequest struct {
 }
 
 type OpenAPIListTransactionsData struct {
-	Items    []OpenAPITransaction `json:"items"`
-	Metadata OpenAPIMetadata      `json:"metadata"`
+	Items    []*OpenAPITransaction `json:"items"`
+	Metadata OpenAPIMetadata       `json:"metadata"`
 }
 
-func (s *OpenAPIService) ListTransactions(ctx context.Context, req *OpenAPIListTransactionsRequest) (*OpenAPIListTransactionsData, error) {
+func (s *SlashOpenAPIService) ListTransactions(ctx context.Context, req *OpenAPIListTransactionsRequest) (*OpenAPIListTransactionsData, error) {
 	offset, limit := openAPIPagination(req.PageNumber, req.PageSize)
 	items, err := s.usecase.ListTransactions(ctx, &biz.OpenAPIListTransactionsRequest{
 		Offset: offset,
@@ -187,16 +185,14 @@ func (s *OpenAPIService) ListTransactions(ctx context.Context, req *OpenAPIListT
 	}
 
 	return &OpenAPIListTransactionsData{
-		Items: types.BulkConvertSlice(items, func(item *model.CardTransaction) OpenAPITransaction {
-			return *openAPITransaction(item)
-		}),
+		Items: types.BulkConvertSlice(items, openAPITransaction),
 		Metadata: OpenAPIMetadata{
 			Count: len(items),
 		},
 	}, nil
 }
 
-func (s *OpenAPIService) GetTransaction(ctx context.Context, req *OpenAPIIDRequest) (*OpenAPITransaction, error) {
+func (s *SlashOpenAPIService) GetTransaction(ctx context.Context, req *OpenAPIIDRequest) (*OpenAPITransaction, error) {
 	item, err := s.usecase.GetTransaction(ctx, model.ID(req.ID))
 	if err != nil {
 		return nil, err
