@@ -14,6 +14,7 @@ type WalletType string
 const (
 	WalletType_Card           WalletType = "card"
 	WalletType_VirtualAccount WalletType = "virtual_account"
+	WalletType_Account        WalletType = "account"
 )
 
 type CardType string
@@ -56,6 +57,8 @@ const (
 	CardTransactionType_VERIFICATION CardTransactionType = "verification" // 验证
 	CardTransactionType_VOID         CardTransactionType = "void"         // 撤销
 	CardTransactionType_REFUND       CardTransactionType = "refund"       // 退款
+	CardTransactionType_FundIn       CardTransactionType = "fund_in"      // 资金转入
+	CardTransactionType_FundOut      CardTransactionType = "fund_out"     // 资金转出
 	//CardTransactionType_CORRECTIVE_AUTH               CardTransactionType = "corrective_auth"               // 纠正授权
 	//CardTransactionType_CORRECTIVE_REFUND             CardTransactionType = "corrective_refund"             // 校正退款
 	//CardTransactionType_CORRECTIVE_REFUND_VOID        CardTransactionType = "corrective_refund_void"        // 校正退款撤销
@@ -86,6 +89,7 @@ type Channel string
 
 const (
 	Channel_PhotonPay Channel = "photonpay"
+	Channel_Paynda    Channel = "paynda"
 	Channel_Slash     Channel = "slash"
 )
 

@@ -56,13 +56,13 @@ func (r *cardTransactionRepository) List(ctx context.Context, req *biz.ListCardT
 func cardTransactionPredicates(db *query.Query, req *biz.ListCardTransactionsRequest) []gen.Condition {
 	predicates := make([]gen.Condition, 0, 6)
 	predicates = append(predicates, db.CardTransaction.Channel.Eq(string(enums.Channel_Slash)))
-	if req.ID != "" {
+	if req.ID != 0 {
 		predicates = append(predicates, db.CardTransaction.ID.Eq(req.ID))
 	}
-	if req.CardID != "" {
+	if req.CardID != 0 {
 		predicates = append(predicates, db.CardTransaction.CardID.Eq(req.CardID))
 	}
-	if req.AuthorizationID != "" {
+	if req.AuthorizationID != 0 {
 		predicates = append(predicates, db.CardTransaction.AuthorizationID.Eq(req.AuthorizationID))
 	}
 	if req.Type != "" {

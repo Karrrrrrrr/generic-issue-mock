@@ -11,6 +11,7 @@ import (
 )
 
 const slashDefaultCardProductPrefix = "424242"
+const payndaDefaultCardProductPrefix = "523456"
 
 func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 	items := []*model.CardProduct{
@@ -22,6 +23,11 @@ func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 		{
 			Channel:   enums.Channel_PhotonPay,
 			Prefix:    photon.DefaultCardBin,
+			IsDefault: true,
+		},
+		{
+			Channel:   enums.Channel_Paynda,
+			Prefix:    payndaDefaultCardProductPrefix,
 			IsDefault: true,
 		},
 	}

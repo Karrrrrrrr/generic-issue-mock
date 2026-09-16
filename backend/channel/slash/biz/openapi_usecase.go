@@ -62,7 +62,7 @@ type OpenAPICreateCardRequest struct {
 func (u *SlashOpenAPIUsecase) CreateCard(ctx context.Context, req *OpenAPICreateCardRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		if req.CardHolderID != "" {
+		if req.CardHolderID != 0 {
 			holderExists, err := u.cardHolderRepository.ExistByID(txCtx, req.CardHolderID)
 			if err != nil {
 				zap.S().Errorw("check slash openapi card holder", "error", err)

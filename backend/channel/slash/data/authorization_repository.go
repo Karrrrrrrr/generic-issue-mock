@@ -60,10 +60,10 @@ func (r *authorizationRepository) Save(ctx context.Context, item *model.Authoriz
 func authorizationPredicates(db *query.Query, req *biz.ListAuthorizationsRequest) []gen.Condition {
 	predicates := make([]gen.Condition, 0, 4)
 	predicates = append(predicates, db.Authorization.Channel.Eq(string(enums.Channel_Slash)))
-	if req.ID != "" {
+	if req.ID != 0 {
 		predicates = append(predicates, db.Authorization.ID.Eq(req.ID))
 	}
-	if req.CardID != "" {
+	if req.CardID != 0 {
 		predicates = append(predicates, db.Authorization.CardID.Eq(req.CardID))
 	}
 	if req.Status != "" {

@@ -4,6 +4,9 @@ import (
 	"context"
 	"os"
 
+	"generic-mock/channel/paynda"
+	payndaHTTP "generic-mock/channel/paynda/http"
+	payndaService "generic-mock/channel/paynda/service"
 	"generic-mock/channel/photonpay"
 	photonHTTP "generic-mock/channel/photonpay/http"
 	photonService "generic-mock/channel/photonpay/service"
@@ -43,6 +46,7 @@ func main() {
 	injector := do.New()
 	do.ProvideValue(injector, db)
 	photonpay.RegisterProviders(injector)
+	paynda.RegisterProviders(injector)
 	slash.RegisterProviders(injector)
 
 	router := gin.New()
@@ -51,6 +55,11 @@ func main() {
 		router.Group("/photonpay"),
 		do.MustInvoke[*photonService.PhotonPayOpenAPIService](injector),
 		do.MustInvoke[*photonService.PhotonPayUIService](injector),
+	)
+	payndaHTTP.Register(
+		router.Group("/paynda"),
+		do.MustInvoke[*payndaService.PayndaOpenAPIService](injector),
+		do.MustInvoke[*payndaService.PayndaUIService](injector),
 	)
 	slashHTTP.Register(
 		router.Group("/slash"),

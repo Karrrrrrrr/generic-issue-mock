@@ -25,6 +25,11 @@ func Bind[Req any, Resp any](
 			ctx.JSON(status, response)
 			return
 		}
+		if err := ctx.ShouldBindHeader(&request); err != nil {
+			status, response := bindingErrorEncoder(err)
+			ctx.JSON(status, response)
+			return
+		}
 
 		response, err := fn(ctx.Request.Context(), &request)
 		if err != nil {

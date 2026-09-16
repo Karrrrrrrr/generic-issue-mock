@@ -522,7 +522,7 @@ func (u *SlashUIUsecase) requireCardTransaction(ctx context.Context, id model.ID
 }
 
 func (u *SlashUIUsecase) getCardProductForUpdate(ctx context.Context, id model.ID) (*model.CardProduct, error) {
-	if id == "" {
+	if id == 0 {
 		exists, err := u.cardProductRepository.ExistDefault(ctx)
 		if err != nil {
 			zap.S().Errorw("check slash default card product", "error", err)

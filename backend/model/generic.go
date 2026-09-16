@@ -1,20 +1,58 @@
 package model
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"generic-mock/enums"
+	"strconv"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"gorm.io/gorm"
 	"gorm.io/plugin/soft_delete"
 )
 
-type ID = string
+type ID = int64
 
 type BaseModel struct {
-	ID        ID                    `gorm:"type:uuid;default:uuidv7();primaryKey"`
+	ID        ID                    `gorm:"primaryKey;autoIncrement"`
+	DisplayID string                `gorm:"not null;uniqueIndex"`
 	CreatedAt time.Time             `gorm:"not null"`
 	UpdatedAt time.Time             `gorm:"not null"`
 	DeletedAt soft_delete.DeletedAt `gorm:"softDelete"`
+}
+
+func (item *BaseModel) BeforeCreate(_ *gorm.DB) error {
+	if item.DisplayID != "" {
+		return nil
+	}
+
+	value := make([]byte, 12)
+	if _, err := rand.Read(value); err != nil {
+		return err
+	}
+	item.DisplayID = hex.EncodeToString(value)
+
+	return nil
+}
+
+func (item *BaseModel) AfterCreate(db *gorm.DB) error {
+	item.DisplayID = strconv.FormatInt(item.ID, 10)
+
+	return db.Model(item).UpdateColumn("display_id", item.DisplayID).Error
+}
+
+func ParseDisplayID(value string) (ID, bool) {
+	id, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || id < 1 {
+		return 0, false
+	}
+
+	return id, true
+}
+
+func DisplayID(value ID) string {
+	return strconv.FormatInt(value, 10)
 }
 
 type Card struct {
@@ -27,7 +65,7 @@ type Card struct {
 	ExpireAt               time.Time
 	Status                 enums.CardStatus
 	VirtualAccountID       *ID // nil 表示普通卡，非 nil 表示虚拟账户卡，共享余额。
-	BalanceID              *ID // 虚拟账户卡指向虚拟账户的钱包 ID，减少一次查询。
+	WalletID               *ID // 虚拟账户卡指向虚拟账户的钱包 ID，减少一次查询。
 	CardHolderID           ID  // 持卡人 ID，允许为空。
 	FormType               enums.CardFormType
 	RequestID              string `gorm:"uniqueIndex"`
@@ -42,7 +80,7 @@ type Card struct {
 	// ref
 	//CardHolderInline *CardHolder `gorm:"-"` // 对于不需要持卡人的渠道, 直接存json 不做关联
 	VirtualAccount *VirtualAccount
-	Wallet         *Wallet `gorm:"foreignKey:BalanceID"`
+	Wallet         *Wallet `gorm:"foreignKey:WalletID"`
 	CardHolder     *CardHolder
 	CardProduct    *CardProduct
 	VirtualCard    *VirtualCard
@@ -89,6 +127,7 @@ type VirtualAccount struct {
 
 type Account struct {
 	BaseModel
+	Channel  enums.Channel
 	Name     string
 	WalletID ID
 	Wallet   *Wallet
