@@ -1,14 +1,10 @@
 package model
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"generic-mock/enums"
-	"strconv"
 	"time"
 
 	"github.com/shopspring/decimal"
-	"gorm.io/gorm"
 	"gorm.io/plugin/soft_delete"
 )
 
@@ -16,43 +12,9 @@ type ID = int64
 
 type BaseModel struct {
 	ID        ID                    `gorm:"primaryKey;autoIncrement"`
-	DisplayID string                `gorm:"not null;uniqueIndex"`
 	CreatedAt time.Time             `gorm:"not null"`
 	UpdatedAt time.Time             `gorm:"not null"`
 	DeletedAt soft_delete.DeletedAt `gorm:"softDelete"`
-}
-
-func (item *BaseModel) BeforeCreate(_ *gorm.DB) error {
-	if item.DisplayID != "" {
-		return nil
-	}
-
-	value := make([]byte, 12)
-	if _, err := rand.Read(value); err != nil {
-		return err
-	}
-	item.DisplayID = hex.EncodeToString(value)
-
-	return nil
-}
-
-func (item *BaseModel) AfterCreate(db *gorm.DB) error {
-	item.DisplayID = strconv.FormatInt(item.ID, 10)
-
-	return db.Model(item).UpdateColumn("display_id", item.DisplayID).Error
-}
-
-func ParseDisplayID(value string) (ID, bool) {
-	id, err := strconv.ParseInt(value, 10, 64)
-	if err != nil || id < 1 {
-		return 0, false
-	}
-
-	return id, true
-}
-
-func DisplayID(value ID) string {
-	return strconv.FormatInt(value, 10)
 }
 
 type Card struct {

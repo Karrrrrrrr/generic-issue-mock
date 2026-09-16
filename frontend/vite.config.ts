@@ -17,8 +17,9 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       proxy: {
-        '/slash': apiTarget,
-        '/photonpay': apiTarget,
+        '^/slash/ui': apiTarget,
+        '^/photonpay/ui': apiTarget,
+        '^/paynda/ui': apiTarget,
       },
     },
   }

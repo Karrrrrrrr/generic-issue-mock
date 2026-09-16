@@ -1,8 +1,8 @@
-export type Channel = 'slash' | 'photonpay'
+export type Channel = 'slash' | 'photonpay' | 'paynda'
 
-const value = import.meta.env.VITE_CHANNEL?.trim().toLowerCase()
+const channelFromPath = window.location.pathname.split('/').filter(Boolean)[0]
 
-export const channel: Channel = value === 'photonpay' ? 'photonpay' : 'slash'
+export const channel: Channel = channelFromPath === 'photonpay' || channelFromPath === 'paynda' ? channelFromPath : 'slash'
 
 export const channelConfig = {
   slash: {
@@ -13,6 +13,12 @@ export const channelConfig = {
   },
   photonpay: {
     label: 'PhotonPay',
+    supportsAuthorizationSimulation: true,
+    supportsCardStatus: true,
+    supportsCardholder: true,
+  },
+  paynda: {
+    label: 'Paynda',
     supportsAuthorizationSimulation: true,
     supportsCardStatus: true,
     supportsCardholder: true,

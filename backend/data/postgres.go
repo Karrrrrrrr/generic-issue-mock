@@ -71,7 +71,24 @@ func migrate(db *gorm.DB) error {
 		return err
 	}
 
-	return db.AutoMigrate(genericModels()...)
+	if err := db.AutoMigrate(genericModels()...); err != nil {
+		return err
+	}
+
+	return removeLegacyDisplayIDColumns(db)
+}
+
+func removeLegacyDisplayIDColumns(db *gorm.DB) error {
+	for _, item := range genericModels() {
+		if !db.Migrator().HasColumn(item, "display_id") {
+			continue
+		}
+		if err := db.Migrator().DropColumn(item, "display_id"); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func ensureUUIDV7Function(db *gorm.DB) error {

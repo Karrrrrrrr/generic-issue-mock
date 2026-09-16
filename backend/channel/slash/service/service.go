@@ -55,7 +55,7 @@ func (s *SlashUIService) ListCardProducts(ctx context.Context, _ *ListCardProduc
 	return &ListCardProductsData{
 		Items: types.BulkConvertSlice(items, func(item *biz.CardProductInfo) CardProductData {
 			return CardProductData{
-				ID:        item.Product.ID,
+				ID:        slashIDString(item.Product.ID),
 				Prefix:    item.Product.Prefix,
 				IsDefault: item.Product.IsDefault,
 			}
@@ -138,9 +138,17 @@ type CardData struct {
 }
 
 func (s *SlashUIService) CreateCard(ctx context.Context, req *CreateCardRequest) (*CardData, error) {
+	cardHolderID, err := slashID(req.CardHolderID)
+	if err != nil {
+		return nil, err
+	}
+	cardProductID, err := slashID(req.CardProductID)
+	if err != nil {
+		return nil, err
+	}
 	item, err := s.usecase.CreateCard(ctx, &biz.CreateCardRequest{
-		CardHolderID:  model.ID(req.CardHolderID),
-		CardProductID: model.ID(req.CardProductID),
+		CardHolderID:  cardHolderID,
+		CardProductID: cardProductID,
 		Currency:      common.Currency(req.CardCurrency),
 	})
 	if err != nil {
@@ -179,7 +187,11 @@ type IDRequest struct {
 }
 
 func (s *SlashUIService) GetCard(ctx context.Context, req *IDRequest) (*CardData, error) {
-	item, err := s.usecase.GetCard(ctx, model.ID(req.ID))
+	id, err := slashID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.GetCard(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -192,8 +204,12 @@ type UpdateCardRequest struct {
 }
 
 func (s *SlashUIService) UpdateCardStatus(ctx context.Context, req *UpdateCardRequest) (*CardData, error) {
+	id, err := slashID(req.ID)
+	if err != nil {
+		return nil, err
+	}
 	item, err := s.usecase.UpdateCardStatus(ctx, &biz.UpdateCardStatusRequest{
-		ID:     model.ID(req.ID),
+		ID:     id,
 		Status: slash.CardStatusToGeneric(req.CardStatus),
 	})
 	if err != nil {
@@ -219,8 +235,12 @@ type SimulateAuthorizationData struct {
 }
 
 func (s *SlashUIService) SimulateAuthorization(ctx context.Context, req *SimulateAuthorizationRequest) (*SimulateAuthorizationData, error) {
+	cardID, err := slashID(req.CardID)
+	if err != nil {
+		return nil, err
+	}
 	result, err := s.usecase.SimulateAuthorization(ctx, &biz.SimulateAuthorizationRequest{
-		CardID:          model.ID(req.CardID),
+		CardID:          cardID,
 		Amount:          decimal.NewFromFloat(req.TransactionAmount),
 		Currency:        common.Currency(req.TransactionCurrency),
 		MerchantName:    req.MerchantName,
@@ -260,11 +280,19 @@ type AuthorizationData struct {
 
 func (s *SlashUIService) ListAuthorizations(ctx context.Context, req *ListAuthorizationsRequest) (*ListResponse[*AuthorizationData], error) {
 	offset, limit := pagination(req.PageNumber, req.PageSize)
+	id, err := slashOptionalID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	cardID, err := slashOptionalID(req.CardID)
+	if err != nil {
+		return nil, err
+	}
 	items, total, err := s.usecase.ListAuthorizations(ctx, &biz.ListAuthorizationsRequest{
 		Offset: offset,
 		Limit:  limit,
-		ID:     model.ID(req.ID),
-		CardID: model.ID(req.CardID),
+		ID:     id,
+		CardID: cardID,
 		Status: slash.TransactionStatusToGeneric(req.Status),
 	})
 	if err != nil {
@@ -277,7 +305,11 @@ func (s *SlashUIService) ListAuthorizations(ctx context.Context, req *ListAuthor
 }
 
 func (s *SlashUIService) GetAuthorization(ctx context.Context, req *IDRequest) (*AuthorizationData, error) {
-	item, err := s.usecase.GetAuthorization(ctx, model.ID(req.ID))
+	id, err := slashID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.GetAuthorization(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -311,12 +343,24 @@ type TransactionData struct {
 
 func (s *SlashUIService) ListTransactions(ctx context.Context, req *ListTransactionsRequest) (*ListResponse[*TransactionData], error) {
 	offset, limit := pagination(req.PageNumber, req.PageSize)
+	id, err := slashOptionalID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	cardID, err := slashOptionalID(req.CardID)
+	if err != nil {
+		return nil, err
+	}
+	authorizationID, err := slashOptionalID(req.AuthorizationID)
+	if err != nil {
+		return nil, err
+	}
 	items, total, err := s.usecase.ListCardTransactions(ctx, &biz.ListCardTransactionsRequest{
 		Offset:          offset,
 		Limit:           limit,
-		ID:              model.ID(req.ID),
-		CardID:          model.ID(req.CardID),
-		AuthorizationID: model.ID(req.AuthorizationID),
+		ID:              id,
+		CardID:          cardID,
+		AuthorizationID: authorizationID,
 		Type:            slash.TransactionTypeToGeneric(req.TransactionType),
 		Status:          slash.TransactionStatusToGeneric(req.Status),
 	})
@@ -330,7 +374,11 @@ func (s *SlashUIService) ListTransactions(ctx context.Context, req *ListTransact
 }
 
 func (s *SlashUIService) GetTransaction(ctx context.Context, req *IDRequest) (*TransactionData, error) {
-	item, err := s.usecase.GetCardTransaction(ctx, model.ID(req.ID))
+	id, err := slashID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.GetCardTransaction(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -355,8 +403,12 @@ func (s *SlashUIService) RefundTransaction(ctx context.Context, req *ApplyTransa
 }
 
 func (s *SlashUIService) applyTransactionStep(ctx context.Context, req *ApplyTransactionStepRequest, transactionType common.CardTransactionType) (*TransactionData, error) {
+	id, err := slashID(req.ID)
+	if err != nil {
+		return nil, err
+	}
 	item, err := s.usecase.ApplyTransactionStep(ctx, &biz.ApplyTransactionStepRequest{
-		CardTransactionID: model.ID(req.ID),
+		CardTransactionID: id,
 		Type:              transactionType,
 		Amount:            decimal.NewFromFloat(req.Amount),
 	})
@@ -368,7 +420,7 @@ func (s *SlashUIService) applyTransactionStep(ctx context.Context, req *ApplyTra
 
 func cardHolderData(item *model.CardHolder) *CardHolderData {
 	return &CardHolderData{
-		ID:        item.ID,
+		ID:        slashIDString(item.ID),
 		FirstName: item.FirstName,
 		LastName:  item.LastName,
 		Email:     item.Email,
@@ -381,9 +433,9 @@ func cardHolderData(item *model.CardHolder) *CardHolderData {
 
 func cardData(item *model.Card) *CardData {
 	return &CardData{
-		ID:            item.ID,
-		CardHolderID:  item.CardHolderID,
-		CardProductID: item.CardProductID,
+		ID:            slashIDString(item.ID),
+		CardHolderID:  slashIDString(item.CardHolderID),
+		CardProductID: slashIDString(item.CardProductID),
 		CardNumber:    item.CardNumber,
 		Last4:         last4(item.CardNumber),
 		CardBin:       item.CardBin,
@@ -401,8 +453,8 @@ func cardData(item *model.Card) *CardData {
 
 func authorizationData(item *model.Authorization) *AuthorizationData {
 	return &AuthorizationData{
-		ID:                   item.ID,
-		CardID:               item.CardID,
+		ID:                   slashIDString(item.ID),
+		CardID:               slashIDString(item.CardID),
 		Status:               slash.TransactionStatusFromGeneric(item.Status),
 		AuthorizedAmount:     item.Amount.String(),
 		Currency:             string(item.Currency),
@@ -416,9 +468,9 @@ func authorizationData(item *model.Authorization) *AuthorizationData {
 
 func transactionData(item *model.CardTransaction) *TransactionData {
 	return &TransactionData{
-		ID:                   item.ID,
-		CardID:               item.CardID,
-		AuthorizationID:      item.AuthorizationID,
+		ID:                   slashIDString(item.ID),
+		CardID:               slashIDString(item.CardID),
+		AuthorizationID:      slashIDString(item.AuthorizationID),
 		TransactionType:      slash.TransactionTypeFromGeneric(item.Type),
 		Status:               slash.TransactionStatusFromGeneric(item.Status),
 		Amount:               item.TxAmount.String(),

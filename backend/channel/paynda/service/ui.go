@@ -2,10 +2,13 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"generic-mock/channel/paynda/biz"
+	paynda "generic-mock/channel/paynda/enums"
 	common "generic-mock/enums"
 	"generic-mock/model"
+	"generic-mock/pkg/types"
 
 	"github.com/samber/do"
 	"github.com/shopspring/decimal"
@@ -22,66 +25,145 @@ func NewPayndaUIService(injector *do.Injector) (*PayndaUIService, error) {
 }
 
 type PayndaUIListRequest struct {
-	Offset int `form:"offset"`
-	Limit  int `form:"limit"`
+	PageNumber int `form:"page_number"`
+	PageSize   int `form:"page_size"`
 }
 
-type PayndaUICardsData struct {
-	Records []*model.Card `json:"records"`
+type PayndaUIListResponse[T any] struct {
+	TotalItems int `json:"total_items"`
+	Data       []T `json:"data"`
 }
 
-type PayndaUICardHoldersData struct {
-	Records []*model.CardHolder `json:"records"`
+type PayndaUICardHolderRequest struct {
+	FirstName string `json:"first_name" binding:"required"`
+	LastName  string `json:"last_name" binding:"required"`
+	Email     string `json:"email" binding:"required"`
+	Mobile    string `json:"phone_number" binding:"required"`
 }
 
-func (s *PayndaUIService) ListCards(ctx context.Context, req *PayndaUIListRequest) (*PayndaUICardsData, error) {
-	items, err := s.usecase.ListCards(ctx, &biz.PayndaListRequest{
-		Offset: req.Offset,
-		Limit:  req.Limit,
-	})
+type PayndaUICardHolderData struct {
+	ID        string    `json:"id"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Email     string    `json:"email"`
+	Mobile    string    `json:"phone_number"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+}
+type PayndaUICreateCardRequest struct {
+	CardHolderID string `json:"cardholder_id" binding:"required"`
+	CardCurrency string `json:"card_currency" binding:"required"`
+}
+type PayndaUICardData struct {
+	ID           string    `json:"id"`
+	CardHolderID string    `json:"cardholder_id"`
+	CardNumber   string    `json:"card_number"`
+	CardBin      string    `json:"card_bin"`
+	CardCurrency string    `json:"card_currency"`
+	CardStatus   string    `json:"card_status"`
+	Cvv          string    `json:"cvv"`
+	ExpiresAt    time.Time `json:"expires_at"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+type PayndaUIUpdateCardStatusRequest struct {
+	ID         string            `uri:"id" binding:"required"`
+	CardStatus paynda.CardStatus `json:"card_status" binding:"required"`
+}
+
+func (s *PayndaUIService) CreateCardHolder(ctx context.Context, req *PayndaUICardHolderRequest) (*PayndaUICardHolderData, error) {
+	item, err := s.usecase.CreateCardHolder(ctx, &biz.PayndaUICreateCardHolderRequest{FirstName: req.FirstName, LastName: req.LastName, Email: req.Email, Mobile: req.Mobile})
 	if err != nil {
 		return nil, err
 	}
-
-	return &PayndaUICardsData{
-		Records: items,
-	}, nil
+	return payndaUICardHolderData(item), nil
 }
 
-func (s *PayndaUIService) ListCardHolders(ctx context.Context, req *PayndaUIListRequest) (*PayndaUICardHoldersData, error) {
-	items, err := s.usecase.ListCardHolders(ctx, &biz.PayndaListRequest{
-		Offset: req.Offset,
-		Limit:  req.Limit,
-	})
+func (s *PayndaUIService) ListCards(ctx context.Context, req *PayndaUIListRequest) (*PayndaUIListResponse[*PayndaUICardData], error) {
+	items, err := s.usecase.ListCards(ctx, payndaUIListRequest(req))
 	if err != nil {
 		return nil, err
 	}
+	return &PayndaUIListResponse[*PayndaUICardData]{TotalItems: len(items), Data: types.BulkConvertSlice(items, payndaUICardData)}, nil
+}
 
-	return &PayndaUICardHoldersData{
-		Records: items,
-	}, nil
+func (s *PayndaUIService) ListCardHolders(ctx context.Context, req *PayndaUIListRequest) (*PayndaUIListResponse[*PayndaUICardHolderData], error) {
+	items, err := s.usecase.ListCardHolders(ctx, payndaUIListRequest(req))
+	if err != nil {
+		return nil, err
+	}
+	return &PayndaUIListResponse[*PayndaUICardHolderData]{TotalItems: len(items), Data: types.BulkConvertSlice(items, payndaUICardHolderData)}, nil
+}
+
+func (s *PayndaUIService) CreateCard(ctx context.Context, req *PayndaUICreateCardRequest) (*PayndaUICardData, error) {
+	holderID, err := payndaID(req.CardHolderID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.CreateCard(ctx, &biz.PayndaUICreateCardRequest{CardHolderID: holderID, Currency: common.Currency(req.CardCurrency)})
+	if err != nil {
+		return nil, err
+	}
+	return payndaUICardData(item), nil
+}
+
+func (s *PayndaUIService) UpdateCardStatus(ctx context.Context, req *PayndaUIUpdateCardStatusRequest) (*PayndaUICardData, error) {
+	id, err := payndaID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.UpdateCardStatus(ctx, &biz.PayndaUIUpdateCardStatusRequest{CardID: id, Status: paynda.CardStatusToGeneric(req.CardStatus)})
+	if err != nil {
+		return nil, err
+	}
+	return payndaUICardData(item), nil
 }
 
 type PayndaUISimulateAuthorizationRequest struct {
-	CardID          string          `json:"cardId" binding:"required"`
-	Amount          decimal.Decimal `json:"amount" binding:"required"`
-	Currency        common.Currency `json:"currency" binding:"required"`
-	MerchantName    string          `json:"merchantName"`
-	MerchantCountry string          `json:"merchantCountry"`
-	MerchantMCC     string          `json:"merchantMcc"`
+	CardID          string          `json:"card_id" binding:"required"`
+	Amount          decimal.Decimal `json:"transaction_amount" binding:"required"`
+	Currency        common.Currency `json:"transaction_currency" binding:"required"`
+	MerchantName    string          `json:"merchant_name"`
+	MerchantCountry string          `json:"merchant_country"`
+	MerchantMCC     string          `json:"merchant_category_code"`
 }
 
 type PayndaUISimulateAuthorizationData struct {
-	Authorization   *model.Authorization   `json:"authorization"`
-	CardTransaction *model.CardTransaction `json:"cardTransaction"`
+	Authorization   *PayndaUIAuthorizationData `json:"authorization"`
+	CardTransaction *PayndaUITransactionData   `json:"transaction"`
+}
+type PayndaUIAuthorizationData struct {
+	ID                   string    `json:"id"`
+	CardID               string    `json:"card_id"`
+	Status               string    `json:"status"`
+	AuthorizedAmount     string    `json:"authorized_amount"`
+	Currency             string    `json:"currency"`
+	MerchantName         string    `json:"merchant_name"`
+	MerchantCategoryCode string    `json:"merchant_category_code"`
+	AuthorizedAt         time.Time `json:"authorized_at"`
+}
+type PayndaUITransactionData struct {
+	ID                   string    `json:"id"`
+	CardID               string    `json:"card_id"`
+	AuthorizationID      string    `json:"authorization_id"`
+	TransactionType      string    `json:"transaction_type"`
+	Status               string    `json:"status"`
+	Amount               string    `json:"amount"`
+	Currency             string    `json:"currency"`
+	MerchantName         string    `json:"merchant_name"`
+	MerchantCategoryCode string    `json:"merchant_category_code"`
+	TransactedAt         time.Time `json:"transacted_at"`
 }
 
 func (s *PayndaUIService) SimulateAuthorization(
 	ctx context.Context,
 	req *PayndaUISimulateAuthorizationRequest,
 ) (*PayndaUISimulateAuthorizationData, error) {
+	cardID, err := payndaID(req.CardID)
+	if err != nil {
+		return nil, err
+	}
 	result, err := s.usecase.SimulateAuthorization(ctx, &biz.PayndaSimulateAuthorizationRequest{
-		CardID:          req.CardID,
+		CardID:          cardID,
 		Amount:          req.Amount,
 		Currency:        req.Currency,
 		MerchantName:    req.MerchantName,
@@ -93,7 +175,56 @@ func (s *PayndaUIService) SimulateAuthorization(
 	}
 
 	return &PayndaUISimulateAuthorizationData{
-		Authorization:   result.Authorization,
-		CardTransaction: result.CardTransaction,
+		Authorization:   payndaUIAuthorizationData(result.Authorization),
+		CardTransaction: payndaUITransactionData(result.CardTransaction),
 	}, nil
+}
+
+type PayndaUIApplyTransactionStepRequest struct {
+	ID     string          `uri:"id" binding:"required"`
+	Amount decimal.Decimal `json:"amount"`
+}
+
+func (s *PayndaUIService) ClearTransaction(ctx context.Context, req *PayndaUIApplyTransactionStepRequest) (*PayndaUITransactionData, error) {
+	return s.applyTransactionStep(ctx, req, common.CardTransactionType_CLEAR)
+}
+func (s *PayndaUIService) ReverseTransaction(ctx context.Context, req *PayndaUIApplyTransactionStepRequest) (*PayndaUITransactionData, error) {
+	return s.applyTransactionStep(ctx, req, common.CardTransactionType_VOID)
+}
+func (s *PayndaUIService) RefundTransaction(ctx context.Context, req *PayndaUIApplyTransactionStepRequest) (*PayndaUITransactionData, error) {
+	return s.applyTransactionStep(ctx, req, common.CardTransactionType_REFUND)
+}
+func (s *PayndaUIService) ListTransactions(ctx context.Context, req *PayndaUIListRequest) (*PayndaUIListResponse[*PayndaUITransactionData], error) {
+	items, err := s.usecase.ListTransactions(ctx, payndaUIListRequest(req))
+	if err != nil {
+		return nil, err
+	}
+	return &PayndaUIListResponse[*PayndaUITransactionData]{TotalItems: len(items), Data: types.BulkConvertSlice(items, payndaUITransactionData)}, nil
+}
+func (s *PayndaUIService) applyTransactionStep(ctx context.Context, req *PayndaUIApplyTransactionStepRequest, kind common.CardTransactionType) (*PayndaUITransactionData, error) {
+	id, err := payndaID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.ApplyTransactionStep(ctx, &biz.PayndaUIApplyTransactionStepRequest{CardTransactionID: id, Type: kind, Amount: req.Amount})
+	if err != nil {
+		return nil, err
+	}
+	return payndaUITransactionData(item), nil
+}
+func payndaUIListRequest(req *PayndaUIListRequest) *biz.PayndaListRequest {
+	page, size := types.NormalizePagination(req.PageNumber, req.PageSize)
+	return &biz.PayndaListRequest{Offset: (page - 1) * size, Limit: size}
+}
+func payndaUICardHolderData(item *model.CardHolder) *PayndaUICardHolderData {
+	return &PayndaUICardHolderData{ID: payndaIDString(item.ID), FirstName: item.FirstName, LastName: item.LastName, Email: item.Email, Mobile: item.Mobile, Status: string(item.Status), CreatedAt: item.CreatedAt}
+}
+func payndaUICardData(item *model.Card) *PayndaUICardData {
+	return &PayndaUICardData{ID: payndaIDString(item.ID), CardHolderID: payndaIDString(item.CardHolderID), CardNumber: item.CardNumber, CardBin: item.CardBin, CardCurrency: string(item.CardCurrency), CardStatus: string(paynda.CardStatusFromGeneric(item.Status)), Cvv: item.Cvv, ExpiresAt: item.ExpireAt, CreatedAt: item.CreatedAt}
+}
+func payndaUIAuthorizationData(item *model.Authorization) *PayndaUIAuthorizationData {
+	return &PayndaUIAuthorizationData{ID: payndaIDString(item.ID), CardID: payndaIDString(item.CardID), Status: string(item.Status), AuthorizedAmount: item.Amount.String(), Currency: string(item.Currency), MerchantName: item.MerchantName, MerchantCategoryCode: item.MerchantMCC, AuthorizedAt: item.OccurredAt}
+}
+func payndaUITransactionData(item *model.CardTransaction) *PayndaUITransactionData {
+	return &PayndaUITransactionData{ID: payndaIDString(item.ID), CardID: payndaIDString(item.CardID), AuthorizationID: payndaIDString(item.AuthorizationID), TransactionType: string(paynda.TransactionTypeFromGeneric(item.Type)), Status: string(item.Status), Amount: item.TxAmount.String(), Currency: string(item.TxCurrency), MerchantName: item.MerchantName, MerchantCategoryCode: item.MerchantMCC, TransactedAt: item.OccurredAt}
 }

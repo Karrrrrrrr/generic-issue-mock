@@ -83,7 +83,7 @@ const transactionColumns = [
   {
     title: '操作',
     key: 'actions',
-    render: (row: Transaction) => channel === 'slash'
+    render: (row: Transaction) => channel !== 'photonpay'
       ? h(NSpace, { size: 4 }, {
         default: () => [
           h(NButton, { size: 'tiny', onClick: () => applyStep(row.id, 'clear') }, { default: () => '清算' }),

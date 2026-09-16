@@ -96,8 +96,12 @@ type UICardData struct {
 }
 
 func (s *PhotonPayUIService) CreateCard(ctx context.Context, req *UICreateCardRequest) (*UICardData, error) {
+	cardHolderID, err := photonPayID(req.CardHolderID)
+	if err != nil {
+		return nil, err
+	}
 	card, err := s.usecase.OpenCard(ctx, &biz.UIOpenCardRequest{
-		CardHolderID: model.ID(req.CardHolderID),
+		CardHolderID: cardHolderID,
 		Currency:     common.Currency(req.CardCurrency),
 		RequestID:    req.RequestID,
 	})
@@ -126,8 +130,12 @@ type UIUpdateCardStatusRequest struct {
 }
 
 func (s *PhotonPayUIService) UpdateCardStatus(ctx context.Context, req *UIUpdateCardStatusRequest) (*UICardData, error) {
+	cardID, err := photonPayID(req.ID)
+	if err != nil {
+		return nil, err
+	}
 	card, err := s.usecase.ChangeCardStatus(ctx, &biz.UIChangeCardStatusRequest{
-		CardID: model.ID(req.ID),
+		CardID: cardID,
 		Status: photon.CardStatusToGeneric(req.CardStatus),
 	})
 	if err != nil {
@@ -179,8 +187,12 @@ type UISimulateAuthorizationData struct {
 }
 
 func (s *PhotonPayUIService) SimulateAuthorization(ctx context.Context, req *UISimulateAuthorizationRequest) (*UISimulateAuthorizationData, error) {
+	cardID, err := photonPayID(req.CardID)
+	if err != nil {
+		return nil, err
+	}
 	result, err := s.usecase.SimulateAuthorization(ctx, &biz.UISimulateAuthorizationRequest{
-		CardID:          model.ID(req.CardID),
+		CardID:          cardID,
 		Amount:          decimal.NewFromFloat(req.TransactionAmount),
 		Currency:        common.Currency(req.TransactionCurrency),
 		MerchantName:    req.MerchantName,
@@ -217,8 +229,12 @@ func (s *PhotonPayUIService) RefundTransaction(ctx context.Context, req *UIApply
 }
 
 func (s *PhotonPayUIService) applyTransactionStep(ctx context.Context, req *UIApplyTransactionStepRequest, transactionType common.CardTransactionType) (*UITransactionData, error) {
+	transactionID, err := photonPayID(req.ID)
+	if err != nil {
+		return nil, err
+	}
 	item, err := s.usecase.ApplyTransactionStep(ctx, &biz.UIApplyTransactionStepRequest{
-		CardTransactionID: model.ID(req.ID),
+		CardTransactionID: transactionID,
 		Type:              transactionType,
 		Amount:            decimal.NewFromFloat(req.Amount),
 	})
@@ -252,7 +268,7 @@ func photonPayUIListRequest(req *UIListRequest) *biz.ListRequest {
 
 func photonPayUICardHolderData(item *model.CardHolder) *UICardHolderData {
 	return &UICardHolderData{
-		ID:        item.ID,
+		ID:        photonPayIDString(item.ID),
 		FirstName: item.FirstName,
 		LastName:  item.LastName,
 		Email:     item.Email,
@@ -264,8 +280,8 @@ func photonPayUICardHolderData(item *model.CardHolder) *UICardHolderData {
 
 func photonPayUICardData(item *model.Card) *UICardData {
 	return &UICardData{
-		ID:           item.ID,
-		CardHolderID: item.CardHolderID,
+		ID:           photonPayIDString(item.ID),
+		CardHolderID: photonPayIDString(item.CardHolderID),
 		CardNumber:   item.CardNumber,
 		CardBin:      item.CardBin,
 		CardCurrency: string(item.CardCurrency),
@@ -278,8 +294,8 @@ func photonPayUICardData(item *model.Card) *UICardData {
 
 func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationData {
 	return &UIAuthorizationData{
-		ID:                   item.ID,
-		CardID:               item.CardID,
+		ID:                   photonPayIDString(item.ID),
+		CardID:               photonPayIDString(item.CardID),
 		Status:               photon.AuthorizationStatusFromGeneric(item.Status),
 		AuthorizedAmount:     item.Amount.String(),
 		Currency:             string(item.Currency),
@@ -292,9 +308,9 @@ func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationDat
 
 func photonPayUITransactionData(item *model.CardTransaction) *UITransactionData {
 	return &UITransactionData{
-		ID:                   item.ID,
-		CardID:               item.CardID,
-		AuthorizationID:      item.AuthorizationID,
+		ID:                   photonPayIDString(item.ID),
+		CardID:               photonPayIDString(item.CardID),
+		AuthorizationID:      photonPayIDString(item.AuthorizationID),
 		TransactionType:      photon.TransactionTypeFromGeneric(item.Type),
 		Status:               photon.TransactionStatusFromGeneric(item.Status),
 		Amount:               item.TxAmount.String(),

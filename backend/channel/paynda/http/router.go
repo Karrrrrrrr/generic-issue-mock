@@ -79,8 +79,15 @@ func uiFailure(err error) (int, any) {
 
 func Register(router *gin.RouterGroup, openapi *service.PayndaOpenAPIService, ui *service.PayndaUIService) {
 	router.GET("/ui/cardholders", bindUI(ui.ListCardHolders))
+	router.POST("/ui/cardholders", bindUI(ui.CreateCardHolder))
 	router.GET("/ui/cards", bindUI(ui.ListCards))
+	router.POST("/ui/cards", bindUI(ui.CreateCard))
+	router.PUT("/ui/cards/:id/status", bindUI(ui.UpdateCardStatus))
 	router.POST("/ui/simulate/authorizations", bindUI(ui.SimulateAuthorization))
+	router.GET("/ui/transactions", bindUI(ui.ListTransactions))
+	router.POST("/ui/transactions/:id/clear", bindUI(ui.ClearTransaction))
+	router.POST("/ui/transactions/:id/reverse", bindUI(ui.ReverseTransaction))
+	router.POST("/ui/transactions/:id/refund", bindUI(ui.RefundTransaction))
 	router.GET("/openapi/merchant/wallets", bind(openapi.ListMerchantWallets))
 	router.POST("/openapi/balanceAccountWalletTransfers", bind(openapi.TransferBalanceAccountWallet))
 	router.POST("/openapi/balanceAccounts/:balanceAccountId/cardholders", bind(openapi.CreateCardHolder))

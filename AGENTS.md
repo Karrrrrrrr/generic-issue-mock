@@ -2,7 +2,8 @@
 
 Read [AI_GUIDELINES.md](AI_GUIDELINES.md) before changing this repository.
 
-- This service simulates channels for downstream systems. Do not use downstream-perspective names such as `ThirdPartyID` in generic models. Expose the PostgreSQL UUIDv7 string primary key `ID`; do not add a second resource token.
+- This service simulates channels for downstream systems. Do not use downstream-perspective names such as `ThirdPartyID` in generic models. Use the auto-incrementing `int64` primary key `ID` only for internal relations; expose the string `display_id` externally and do not add a second resource token.
+- Resolve every incoming mock-owned `display_id` with explicit channel repository `ExistByDisplayID` then `FindByDisplayID` operations before passing an internal `ID` to a usecase. Never parse, cast, derive, or treat `display_id` as `ID`; responses must use the stored model `DisplayID`.
 - Generic models are shared by all channels. Persist only channel-neutral concepts required by an implemented channel. Leave unused third-party API fields in the channel service DTO, tagged with an `Invalid:` comment.
 - Use `channel/<channel>/{service,biz,data,http}`. Service converts typed HTTP DTOs; biz owns business behavior and repo interfaces; data uses GORM Gen.
 - Repositories perform one database operation per method. Use `samber/do` for dependency injection, typed bind/tag DTOs rather than `gin.H`, and no raw GORM `Where("...")` predicates.

@@ -100,8 +100,12 @@ type OpenAPIUserData struct {
 }
 
 func (s *SlashOpenAPIService) CreateCard(ctx context.Context, req *OpenAPICreateCardRequest) (*OpenAPICard, error) {
+	cardProductID, err := slashID(req.CardProductID)
+	if err != nil {
+		return nil, err
+	}
 	item, err := s.usecase.CreateCard(ctx, &biz.OpenAPICreateCardRequest{
-		CardProductID: model.ID(req.CardProductID),
+		CardProductID: cardProductID,
 		Currency:      enums.Currency_USD,
 		RequestID:     req.UserData.RequestID,
 	})
@@ -117,7 +121,11 @@ type OpenAPIIDRequest struct {
 }
 
 func (s *SlashOpenAPIService) GetCard(ctx context.Context, req *OpenAPIIDRequest) (*OpenAPICard, error) {
-	item, err := s.usecase.GetCard(ctx, model.ID(req.ID))
+	id, err := slashID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.GetCard(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -135,8 +143,12 @@ type OpenAPIUpdateCardRequest struct {
 }
 
 func (s *SlashOpenAPIService) UpdateCard(ctx context.Context, req *OpenAPIUpdateCardRequest) (*OpenAPICard, error) {
+	id, err := slashID(req.ID)
+	if err != nil {
+		return nil, err
+	}
 	item, err := s.usecase.UpdateCard(ctx, &biz.OpenAPIUpdateCardRequest{
-		ID:     model.ID(req.ID),
+		ID:     id,
 		Status: slash.CardStatusToGeneric(req.Status),
 	})
 	if err != nil {
@@ -167,7 +179,7 @@ func (s *SlashOpenAPIService) ListCardProducts(ctx context.Context, _ *OpenAPILi
 	return &OpenAPIListCardProductsData{
 		Items: types.BulkConvertSlice(items, func(item *model.CardProduct) *OpenAPICardProduct {
 			return &OpenAPICardProduct{
-				ID:     item.ID,
+				ID:     slashIDString(item.ID),
 				Prefix: item.Prefix,
 				Status: slash.CardProductStatus_Active,
 			}
@@ -204,11 +216,19 @@ type OpenAPIListTransactionsData struct {
 
 func (s *SlashOpenAPIService) ListTransactions(ctx context.Context, req *OpenAPIListTransactionsRequest) (*OpenAPIListTransactionsData, error) {
 	offset, limit := openAPIPagination(req.PageNumber, req.PageSize)
+	cardID, err := slashOptionalID(req.FilterCardID)
+	if err != nil {
+		return nil, err
+	}
+	authorizationID, err := slashOptionalID(req.AuthorizationID)
+	if err != nil {
+		return nil, err
+	}
 	items, err := s.usecase.ListTransactions(ctx, &biz.OpenAPIListTransactionsRequest{
 		Offset:          offset,
 		Limit:           limit,
-		CardID:          model.ID(req.FilterCardID),
-		AuthorizationID: model.ID(req.AuthorizationID),
+		CardID:          cardID,
+		AuthorizationID: authorizationID,
 	})
 	if err != nil {
 		return nil, err
@@ -223,7 +243,11 @@ func (s *SlashOpenAPIService) ListTransactions(ctx context.Context, req *OpenAPI
 }
 
 func (s *SlashOpenAPIService) GetTransaction(ctx context.Context, req *OpenAPIIDRequest) (*OpenAPITransaction, error) {
-	item, err := s.usecase.GetTransaction(ctx, model.ID(req.ID))
+	id, err := slashID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.GetTransaction(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +257,7 @@ func (s *SlashOpenAPIService) GetTransaction(ctx context.Context, req *OpenAPIID
 
 func openAPICard(item *model.Card) *OpenAPICard {
 	return &OpenAPICard{
-		ID:            item.ID,
+		ID:            slashIDString(item.ID),
 		Last4:         item.CardNumber[len(item.CardNumber)-4:],
 		ExpiryMonth:   item.ExpireAt.Format("01"),
 		ExpiryYear:    item.ExpireAt.Format("2006"),
@@ -242,22 +266,22 @@ func openAPICard(item *model.Card) *OpenAPICard {
 		Pan:           item.CardNumber,
 		Cvv:           item.Cvv,
 		CreatedAt:     item.CreatedAt,
-		CardProductID: item.CardProductID,
+		CardProductID: slashIDString(item.CardProductID),
 	}
 }
 
 func openAPITransaction(item *model.CardTransaction) *OpenAPITransaction {
 	return &OpenAPITransaction{
-		ID:                      item.ID,
+		ID:                      slashIDString(item.ID),
 		Date:                    item.OccurredAt.UTC().Format(time.RFC3339),
 		Description:             item.MerchantName,
 		MerchantDescription:     item.MerchantName,
 		AmountCents:             int(item.TxAmount.Mul(decimal.NewFromInt(100)).IntPart()),
 		Status:                  slash.TransactionStatusFromGeneric(item.Status),
 		DetailedStatus:          slash.TransactionStatusFromGeneric(item.Status),
-		CardID:                  item.CardID,
+		CardID:                  slashIDString(item.CardID),
 		AuthorizedAt:            item.OccurredAt.UTC().Format(time.RFC3339),
-		ProviderAuthorizationID: item.AuthorizationID,
+		ProviderAuthorizationID: slashIDString(item.AuthorizationID),
 	}
 }
 
