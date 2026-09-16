@@ -62,6 +62,17 @@ type SlashCardTransactionRepository interface {
 	List(context.Context, *ListCardTransactionsRequest) ([]*model.CardTransaction, error)
 }
 
+type SlashVirtualAccountRepository interface {
+	List(context.Context) ([]*model.VirtualAccount, error)
+	ExistByID(context.Context, model.ID) (bool, error)
+	FindByID(context.Context, model.ID) (*model.VirtualAccount, error)
+}
+
+type SlashWalletRepository interface {
+	FindByIDForUpdate(context.Context, model.ID) (*model.Wallet, error)
+	Save(context.Context, *model.Wallet) error
+}
+
 type SlashUIUsecase struct {
 	transaction               SlashTransaction
 	cardHolderRepository      SlashCardHolderRepository

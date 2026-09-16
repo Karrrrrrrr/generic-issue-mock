@@ -22,6 +22,7 @@ import {
 } from 'naive-ui'
 
 import { api } from '@/channel/paynda/api'
+import AuthorizationView from '@/channel/paynda/AuthorizationView.vue'
 import type { Card, Cardholder, Transaction } from '@/channel/types'
 
 const channelLabel = 'Paynda'
@@ -81,15 +82,15 @@ const transactionColumns = [
   {
     title: '操作',
     key: 'actions',
-    render: (row: Transaction) => h(NSpace, { size: 4 }, {
-      default: () => [
-        h(NButton, { size: 'tiny', onClick: () => applyStep(row.id, 'clear') }, { default: () => '清算' }),
-        h(NButton, { size: 'tiny', onClick: () => applyStep(row.id, 'reverse') }, { default: () => '撤销' }),
-        h(NButton, { size: 'tiny', type: 'warning', onClick: () => applyStep(row.id, 'refund') }, { default: () => '退款' }),
-      ],
-    }),
+    render: (row: Transaction) => h(NSpace, { size: 4 }, { default: () => transactionActions(row) }),
   },
 ]
+
+function transactionActions(row: Transaction) {
+  if (row.transaction_type === 'auth' && row.status === 'authorized') return [h(NButton, { size: 'tiny', type: 'primary', onClick: () => applyStep(row.id, 'clear') }, { default: () => '清算' }), h(NButton, { size: 'tiny', onClick: () => applyStep(row.id, 'reverse') }, { default: () => '撤销' })]
+  if (row.transaction_type === 'clear' && row.status === 'succeed') return [h(NButton, { size: 'tiny', type: 'warning', onClick: () => applyStep(row.id, 'refund') }, { default: () => '退款' })]
+  return [h(NTag, { size: 'small', type: 'default' }, { default: () => '已处理' })]
+}
 
 async function loadCardholders() {
   const result = await api.listCardholders()
@@ -130,6 +131,7 @@ async function createCardholder() {
 }
 
 async function simulateAuthorization() {
+  if (!authorizationForm.value.cardID || !authorizationForm.value.merchantName || !authorizationForm.value.merchantMCC || authorizationForm.value.amount <= 0) { message.warning('请选择卡片并填写正数金额、商户名称和 MCC'); return }
   try {
     await api.simulateAuthorization(authorizationForm.value)
     await loadTransactions()
@@ -167,6 +169,7 @@ onMounted(refresh)
           <n-menu v-model:value="selectedPage" :options="menuOptions" />
         </aside>
         <n-layout-content class="content">
+          <div class="page-heading"><div><h1>{{ selectedPage === 'simulation' ? '授权模拟' : selectedPage === 'transactions' ? '交易处理' : selectedPage === 'cards' ? '卡片' : '持卡人' }}</h1><p>Paynda 渠道模拟控制台</p></div></div>
           <section v-if="selectedPage === 'cardholders'">
             <n-card title="持卡人" :bordered="false">
               <template #header-extra>
@@ -188,30 +191,8 @@ onMounted(refresh)
             </n-card>
           </section>
 
-          <section v-else>
-            <n-card title="授权模拟" :bordered="false" class="simulation-card">
-              <n-form label-placement="top">
-                <n-form-item label="卡片" required>
-                  <n-select v-model:value="authorizationForm.cardID" :options="cardOptions" filterable />
-                </n-form-item>
-                <n-form-item label="金额" required>
-                  <n-input-number v-model:value="authorizationForm.amount" :min="0.01" :precision="2" />
-                </n-form-item>
-                <n-form-item label="币种">
-                  <n-select v-model:value="authorizationForm.currency" :options="[{ label: 'USD', value: 'USD' }, { label: 'GBP', value: 'GBP' }, { label: 'CNY', value: 'CNY' }]" />
-                </n-form-item>
-                <n-form-item label="商户名称" required>
-                  <n-input v-model:value="authorizationForm.merchantName" />
-                </n-form-item>
-                <n-form-item label="MCC" required>
-                  <n-input v-model:value="authorizationForm.merchantMCC" placeholder="例如 5411" />
-                </n-form-item>
-                <n-form-item label="商户国家">
-                  <n-input v-model:value="authorizationForm.merchantCountry" />
-                </n-form-item>
-                <n-button type="primary" @click="simulateAuthorization">创建授权</n-button>
-              </n-form>
-            </n-card>
+          <section v-else-if="selectedPage === 'simulation'">
+            <authorization-view @completed="refresh" />
           </section>
         </n-layout-content>
       </n-layout>

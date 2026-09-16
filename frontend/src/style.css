@@ -1,6 +1,6 @@
 :root {
-  color: #18212f;
-  background: #eef2f7;
+  color: #172033;
+  background: #f4f6f8;
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -11,13 +11,13 @@ body { margin: 0; }
 .app-shell { min-height: 100vh; }
 
 .app-header {
-  height: 56px;
-  padding: 0 24px;
+  height: 60px;
+  padding: 0 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: #ffffff;
-  border-bottom: 1px solid #dfe5ec;
+  border-bottom: 1px solid #d8dee8;
 }
 
 .app-header div { display: flex; align-items: baseline; gap: 10px; }
@@ -25,11 +25,26 @@ body { margin: 0; }
 .app-header span { color: #627084; font-size: 13px; }
 
 .sidebar {
-  width: 188px;
-  padding: 16px 8px;
+  width: 208px;
+  padding: 18px 10px;
   background: #ffffff;
   border-right: 1px solid #dfe5ec;
 }
 
-.content { padding: 24px; }
-.simulation-card { max-width: 680px; }
+.content { padding: 28px; min-width: 0; }
+.simulation-card { max-width: 760px; }
+
+.page-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.page-heading h1 { margin: 0; font-size: 20px; font-weight: 650; }
+.page-heading p { margin: 5px 0 0; color: #667085; font-size: 13px; }
+.table-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.form-grid .form-wide { grid-column: 1 / -1; }
+
+@media (max-width: 720px) {
+  .app-header { padding: 0 16px; }
+  .sidebar { width: 168px; }
+  .content { padding: 16px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid .form-wide { grid-column: auto; }
+}

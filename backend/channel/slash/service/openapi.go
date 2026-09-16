@@ -34,6 +34,69 @@ type OpenAPIMetadata struct {
 	Count int `json:"count"`
 }
 
+type OpenAPIVirtualAccountData struct {
+	VirtualAccount OpenAPIVirtualAccountDetails `json:"virtualAccount"`
+	Balance        OpenAPIAmount                `json:"balance"`
+	Spend          OpenAPIAmount                `json:"spend"`
+}
+
+type OpenAPIVirtualAccountDetails struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	AccountType string `json:"accountType"`
+}
+
+type OpenAPIAmount struct {
+	AmountCents int64 `json:"amountCents"`
+}
+
+type OpenAPIListVirtualAccountsData struct {
+	Items    []*OpenAPIVirtualAccountData `json:"items"`
+	Metadata OpenAPIMetadata              `json:"metadata"`
+}
+
+func (s *SlashOpenAPIService) ListVirtualAccounts(ctx context.Context, _ *struct{}) (*OpenAPIListVirtualAccountsData, error) {
+	items, err := s.usecase.ListVirtualAccounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	data := make([]*OpenAPIVirtualAccountData, 0, len(items))
+	for _, item := range items {
+		data = append(data, &OpenAPIVirtualAccountData{
+			VirtualAccount: OpenAPIVirtualAccountDetails{ID: slashIDString(item.ID), Name: item.Name, AccountType: "primary"},
+			Balance:        OpenAPIAmount{AmountCents: item.Wallet.Amount.Mul(decimal.NewFromInt(100)).IntPart()},
+			Spend:          OpenAPIAmount{AmountCents: item.Wallet.Out.Mul(decimal.NewFromInt(100)).IntPart()},
+		})
+	}
+	return &OpenAPIListVirtualAccountsData{Items: data, Metadata: OpenAPIMetadata{Count: len(data)}}, nil
+}
+
+type OpenAPIVirtualAccountTransferRequest struct {
+	Source      string `json:"source" binding:"required"`
+	Destination string `json:"destination" binding:"required"`
+	AmountCents int64  `json:"amountCents" binding:"required"`
+}
+
+type OpenAPIVirtualAccountTransferData struct {
+	ID string `json:"id"`
+}
+
+func (s *SlashOpenAPIService) TransferVirtualAccount(ctx context.Context, req *OpenAPIVirtualAccountTransferRequest) (*OpenAPIVirtualAccountTransferData, error) {
+	source, err := slashID(req.Source)
+	if err != nil {
+		return nil, err
+	}
+	destination, err := slashID(req.Destination)
+	if err != nil {
+		return nil, err
+	}
+	err = s.usecase.TransferVirtualAccount(ctx, &biz.OpenAPIVirtualAccountTransferRequest{Source: source, Destination: destination, AmountCents: req.AmountCents})
+	if err != nil {
+		return nil, err
+	}
+	return &OpenAPIVirtualAccountTransferData{ID: req.Source}, nil
+}
+
 type OpenAPICard struct {
 	ID               string           `json:"id"`
 	AccountID        string           `json:"accountId"`

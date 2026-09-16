@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import PayndaConsole from '@/channel/paynda/Console.vue'
-import PhotonPayConsole from '@/channel/photonpay/Console.vue'
-import SlashConsole from '@/channel/slash/Console.vue'
+import { defineAsyncComponent } from 'vue'
 import { channel } from '@/config'
 
 const consoleByChannel = {
-  slash: SlashConsole,
-  photonpay: PhotonPayConsole,
-  paynda: PayndaConsole,
+  slash: defineAsyncComponent(() => import('@/channel/slash/Console.vue')),
+  photonpay: defineAsyncComponent(() => import('@/channel/photonpay/Console.vue')),
+  paynda: defineAsyncComponent(() => import('@/channel/paynda/Console.vue')),
 }
 </script>
 
