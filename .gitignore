@@ -74,6 +74,7 @@ app/new/**/gen
 .cache
 .gitnexus
 AGENTS.md
+!AGENTS.md
 CLAUDE.md
 /docs
 /doc
@@ -90,3 +91,6 @@ skills-lock.json
 
 
 .tmp-codex-task-build
+
+*.gen.go
+gen.go

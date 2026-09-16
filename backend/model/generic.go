@@ -4,35 +4,53 @@ import (
 	"generic-mock/enums"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
+	"gorm.io/gorm"
 	"gorm.io/plugin/soft_delete"
 )
 
-// 根据渠道选择是int还是string(uuid)
-type ID int64
+type ID = string
 
 type BaseModel struct {
-	ID        ID
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt soft_delete.DeletedAt
+	ID        ID                    `gorm:"type:uuid;primaryKey"`
+	CreatedAt time.Time             `gorm:"not null"`
+	UpdatedAt time.Time             `gorm:"not null"`
+	DeletedAt soft_delete.DeletedAt `gorm:"softDelete"`
+}
+
+func (m *BaseModel) BeforeCreate(_ *gorm.DB) error {
+	if m.ID == "" {
+		m.ID = uuid.NewString()
+	}
+
+	return nil
 }
 
 type Card struct {
 	BaseModel
-	CardBin          string
-	CardNumber       string
-	Cvv              string
-	Status           enums.CardStatus
-	VirtualAccountID ID // 如果为0, 表示普通卡, 不为0 表示虚拟账户卡 共享余额
-	BalanceID        ID // 如果为是虚拟账户, 指向虚拟账户的钱包id, 减少一次查询
-	CardHolderID     ID //  持卡人id 可能为0
-	FormType         enums.CardFormType
+	CardBin                string
+	CardNumber             string `gorm:"uniqueIndex"`
+	Cvv                    string
+	ExpireTime             string
+	Status                 enums.CardStatus
+	VirtualAccountID       ID // 为空表示普通卡，非空表示虚拟账户卡，共享余额。
+	BalanceID              ID // 虚拟账户卡指向虚拟账户的钱包 ID，减少一次查询。
+	CardHolderID           ID // 持卡人 ID，允许为空。
+	FormType               enums.CardFormType
+	RequestID              string `gorm:"uniqueIndex"`
+	LastOperationRequestID string `gorm:"uniqueIndex"`
+	LastOperationType      enums.OperationType
+	LastOperationStatus    enums.OperationStatus
+	CardCurrency           enums.Currency
+	CardScheme             string
+	CardType               enums.CardType
+	RawRequest             []byte `gorm:"type:jsonb"`
 
 	// ref
 	//CardHolderInline *CardHolder `gorm:"-"` // 对于不需要持卡人的渠道, 直接存json 不做关联
 	VirtualAccount *VirtualAccount
-	Wallet         *Wallet
+	Wallet         *Wallet `gorm:"foreignKey:BalanceID"`
 	CardHolder     *CardHolder
 	VirtualCard    *VirtualCard
 	PhysicalCard   *PhysicalCard
@@ -56,21 +74,22 @@ type Wallet struct {
 	In         decimal.Decimal
 	Out        decimal.Decimal
 	Type       enums.WalletType
+	Currency   enums.Currency
 }
 
 type VirtualAccount struct {
 	BaseModel
 	WalletID ID
 	Wallet   *Wallet
+	Name     string
 }
 
 type Account struct {
 	BaseModel
+	Name     string
+	WalletID ID
+	Wallet   *Wallet
 }
-
-//type Transaction struct {
-//
-//}
 
 type CardTransaction struct {
 	BaseModel
@@ -81,28 +100,78 @@ type CardTransaction struct {
 	Type                    enums.CardTransactionType
 	Currency                enums.Currency
 	TxAmount                decimal.Decimal
+	TxCurrency              enums.Currency
+	RequestID               string
+	MerchantName            string
+	MerchantCountry         string
+	MerchantMCC             string
+	AuthorizationCode       string
+	OccurredAt              time.Time
+	SettledAt               *time.Time
+	RawPayload              []byte `gorm:"type:jsonb"`
 
 	Authorization         *Authorization
 	OriginCardTransaction *CardTransaction
-	CardTransactions      []*CardTransaction
+	CardTransactions      []*CardTransaction `gorm:"foreignKey:OriginCardTransactionID"`
 }
 
 type Authorization struct {
 	BaseModel
+
+	CardID                ID
+	OriginAuthorizationID ID
+	Currency              enums.Currency
+	Amount                decimal.Decimal
+	MerchantName          string
+	MerchantCountry       string
+	MerchantMCC           string
+	AuthorizationCode     string
+	Status                enums.CardTransactionStatus
+	OccurredAt            time.Time
+	RawPayload            []byte `gorm:"type:jsonb"`
 
 	CardTransactions []*CardTransaction
 }
 
 type CardHolder struct {
 	BaseModel
-	Name   string
-	Shared bool // 对于一些渠道, 不需要开卡传入持卡人id, 这种的给每一张卡单独分配持卡人, 而不是共用的, 为false, 支持共享的设置为true
+	FirstName              string
+	LastName               string
+	Email                  string
+	Mobile                 string
+	MobilePrefix           string
+	DateOfBirth            string
+	NationalityCountryCode string
+	ResidentialAddress     string
+	ResidentialCity        string
+	ResidentialCountryCode string
+	ResidentialPostalCode  string
+	ResidentialState       string
+	CertType               string
+	CertCountryCode        string
+	CertID                 string
+	Portrait               string
+	ReverseSide            string
+	Status                 enums.CardHolderStatus
+	ReviewStatus           enums.CardHolderReviewStatus
+	Shared                 bool // 对于一些渠道, 不需要开卡传入持卡人id, 这种的给每一张卡单独分配持卡人, 而不是共用的, 为false, 支持共享的设置为true
 }
 
 type WebhookConfig struct {
 	BaseModel
+	Channel   enums.Channel
+	Event     string
+	TargetURL string
+	Enabled   bool
 }
 
 type WebhookRecord struct {
 	BaseModel
+	WebhookConfigID ID
+	Event           string
+	Payload         []byte `gorm:"type:jsonb"`
+	ResponseBody    string
+	StatusCode      int
+	DeliveredAt     *time.Time
+	ErrorMessage    string
 }

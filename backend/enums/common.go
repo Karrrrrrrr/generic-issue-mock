@@ -73,3 +73,35 @@ const (
 	CardStatus_Deleteing CardStatus = "deleting" // 删除中
 	CardStatus_Deleted   CardStatus = "deleted"  // 已删除
 )
+
+type Channel string
+
+const (
+	Channel_PhotonPay Channel = "photonpay"
+)
+
+type OperationType string
+
+const (
+	OperationType_OpenCard   OperationType = "open_card"
+	OperationType_FreezeCard OperationType = "freeze_card"
+	OperationType_CancelCard OperationType = "cancel_card"
+)
+
+type OperationStatus string
+
+const (
+	OperationStatus_Succeed OperationStatus = "succeed"
+)
+
+type CardHolderStatus string
+
+const (
+	CardHolderStatus_Normal CardHolderStatus = "normal"
+)
+
+type CardHolderReviewStatus string
+
+const (
+	CardHolderReviewStatus_Approved CardHolderReviewStatus = "approved"
+)
