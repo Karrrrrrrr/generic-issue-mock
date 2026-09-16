@@ -65,52 +65,61 @@ onMounted(() => {
 });
 </script>
 <template>
-  <n-card title="授权配置" class="simulation-card" :bordered="false"
-    ><n-form label-placement="top"
-      ><div class="form-grid">
-        <n-form-item class="form-wide" label="活动卡" required
-          ><n-select
+  <n-card title="授权配置" class="simulation-card" :bordered="false">
+    <n-form label-placement="top">
+      <div class="form-grid">
+        <n-form-item class="form-wide" label="活动卡" required>
+          <n-select
             v-model:value="form.cardID"
             :options="options"
             filterable
-            placeholder="选择活动卡" /></n-form-item
-        ><n-form-item label="交易金额" required
-          ><n-input-number
+            placeholder="选择活动卡"
+          />
+        </n-form-item>
+        <n-form-item label="交易金额" required>
+          <n-input-number
             v-model:value="form.amount"
             :min="0.01"
             :precision="2"
-            style="width: 100%" /></n-form-item
-        ><n-form-item label="币种"
-          ><n-select
+            style="width: 100%"
+          />
+        </n-form-item>
+        <n-form-item label="币种">
+          <n-select
             v-model:value="form.currency"
             :options="[
               { label: 'USD', value: 'USD' },
               { label: 'GBP', value: 'GBP' },
               { label: 'CNY', value: 'CNY' },
-            ]" /></n-form-item
-        ><n-form-item label="商户名称" required
-          ><n-input
+            ]"
+          />
+        </n-form-item>
+        <n-form-item label="商户名称" required>
+          <n-input
             v-model:value="form.merchantName"
-            placeholder="例如 Amazon" /></n-form-item
-        ><n-form-item label="MCC" required
-          ><n-input
-            v-model:value="form.merchantMCC"
-            placeholder="例如 5411" /></n-form-item
-        ><n-form-item class="form-wide" label="商户国家"
-          ><n-input v-model:value="form.merchantCountry"
-        /></n-form-item>
+            placeholder="例如 Amazon"
+          />
+        </n-form-item>
+        <n-form-item label="MCC" required>
+          <n-input v-model:value="form.merchantMCC" placeholder="例如 5411" />
+        </n-form-item>
+        <n-form-item class="form-wide" label="商户国家">
+          <n-input v-model:value="form.merchantCountry" />
+        </n-form-item>
       </div>
-      <n-space justify="end"
-        ><n-button type="primary" :loading="loading" @click="submit"
+      <n-space justify="end">
+        <n-button type="primary" :loading="loading" @click="submit"
           >创建授权</n-button
-        ></n-space
-      ></n-form
-    ><n-alert
+        >
+      </n-space>
+    </n-form>
+    <n-alert
       v-if="result"
       type="success"
       :show-icon="false"
       style="margin-top: 16px"
-      >{{ result }}</n-alert
-    ></n-card
-  >
+    >
+      {{ result }}
+    </n-alert>
+  </n-card>
 </template>
