@@ -70,6 +70,17 @@ func (r *cardRepository) FindByRequestID(ctx context.Context, requestID string) 
 		First()
 }
 
+func (r *cardRepository) ListCards(ctx context.Context, req *biz.ListRequest) ([]*model.Card, error) {
+	db := r.repository.DB(ctx)
+
+	return db.Card.WithContext(ctx).
+		Where(db.Card.Channel.Eq(string(enums.Channel_PhotonPay))).
+		Order(db.Card.ID.Desc()).
+		Offset(req.Offset).
+		Limit(req.Limit).
+		Find()
+}
+
 func (r *cardRepository) SaveCard(ctx context.Context, card *model.Card) error {
 	return r.repository.DB(ctx).Card.WithContext(ctx).Save(card)
 }

@@ -33,6 +33,7 @@ type CardRepository interface {
 	FindCardByID(context.Context, model.ID) (*model.Card, error)
 	ExistCardByRequestID(context.Context, string) (bool, error)
 	FindByRequestID(context.Context, string) (*model.Card, error)
+	ListCards(context.Context, *ListRequest) ([]*model.Card, error)
 	SaveCard(context.Context, *model.Card) error
 }
 
@@ -71,7 +72,7 @@ type CreateCardHolderRequest struct {
 	Email                  string
 	Mobile                 string
 	MobilePrefix           string
-	DateOfBirth            string
+	DateOfBirth            *time.Time
 	NationalityCountryCode string
 	ResidentialAddress     string
 	ResidentialCity        string
@@ -221,7 +222,7 @@ func (u *Usecase) OpenCard(ctx context.Context, req *OpenCardRequest) (*model.Ca
 			CardBin:                product.Prefix,
 			CardNumber:             cardNumber,
 			Cvv:                    randomDigits(3),
-			ExpireTime:             time.Now().UTC().AddDate(0, months, 0).Format("01/06"),
+			ExpireAt:               time.Now().UTC().AddDate(0, months, 0),
 			Status:                 common.CardStatus_Active,
 			CardHolderID:           req.CardholderID,
 			FormType:               photon.CardFormFactorToGeneric(req.CardFormFactor),
@@ -272,6 +273,17 @@ func (u *Usecase) GetCard(ctx context.Context, cardID model.ID) (*model.Card, er
 	}
 
 	return card, nil
+}
+
+func (u *Usecase) ListCards(ctx context.Context, req *ListRequest) ([]*model.Card, error) {
+	cards, err := u.cardRepo.ListCards(ctx, req)
+	if err != nil {
+		zap.S().Errorw("list photonpay cards", "error", err)
+
+		return nil, ErrDatabaseOperation
+	}
+
+	return cards, nil
 }
 
 func (u *Usecase) GetRequestResult(ctx context.Context, requestID string) (*model.Card, error) {

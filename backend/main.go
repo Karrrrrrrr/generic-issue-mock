@@ -47,8 +47,16 @@ func main() {
 
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
-	photonHTTP.Register(router.Group("/photonpay"), do.MustInvoke[*photonService.Service](injector))
-	slashHTTP.Register(router.Group("/slash"), do.MustInvokeNamed[*slashService.Service](injector, "slash.service"))
+	photonHTTP.Register(
+		router.Group("/photonpay"),
+		do.MustInvoke[*photonService.Service](injector),
+		do.MustInvokeNamed[*photonService.UIService](injector, "photonpay.ui-service"),
+	)
+	slashHTTP.Register(
+		router.Group("/slash"),
+		do.MustInvokeNamed[*slashService.Service](injector, "slash.service"),
+		do.MustInvokeNamed[*slashService.OpenAPIService](injector, "slash.openapi-service"),
+	)
 	addr := os.Getenv("HTTP_ADDR")
 	if addr == "" {
 		addr = ":8000"

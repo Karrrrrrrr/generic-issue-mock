@@ -17,5 +17,7 @@ func RegisterProviders(injector *do.Injector) {
 	do.ProvideNamed(injector, "slash.authorization-repository", data.NewAuthorizationRepository)
 	do.ProvideNamed(injector, "slash.card-transaction-repository", data.NewCardTransactionRepository)
 	do.ProvideNamed(injector, "slash.usecase", biz.NewUsecase)
+	do.ProvideNamed(injector, "slash.openapi-usecase", biz.NewOpenAPIUsecase)
 	do.ProvideNamed(injector, "slash.service", service.NewService)
+	do.ProvideNamed(injector, "slash.openapi-service", service.NewOpenAPIService)
 }

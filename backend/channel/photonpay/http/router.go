@@ -6,7 +6,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Register(router *gin.RouterGroup, service *service.Service) {
+func Register(router *gin.RouterGroup, service *service.Service, uiService *service.UIService) {
+	router.GET("/ui/cardholders", bindUI(uiService.UIListCardHolders))
+	router.POST("/ui/cardholders", bindUI(uiService.UICreateCardHolder))
+	router.GET("/ui/cards", bindUI(uiService.UIListCards))
+	router.POST("/ui/cards", bindUI(uiService.UICreateCard))
+	router.PUT("/ui/cards/:id/status", bindUI(uiService.UIUpdateCardStatus))
+	router.GET("/ui/transactions", bindUI(uiService.UIListTransactions))
+
 	router.POST("/oauth2/token/accessToken", bind(service.AccessToken))
 	router.GET("/wallet/openApi/v4/account/single", bind(service.AccountSingle))
 	router.POST("/vcc/openApi/v4/addCardholder", bind(service.CreateCardHolder))

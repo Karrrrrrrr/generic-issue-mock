@@ -117,13 +117,18 @@ type CardHolderData struct {
 }
 
 func (s *Service) CreateCardHolder(ctx context.Context, req *CreateCardHolderRequest) (*CardHolderData, error) {
+	dateOfBirth, err := time.Parse("2006-01-02", req.DateOfBirth)
+	if err != nil {
+		return nil, photonError(biz.ErrInvalidDateOfBirth)
+	}
+
 	holder, err := s.usecase.CreateCardHolder(ctx, &biz.CreateCardHolderRequest{
 		FirstName:              req.FirstName,
 		LastName:               req.LastName,
 		Email:                  req.Email,
 		Mobile:                 req.Mobile,
 		MobilePrefix:           req.MobilePrefix,
-		DateOfBirth:            req.DateOfBirth,
+		DateOfBirth:            &dateOfBirth,
 		NationalityCountryCode: req.NationalityCountryCode,
 		ResidentialAddress:     types.Value(req.ResidentialAddress),
 		ResidentialCity:        types.Value(req.ResidentialCity),
@@ -448,7 +453,7 @@ func cardData(card *model.Card) *CardData {
 		CardID:         card.ID,
 		CardNo:         card.CardNumber,
 		CVV:            card.Cvv,
-		ExpirationDate: card.ExpireTime,
+		ExpirationDate: card.ExpireAt.Format("01/06"),
 		CardCurrency:   card.CardCurrency,
 		CardScheme:     card.CardScheme,
 		CardStatus:     photon.CardStatusFromGeneric(card.Status),

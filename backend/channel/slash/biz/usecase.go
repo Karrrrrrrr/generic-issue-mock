@@ -188,7 +188,7 @@ func (u *Usecase) CreateCard(ctx context.Context, req *CreateCardRequest) (*mode
 			CardBin:                product.Prefix,
 			CardNumber:             cardNumber,
 			Cvv:                    randomDigits(3),
-			ExpireTime:             time.Now().UTC().AddDate(2, 0, 0).Format("01/06"),
+			ExpireAt:               time.Now().UTC().AddDate(2, 0, 0),
 			Status:                 enums.CardStatus_Active,
 			CardHolderID:           req.CardHolderID,
 			FormType:               enums.CardFormType_Virtual,

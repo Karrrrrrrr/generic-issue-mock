@@ -24,7 +24,7 @@ type Card struct {
 	CardBin                string
 	CardNumber             string `gorm:"uniqueIndex"`
 	Cvv                    string
-	ExpireTime             string
+	ExpireAt               time.Time
 	Status                 enums.CardStatus
 	VirtualAccountID       *ID // nil 表示普通卡，非 nil 表示虚拟账户卡，共享余额。
 	BalanceID              *ID // 虚拟账户卡指向虚拟账户的钱包 ID，减少一次查询。
@@ -146,7 +146,7 @@ type CardHolder struct {
 	Email                  string
 	Mobile                 string
 	MobilePrefix           string
-	DateOfBirth            string
+	DateOfBirth            *time.Time
 	NationalityCountryCode string
 	ResidentialAddress     string
 	ResidentialCity        string

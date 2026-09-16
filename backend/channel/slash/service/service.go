@@ -70,14 +70,14 @@ type CardHolderRequest struct {
 }
 
 type CardHolderData struct {
-	ID        string `json:"id"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Email     string `json:"email"`
-	Mobile    string `json:"phone_number"`
-	Status    string `json:"status"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	ID        string    `json:"id"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Email     string    `json:"email"`
+	Mobile    string    `json:"phone_number"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (s *Service) CreateCardHolder(ctx context.Context, req *CardHolderRequest) (*CardHolderData, error) {
@@ -121,22 +121,21 @@ type UpdateCardStatusRequest struct {
 }
 
 type CardData struct {
-	ID            string `json:"id"`
-	CardHolderID  string `json:"cardholder_id"`
-	CardProductID string `json:"card_product_id"`
-	CardNumber    string `json:"card_number"`
-	Last4         string `json:"last4"`
-	CardBin       string `json:"card_bin"`
-	CardScheme    string `json:"card_scheme"`
-	CardCurrency  string `json:"card_currency"`
-	FormFactor    string `json:"form_factor"`
-	CardStatus    string `json:"card_status"`
-	Status        string `json:"status"`
-	ExpiryMonth   string `json:"expiry_month"`
-	ExpiryYear    string `json:"expiry_year"`
-	Cvv           string `json:"cvv"`
-	CreatedAt     string `json:"created_at"`
-	UpdatedAt     string `json:"updated_at"`
+	ID            string    `json:"id"`
+	CardHolderID  string    `json:"cardholder_id"`
+	CardProductID string    `json:"card_product_id"`
+	CardNumber    string    `json:"card_number"`
+	Last4         string    `json:"last4"`
+	CardBin       string    `json:"card_bin"`
+	CardScheme    string    `json:"card_scheme"`
+	CardCurrency  string    `json:"card_currency"`
+	FormFactor    string    `json:"form_factor"`
+	CardStatus    string    `json:"card_status"`
+	Status        string    `json:"status"`
+	ExpiresAt     time.Time `json:"expires_at"`
+	Cvv           string    `json:"cvv"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 func (s *Service) CreateCard(ctx context.Context, req *CreateCardRequest) (*CardData, error) {
@@ -250,16 +249,16 @@ type ListAuthorizationsRequest struct {
 }
 
 type AuthorizationData struct {
-	ID                   string `json:"id"`
-	CardID               string `json:"card_id"`
-	Status               string `json:"status"`
-	AuthorizedAmount     string `json:"authorized_amount"`
-	Currency             string `json:"currency"`
-	MerchantName         string `json:"merchant_name"`
-	MerchantCategoryCode string `json:"merchant_category_code"`
-	AuthorizationCode    string `json:"authorization_code"`
-	AuthorizedAt         string `json:"authorized_at"`
-	CreatedAt            string `json:"created_at"`
+	ID                   string    `json:"id"`
+	CardID               string    `json:"card_id"`
+	Status               string    `json:"status"`
+	AuthorizedAmount     string    `json:"authorized_amount"`
+	Currency             string    `json:"currency"`
+	MerchantName         string    `json:"merchant_name"`
+	MerchantCategoryCode string    `json:"merchant_category_code"`
+	AuthorizationCode    string    `json:"authorization_code"`
+	AuthorizedAt         time.Time `json:"authorized_at"`
+	CreatedAt            time.Time `json:"created_at"`
 }
 
 func (s *Service) ListAuthorizations(ctx context.Context, req *ListAuthorizationsRequest) (*ListResponse[AuthorizationData], error) {
@@ -300,19 +299,19 @@ type ListTransactionsRequest struct {
 }
 
 type TransactionData struct {
-	ID                   string `json:"id"`
-	CardID               string `json:"card_id"`
-	AuthorizationID      string `json:"authorization_id"`
-	TransactionType      string `json:"transaction_type"`
-	Status               string `json:"status"`
-	Amount               string `json:"amount"`
-	Currency             string `json:"currency"`
-	MerchantName         string `json:"merchant_name"`
-	MerchantCountry      string `json:"merchant_country"`
-	MerchantCategoryCode string `json:"merchant_category_code"`
-	AuthorizationCode    string `json:"authorization_code"`
-	TransactedAt         string `json:"transacted_at"`
-	CreatedAt            string `json:"created_at"`
+	ID                   string    `json:"id"`
+	CardID               string    `json:"card_id"`
+	AuthorizationID      string    `json:"authorization_id"`
+	TransactionType      string    `json:"transaction_type"`
+	Status               string    `json:"status"`
+	Amount               string    `json:"amount"`
+	Currency             string    `json:"currency"`
+	MerchantName         string    `json:"merchant_name"`
+	MerchantCountry      string    `json:"merchant_country"`
+	MerchantCategoryCode string    `json:"merchant_category_code"`
+	AuthorizationCode    string    `json:"authorization_code"`
+	TransactedAt         time.Time `json:"transacted_at"`
+	CreatedAt            time.Time `json:"created_at"`
 }
 
 func (s *Service) ListTransactions(ctx context.Context, req *ListTransactionsRequest) (*ListResponse[TransactionData], error) {
@@ -382,13 +381,12 @@ func cardHolderData(item *model.CardHolder) *CardHolderData {
 		Email:     item.Email,
 		Mobile:    item.Mobile,
 		Status:    string(item.Status),
-		CreatedAt: item.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt: item.UpdatedAt.UTC().Format(time.RFC3339),
+		CreatedAt: item.CreatedAt,
+		UpdatedAt: item.UpdatedAt,
 	}
 }
 
 func cardData(item *model.Card) *CardData {
-	expireTime, _ := time.Parse("01/06", item.ExpireTime)
 	return &CardData{
 		ID:            item.ID,
 		CardHolderID:  item.CardHolderID,
@@ -401,11 +399,10 @@ func cardData(item *model.Card) *CardData {
 		FormFactor:    string(item.FormType),
 		CardStatus:    string(item.Status),
 		Status:        string(item.Status),
-		ExpiryMonth:   expireTime.Format("01"),
-		ExpiryYear:    expireTime.Format("2006"),
+		ExpiresAt:     item.ExpireAt,
 		Cvv:           item.Cvv,
-		CreatedAt:     item.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt:     item.UpdatedAt.UTC().Format(time.RFC3339),
+		CreatedAt:     item.CreatedAt,
+		UpdatedAt:     item.UpdatedAt,
 	}
 }
 
@@ -419,8 +416,8 @@ func authorizationData(item *model.Authorization) *AuthorizationData {
 		MerchantName:         item.MerchantName,
 		MerchantCategoryCode: item.MerchantMCC,
 		AuthorizationCode:    item.AuthorizationCode,
-		AuthorizedAt:         item.OccurredAt.UTC().Format(time.RFC3339),
-		CreatedAt:            item.CreatedAt.UTC().Format(time.RFC3339),
+		AuthorizedAt:         item.OccurredAt,
+		CreatedAt:            item.CreatedAt,
 	}
 }
 
@@ -437,8 +434,8 @@ func transactionData(item *model.CardTransaction) *TransactionData {
 		MerchantCountry:      item.MerchantCountry,
 		MerchantCategoryCode: item.MerchantMCC,
 		AuthorizationCode:    item.AuthorizationCode,
-		TransactedAt:         item.OccurredAt.UTC().Format(time.RFC3339),
-		CreatedAt:            item.CreatedAt.UTC().Format(time.RFC3339),
+		TransactedAt:         item.OccurredAt,
+		CreatedAt:            item.CreatedAt,
 	}
 }
 

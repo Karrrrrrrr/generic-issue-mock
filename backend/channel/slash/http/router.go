@@ -10,8 +10,15 @@ import (
 	kratosErrors "github.com/go-kratos/kratos/v2/errors"
 )
 
-func Register(router *gin.RouterGroup, service *service.Service) {
-	router.GET("/card-product", bind(service.ListCardProducts))
+func Register(router *gin.RouterGroup, service *service.Service, openAPIService *service.OpenAPIService) {
+	router.GET("/card", bind(openAPIService.ListCards))
+	router.POST("/card", bind(openAPIService.CreateCard))
+	router.GET("/card/:id", bind(openAPIService.GetCard))
+	router.PATCH("/card/:id", bind(openAPIService.UpdateCard))
+	router.GET("/card-product", bind(openAPIService.ListCardProducts))
+	router.GET("/transaction", bind(openAPIService.ListTransactions))
+	router.GET("/transaction/:id", bind(openAPIService.GetTransaction))
+
 	router.GET("/ui/card-products", bind(service.ListCardProducts))
 	router.GET("/ui/cardholders", bind(service.ListCardHolders))
 	router.POST("/ui/cardholders", bind(service.CreateCardHolder))
