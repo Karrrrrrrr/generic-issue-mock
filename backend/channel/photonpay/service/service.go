@@ -13,6 +13,7 @@ import (
 	"generic-mock/pkg/types"
 
 	"github.com/samber/do"
+	"github.com/shopspring/decimal"
 )
 
 type PhotonPayOpenAPIService struct {
@@ -109,8 +110,8 @@ type CreateCardHolderRequest struct {
 type CardHolderData struct {
 	CardholderID           string                        `json:"cardholderId"`
 	MemberID               string                        `json:"memberId"`
-	Status                 common.CardHolderStatus       `json:"status"`
-	CardholderReviewStatus common.CardHolderReviewStatus `json:"cardholderReviewStatus"`
+	Status                 photon.CardHolderStatus       `json:"status"`
+	CardholderReviewStatus photon.CardHolderReviewStatus `json:"cardholderReviewStatus"`
 	IdInfoRequirement      string                        `json:"idInfoRequirement"`
 	Reason                 string                        `json:"reason"`
 }
@@ -180,8 +181,8 @@ type CardHolderListItem struct {
 	Email                  string                        `json:"email"`
 	Mobile                 string                        `json:"mobile"`
 	MobilePrefix           string                        `json:"mobilePrefix"`
-	Status                 common.CardHolderStatus       `json:"status"`
-	CardholderReviewStatus common.CardHolderReviewStatus `json:"cardholderReviewStatus"`
+	Status                 photon.CardHolderStatus       `json:"status"`
+	CardholderReviewStatus photon.CardHolderReviewStatus `json:"cardholderReviewStatus"`
 }
 
 func (s *PhotonPayOpenAPIService) ListCardHolders(ctx context.Context, req *ListCardHolderRequest) (*[]CardHolderListItem, error) {
@@ -203,8 +204,8 @@ func (s *PhotonPayOpenAPIService) ListCardHolders(ctx context.Context, req *List
 			Email:                  holder.Email,
 			Mobile:                 holder.Mobile,
 			MobilePrefix:           holder.MobilePrefix,
-			Status:                 holder.Status,
-			CardholderReviewStatus: holder.ReviewStatus,
+			Status:                 photon.CardHolderStatusFromGeneric(holder.Status),
+			CardholderReviewStatus: photon.CardHolderReviewStatusFromGeneric(holder.ReviewStatus),
 		})
 	}
 	return &items, nil
@@ -218,7 +219,7 @@ type CardBinRequest struct {
 type CardBinData struct {
 	CardBin                string                `json:"cardBin"`
 	CardCurrency           common.Currency       `json:"cardCurrency"`
-	CardScheme             string                `json:"cardScheme"`
+	CardScheme             common.CardScheme     `json:"cardScheme"`
 	CardType               photon.CardType       `json:"cardType"`
 	CardFormFactor         photon.CardFormFactor `json:"cardFormFactor"`
 	RemainingAvailableCard string                `json:"remainingAvailableCard"`
@@ -249,7 +250,7 @@ type OpenCardRequest struct {
 	CardBin              string                `json:"cardBin" binding:"required"`
 	CardCurrency         common.Currency       `json:"cardCurrency" binding:"required"`
 	CardExpirationDate   *int                  `json:"cardExpirationDate"`
-	CardScheme           string                `json:"cardScheme"`
+	CardScheme           common.CardScheme     `json:"cardScheme"`
 	CardType             photon.CardType       `json:"cardType" binding:"required"`
 	CardFormFactor       photon.CardFormFactor `json:"cardFormFactor"`
 	CardholderID         string                `json:"cardholderId" binding:"required"`
@@ -273,12 +274,13 @@ type CardData struct {
 	CVV            string                `json:"cvv"`
 	ExpirationDate string                `json:"expirationDate"`
 	CardCurrency   common.Currency       `json:"cardCurrency"`
-	CardScheme     string                `json:"cardScheme"`
+	CardScheme     common.CardScheme     `json:"cardScheme"`
 	CardStatus     photon.CardStatus     `json:"cardStatus"`
 	CardFormFactor photon.CardFormFactor `json:"cardFormFactor"`
 	CardType       photon.CardType       `json:"cardType"`
 	CardholderID   string                `json:"cardholderId"`
 	CreatedAt      string                `json:"createdAt"`
+	MaskCardNo     string                `json:"maskCardNo"`
 }
 type OpenCardData struct {
 	CardDetail *CardData              `json:"cardDetail"`
@@ -334,8 +336,61 @@ func (s *PhotonPayOpenAPIService) CardCVV(ctx context.Context, req *CardIDReques
 	return cardData(card), nil
 }
 
+type ListCardsRequest struct {
+	PageIndex  int                `form:"pageIndex"`
+	PageSize   int                `form:"pageSize"`
+	CardBin    *string            `form:"cardBin"`    // Invalid: card BIN filtering is unsupported.
+	CardType   *photon.CardType   `form:"cardType"`   // Invalid: card type filtering is unsupported.
+	CardStatus *photon.CardStatus `form:"cardStatus"` // Invalid: card status filtering is unsupported.
+}
+
+func (s *PhotonPayOpenAPIService) ListCards(ctx context.Context, req *ListCardsRequest) (*[]*CardData, error) {
+	page, size := types.NormalizePagination(req.PageIndex, req.PageSize)
+	cards, err := s.usecase.ListCards(ctx, &biz.ListRequest{
+		Offset: (page - 1) * size,
+		Limit:  size,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	items := types.BulkConvertSlice(cards, cardData)
+
+	return &items, nil
+}
+
+type UpdateCardRequest struct {
+	CardID                     string                 `json:"cardId" binding:"required"`
+	RequestID                  string                 `json:"requestId" binding:"required"`
+	CardFormFactor             *photon.CardFormFactor `json:"cardFormFactor"`             // Invalid: changing card form factor is unsupported.
+	MaxOnDaily                 *int64                 `json:"maxOnDaily"`                 // Invalid: velocity limits are unsupported.
+	MaxOnMonthly               *int64                 `json:"maxOnMonthly"`               // Invalid: velocity limits are unsupported.
+	MaxOnPercent               *int64                 `json:"maxOnPercent"`               // Invalid: velocity limits are unsupported.
+	Nickname                   *string                `json:"nickname"`                   // Invalid: card nickname is unsupported.
+	TransactionLimit           *float64               `json:"transactionLimit"`           // Invalid: transaction limits are unsupported.
+	TransactionLimitChangeType *string                `json:"transactionLimitChangeType"` // Invalid: transaction limits are unsupported.
+	TransactionLimitType       *string                `json:"transactionLimitType"`       // Invalid: transaction limits are unsupported.
+}
+
+func (s *PhotonPayOpenAPIService) UpdateCard(ctx context.Context, req *UpdateCardRequest) (*OpenCardData, error) {
+	card, err := s.usecase.UpdateCard(ctx, &biz.UpdateCardRequest{
+		CardID:    req.CardID,
+		RequestID: req.RequestID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &OpenCardData{
+		CardDetail: cardData(card),
+		RequestID:  req.RequestID,
+		Status:     photon.OperationStatus_Succeed,
+	}, nil
+}
+
 type RequestResultRequest struct {
-	RequestID string `form:"requestId" json:"requestId" binding:"required"`
+	RequestID string                   `form:"requestId" json:"requestId" binding:"required"`
+	Type      photon.RequestResultType `form:"type" json:"type"`
 }
 
 func (s *PhotonPayOpenAPIService) RequestResult(ctx context.Context, req *RequestResultRequest) (*OpenCardData, error) {
@@ -352,16 +407,16 @@ func (s *PhotonPayOpenAPIService) RequestResult(ctx context.Context, req *Reques
 }
 
 type ChangeCardStatusRequest struct {
-	CardID    string            `json:"cardId" binding:"required"`
-	RequestID string            `json:"requestId" binding:"required"`
-	Status    photon.CardStatus `json:"status"`
+	CardID    string              `json:"cardId" binding:"required"`
+	RequestID string              `json:"requestId" binding:"required"`
+	Status    photon.FreezeStatus `json:"status" binding:"required"`
 }
 
 func (s *PhotonPayOpenAPIService) FreezeCard(ctx context.Context, req *ChangeCardStatusRequest) (*CardData, error) {
 	card, err := s.usecase.ChangeCardStatus(ctx, &biz.ChangeCardStatusRequest{
 		CardID:    req.CardID,
 		RequestID: req.RequestID,
-		Status:    common.CardStatus_Frozen,
+		Status:    photon.FreezeStatusToGeneric(req.Status),
 		Operation: common.OperationType_FreezeCard,
 	})
 	if err != nil {
@@ -371,10 +426,14 @@ func (s *PhotonPayOpenAPIService) FreezeCard(ctx context.Context, req *ChangeCar
 	return cardData(card), nil
 }
 
-func (s *PhotonPayOpenAPIService) CancelCard(ctx context.Context, req *ChangeCardStatusRequest) (*CardData, error) {
+type CancelCardRequest struct {
+	CardID string `json:"cardId" binding:"required"`
+}
+
+func (s *PhotonPayOpenAPIService) CancelCard(ctx context.Context, req *CancelCardRequest) (*CardData, error) {
 	card, err := s.usecase.ChangeCardStatus(ctx, &biz.ChangeCardStatusRequest{
 		CardID:    req.CardID,
-		RequestID: req.RequestID,
+		RequestID: "",
 		Status:    common.CardStatus_Deleted,
 		Operation: common.OperationType_CancelCard,
 	})
@@ -390,13 +449,13 @@ type ListTradeRequest struct {
 	PageSize  int `form:"pageSize"`
 }
 type TradeData struct {
-	TransactionID       string                       `json:"transactionId"`
-	CardID              string                       `json:"cardId"`
-	RequestID           string                       `json:"requestId"`
-	TransactionAmount   float64                      `json:"transactionAmount"`
-	TransactionCurrency common.Currency              `json:"transactionCurrency"`
-	MerchantName        string                       `json:"merchantName"`
-	Status              common.CardTransactionStatus `json:"status"`
+	TransactionID       string                   `json:"transactionId"`
+	CardID              string                   `json:"cardId"`
+	RequestID           string                   `json:"requestId"`
+	TransactionAmount   float64                  `json:"transactionAmount"`
+	TransactionCurrency common.Currency          `json:"transactionCurrency"`
+	MerchantName        string                   `json:"merchantName"`
+	Status              photon.TransactionStatus `json:"status"`
 }
 
 func (s *PhotonPayOpenAPIService) ListTrades(ctx context.Context, req *ListTradeRequest) (*[]TradeData, error) {
@@ -417,7 +476,7 @@ func (s *PhotonPayOpenAPIService) ListTrades(ctx context.Context, req *ListTrade
 			TransactionAmount:   transaction.TxAmount.InexactFloat64(),
 			TransactionCurrency: transaction.TxCurrency,
 			MerchantName:        transaction.MerchantName,
-			Status:              transaction.Status,
+			Status:              photon.TransactionStatusFromGeneric(transaction.Status),
 		})
 	}
 	return &items, nil
@@ -427,6 +486,44 @@ type UploadRequest struct {
 	BusinessKey string                `uri:"businessKey" binding:"required"`
 	File        *multipart.FileHeader `form:"file" binding:"required"`
 }
+
+type SandboxTransactionRequest struct {
+	RequestID           string                        `json:"requestId" binding:"required"`
+	CardID              string                        `json:"cardID" binding:"required"`
+	Cvv                 string                        `json:"cvv" binding:"required"`            // Invalid: the mock does not verify card security codes.
+	ExpirationDate      string                        `json:"expirationDate" binding:"required"` // Invalid: the mock does not verify card expiry.
+	OriginTransactionID string                        `json:"originTransactionId"`
+	TxnCurrency         common.Currency               `json:"txnCurrency" binding:"required"`
+	TxnAmount           float64                       `json:"txnAmount" binding:"required"`
+	TxnType             photon.SandboxTransactionType `json:"txnType" binding:"required"`
+	Mcc                 string                        `json:"mcc" binding:"required"`
+	MerchantName        string                        `json:"merchantName" binding:"required"`
+	MerchantCountry     string                        `json:"merchantCountry" binding:"required"`
+	MerchantCity        string                        `json:"merchantCity" binding:"required"`     // Invalid: merchant city is not persisted by the generic model.
+	MerchantPostcode    string                        `json:"merchantPostcode" binding:"required"` // Invalid: merchant postcode is not persisted by the generic model.
+}
+
+type SandboxTransactionData struct{}
+
+func (s *PhotonPayOpenAPIService) SandboxTransaction(ctx context.Context, req *SandboxTransactionRequest) (*SandboxTransactionData, error) {
+	err := s.usecase.SandboxTransaction(ctx, &biz.SandboxTransactionRequest{
+		RequestID:           req.RequestID,
+		CardID:              req.CardID,
+		OriginTransactionID: req.OriginTransactionID,
+		Currency:            req.TxnCurrency,
+		Amount:              decimal.NewFromFloat(req.TxnAmount),
+		Type:                req.TxnType,
+		MerchantName:        req.MerchantName,
+		MerchantCountry:     req.MerchantCountry,
+		MerchantMCC:         req.Mcc,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &SandboxTransactionData{}, nil
+}
+
 type UploadData struct {
 	FileURL string `json:"fileUrl"`
 }
@@ -441,8 +538,8 @@ func cardHolderData(holder *model.CardHolder) *CardHolderData {
 	return &CardHolderData{
 		CardholderID:           holder.ID,
 		MemberID:               photon.MemberID,
-		Status:                 holder.Status,
-		CardholderReviewStatus: holder.ReviewStatus,
+		Status:                 photon.CardHolderStatusFromGeneric(holder.Status),
+		CardholderReviewStatus: photon.CardHolderReviewStatusFromGeneric(holder.ReviewStatus),
 		IdInfoRequirement:      "N",
 	}
 }
@@ -460,5 +557,14 @@ func cardData(card *model.Card) *CardData {
 		CardType:       photon.CardTypeFromGeneric(card.CardType),
 		CardholderID:   card.CardHolderID,
 		CreatedAt:      card.CreatedAt.UTC().Format(time.RFC3339),
+		MaskCardNo:     maskCardNumber(card.CardNumber),
 	}
+}
+
+func maskCardNumber(cardNumber string) string {
+	if len(cardNumber) < 10 {
+		return cardNumber
+	}
+
+	return cardNumber[:6] + photon.CardNumberMask + cardNumber[len(cardNumber)-4:]
 }

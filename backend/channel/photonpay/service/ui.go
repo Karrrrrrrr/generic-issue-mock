@@ -5,7 +5,8 @@ import (
 	"time"
 
 	"generic-mock/channel/photonpay/biz"
-	"generic-mock/enums"
+	photon "generic-mock/channel/photonpay/enums"
+	common "generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
@@ -31,13 +32,13 @@ type UICardHolderRequest struct {
 }
 
 type UICardHolderData struct {
-	ID        string    `json:"id"`
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	Email     string    `json:"email"`
-	Mobile    string    `json:"phone_number"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        string                  `json:"id"`
+	FirstName string                  `json:"first_name"`
+	LastName  string                  `json:"last_name"`
+	Email     string                  `json:"email"`
+	Mobile    string                  `json:"phone_number"`
+	Status    photon.CardHolderStatus `json:"status"`
+	CreatedAt time.Time               `json:"created_at"`
 }
 
 type PhotonPayUIService struct {
@@ -83,21 +84,21 @@ type UICreateCardRequest struct {
 }
 
 type UICardData struct {
-	ID           string    `json:"id"`
-	CardHolderID string    `json:"cardholder_id"`
-	CardNumber   string    `json:"card_number"`
-	CardBin      string    `json:"card_bin"`
-	CardCurrency string    `json:"card_currency"`
-	CardStatus   string    `json:"card_status"`
-	Cvv          string    `json:"cvv"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID           string            `json:"id"`
+	CardHolderID string            `json:"cardholder_id"`
+	CardNumber   string            `json:"card_number"`
+	CardBin      string            `json:"card_bin"`
+	CardCurrency string            `json:"card_currency"`
+	CardStatus   photon.CardStatus `json:"card_status"`
+	Cvv          string            `json:"cvv"`
+	ExpiresAt    time.Time         `json:"expires_at"`
+	CreatedAt    time.Time         `json:"created_at"`
 }
 
 func (s *PhotonPayUIService) CreateCard(ctx context.Context, req *UICreateCardRequest) (*UICardData, error) {
 	card, err := s.usecase.OpenCard(ctx, &biz.UIOpenCardRequest{
 		CardHolderID: model.ID(req.CardHolderID),
-		Currency:     enums.Currency(req.CardCurrency),
+		Currency:     common.Currency(req.CardCurrency),
 		RequestID:    req.RequestID,
 	})
 	if err != nil {
@@ -120,14 +121,14 @@ func (s *PhotonPayUIService) ListCards(ctx context.Context, req *UIListRequest) 
 }
 
 type UIUpdateCardStatusRequest struct {
-	ID         string `uri:"id" binding:"required"`
-	CardStatus string `json:"card_status" binding:"required"`
+	ID         string            `uri:"id" binding:"required"`
+	CardStatus photon.CardStatus `json:"card_status" binding:"required"`
 }
 
 func (s *PhotonPayUIService) UpdateCardStatus(ctx context.Context, req *UIUpdateCardStatusRequest) (*UICardData, error) {
 	card, err := s.usecase.ChangeCardStatus(ctx, &biz.UIChangeCardStatusRequest{
 		CardID: model.ID(req.ID),
-		Status: enums.CardStatus(req.CardStatus),
+		Status: photon.CardStatusToGeneric(req.CardStatus),
 	})
 	if err != nil {
 		return nil, err
@@ -137,28 +138,28 @@ func (s *PhotonPayUIService) UpdateCardStatus(ctx context.Context, req *UIUpdate
 }
 
 type UITransactionData struct {
-	ID                   string    `json:"id"`
-	CardID               string    `json:"card_id"`
-	AuthorizationID      string    `json:"authorization_id"`
-	TransactionType      string    `json:"transaction_type"`
-	Status               string    `json:"status"`
-	Amount               string    `json:"amount"`
-	Currency             string    `json:"currency"`
-	MerchantName         string    `json:"merchant_name"`
-	MerchantCategoryCode string    `json:"merchant_category_code"`
-	TransactedAt         time.Time `json:"transacted_at"`
+	ID                   string                   `json:"id"`
+	CardID               string                   `json:"card_id"`
+	AuthorizationID      string                   `json:"authorization_id"`
+	TransactionType      photon.TransactionType   `json:"transaction_type"`
+	Status               photon.TransactionStatus `json:"status"`
+	Amount               string                   `json:"amount"`
+	Currency             string                   `json:"currency"`
+	MerchantName         string                   `json:"merchant_name"`
+	MerchantCategoryCode string                   `json:"merchant_category_code"`
+	TransactedAt         time.Time                `json:"transacted_at"`
 }
 
 type UIAuthorizationData struct {
-	ID                   string    `json:"id"`
-	CardID               string    `json:"card_id"`
-	Status               string    `json:"status"`
-	AuthorizedAmount     string    `json:"authorized_amount"`
-	Currency             string    `json:"currency"`
-	MerchantName         string    `json:"merchant_name"`
-	MerchantCategoryCode string    `json:"merchant_category_code"`
-	AuthorizationCode    string    `json:"authorization_code"`
-	AuthorizedAt         time.Time `json:"authorized_at"`
+	ID                   string                     `json:"id"`
+	CardID               string                     `json:"card_id"`
+	Status               photon.AuthorizationStatus `json:"status"`
+	AuthorizedAmount     string                     `json:"authorized_amount"`
+	Currency             string                     `json:"currency"`
+	MerchantName         string                     `json:"merchant_name"`
+	MerchantCategoryCode string                     `json:"merchant_category_code"`
+	AuthorizationCode    string                     `json:"authorization_code"`
+	AuthorizedAt         time.Time                  `json:"authorized_at"`
 }
 
 type UISimulateAuthorizationRequest struct {
@@ -171,17 +172,17 @@ type UISimulateAuthorizationRequest struct {
 }
 
 type UISimulateAuthorizationData struct {
-	Approved      bool                 `json:"approved"`
-	Status        string               `json:"status"`
-	Authorization *UIAuthorizationData `json:"authorization"`
-	Transaction   *UITransactionData   `json:"transaction"`
+	Approved      bool                     `json:"approved"`
+	Status        photon.TransactionStatus `json:"status"`
+	Authorization *UIAuthorizationData     `json:"authorization"`
+	Transaction   *UITransactionData       `json:"transaction"`
 }
 
 func (s *PhotonPayUIService) SimulateAuthorization(ctx context.Context, req *UISimulateAuthorizationRequest) (*UISimulateAuthorizationData, error) {
 	result, err := s.usecase.SimulateAuthorization(ctx, &biz.UISimulateAuthorizationRequest{
 		CardID:          model.ID(req.CardID),
 		Amount:          decimal.NewFromFloat(req.TransactionAmount),
-		Currency:        enums.Currency(req.TransactionCurrency),
+		Currency:        common.Currency(req.TransactionCurrency),
 		MerchantName:    req.MerchantName,
 		MerchantCountry: req.MerchantCountry,
 		MerchantMCC:     req.MerchantCategoryCode,
@@ -192,7 +193,7 @@ func (s *PhotonPayUIService) SimulateAuthorization(ctx context.Context, req *UIS
 
 	return &UISimulateAuthorizationData{
 		Approved:      true,
-		Status:        string(result.Authorization.Status),
+		Status:        photon.TransactionStatusFromGeneric(result.Authorization.Status),
 		Authorization: photonPayUIAuthorizationData(result.Authorization),
 		Transaction:   photonPayUITransactionData(result.CardTransaction),
 	}, nil
@@ -204,18 +205,18 @@ type UIApplyTransactionStepRequest struct {
 }
 
 func (s *PhotonPayUIService) ClearTransaction(ctx context.Context, req *UIApplyTransactionStepRequest) (*UITransactionData, error) {
-	return s.applyTransactionStep(ctx, req, enums.CardTransactionType_CLEAR)
+	return s.applyTransactionStep(ctx, req, common.CardTransactionType_CLEAR)
 }
 
 func (s *PhotonPayUIService) ReverseTransaction(ctx context.Context, req *UIApplyTransactionStepRequest) (*UITransactionData, error) {
-	return s.applyTransactionStep(ctx, req, enums.CardTransactionType_VOID)
+	return s.applyTransactionStep(ctx, req, common.CardTransactionType_VOID)
 }
 
 func (s *PhotonPayUIService) RefundTransaction(ctx context.Context, req *UIApplyTransactionStepRequest) (*UITransactionData, error) {
-	return s.applyTransactionStep(ctx, req, enums.CardTransactionType_REFUND)
+	return s.applyTransactionStep(ctx, req, common.CardTransactionType_REFUND)
 }
 
-func (s *PhotonPayUIService) applyTransactionStep(ctx context.Context, req *UIApplyTransactionStepRequest, transactionType enums.CardTransactionType) (*UITransactionData, error) {
+func (s *PhotonPayUIService) applyTransactionStep(ctx context.Context, req *UIApplyTransactionStepRequest, transactionType common.CardTransactionType) (*UITransactionData, error) {
 	item, err := s.usecase.ApplyTransactionStep(ctx, &biz.UIApplyTransactionStepRequest{
 		CardTransactionID: model.ID(req.ID),
 		Type:              transactionType,
@@ -256,7 +257,7 @@ func photonPayUICardHolderData(item *model.CardHolder) *UICardHolderData {
 		LastName:  item.LastName,
 		Email:     item.Email,
 		Mobile:    item.Mobile,
-		Status:    string(item.Status),
+		Status:    photon.CardHolderStatusFromGeneric(item.Status),
 		CreatedAt: item.CreatedAt,
 	}
 }
@@ -268,7 +269,7 @@ func photonPayUICardData(item *model.Card) *UICardData {
 		CardNumber:   item.CardNumber,
 		CardBin:      item.CardBin,
 		CardCurrency: string(item.CardCurrency),
-		CardStatus:   string(item.Status),
+		CardStatus:   photon.CardStatusFromGeneric(item.Status),
 		Cvv:          item.Cvv,
 		ExpiresAt:    item.ExpireAt,
 		CreatedAt:    item.CreatedAt,
@@ -279,7 +280,7 @@ func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationDat
 	return &UIAuthorizationData{
 		ID:                   item.ID,
 		CardID:               item.CardID,
-		Status:               string(item.Status),
+		Status:               photon.AuthorizationStatusFromGeneric(item.Status),
 		AuthorizedAmount:     item.Amount.String(),
 		Currency:             string(item.Currency),
 		MerchantName:         item.MerchantName,
@@ -294,8 +295,8 @@ func photonPayUITransactionData(item *model.CardTransaction) *UITransactionData 
 		ID:                   item.ID,
 		CardID:               item.CardID,
 		AuthorizationID:      item.AuthorizationID,
-		TransactionType:      string(item.Type),
-		Status:               string(item.Status),
+		TransactionType:      photon.TransactionTypeFromGeneric(item.Type),
+		Status:               photon.TransactionStatusFromGeneric(item.Status),
 		Amount:               item.TxAmount.String(),
 		Currency:             string(item.TxCurrency),
 		MerchantName:         item.MerchantName,

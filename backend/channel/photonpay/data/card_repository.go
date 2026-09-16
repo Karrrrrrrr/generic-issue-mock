@@ -70,6 +70,29 @@ func (r *cardRepository) FindByRequestID(ctx context.Context, requestID string) 
 		First()
 }
 
+func (r *cardRepository) ExistCardByLastOperationRequestID(ctx context.Context, requestID string) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.Card.WithContext(ctx).
+		Where(
+			db.Card.LastOperationRequestID.Eq(requestID),
+			db.Card.Channel.Eq(string(enums.Channel_PhotonPay)),
+		).
+		Count()
+
+	return count > 0, err
+}
+
+func (r *cardRepository) FindByLastOperationRequestID(ctx context.Context, requestID string) (*model.Card, error) {
+	db := r.repository.DB(ctx)
+
+	return db.Card.WithContext(ctx).
+		Where(
+			db.Card.LastOperationRequestID.Eq(requestID),
+			db.Card.Channel.Eq(string(enums.Channel_PhotonPay)),
+		).
+		First()
+}
+
 func (r *cardRepository) ListCards(ctx context.Context, req *biz.ListRequest) ([]*model.Card, error) {
 	db := r.repository.DB(ctx)
 

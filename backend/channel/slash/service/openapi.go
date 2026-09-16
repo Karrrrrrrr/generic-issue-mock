@@ -2,14 +2,17 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"generic-mock/channel/slash/biz"
+	slash "generic-mock/channel/slash/enums"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
 	"github.com/samber/do"
+	"github.com/shopspring/decimal"
 )
 
 type SlashOpenAPIService struct {
@@ -32,21 +35,27 @@ type OpenAPIMetadata struct {
 }
 
 type OpenAPICard struct {
-	ID            string `json:"id"`
-	CardProductID string `json:"card_product_id"`
-	CardholderID  string `json:"cardholder_id"`
-	Status        string `json:"status"`
-	PAN           string `json:"pan"`
-	CVV           string `json:"cvv"`
-	Expiration    string `json:"expiration"`
-	Currency      string `json:"currency"`
-	CreatedAt     string `json:"created_at"`
-	UpdatedAt     string `json:"updated_at"`
+	ID               string           `json:"id"`
+	AccountID        string           `json:"accountId"`
+	VirtualAccountID string           `json:"virtualAccountId"`
+	Last4            string           `json:"last4"`
+	Name             string           `json:"name"`
+	ExpiryMonth      string           `json:"expiryMonth"`
+	ExpiryYear       string           `json:"expiryYear"`
+	Status           slash.CardStatus `json:"status"`
+	IsPhysical       bool             `json:"isPhysical"`
+	IsSingleUse      bool             `json:"isSingleUse"`
+	Pan              string           `json:"pan"`
+	Cvv              string           `json:"cvv"`
+	CardGroupID      string           `json:"cardGroupId"`
+	CreatedAt        time.Time        `json:"createdAt"`
+	CardProductID    string           `json:"cardProductId"`
 }
 
 type OpenAPIListCardsRequest struct {
 	OpenAPIListRequest
-	FilterStatus string `form:"filter_status"`
+	FilterStatus slash.CardStatus `form:"filter:status"`
+	Cursor       string           `form:"cursor"` // Invalid: cursor pagination is unsupported.
 }
 
 type OpenAPIListCardsData struct {
@@ -59,7 +68,7 @@ func (s *SlashOpenAPIService) ListCards(ctx context.Context, req *OpenAPIListCar
 	items, err := s.usecase.ListCards(ctx, &biz.OpenAPIListCardsRequest{
 		Offset: offset,
 		Limit:  limit,
-		Status: enums.CardStatus(req.FilterStatus),
+		Status: slash.CardStatusToGeneric(req.FilterStatus),
 	})
 	if err != nil {
 		return nil, err
@@ -74,16 +83,27 @@ func (s *SlashOpenAPIService) ListCards(ctx context.Context, req *OpenAPIListCar
 }
 
 type OpenAPICreateCardRequest struct {
-	CardholderID  string `json:"cardholder_id" binding:"required"`
-	CardProductID string `json:"card_product_id" binding:"required"`
-	Currency      string `json:"currency" binding:"required"`
+	AccountID          string          `json:"accountId"`        // Invalid: mock has one generic account.
+	VirtualAccountID   string          `json:"virtualAccountId"` // Invalid: virtual-account assignment is unsupported.
+	Type               slash.CardType  `json:"type" binding:"required"`
+	Name               string          `json:"name" binding:"required"` // Invalid: card names are not persisted.
+	IsSingleUse        bool            `json:"isSingleUse"`             // Invalid: single-use cards are unsupported.
+	SpendingConstraint json.RawMessage `json:"spendingConstraint"`      // Invalid: spending constraints are unsupported.
+	UserData           OpenAPIUserData `json:"userData" binding:"required"`
+	CardGroupID        string          `json:"cardGroupId"` // Invalid: card groups are unsupported.
+	CardProductID      string          `json:"cardProductId" binding:"required"`
+}
+
+type OpenAPIUserData struct {
+	RequestID string `json:"requestId" binding:"required"`
+	CardID    string `json:"cardId" binding:"required"`
 }
 
 func (s *SlashOpenAPIService) CreateCard(ctx context.Context, req *OpenAPICreateCardRequest) (*OpenAPICard, error) {
 	item, err := s.usecase.CreateCard(ctx, &biz.OpenAPICreateCardRequest{
-		CardHolderID:  model.ID(req.CardholderID),
 		CardProductID: model.ID(req.CardProductID),
-		Currency:      enums.Currency(req.Currency),
+		Currency:      enums.Currency_USD,
+		RequestID:     req.UserData.RequestID,
 	})
 	if err != nil {
 		return nil, err
@@ -107,13 +127,17 @@ func (s *SlashOpenAPIService) GetCard(ctx context.Context, req *OpenAPIIDRequest
 
 type OpenAPIUpdateCardRequest struct {
 	OpenAPIIDRequest
-	Status string `json:"status" binding:"required"`
+	Name               *string          `json:"name"` // Invalid: card names are not persisted.
+	Status             slash.CardStatus `json:"status" binding:"required"`
+	CardGroupID        *string          `json:"cardGroupId"`        // Invalid: card groups are unsupported.
+	SpendingConstraint json.RawMessage  `json:"spendingConstraint"` // Invalid: spending constraints are unsupported.
+	UserData           *OpenAPIUserData `json:"userData"`           // Invalid: only creation request IDs are persisted.
 }
 
 func (s *SlashOpenAPIService) UpdateCard(ctx context.Context, req *OpenAPIUpdateCardRequest) (*OpenAPICard, error) {
 	item, err := s.usecase.UpdateCard(ctx, &biz.OpenAPIUpdateCardRequest{
 		ID:     model.ID(req.ID),
-		Status: enums.CardStatus(req.Status),
+		Status: slash.CardStatusToGeneric(req.Status),
 	})
 	if err != nil {
 		return nil, err
@@ -123,9 +147,9 @@ func (s *SlashOpenAPIService) UpdateCard(ctx context.Context, req *OpenAPIUpdate
 }
 
 type OpenAPICardProduct struct {
-	ID        string `json:"id"`
-	Prefix    string `json:"prefix"`
-	IsDefault bool   `json:"is_default"`
+	ID     string                  `json:"id"`
+	Prefix string                  `json:"prefix"`
+	Status slash.CardProductStatus `json:"status"`
 }
 
 type OpenAPIListCardProductsRequest struct{}
@@ -143,29 +167,34 @@ func (s *SlashOpenAPIService) ListCardProducts(ctx context.Context, _ *OpenAPILi
 	return &OpenAPIListCardProductsData{
 		Items: types.BulkConvertSlice(items, func(item *model.CardProduct) *OpenAPICardProduct {
 			return &OpenAPICardProduct{
-				ID:        item.ID,
-				Prefix:    item.Prefix,
-				IsDefault: item.IsDefault,
+				ID:     item.ID,
+				Prefix: item.Prefix,
+				Status: slash.CardProductStatus_Active,
 			}
 		}),
 	}, nil
 }
 
 type OpenAPITransaction struct {
-	ID           string `json:"id"`
-	CardID       string `json:"card_id"`
-	Status       string `json:"status"`
-	Type         string `json:"type"`
-	Amount       string `json:"amount"`
-	Currency     string `json:"currency"`
-	MerchantName string `json:"merchant_name"`
-	AuthorizedAt string `json:"authorized_at"`
-	CreatedAt    string `json:"created_at"`
+	ID                      string                  `json:"id"`
+	Date                    string                  `json:"date"`
+	Description             string                  `json:"description"`
+	MerchantDescription     string                  `json:"merchantDescription"`
+	AmountCents             int                     `json:"amountCents"`
+	Status                  slash.TransactionStatus `json:"status"`
+	DetailedStatus          slash.TransactionStatus `json:"detailedStatus"`
+	AccountID               string                  `json:"accountId"`
+	VirtualAccountID        string                  `json:"virtualAccountId"`
+	CardID                  string                  `json:"cardId"`
+	AuthorizedAt            string                  `json:"authorizedAt"`
+	ProviderAuthorizationID string                  `json:"providerAuthorizationId"`
 }
 
 type OpenAPIListTransactionsRequest struct {
 	OpenAPIListRequest
-	FilterCardID string `form:"filter_card_id"`
+	FilterCardID    string `form:"filter:cardId"`
+	Cursor          string `form:"cursor"` // Invalid: cursor pagination is unsupported.
+	AuthorizationID string `form:"filter:providerAuthorizationId"`
 }
 
 type OpenAPIListTransactionsData struct {
@@ -176,9 +205,10 @@ type OpenAPIListTransactionsData struct {
 func (s *SlashOpenAPIService) ListTransactions(ctx context.Context, req *OpenAPIListTransactionsRequest) (*OpenAPIListTransactionsData, error) {
 	offset, limit := openAPIPagination(req.PageNumber, req.PageSize)
 	items, err := s.usecase.ListTransactions(ctx, &biz.OpenAPIListTransactionsRequest{
-		Offset: offset,
-		Limit:  limit,
-		CardID: model.ID(req.FilterCardID),
+		Offset:          offset,
+		Limit:           limit,
+		CardID:          model.ID(req.FilterCardID),
+		AuthorizationID: model.ID(req.AuthorizationID),
 	})
 	if err != nil {
 		return nil, err
@@ -204,29 +234,30 @@ func (s *SlashOpenAPIService) GetTransaction(ctx context.Context, req *OpenAPIID
 func openAPICard(item *model.Card) *OpenAPICard {
 	return &OpenAPICard{
 		ID:            item.ID,
+		Last4:         item.CardNumber[len(item.CardNumber)-4:],
+		ExpiryMonth:   item.ExpireAt.Format("01"),
+		ExpiryYear:    item.ExpireAt.Format("2006"),
+		Status:        slash.CardStatusFromGeneric(item.Status),
+		IsPhysical:    item.FormType == enums.CardFormType_Physical,
+		Pan:           item.CardNumber,
+		Cvv:           item.Cvv,
+		CreatedAt:     item.CreatedAt,
 		CardProductID: item.CardProductID,
-		CardholderID:  item.CardHolderID,
-		Status:        string(item.Status),
-		PAN:           item.CardNumber,
-		CVV:           item.Cvv,
-		Expiration:    item.ExpireAt.Format("01/06"),
-		Currency:      string(item.CardCurrency),
-		CreatedAt:     item.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt:     item.UpdatedAt.UTC().Format(time.RFC3339),
 	}
 }
 
 func openAPITransaction(item *model.CardTransaction) *OpenAPITransaction {
 	return &OpenAPITransaction{
-		ID:           item.ID,
-		CardID:       item.CardID,
-		Status:       string(item.Status),
-		Type:         string(item.Type),
-		Amount:       item.TxAmount.String(),
-		Currency:     string(item.TxCurrency),
-		MerchantName: item.MerchantName,
-		AuthorizedAt: item.OccurredAt.UTC().Format(time.RFC3339),
-		CreatedAt:    item.CreatedAt.UTC().Format(time.RFC3339),
+		ID:                      item.ID,
+		Date:                    item.OccurredAt.UTC().Format(time.RFC3339),
+		Description:             item.MerchantName,
+		MerchantDescription:     item.MerchantName,
+		AmountCents:             int(item.TxAmount.Mul(decimal.NewFromInt(100)).IntPart()),
+		Status:                  slash.TransactionStatusFromGeneric(item.Status),
+		DetailedStatus:          slash.TransactionStatusFromGeneric(item.Status),
+		CardID:                  item.CardID,
+		AuthorizedAt:            item.OccurredAt.UTC().Format(time.RFC3339),
+		ProviderAuthorizationID: item.AuthorizationID,
 	}
 }
 

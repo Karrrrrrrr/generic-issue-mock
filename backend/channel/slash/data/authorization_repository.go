@@ -16,7 +16,7 @@ type authorizationRepository struct {
 	repository *SlashRepository
 }
 
-func NewAuthorizationRepository(injector *do.Injector) (biz.AuthorizationRepository, error) {
+func NewAuthorizationRepository(injector *do.Injector) (biz.SlashAuthorizationRepository, error) {
 	return &authorizationRepository{
 		repository: do.MustInvoke[*SlashRepository](injector),
 	}, nil
@@ -72,4 +72,4 @@ func authorizationPredicates(db *query.Query, req *biz.ListAuthorizationsRequest
 	return predicates
 }
 
-var _ biz.AuthorizationRepository = (*authorizationRepository)(nil)
+var _ biz.SlashAuthorizationRepository = (*authorizationRepository)(nil)

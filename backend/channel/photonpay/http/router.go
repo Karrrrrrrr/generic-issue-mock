@@ -31,9 +31,12 @@ func Register(
 	router.POST("/vcc/openApi/v4/openCard", bind(openAPIService.OpenCard))
 	router.GET("/vcc/openApi/v4/getRequestResult", bind(openAPIService.RequestResult))
 	router.GET("/vcc/openApi/v4/getCardDetail", bind(openAPIService.CardDetail))
+	router.GET("/vcc/openApi/v4/pagingVccCard", bind(openAPIService.ListCards))
 	router.GET("/vcc/openApi/v4/getCvv", bind(openAPIService.CardCVV))
+	router.POST("/vcc/openApi/v4/updateCard", bind(openAPIService.UpdateCard))
 	router.POST("/vcc/openApi/v4/freezeCard", bind(openAPIService.FreezeCard))
 	router.POST("/vcc/openApi/v4/cancelCard", bind(openAPIService.CancelCard))
 	router.GET("/vcc/openApi/v4/pagingVccTradeOrder", bind(openAPIService.ListTrades))
+	router.POST("/vcc/open/v2/sandBoxTransaction", bind(openAPIService.SandboxTransaction))
 	router.POST("/file/apiUpload/:businessKey", bind(openAPIService.Upload))
 }

@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type Transaction interface {
+type PhotonPayTransaction interface {
 	InTx(context.Context, func(context.Context) error) error
 }
 
@@ -33,6 +33,8 @@ type CardRepository interface {
 	FindCardByID(context.Context, model.ID) (*model.Card, error)
 	ExistCardByRequestID(context.Context, string) (bool, error)
 	FindByRequestID(context.Context, string) (*model.Card, error)
+	ExistCardByLastOperationRequestID(context.Context, string) (bool, error)
+	FindByLastOperationRequestID(context.Context, string) (*model.Card, error)
 	ListCards(context.Context, *ListRequest) ([]*model.Card, error)
 	SaveCard(context.Context, *model.Card) error
 }
@@ -56,19 +58,21 @@ type AuthorizationRepository interface {
 }
 
 type PhotonPayOpenAPIUsecase struct {
-	transaction         Transaction
+	transaction         PhotonPayTransaction
 	cardHolderRepo      CardHolderRepository
 	cardRepo            CardRepository
 	cardProductRepo     CardProductRepository
+	authorizationRepo   AuthorizationRepository
 	cardTransactionRepo CardTransactionRepository
 }
 
 func NewPhotonPayOpenAPIUsecase(injector *do.Injector) (*PhotonPayOpenAPIUsecase, error) {
 	return &PhotonPayOpenAPIUsecase{
-		transaction:         do.MustInvoke[Transaction](injector),
+		transaction:         do.MustInvoke[PhotonPayTransaction](injector),
 		cardHolderRepo:      do.MustInvoke[CardHolderRepository](injector),
 		cardRepo:            do.MustInvoke[CardRepository](injector),
 		cardProductRepo:     do.MustInvoke[CardProductRepository](injector),
+		authorizationRepo:   do.MustInvoke[AuthorizationRepository](injector),
 		cardTransactionRepo: do.MustInvoke[CardTransactionRepository](injector),
 	}, nil
 }
@@ -190,7 +194,7 @@ func (u *PhotonPayOpenAPIUsecase) ListCardHolders(ctx context.Context, req *List
 type OpenCardRequest struct {
 	CardBin          string
 	Currency         common.Currency
-	CardScheme       string
+	CardScheme       common.CardScheme
 	CardType         photon.CardType
 	CardFormFactor   photon.CardFormFactor
 	CardholderID     model.ID
@@ -300,13 +304,30 @@ func (u *PhotonPayOpenAPIUsecase) GetRequestResult(ctx context.Context, requestI
 
 		return nil, ErrDatabaseOperation
 	}
+	if exists {
+		card, err := u.cardRepo.FindByRequestID(ctx, requestID)
+		if err != nil {
+			zap.S().Errorw("find photonpay card request", "error", err)
+
+			return nil, ErrDatabaseOperation
+		}
+
+		return card, nil
+	}
+
+	exists, err = u.cardRepo.ExistCardByLastOperationRequestID(ctx, requestID)
+	if err != nil {
+		zap.S().Errorw("check photonpay card operation request", "error", err)
+
+		return nil, ErrDatabaseOperation
+	}
 	if !exists {
 		return nil, ErrResourceNotFound
 	}
 
-	card, err := u.cardRepo.FindByRequestID(ctx, requestID)
+	card, err := u.cardRepo.FindByLastOperationRequestID(ctx, requestID)
 	if err != nil {
-		zap.S().Errorw("find photonpay card request", "error", err)
+		zap.S().Errorw("find photonpay card operation request", "error", err)
 
 		return nil, ErrDatabaseOperation
 	}
@@ -337,12 +358,54 @@ func (u *PhotonPayOpenAPIUsecase) ChangeCardStatus(ctx context.Context, req *Cha
 		}
 
 		card.Status = req.Status
-		card.LastOperationRequestID = req.RequestID
+		if req.RequestID != "" {
+			card.LastOperationRequestID = req.RequestID
+		} else {
+			card.LastOperationRequestID = randomx.Digits(20)
+		}
 		card.LastOperationType = req.Operation
 		card.LastOperationStatus = common.OperationStatus_Succeed
 
 		if err := u.cardRepo.SaveCard(txCtx, card); err != nil {
 			zap.S().Errorw("update photonpay card status", "error", err)
+
+			return ErrDatabaseOperation
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return card, nil
+}
+
+type UpdateCardRequest struct {
+	CardID    model.ID
+	RequestID string
+}
+
+func (u *PhotonPayOpenAPIUsecase) UpdateCard(ctx context.Context, req *UpdateCardRequest) (*model.Card, error) {
+	var card *model.Card
+	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		if err := u.requireCard(txCtx, req.CardID); err != nil {
+			return err
+		}
+
+		var err error
+		card, err = u.cardRepo.FindCardByID(txCtx, req.CardID)
+		if err != nil {
+			zap.S().Errorw("find photonpay card for update", "error", err)
+
+			return ErrDatabaseOperation
+		}
+
+		card.LastOperationRequestID = req.RequestID
+		card.LastOperationType = common.OperationType_UpdateCard
+		card.LastOperationStatus = common.OperationStatus_Succeed
+		if err := u.cardRepo.SaveCard(txCtx, card); err != nil {
+			zap.S().Errorw("update photonpay card", "error", err)
 
 			return ErrDatabaseOperation
 		}
@@ -365,6 +428,96 @@ func (u *PhotonPayOpenAPIUsecase) ListTransactions(ctx context.Context, req *Lis
 	}
 
 	return transactions, nil
+}
+
+type SandboxTransactionRequest struct {
+	RequestID           string
+	CardID              model.ID
+	OriginTransactionID model.ID
+	Currency            common.Currency
+	Amount              decimal.Decimal
+	Type                photon.SandboxTransactionType
+	MerchantName        string
+	MerchantCountry     string
+	MerchantMCC         string
+}
+
+func (u *PhotonPayOpenAPIUsecase) SandboxTransaction(ctx context.Context, req *SandboxTransactionRequest) error {
+	return u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		if err := u.requireCard(txCtx, req.CardID); err != nil {
+			return err
+		}
+
+		transactionType := photon.SandboxTransactionTypeToGeneric(req.Type)
+		var originTransaction *model.CardTransaction
+		if transactionType != common.CardTransactionType_AUTH {
+			exists, err := u.cardTransactionRepo.ExistByID(txCtx, req.OriginTransactionID)
+			if err != nil {
+				zap.S().Errorw("check photonpay origin transaction", "error", err)
+
+				return ErrDatabaseOperation
+			}
+			if !exists {
+				return ErrResourceNotFound
+			}
+
+			originTransaction, err = u.cardTransactionRepo.FindByID(txCtx, req.OriginTransactionID)
+			if err != nil {
+				zap.S().Errorw("find photonpay origin transaction", "error", err)
+
+				return ErrDatabaseOperation
+			}
+		}
+
+		var authorizationID model.ID
+		if transactionType == common.CardTransactionType_AUTH {
+			authorization := &model.Authorization{
+				Channel:           common.Channel_PhotonPay,
+				CardID:            req.CardID,
+				Currency:          req.Currency,
+				Amount:            req.Amount,
+				MerchantName:      req.MerchantName,
+				MerchantCountry:   req.MerchantCountry,
+				MerchantMCC:       req.MerchantMCC,
+				AuthorizationCode: randomx.Digits(6),
+				Status:            common.TransactionStatus_AUTHORIZED,
+				OccurredAt:        time.Now().UTC(),
+			}
+			if err := u.authorizationRepo.Create(txCtx, authorization); err != nil {
+				zap.S().Errorw("create photonpay authorization", "error", err)
+
+				return ErrDatabaseOperation
+			}
+
+			authorizationID = authorization.ID
+		} else {
+			authorizationID = originTransaction.AuthorizationID
+		}
+
+		transaction := &model.CardTransaction{
+			Channel:                 common.Channel_PhotonPay,
+			OriginCardTransactionID: req.OriginTransactionID,
+			AuthorizationID:         authorizationID,
+			CardID:                  req.CardID,
+			Status:                  common.TransactionStatus_SUCCEED,
+			Type:                    transactionType,
+			Currency:                req.Currency,
+			TxAmount:                req.Amount,
+			TxCurrency:              req.Currency,
+			RequestID:               req.RequestID,
+			MerchantName:            req.MerchantName,
+			MerchantCountry:         req.MerchantCountry,
+			MerchantMCC:             req.MerchantMCC,
+			OccurredAt:              time.Now().UTC(),
+		}
+		if err := u.cardTransactionRepo.Create(txCtx, transaction); err != nil {
+			zap.S().Errorw("create photonpay sandbox transaction", "error", err)
+
+			return ErrDatabaseOperation
+		}
+
+		return nil
+	})
 }
 
 func DefaultBalance() decimal.Decimal {

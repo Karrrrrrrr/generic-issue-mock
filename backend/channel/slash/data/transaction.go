@@ -13,7 +13,7 @@ type transaction struct {
 	repository *SlashRepository
 }
 
-func NewTransaction(injector *do.Injector) (biz.Transaction, error) {
+func NewTransaction(injector *do.Injector) (biz.SlashTransaction, error) {
 	return &transaction{
 		repository: do.MustInvoke[*SlashRepository](injector),
 	}, nil
@@ -23,4 +23,4 @@ func (t *transaction) InTx(ctx context.Context, fn func(context.Context) error) 
 	return gormx.InTx(ctx, t.repository.db, fn)
 }
 
-var _ biz.Transaction = (*transaction)(nil)
+var _ biz.SlashTransaction = (*transaction)(nil)

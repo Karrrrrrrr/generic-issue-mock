@@ -15,7 +15,7 @@ type cardProductRepository struct {
 	repository *SlashRepository
 }
 
-func NewCardProductRepository(injector *do.Injector) (biz.CardProductRepository, error) {
+func NewCardProductRepository(injector *do.Injector) (biz.SlashCardProductRepository, error) {
 	return &cardProductRepository{
 		repository: do.MustInvoke[*SlashRepository](injector),
 	}, nil
@@ -71,4 +71,4 @@ func (r *cardProductRepository) Save(ctx context.Context, item *model.CardProduc
 	return r.repository.DB(ctx).CardProduct.WithContext(ctx).Save(item)
 }
 
-var _ biz.CardProductRepository = (*cardProductRepository)(nil)
+var _ biz.SlashCardProductRepository = (*cardProductRepository)(nil)

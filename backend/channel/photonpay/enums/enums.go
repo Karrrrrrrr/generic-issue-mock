@@ -40,6 +40,71 @@ const (
 	CardStatus_Cancelled CardStatus = "cancelled"
 )
 
+type CardHolderStatus string
+
+const CardHolderStatus_Normal CardHolderStatus = "normal"
+
+type CardHolderReviewStatus string
+
+const CardHolderReviewStatus_Approved CardHolderReviewStatus = "approved"
+
+type AuthorizationStatus string
+
+const AuthorizationStatus_Authorized AuthorizationStatus = "authorized"
+
+type TransactionStatus string
+
+const (
+	TransactionStatus_Pending    TransactionStatus = "pending"
+	TransactionStatus_Authorized TransactionStatus = "authorized"
+	TransactionStatus_Succeed    TransactionStatus = "succeed"
+	TransactionStatus_Failed     TransactionStatus = "failed"
+	TransactionStatus_Void       TransactionStatus = "void"
+)
+
+type TransactionType string
+
+const (
+	TransactionType_Auth   TransactionType = "auth"
+	TransactionType_Clear  TransactionType = "clear"
+	TransactionType_Void   TransactionType = "void"
+	TransactionType_Refund TransactionType = "refund"
+)
+
+type FreezeStatus string
+
+const (
+	FreezeStatus_Freeze   FreezeStatus = "freeze"
+	FreezeStatus_Unfreeze FreezeStatus = "unfreeze"
+)
+
+type RequestResultType string
+
+const (
+	RequestResultType_ApplyCard  RequestResultType = "apply_card"
+	RequestResultType_CardUpdate RequestResultType = "card_update"
+	RequestResultType_CardFreeze RequestResultType = "card_freeze"
+)
+
+type SandboxTransactionType string
+
+const (
+	SandboxTransactionType_Auth   SandboxTransactionType = "auth"
+	SandboxTransactionType_Void   SandboxTransactionType = "void"
+	SandboxTransactionType_Refund SandboxTransactionType = "refund"
+)
+
+func SandboxTransactionTypeToGeneric(value SandboxTransactionType) generic.CardTransactionType {
+	switch value {
+	case SandboxTransactionType_Void:
+		return generic.CardTransactionType_VOID
+	case SandboxTransactionType_Refund:
+		return generic.CardTransactionType_REFUND
+	default:
+		return generic.CardTransactionType_AUTH
+	}
+}
+
 type OperationStatus string
 
 const (
@@ -50,10 +115,11 @@ const (
 	MemberID                        = "photonpay-mock-member"
 	AccountNumber                   = "photonpay-mock-account"
 	DefaultCardBin                  = "543210"
-	CardScheme                      = "MasterCard"
+	CardScheme                      = generic.CardScheme_MasterCard
 	DefaultMobilePrefix             = "+1"
 	DefaultNationalityCountryCode   = "US"
 	RemainingAvailableCardUnlimited = "Unlimited"
+	CardNumberMask                  = "******"
 )
 
 func CardTypeFromGeneric(value generic.CardType) CardType {
@@ -98,5 +164,66 @@ func CardStatusFromGeneric(value generic.CardStatus) CardStatus {
 		return CardStatus_Cancelled
 	default:
 		return CardStatus_Normal
+	}
+}
+
+func CardStatusToGeneric(value CardStatus) generic.CardStatus {
+	switch value {
+	case CardStatus_Freezing:
+		return generic.CardStatus_Frozing
+	case CardStatus_Frozen:
+		return generic.CardStatus_Frozen
+	case CardStatus_Cancelled:
+		return generic.CardStatus_Deleted
+	default:
+		return generic.CardStatus_Active
+	}
+}
+
+func FreezeStatusToGeneric(value FreezeStatus) generic.CardStatus {
+	if value == FreezeStatus_Unfreeze {
+		return generic.CardStatus_Active
+	}
+
+	return generic.CardStatus_Frozen
+}
+
+func CardHolderStatusFromGeneric(_ generic.CardHolderStatus) CardHolderStatus {
+	return CardHolderStatus_Normal
+}
+
+func CardHolderReviewStatusFromGeneric(_ generic.CardHolderReviewStatus) CardHolderReviewStatus {
+	return CardHolderReviewStatus_Approved
+}
+
+func AuthorizationStatusFromGeneric(_ generic.CardTransactionStatus) AuthorizationStatus {
+	return AuthorizationStatus_Authorized
+}
+
+func TransactionStatusFromGeneric(value generic.CardTransactionStatus) TransactionStatus {
+	switch value {
+	case generic.TransactionStatus_PENDING:
+		return TransactionStatus_Pending
+	case generic.TransactionStatus_AUTHORIZED:
+		return TransactionStatus_Authorized
+	case generic.TransactionStatus_FAILED:
+		return TransactionStatus_Failed
+	case generic.TransactionStatus_VOID:
+		return TransactionStatus_Void
+	default:
+		return TransactionStatus_Succeed
+	}
+}
+
+func TransactionTypeFromGeneric(value generic.CardTransactionType) TransactionType {
+	switch value {
+	case generic.CardTransactionType_CLEAR:
+		return TransactionType_Clear
+	case generic.CardTransactionType_VOID:
+		return TransactionType_Void
+	case generic.CardTransactionType_REFUND:
+		return TransactionType_Refund
+	default:
+		return TransactionType_Auth
 	}
 }

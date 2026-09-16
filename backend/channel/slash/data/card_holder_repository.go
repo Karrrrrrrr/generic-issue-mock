@@ -14,7 +14,7 @@ type cardHolderRepository struct {
 	repository *SlashRepository
 }
 
-func NewCardHolderRepository(injector *do.Injector) (biz.CardHolderRepository, error) {
+func NewCardHolderRepository(injector *do.Injector) (biz.SlashCardHolderRepository, error) {
 	return &cardHolderRepository{
 		repository: do.MustInvoke[*SlashRepository](injector),
 	}, nil
@@ -57,4 +57,4 @@ func (r *cardHolderRepository) Save(ctx context.Context, item *model.CardHolder)
 	return r.repository.DB(ctx).CardHolder.WithContext(ctx).Save(item)
 }
 
-var _ biz.CardHolderRepository = (*cardHolderRepository)(nil)
+var _ biz.SlashCardHolderRepository = (*cardHolderRepository)(nil)

@@ -16,7 +16,7 @@ type cardRepository struct {
 	repository *SlashRepository
 }
 
-func NewCardRepository(injector *do.Injector) (biz.CardRepository, error) {
+func NewCardRepository(injector *do.Injector) (biz.SlashCardRepository, error) {
 	return &cardRepository{
 		repository: do.MustInvoke[*SlashRepository](injector),
 	}, nil
@@ -72,4 +72,4 @@ func cardPredicates(db *query.Query, req *biz.ListCardsRequest) []gen.Condition 
 	return predicates
 }
 
-var _ biz.CardRepository = (*cardRepository)(nil)
+var _ biz.SlashCardRepository = (*cardRepository)(nil)

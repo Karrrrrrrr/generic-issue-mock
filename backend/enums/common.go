@@ -30,6 +30,13 @@ const (
 	CardFormType_Physical CardFormType = "physical"
 )
 
+type CardScheme string
+
+const (
+	CardScheme_Visa       CardScheme = "VISA"
+	CardScheme_MasterCard CardScheme = "MasterCard"
+)
+
 type CardTransactionStatus string
 
 const (
@@ -86,6 +93,7 @@ type OperationType string
 
 const (
 	OperationType_OpenCard   OperationType = "open_card"
+	OperationType_UpdateCard OperationType = "update_card"
 	OperationType_FreezeCard OperationType = "freeze_card"
 	OperationType_CancelCard OperationType = "cancel_card"
 )

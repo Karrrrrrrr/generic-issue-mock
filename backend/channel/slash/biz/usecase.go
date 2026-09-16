@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	slash "generic-mock/channel/slash/enums"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/cardnumber"
@@ -15,11 +14,11 @@ import (
 	"go.uber.org/zap"
 )
 
-type Transaction interface {
+type SlashTransaction interface {
 	InTx(context.Context, func(context.Context) error) error
 }
 
-type CardHolderRepository interface {
+type SlashCardHolderRepository interface {
 	Create(context.Context, *model.CardHolder) error
 	ExistByID(context.Context, model.ID) (bool, error)
 	FindByID(context.Context, model.ID) (*model.CardHolder, error)
@@ -28,7 +27,7 @@ type CardHolderRepository interface {
 	Save(context.Context, *model.CardHolder) error
 }
 
-type CardRepository interface {
+type SlashCardRepository interface {
 	Create(context.Context, *model.Card) error
 	ExistByID(context.Context, model.ID) (bool, error)
 	FindByID(context.Context, model.ID) (*model.Card, error)
@@ -37,7 +36,7 @@ type CardRepository interface {
 	Save(context.Context, *model.Card) error
 }
 
-type CardProductRepository interface {
+type SlashCardProductRepository interface {
 	ExistByID(context.Context, model.ID) (bool, error)
 	FindByIDForUpdate(context.Context, model.ID) (*model.CardProduct, error)
 	ExistDefault(context.Context) (bool, error)
@@ -46,7 +45,7 @@ type CardProductRepository interface {
 	Save(context.Context, *model.CardProduct) error
 }
 
-type AuthorizationRepository interface {
+type SlashAuthorizationRepository interface {
 	Create(context.Context, *model.Authorization) error
 	ExistByID(context.Context, model.ID) (bool, error)
 	FindByID(context.Context, model.ID) (*model.Authorization, error)
@@ -55,7 +54,7 @@ type AuthorizationRepository interface {
 	Save(context.Context, *model.Authorization) error
 }
 
-type CardTransactionRepository interface {
+type SlashCardTransactionRepository interface {
 	Create(context.Context, *model.CardTransaction) error
 	ExistByID(context.Context, model.ID) (bool, error)
 	FindByID(context.Context, model.ID) (*model.CardTransaction, error)
@@ -64,22 +63,22 @@ type CardTransactionRepository interface {
 }
 
 type SlashUIUsecase struct {
-	transaction               Transaction
-	cardHolderRepository      CardHolderRepository
-	cardRepository            CardRepository
-	cardProductRepository     CardProductRepository
-	authorizationRepository   AuthorizationRepository
-	cardTransactionRepository CardTransactionRepository
+	transaction               SlashTransaction
+	cardHolderRepository      SlashCardHolderRepository
+	cardRepository            SlashCardRepository
+	cardProductRepository     SlashCardProductRepository
+	authorizationRepository   SlashAuthorizationRepository
+	cardTransactionRepository SlashCardTransactionRepository
 }
 
 func NewSlashUIUsecase(injector *do.Injector) (*SlashUIUsecase, error) {
 	return &SlashUIUsecase{
-		transaction:               do.MustInvoke[Transaction](injector),
-		cardHolderRepository:      do.MustInvoke[CardHolderRepository](injector),
-		cardRepository:            do.MustInvoke[CardRepository](injector),
-		cardProductRepository:     do.MustInvoke[CardProductRepository](injector),
-		authorizationRepository:   do.MustInvoke[AuthorizationRepository](injector),
-		cardTransactionRepository: do.MustInvoke[CardTransactionRepository](injector),
+		transaction:               do.MustInvoke[SlashTransaction](injector),
+		cardHolderRepository:      do.MustInvoke[SlashCardHolderRepository](injector),
+		cardRepository:            do.MustInvoke[SlashCardRepository](injector),
+		cardProductRepository:     do.MustInvoke[SlashCardProductRepository](injector),
+		authorizationRepository:   do.MustInvoke[SlashAuthorizationRepository](injector),
+		cardTransactionRepository: do.MustInvoke[SlashCardTransactionRepository](injector),
 	}, nil
 }
 
@@ -194,7 +193,7 @@ func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest)
 			CardHolderID:           req.CardHolderID,
 			FormType:               enums.CardFormType_Virtual,
 			CardCurrency:           req.Currency,
-			CardScheme:             slash.CardScheme,
+			CardScheme:             enums.CardScheme_Visa,
 			CardType:               enums.CardType_Single,
 			RequestID:              randomx.Digits(20),
 			LastOperationRequestID: randomx.Digits(20),

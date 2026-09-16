@@ -16,7 +16,7 @@ import (
 )
 
 type PhotonPayUIUsecase struct {
-	transaction         Transaction
+	transaction         PhotonPayTransaction
 	cardHolderRepo      CardHolderRepository
 	cardRepo            CardRepository
 	cardProductRepo     CardProductRepository
@@ -26,7 +26,7 @@ type PhotonPayUIUsecase struct {
 
 func NewPhotonPayUIUsecase(injector *do.Injector) (*PhotonPayUIUsecase, error) {
 	return &PhotonPayUIUsecase{
-		transaction:         do.MustInvoke[Transaction](injector),
+		transaction:         do.MustInvoke[PhotonPayTransaction](injector),
 		cardHolderRepo:      do.MustInvoke[CardHolderRepository](injector),
 		cardRepo:            do.MustInvoke[CardRepository](injector),
 		cardProductRepo:     do.MustInvoke[CardProductRepository](injector),

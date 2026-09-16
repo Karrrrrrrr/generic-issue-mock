@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	slash "generic-mock/channel/slash/enums"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/cardnumber"
@@ -15,20 +14,20 @@ import (
 )
 
 type SlashOpenAPIUsecase struct {
-	transaction               Transaction
-	cardHolderRepository      CardHolderRepository
-	cardRepository            CardRepository
-	cardProductRepository     CardProductRepository
-	cardTransactionRepository CardTransactionRepository
+	transaction               SlashTransaction
+	cardHolderRepository      SlashCardHolderRepository
+	cardRepository            SlashCardRepository
+	cardProductRepository     SlashCardProductRepository
+	cardTransactionRepository SlashCardTransactionRepository
 }
 
 func NewSlashOpenAPIUsecase(injector *do.Injector) (*SlashOpenAPIUsecase, error) {
 	return &SlashOpenAPIUsecase{
-		transaction:               do.MustInvoke[Transaction](injector),
-		cardHolderRepository:      do.MustInvoke[CardHolderRepository](injector),
-		cardRepository:            do.MustInvoke[CardRepository](injector),
-		cardProductRepository:     do.MustInvoke[CardProductRepository](injector),
-		cardTransactionRepository: do.MustInvoke[CardTransactionRepository](injector),
+		transaction:               do.MustInvoke[SlashTransaction](injector),
+		cardHolderRepository:      do.MustInvoke[SlashCardHolderRepository](injector),
+		cardRepository:            do.MustInvoke[SlashCardRepository](injector),
+		cardProductRepository:     do.MustInvoke[SlashCardProductRepository](injector),
+		cardTransactionRepository: do.MustInvoke[SlashCardTransactionRepository](injector),
 	}, nil
 }
 
@@ -57,19 +56,22 @@ type OpenAPICreateCardRequest struct {
 	CardHolderID  model.ID
 	CardProductID model.ID
 	Currency      enums.Currency
+	RequestID     string
 }
 
 func (u *SlashOpenAPIUsecase) CreateCard(ctx context.Context, req *OpenAPICreateCardRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		holderExists, err := u.cardHolderRepository.ExistByID(txCtx, req.CardHolderID)
-		if err != nil {
-			zap.S().Errorw("check slash openapi card holder", "error", err)
+		if req.CardHolderID != "" {
+			holderExists, err := u.cardHolderRepository.ExistByID(txCtx, req.CardHolderID)
+			if err != nil {
+				zap.S().Errorw("check slash openapi card holder", "error", err)
 
-			return ErrDatabaseOperation
-		}
-		if !holderExists {
-			return ErrResourceNotFound
+				return ErrDatabaseOperation
+			}
+			if !holderExists {
+				return ErrResourceNotFound
+			}
 		}
 
 		productExists, err := u.cardProductRepository.ExistByID(txCtx, req.CardProductID)
@@ -111,10 +113,10 @@ func (u *SlashOpenAPIUsecase) CreateCard(ctx context.Context, req *OpenAPICreate
 			CardHolderID:           req.CardHolderID,
 			FormType:               enums.CardFormType_Virtual,
 			CardCurrency:           req.Currency,
-			CardScheme:             slash.CardScheme,
+			CardScheme:             enums.CardScheme_Visa,
 			CardType:               enums.CardType_Single,
-			RequestID:              randomx.Digits(20),
-			LastOperationRequestID: randomx.Digits(20),
+			RequestID:              req.RequestID,
+			LastOperationRequestID: req.RequestID,
 		}
 		if err := u.cardRepository.Create(txCtx, card); err != nil {
 			zap.S().Errorw("create slash openapi card", "error", err)
@@ -205,16 +207,18 @@ func (u *SlashOpenAPIUsecase) ListCardProducts(ctx context.Context) ([]*model.Ca
 }
 
 type OpenAPIListTransactionsRequest struct {
-	Offset int
-	Limit  int
-	CardID model.ID
+	Offset          int
+	Limit           int
+	CardID          model.ID
+	AuthorizationID model.ID
 }
 
 func (u *SlashOpenAPIUsecase) ListTransactions(ctx context.Context, req *OpenAPIListTransactionsRequest) ([]*model.CardTransaction, error) {
 	items, err := u.cardTransactionRepository.List(ctx, &ListCardTransactionsRequest{
-		Offset: req.Offset,
-		Limit:  req.Limit,
-		CardID: req.CardID,
+		Offset:          req.Offset,
+		Limit:           req.Limit,
+		CardID:          req.CardID,
+		AuthorizationID: req.AuthorizationID,
 	})
 	if err != nil {
 		zap.S().Errorw("list slash openapi transactions", "error", err)

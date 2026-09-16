@@ -35,7 +35,7 @@ type Card struct {
 	LastOperationType      enums.OperationType
 	LastOperationStatus    enums.OperationStatus
 	CardCurrency           enums.Currency
-	CardScheme             string
+	CardScheme             enums.CardScheme
 	CardType               enums.CardType
 	RawRequest             []byte `gorm:"type:jsonb"`
 
