@@ -7,6 +7,7 @@ import (
 
 	"generic-mock/enums"
 	"generic-mock/model"
+	"generic-mock/pkg/cardnumber"
 
 	"github.com/samber/do"
 	"github.com/shopspring/decimal"
@@ -41,9 +42,12 @@ type CardProductRepository interface {
 	Create(context.Context, *model.CardProduct) error
 	ExistByID(context.Context, model.ID) (bool, error)
 	FindByID(context.Context, model.ID) (*model.CardProduct, error)
+	FindByIDForUpdate(context.Context, model.ID) (*model.CardProduct, error)
 	ExistDefault(context.Context) (bool, error)
 	FindDefault(context.Context) (*model.CardProduct, error)
+	FindDefaultForUpdate(context.Context) (*model.CardProduct, error)
 	List(context.Context) ([]*model.CardProduct, error)
+	Save(context.Context, *model.CardProduct) error
 }
 
 type AuthorizationRepository interface {
@@ -168,19 +172,26 @@ func (u *Usecase) CreateCard(ctx context.Context, req *CreateCardRequest) (*mode
 			return err
 		}
 
-		product, err := u.getCardProduct(txCtx, req.CardProductID)
+		product, err := u.getCardProductForUpdate(txCtx, req.CardProductID)
 		if err != nil {
 			return err
 		}
-		if len(product.Prefix) >= 16 {
+
+		product.NextCardNumber++
+		cardNumber, ok := cardnumber.Generate(product.Prefix, product.NextCardNumber)
+		if !ok {
 			return ErrInvalidOperation
+		}
+		if err := u.cardProductRepository.Save(txCtx, product); err != nil {
+			zap.S().Errorw("advance slash card product sequence", "error", err)
+			return ErrDatabaseOperation
 		}
 
 		card = &model.Card{
 			Channel:                enums.Channel_Slash,
 			CardProductID:          product.ID,
 			CardBin:                product.Prefix,
-			CardNumber:             product.Prefix + randomDigits(16-len(product.Prefix)),
+			CardNumber:             cardNumber,
 			Cvv:                    randomDigits(3),
 			ExpireTime:             time.Now().UTC().AddDate(2, 0, 0).Format("01/06"),
 			Status:                 enums.CardStatus_Active,
@@ -558,6 +569,48 @@ func (u *Usecase) getCardProduct(ctx context.Context, id model.ID) (*model.CardP
 	product, err := u.cardProductRepository.FindByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("find slash card product", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+
+	return product, nil
+}
+
+func (u *Usecase) getCardProductForUpdate(ctx context.Context, id model.ID) (*model.CardProduct, error) {
+	if id == "" {
+		exists, err := u.cardProductRepository.ExistDefault(ctx)
+		if err != nil {
+			zap.S().Errorw("check slash default card product", "error", err)
+			return nil, ErrDatabaseOperation
+		}
+		if !exists {
+			product := &model.CardProduct{
+				Channel:   enums.Channel_Slash,
+				Prefix:    defaultCardBinPrefix,
+				IsDefault: true,
+			}
+			if err := u.cardProductRepository.Create(ctx, product); err != nil {
+				zap.S().Errorw("create slash default card product", "error", err)
+				return nil, ErrDatabaseOperation
+			}
+
+			return product, nil
+		}
+
+		product, err := u.cardProductRepository.FindDefaultForUpdate(ctx)
+		if err != nil {
+			zap.S().Errorw("lock slash default card product", "error", err)
+			return nil, ErrDatabaseOperation
+		}
+
+		return product, nil
+	}
+
+	if err := u.requireCardProduct(ctx, id); err != nil {
+		return nil, err
+	}
+	product, err := u.cardProductRepository.FindByIDForUpdate(ctx, id)
+	if err != nil {
+		zap.S().Errorw("lock slash card product", "error", err)
 		return nil, ErrDatabaseOperation
 	}
 

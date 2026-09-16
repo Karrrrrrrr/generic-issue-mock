@@ -8,6 +8,7 @@ import (
 	photon "generic-mock/channel/photonpay/enums"
 	common "generic-mock/enums"
 	"generic-mock/model"
+	"generic-mock/pkg/cardnumber"
 
 	"github.com/samber/do"
 	"github.com/shopspring/decimal"
@@ -40,7 +41,9 @@ type CardProductRepository interface {
 	ExistDefault(context.Context) (bool, error)
 	ExistByPrefix(context.Context, string) (bool, error)
 	FindByPrefix(context.Context, string) (*model.CardProduct, error)
+	FindByPrefixForUpdate(context.Context, string) (*model.CardProduct, error)
 	List(context.Context) ([]*model.CardProduct, error)
+	Save(context.Context, *model.CardProduct) error
 }
 
 type CardTransactionRepository interface {
@@ -200,8 +203,15 @@ func (u *Usecase) OpenCard(ctx context.Context, req *OpenCardRequest) (*model.Ca
 		if err != nil {
 			return err
 		}
-		if len(product.Prefix) >= 16 {
-			return ErrResourceNotFound
+		product.NextCardNumber++
+		cardNumber, ok := cardnumber.Generate(product.Prefix, product.NextCardNumber)
+		if !ok {
+			return ErrInvalidOperation
+		}
+		if err := u.cardProductRepo.Save(txCtx, product); err != nil {
+			zap.S().Errorw("advance photonpay card product sequence", "error", err)
+
+			return ErrDatabaseOperation
 		}
 
 		months := req.ExpirationMonths
@@ -212,7 +222,7 @@ func (u *Usecase) OpenCard(ctx context.Context, req *OpenCardRequest) (*model.Ca
 			Channel:                common.Channel_PhotonPay,
 			CardProductID:          product.ID,
 			CardBin:                product.Prefix,
-			CardNumber:             product.Prefix + randomDigits(16-len(product.Prefix)),
+			CardNumber:             cardNumber,
 			Cvv:                    randomDigits(3),
 			ExpireTime:             time.Now().UTC().AddDate(0, months, 0).Format("01/06"),
 			Status:                 common.CardStatus_Active,
@@ -430,9 +440,9 @@ func (u *Usecase) getCardProductByBinPrefix(
 	if !exists {
 		return nil, ErrResourceNotFound
 	}
-	product, err := u.cardProductRepo.FindByPrefix(ctx, prefix)
+	product, err := u.cardProductRepo.FindByPrefixForUpdate(ctx, prefix)
 	if err != nil {
-		zap.S().Errorw("find photonpay card product", "error", err)
+		zap.S().Errorw("lock photonpay card product", "error", err)
 		return nil, ErrDatabaseOperation
 	}
 

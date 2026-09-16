@@ -7,6 +7,8 @@ const (
 	errorMessageDatabaseOperation = "database operation failed"
 	errorReasonResourceNotFound   = "RESOURCE_NOT_FOUND"
 	errorMessageResourceNotFound  = "resource not found"
+	errorReasonInvalidOperation   = "INVALID_OPERATION"
+	errorMessageInvalidOperation  = "invalid operation"
 )
 
 var (
@@ -17,5 +19,9 @@ var (
 	ErrResourceNotFound = kratosErrors.NotFound(
 		errorReasonResourceNotFound,
 		errorMessageResourceNotFound,
+	)
+	ErrInvalidOperation = kratosErrors.BadRequest(
+		errorReasonInvalidOperation,
+		errorMessageInvalidOperation,
 	)
 )

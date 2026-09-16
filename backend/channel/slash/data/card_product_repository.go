@@ -8,6 +8,7 @@ import (
 	"generic-mock/model"
 
 	"github.com/samber/do"
+	"gorm.io/gorm/clause"
 )
 
 type cardProductRepository struct {
@@ -43,6 +44,15 @@ func (r *cardProductRepository) FindByID(ctx context.Context, id model.ID) (*mod
 	).First()
 }
 
+func (r *cardProductRepository) FindByIDForUpdate(ctx context.Context, id model.ID) (*model.CardProduct, error) {
+	db := r.repository.DB(ctx)
+
+	return db.CardProduct.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).Where(
+		db.CardProduct.ID.Eq(id),
+		db.CardProduct.Channel.Eq(string(enums.Channel_Slash)),
+	).First()
+}
+
 func (r *cardProductRepository) ExistDefault(ctx context.Context) (bool, error) {
 	db := r.repository.DB(ctx)
 	count, err := db.CardProduct.WithContext(ctx).Where(
@@ -62,12 +72,25 @@ func (r *cardProductRepository) FindDefault(ctx context.Context) (*model.CardPro
 	).Order(db.CardProduct.ID.Desc()).First()
 }
 
+func (r *cardProductRepository) FindDefaultForUpdate(ctx context.Context) (*model.CardProduct, error) {
+	db := r.repository.DB(ctx)
+
+	return db.CardProduct.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).Where(
+		db.CardProduct.Channel.Eq(string(enums.Channel_Slash)),
+		db.CardProduct.IsDefault.Is(true),
+	).Order(db.CardProduct.ID.Desc()).First()
+}
+
 func (r *cardProductRepository) List(ctx context.Context) ([]*model.CardProduct, error) {
 	db := r.repository.DB(ctx)
 
 	return db.CardProduct.WithContext(ctx).Where(
 		db.CardProduct.Channel.Eq(string(enums.Channel_Slash)),
 	).Order(db.CardProduct.ID.Desc()).Find()
+}
+
+func (r *cardProductRepository) Save(ctx context.Context, item *model.CardProduct) error {
+	return r.repository.DB(ctx).CardProduct.WithContext(ctx).Save(item)
 }
 
 var _ biz.CardProductRepository = (*cardProductRepository)(nil)

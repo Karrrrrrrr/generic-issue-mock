@@ -51,9 +51,10 @@ type Card struct {
 
 type CardProduct struct {
 	BaseModel
-	Channel   enums.Channel `gorm:"uniqueIndex:idx_card_products_channel_prefix"`
-	Prefix    string        `gorm:"uniqueIndex:idx_card_products_channel_prefix"`
-	IsDefault bool
+	Channel        enums.Channel `gorm:"uniqueIndex:idx_card_products_channel_prefix"`
+	Prefix         string        `gorm:"uniqueIndex:idx_card_products_channel_prefix"`
+	NextCardNumber int64
+	IsDefault      bool
 
 	Cards []*Card `gorm:"foreignKey:CardProductID"`
 }
