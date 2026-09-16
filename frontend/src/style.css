@@ -1,6 +1,6 @@
 :root {
-  color: #172033;
-  background: #f4f6f8;
+  color: #303133;
+  background: #f5f5f5;
   font-family:
     Inter,
     -apple-system,
@@ -18,22 +18,27 @@ body {
 }
 
 .app-shell {
+  height: 100vh;
   min-height: 100vh;
+}
+.app-shell > .n-layout-sider,
+.app-shell > .n-layout {
+  height: 100vh;
 }
 
 .app-header {
   height: 60px;
-  padding: 0 28px;
+  padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: #ffffff;
-  border-bottom: 1px solid #d8dee8;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.app-header div {
+.header-actions {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
 }
 .app-header strong {
@@ -47,17 +52,44 @@ body {
 
 .sidebar {
   width: 208px;
-  padding: 18px 10px;
+  padding: 0 10px 18px;
   background: #ffffff;
-  border-right: 1px solid #dfe5ec;
+  border-right: 1px solid #e5e7eb;
+}
+.channel-logo {
+  height: 60px;
+  margin: 0 -10px 10px;
+  display: grid;
+  place-items: center;
+  color: #12b89a;
+  background: #e3f6f3;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .content {
-  padding: 28px;
+  padding: 16px 40px;
   min-width: 0;
+  background: #f5f5f5;
 }
 .simulation-card {
   max-width: 760px;
+}
+.simulation-page {
+  padding: 24px;
+}
+.content:has(.simulation-page) {
+  padding: 0;
+}
+.simulation-heading h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+.simulation-heading p {
+  margin: 6px 0 0;
+  color: #667085;
 }
 
 .page-heading {
@@ -84,7 +116,7 @@ body {
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 16px;
+  gap: 0 12px;
 }
 .form-grid .form-wide {
   grid-column: 1 / -1;
@@ -99,6 +131,12 @@ body {
   }
   .content {
     padding: 16px;
+  }
+  .content:has(.simulation-page) {
+    padding: 0;
+  }
+  .simulation-page {
+    padding: 0;
   }
   .form-grid {
     grid-template-columns: 1fr;

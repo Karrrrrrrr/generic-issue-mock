@@ -51,6 +51,9 @@ const options = computed(() =>
 );
 async function loadCards() {
   cards.value = (await api.listCards()).data;
+  if (!form.value.cardID) {
+    form.value.cardID = options.value[0]?.value ?? "";
+  }
   if (!refundForm.value.card_id) {
     refundForm.value.card_id = cards.value.find(
       (card) => card.card_status === "active",
@@ -101,9 +104,15 @@ onMounted(() => {
 });
 </script>
 <template>
-  <n-tabs v-model:value="activeTab" type="line">
+  <div class="simulation-page">
+    <n-space vertical size="large">
+      <div class="simulation-heading">
+        <h2>模拟交易</h2>
+        <p>用于模拟授权和独立退款交易。</p>
+      </div>
+      <n-tabs v-model:value="activeTab" type="line">
     <n-tab-pane name="authorization" tab="模拟授权">
-      <n-card title="授权配置" class="simulation-card" :bordered="false">
+      <n-card title="授权配置" hover style="max-width: 720px">
         <n-form label-placement="top">
       <div class="form-grid">
         <n-form-item class="form-wide" label="活动卡" required>
@@ -162,7 +171,7 @@ onMounted(() => {
       </n-card>
     </n-tab-pane>
     <n-tab-pane name="refund" tab="模拟退款">
-      <n-card title="退款配置" class="simulation-card" :bordered="false">
+      <n-card title="退款配置" hover style="max-width: 720px">
         <n-form label-placement="top">
           <div class="form-grid">
             <n-form-item class="form-wide" label="活动卡" required><n-select v-model:value="refundForm.card_id" :options="options" filterable placeholder="选择活动卡" /></n-form-item>
@@ -173,10 +182,12 @@ onMounted(() => {
             <n-form-item label="商户国家" required><n-input v-model:value="refundForm.merchant_country" placeholder="例如 US" /></n-form-item>
             <n-form-item label="地区"><n-input v-model:value="refundForm.merchant_city" placeholder="例如 Seattle" /></n-form-item>
           </div>
-          <n-space justify="end"><n-button type="error" :loading="refundLoading" @click="submitRefund">模拟退款</n-button></n-space>
+          <n-button type="error" block :loading="refundLoading" @click="submitRefund">模拟退款</n-button>
         </n-form>
         <n-alert v-if="refundResult" type="success" :show-icon="false" style="margin-top: 16px">{{ refundResult }}</n-alert>
       </n-card>
     </n-tab-pane>
-  </n-tabs>
+      </n-tabs>
+    </n-space>
+  </div>
 </template>
