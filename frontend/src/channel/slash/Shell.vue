@@ -17,7 +17,6 @@ const items = [
   { label: "持卡人", key: "/slash/cardholders" },
   { label: "卡片", key: "/slash/cards" },
   { label: "交易处理", key: "/slash/transactions" },
-  { label: "模拟退款", key: "/slash/refunds" },
   { label: "授权模拟", key: "/slash/authorization" },
   { label: "Webhook", key: "/slash/webhooks" },
 ];

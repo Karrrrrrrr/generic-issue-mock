@@ -14,7 +14,6 @@ const items = [
   { label: "持卡人", key: "/paynda/cardholders" },
   { label: "卡片", key: "/paynda/cards" },
   { label: "交易处理", key: "/paynda/transactions" },
-  { label: "模拟退款", key: "/paynda/refunds" },
   { label: "授权模拟", key: "/paynda/authorization" },
 ];
 </script>
