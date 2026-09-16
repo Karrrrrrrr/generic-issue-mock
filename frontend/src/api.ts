@@ -138,7 +138,7 @@ export const api = {
         expirationDate: string
       }
     }>>('/photonpay/vcc/openApi/v4/openCard', {
-      cardBin: '424242',
+      cardBin: '543210',
       cardCurrency: currency,
       cardType: 'single',
       cardholderId: cardholderID,

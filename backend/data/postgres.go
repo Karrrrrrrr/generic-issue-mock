@@ -98,6 +98,7 @@ func ensureUUIDV7Function(db *gorm.DB) error {
 func genericModels() []any {
 	return []any{
 		&model.Card{},
+		&model.CardProduct{},
 		&model.VirtualCard{},
 		&model.PhysicalCard{},
 		&model.Wallet{},

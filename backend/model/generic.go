@@ -20,6 +20,7 @@ type BaseModel struct {
 type Card struct {
 	BaseModel
 	Channel                enums.Channel
+	CardProductID          ID
 	CardBin                string
 	CardNumber             string `gorm:"uniqueIndex"`
 	Cvv                    string
@@ -43,8 +44,18 @@ type Card struct {
 	VirtualAccount *VirtualAccount
 	Wallet         *Wallet `gorm:"foreignKey:BalanceID"`
 	CardHolder     *CardHolder
+	CardProduct    *CardProduct
 	VirtualCard    *VirtualCard
 	PhysicalCard   *PhysicalCard
+}
+
+type CardProduct struct {
+	BaseModel
+	Channel   enums.Channel `gorm:"uniqueIndex:idx_card_products_channel_prefix"`
+	Prefix    string        `gorm:"uniqueIndex:idx_card_products_channel_prefix"`
+	IsDefault bool
+
+	Cards []*Card `gorm:"foreignKey:CardProductID"`
 }
 
 type VirtualCard struct {

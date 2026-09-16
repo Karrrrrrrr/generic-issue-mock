@@ -17,6 +17,8 @@ type Transaction interface {
 	InTx(context.Context, func(context.Context) error) error
 }
 
+const defaultCardBinPrefix = "424242"
+
 type CardHolderRepository interface {
 	Create(context.Context, *model.CardHolder) error
 	ExistByID(context.Context, model.ID) (bool, error)
@@ -33,6 +35,15 @@ type CardRepository interface {
 	Count(context.Context, *ListCardsRequest) (int64, error)
 	List(context.Context, *ListCardsRequest) ([]*model.Card, error)
 	Save(context.Context, *model.Card) error
+}
+
+type CardProductRepository interface {
+	Create(context.Context, *model.CardProduct) error
+	ExistByID(context.Context, model.ID) (bool, error)
+	FindByID(context.Context, model.ID) (*model.CardProduct, error)
+	ExistDefault(context.Context) (bool, error)
+	FindDefault(context.Context) (*model.CardProduct, error)
+	List(context.Context) ([]*model.CardProduct, error)
 }
 
 type AuthorizationRepository interface {
@@ -56,6 +67,7 @@ type Usecase struct {
 	transaction               Transaction
 	cardHolderRepository      CardHolderRepository
 	cardRepository            CardRepository
+	cardProductRepository     CardProductRepository
 	authorizationRepository   AuthorizationRepository
 	cardTransactionRepository CardTransactionRepository
 }
@@ -65,6 +77,7 @@ func NewUsecase(injector *do.Injector) (*Usecase, error) {
 		transaction:               do.MustInvokeNamed[Transaction](injector, "slash.transaction"),
 		cardHolderRepository:      do.MustInvokeNamed[CardHolderRepository](injector, "slash.card-holder-repository"),
 		cardRepository:            do.MustInvokeNamed[CardRepository](injector, "slash.card-repository"),
+		cardProductRepository:     do.MustInvokeNamed[CardProductRepository](injector, "slash.card-product-repository"),
 		authorizationRepository:   do.MustInvokeNamed[AuthorizationRepository](injector, "slash.authorization-repository"),
 		cardTransactionRepository: do.MustInvokeNamed[CardTransactionRepository](injector, "slash.card-transaction-repository"),
 	}, nil
@@ -143,33 +156,51 @@ func (u *Usecase) ListCardHolders(ctx context.Context, req *ListCardHoldersReque
 }
 
 type CreateCardRequest struct {
-	CardHolderID model.ID
-	Currency     enums.Currency
+	CardHolderID  model.ID
+	CardProductID model.ID
+	Currency      enums.Currency
 }
 
 func (u *Usecase) CreateCard(ctx context.Context, req *CreateCardRequest) (*model.Card, error) {
-	if err := u.requireCardHolder(ctx, req.CardHolderID); err != nil {
-		return nil, err
-	}
+	var card *model.Card
+	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		if err := u.requireCardHolder(txCtx, req.CardHolderID); err != nil {
+			return err
+		}
 
-	card := &model.Card{
-		Channel:                enums.Channel_Slash,
-		CardBin:                "424242",
-		CardNumber:             "424242" + randomDigits(10),
-		Cvv:                    randomDigits(3),
-		ExpireTime:             time.Now().UTC().AddDate(2, 0, 0).Format("01/06"),
-		Status:                 enums.CardStatus_Active,
-		CardHolderID:           req.CardHolderID,
-		FormType:               enums.CardFormType_Virtual,
-		CardCurrency:           req.Currency,
-		CardScheme:             "VISA",
-		CardType:               enums.CardType_Single,
-		RequestID:              randomDigits(20),
-		LastOperationRequestID: randomDigits(20),
-	}
-	if err := u.cardRepository.Create(ctx, card); err != nil {
-		zap.S().Errorw("create slash card", "error", err)
-		return nil, ErrDatabaseOperation
+		product, err := u.getCardProduct(txCtx, req.CardProductID)
+		if err != nil {
+			return err
+		}
+		if len(product.Prefix) >= 16 {
+			return ErrInvalidOperation
+		}
+
+		card = &model.Card{
+			Channel:                enums.Channel_Slash,
+			CardProductID:          product.ID,
+			CardBin:                product.Prefix,
+			CardNumber:             product.Prefix + randomDigits(16-len(product.Prefix)),
+			Cvv:                    randomDigits(3),
+			ExpireTime:             time.Now().UTC().AddDate(2, 0, 0).Format("01/06"),
+			Status:                 enums.CardStatus_Active,
+			CardHolderID:           req.CardHolderID,
+			FormType:               enums.CardFormType_Virtual,
+			CardCurrency:           req.Currency,
+			CardScheme:             "VISA",
+			CardType:               enums.CardType_Single,
+			RequestID:              randomDigits(20),
+			LastOperationRequestID: randomDigits(20),
+		}
+		if err := u.cardRepository.Create(txCtx, card); err != nil {
+			zap.S().Errorw("create slash card", "error", err)
+			return ErrDatabaseOperation
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return card, nil
@@ -188,6 +219,33 @@ func (u *Usecase) ListCards(ctx context.Context, req *ListCardsRequest) ([]*mode
 	}
 
 	return items, total, nil
+}
+
+type CardProductInfo struct {
+	Product *model.CardProduct
+}
+
+func (u *Usecase) ListCardProducts(ctx context.Context) ([]*CardProductInfo, error) {
+	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		_, err := u.getCardProduct(txCtx, "")
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	products, err := u.cardProductRepository.List(ctx)
+	if err != nil {
+		zap.S().Errorw("list slash card products", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	items := make([]*CardProductInfo, 0, len(products))
+	for _, product := range products {
+		items = append(items, &CardProductInfo{
+			Product: product,
+		})
+	}
+
+	return items, nil
 }
 
 func (u *Usecase) GetCard(ctx context.Context, id model.ID) (*model.Card, error) {
@@ -461,6 +519,61 @@ func (u *Usecase) requireCardTransaction(ctx context.Context, id model.ID) error
 	if !exists {
 		return ErrResourceNotFound
 	}
+	return nil
+}
+
+func (u *Usecase) getCardProduct(ctx context.Context, id model.ID) (*model.CardProduct, error) {
+	if id == "" {
+		exists, err := u.cardProductRepository.ExistDefault(ctx)
+		if err != nil {
+			zap.S().Errorw("check slash default card product", "error", err)
+			return nil, ErrDatabaseOperation
+		}
+		if !exists {
+			product := &model.CardProduct{
+				Channel:   enums.Channel_Slash,
+				Prefix:    defaultCardBinPrefix,
+				IsDefault: true,
+			}
+			if err := u.cardProductRepository.Create(ctx, product); err != nil {
+				zap.S().Errorw("create slash default card product", "error", err)
+				return nil, ErrDatabaseOperation
+			}
+
+			return product, nil
+		}
+
+		product, err := u.cardProductRepository.FindDefault(ctx)
+		if err != nil {
+			zap.S().Errorw("find slash default card product", "error", err)
+			return nil, ErrDatabaseOperation
+		}
+
+		return product, nil
+	}
+
+	if err := u.requireCardProduct(ctx, id); err != nil {
+		return nil, err
+	}
+	product, err := u.cardProductRepository.FindByID(ctx, id)
+	if err != nil {
+		zap.S().Errorw("find slash card product", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+
+	return product, nil
+}
+
+func (u *Usecase) requireCardProduct(ctx context.Context, id model.ID) error {
+	exists, err := u.cardProductRepository.ExistByID(ctx, id)
+	if err != nil {
+		zap.S().Errorw("check slash card product", "error", err)
+		return ErrDatabaseOperation
+	}
+	if !exists {
+		return ErrResourceNotFound
+	}
+
 	return nil
 }
 

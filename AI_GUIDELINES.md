@@ -5,6 +5,7 @@
 - This repository simulates third-party channels for downstream systems. In this repository, a channel is the service being simulated; never carry downstream names such as `ThirdPartyID` into a generic model.
 - Expose the generic model primary key `ID` as the channel-facing resource ID. `ID` defaults to a PostgreSQL UUIDv7 string. Do not add a second token or external-ID column for resources owned by this mock.
 - Generic models are shared by every channel. Add a field only when a current channel implementation needs it and it represents a channel-neutral concept.
+- A card product is the configured card BIN. Every new card stores both `CardProductID` and the selected product prefix in `CardBin`; derive the prefix from the product rather than accepting it as independent card state.
 - Do not add a field merely because it exists in a downstream SDK request or response. Keep such unused fields in the channel service DTO with an `Invalid:` comment and ignore them.
 - Before changing a generic model, search the downstream implementation for actual request construction and response consumption. Do not infer persistence fields from third-party SDK type definitions alone.
 
@@ -17,6 +18,7 @@
 - `data` implements repositories. A repository method performs exactly one database operation.
 - Use `samber/do` for dependency injection. Register constructors directly as providers and resolve dependencies inside those constructors; do not construct dependency graphs manually in `main`.
 - Keep each channel in its own package and expose all routes under `/<channel>/...`.
+- For Slash, browser management flows use `/slash/ui/...`; Marxo integrations use the Slash OpenAPI paths directly below `/slash/...`. UI handlers must not substitute for, or redefine, the OpenAPI contract.
 
 ## HTTP, Types, and Persistence
 

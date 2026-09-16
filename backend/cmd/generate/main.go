@@ -28,6 +28,7 @@ func main() {
 	g.UseDB(db)
 	g.ApplyBasic(
 		&model.Card{},
+		&model.CardProduct{},
 		&model.VirtualCard{},
 		&model.PhysicalCard{},
 		&model.Wallet{},

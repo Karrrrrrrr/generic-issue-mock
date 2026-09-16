@@ -33,6 +33,35 @@ type ListResponse[T any] struct {
 	Data       []T   `json:"data"`
 }
 
+type CardProductData struct {
+	ID        string `json:"id"`
+	Prefix    string `json:"prefix"`
+	IsDefault bool   `json:"is_default"`
+}
+
+type ListCardProductsData struct {
+	Items []CardProductData `json:"items"`
+}
+
+type ListCardProductsRequest struct{}
+
+func (s *Service) ListCardProducts(ctx context.Context, _ *ListCardProductsRequest) (*ListCardProductsData, error) {
+	items, err := s.usecase.ListCardProducts(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ListCardProductsData{
+		Items: types.BulkConvertSlice(items, func(item *biz.CardProductInfo) CardProductData {
+			return CardProductData{
+				ID:        item.Product.ID,
+				Prefix:    item.Product.Prefix,
+				IsDefault: item.Product.IsDefault,
+			}
+		}),
+	}, nil
+}
+
 type CardHolderRequest struct {
 	FirstName string `json:"first_name" binding:"required"`
 	LastName  string `json:"last_name" binding:"required"`
@@ -82,8 +111,9 @@ func (s *Service) ListCardHolders(ctx context.Context, req *ListRequest) (*ListR
 }
 
 type CreateCardRequest struct {
-	CardHolderID string `json:"cardholder_id" binding:"required"`
-	CardCurrency string `json:"card_currency" binding:"required"`
+	CardHolderID  string `json:"cardholder_id" binding:"required"`
+	CardProductID string `json:"card_product_id"`
+	CardCurrency  string `json:"card_currency" binding:"required"`
 }
 
 type UpdateCardStatusRequest struct {
@@ -91,27 +121,29 @@ type UpdateCardStatusRequest struct {
 }
 
 type CardData struct {
-	ID           string `json:"id"`
-	CardHolderID string `json:"cardholder_id"`
-	CardNumber   string `json:"card_number"`
-	Last4        string `json:"last4"`
-	CardBin      string `json:"card_bin"`
-	CardScheme   string `json:"card_scheme"`
-	CardCurrency string `json:"card_currency"`
-	FormFactor   string `json:"form_factor"`
-	CardStatus   string `json:"card_status"`
-	Status       string `json:"status"`
-	ExpiryMonth  string `json:"expiry_month"`
-	ExpiryYear   string `json:"expiry_year"`
-	Cvv          string `json:"cvv"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
+	ID            string `json:"id"`
+	CardHolderID  string `json:"cardholder_id"`
+	CardProductID string `json:"card_product_id"`
+	CardNumber    string `json:"card_number"`
+	Last4         string `json:"last4"`
+	CardBin       string `json:"card_bin"`
+	CardScheme    string `json:"card_scheme"`
+	CardCurrency  string `json:"card_currency"`
+	FormFactor    string `json:"form_factor"`
+	CardStatus    string `json:"card_status"`
+	Status        string `json:"status"`
+	ExpiryMonth   string `json:"expiry_month"`
+	ExpiryYear    string `json:"expiry_year"`
+	Cvv           string `json:"cvv"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
 }
 
 func (s *Service) CreateCard(ctx context.Context, req *CreateCardRequest) (*CardData, error) {
 	item, err := s.usecase.CreateCard(ctx, &biz.CreateCardRequest{
-		CardHolderID: model.ID(req.CardHolderID),
-		Currency:     enums.Currency(req.CardCurrency),
+		CardHolderID:  model.ID(req.CardHolderID),
+		CardProductID: model.ID(req.CardProductID),
+		Currency:      enums.Currency(req.CardCurrency),
 	})
 	if err != nil {
 		return nil, err
@@ -358,21 +390,22 @@ func cardHolderData(item *model.CardHolder) *CardHolderData {
 func cardData(item *model.Card) *CardData {
 	expireTime, _ := time.Parse("01/06", item.ExpireTime)
 	return &CardData{
-		ID:           item.ID,
-		CardHolderID: item.CardHolderID,
-		CardNumber:   item.CardNumber,
-		Last4:        last4(item.CardNumber),
-		CardBin:      item.CardBin,
-		CardScheme:   item.CardScheme,
-		CardCurrency: string(item.CardCurrency),
-		FormFactor:   string(item.FormType),
-		CardStatus:   string(item.Status),
-		Status:       string(item.Status),
-		ExpiryMonth:  expireTime.Format("01"),
-		ExpiryYear:   expireTime.Format("2006"),
-		Cvv:          item.Cvv,
-		CreatedAt:    item.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt:    item.UpdatedAt.UTC().Format(time.RFC3339),
+		ID:            item.ID,
+		CardHolderID:  item.CardHolderID,
+		CardProductID: item.CardProductID,
+		CardNumber:    item.CardNumber,
+		Last4:         last4(item.CardNumber),
+		CardBin:       item.CardBin,
+		CardScheme:    item.CardScheme,
+		CardCurrency:  string(item.CardCurrency),
+		FormFactor:    string(item.FormType),
+		CardStatus:    string(item.Status),
+		Status:        string(item.Status),
+		ExpiryMonth:   expireTime.Format("01"),
+		ExpiryYear:    expireTime.Format("2006"),
+		Cvv:           item.Cvv,
+		CreatedAt:     item.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:     item.UpdatedAt.UTC().Format(time.RFC3339),
 	}
 }
 

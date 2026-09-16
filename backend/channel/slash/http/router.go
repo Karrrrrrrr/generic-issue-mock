@@ -11,6 +11,8 @@ import (
 )
 
 func Register(router *gin.RouterGroup, service *service.Service) {
+	router.GET("/card-product", bind(service.ListCardProducts))
+	router.GET("/ui/card-products", bind(service.ListCardProducts))
 	router.GET("/ui/cardholders", bind(service.ListCardHolders))
 	router.POST("/ui/cardholders", bind(service.CreateCardHolder))
 	router.GET("/ui/cards", bind(service.ListCards))

@@ -220,17 +220,21 @@ type CardBinData struct {
 	RemainingAvailableCard string                `json:"remainingAvailableCard"`
 }
 
-func (s *Service) CardBins(_ context.Context, _ *CardBinRequest) (*[]CardBinData, error) {
-	data := []CardBinData{
-		{
-			CardBin:                photon.DefaultCardBin,
+func (s *Service) CardBins(ctx context.Context, _ *CardBinRequest) (*[]CardBinData, error) {
+	products, err := s.usecase.ListCardProducts(ctx)
+	if err != nil {
+		return nil, photonError(err)
+	}
+	data := types.BulkConvertSlice(products, func(item *model.CardProduct) CardBinData {
+		return CardBinData{
+			CardBin:                item.Prefix,
 			CardCurrency:           common.Currency_USD,
 			CardScheme:             photon.CardScheme,
 			CardType:               photon.CardType_Share,
 			CardFormFactor:         photon.CardFormFactor_Virtual,
 			RemainingAvailableCard: "Unlimited",
-		},
-	}
+		}
+	})
 
 	return &data, nil
 }

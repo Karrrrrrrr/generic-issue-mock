@@ -35,6 +35,14 @@ type CardRepository interface {
 	SaveCard(context.Context, *model.Card) error
 }
 
+type CardProductRepository interface {
+	Create(context.Context, *model.CardProduct) error
+	ExistDefault(context.Context) (bool, error)
+	ExistByPrefix(context.Context, string) (bool, error)
+	FindByPrefix(context.Context, string) (*model.CardProduct, error)
+	List(context.Context) ([]*model.CardProduct, error)
+}
+
 type CardTransactionRepository interface {
 	ListTransactions(context.Context, *ListRequest) ([]*model.CardTransaction, error)
 }
@@ -43,6 +51,7 @@ type Usecase struct {
 	transaction         Transaction
 	cardHolderRepo      CardHolderRepository
 	cardRepo            CardRepository
+	cardProductRepo     CardProductRepository
 	cardTransactionRepo CardTransactionRepository
 }
 
@@ -51,6 +60,7 @@ func NewUsecase(injector *do.Injector) (*Usecase, error) {
 		transaction:         do.MustInvoke[Transaction](injector),
 		cardHolderRepo:      do.MustInvoke[CardHolderRepository](injector),
 		cardRepo:            do.MustInvoke[CardRepository](injector),
+		cardProductRepo:     do.MustInvoke[CardProductRepository](injector),
 		cardTransactionRepo: do.MustInvoke[CardTransactionRepository](injector),
 	}, nil
 }
@@ -186,6 +196,13 @@ func (u *Usecase) OpenCard(ctx context.Context, req *OpenCardRequest) (*model.Ca
 		if err := u.requireCardHolder(txCtx, req.CardholderID); err != nil {
 			return err
 		}
+		product, err := u.getCardProductByBinPrefix(txCtx, req.CardBin)
+		if err != nil {
+			return err
+		}
+		if len(product.Prefix) >= 16 {
+			return ErrResourceNotFound
+		}
 
 		months := req.ExpirationMonths
 		if months == 0 {
@@ -193,8 +210,9 @@ func (u *Usecase) OpenCard(ctx context.Context, req *OpenCardRequest) (*model.Ca
 		}
 		card = &model.Card{
 			Channel:                common.Channel_PhotonPay,
-			CardBin:                req.CardBin,
-			CardNumber:             req.CardBin + randomDigits(10),
+			CardProductID:          product.ID,
+			CardBin:                product.Prefix,
+			CardNumber:             product.Prefix + randomDigits(16-len(product.Prefix)),
 			Cvv:                    randomDigits(3),
 			ExpireTime:             time.Now().UTC().AddDate(0, months, 0).Format("01/06"),
 			Status:                 common.CardStatus_Active,
@@ -222,6 +240,19 @@ func (u *Usecase) OpenCard(ctx context.Context, req *OpenCardRequest) (*model.Ca
 	}
 
 	return card, nil
+}
+
+func (u *Usecase) ListCardProducts(ctx context.Context) ([]*model.CardProduct, error) {
+	if err := u.ensureDefaultCardProduct(ctx); err != nil {
+		return nil, err
+	}
+	products, err := u.cardProductRepo.List(ctx)
+	if err != nil {
+		zap.S().Errorw("list photonpay card products", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+
+	return products, nil
 }
 
 func (u *Usecase) GetCard(ctx context.Context, cardID model.ID) (*model.Card, error) {
@@ -352,4 +383,58 @@ func (u *Usecase) requireCard(ctx context.Context, id model.ID) error {
 	}
 
 	return nil
+}
+
+func (u *Usecase) ensureDefaultCardProduct(ctx context.Context) error {
+	return u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		return u.ensureDefaultCardProductInTx(txCtx)
+	})
+}
+
+func (u *Usecase) ensureDefaultCardProductInTx(ctx context.Context) error {
+	exists, err := u.cardProductRepo.ExistDefault(ctx)
+	if err != nil {
+		zap.S().Errorw("check photonpay default card product", "error", err)
+		return ErrDatabaseOperation
+	}
+	if exists {
+		return nil
+	}
+
+	product := &model.CardProduct{
+		Channel:   common.Channel_PhotonPay,
+		Prefix:    photon.DefaultCardBin,
+		IsDefault: true,
+	}
+	if err := u.cardProductRepo.Create(ctx, product); err != nil {
+		zap.S().Errorw("create photonpay default card product", "error", err)
+		return ErrDatabaseOperation
+	}
+
+	return nil
+}
+
+func (u *Usecase) getCardProductByBinPrefix(
+	ctx context.Context,
+	prefix string,
+) (*model.CardProduct, error) {
+	if err := u.ensureDefaultCardProductInTx(ctx); err != nil {
+		return nil, err
+	}
+
+	exists, err := u.cardProductRepo.ExistByPrefix(ctx, prefix)
+	if err != nil {
+		zap.S().Errorw("check photonpay card product", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
+	product, err := u.cardProductRepo.FindByPrefix(ctx, prefix)
+	if err != nil {
+		zap.S().Errorw("find photonpay card product", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+
+	return product, nil
 }
