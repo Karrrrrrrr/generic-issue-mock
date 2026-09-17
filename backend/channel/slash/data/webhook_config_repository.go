@@ -39,11 +39,18 @@ func (r *webhookConfigRepository) FindByID(ctx context.Context, id model.ID) (*m
 	).First()
 }
 
-func (r *webhookConfigRepository) List(ctx context.Context) ([]*model.WebhookConfig, error) {
+func (r *webhookConfigRepository) List(
+	ctx context.Context,
+	req *biz.ListWebhooksRequest,
+) ([]*model.WebhookConfig, error) {
 	db := r.repository.DB(ctx)
-	return db.WebhookConfig.WithContext(ctx).Where(
+	query := db.WebhookConfig.WithContext(ctx).Where(
 		db.WebhookConfig.Channel.Eq(string(enums.Channel_Slash)),
-	).Order(db.WebhookConfig.ID.Desc()).Find()
+	)
+	if req.AccountID != 0 {
+		query = query.Where(db.WebhookConfig.AccountID.Eq(req.AccountID))
+	}
+	return query.Order(db.WebhookConfig.ID.Desc()).Find()
 }
 
 func (r *webhookConfigRepository) Save(ctx context.Context, item *model.WebhookConfig) error {

@@ -30,6 +30,53 @@ type UIAccountData struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type UIVirtualAccountData struct {
+	ID        string    `json:"id"`
+	AccountID string    `json:"account_id"`
+	Name      string    `json:"name"`
+	Currency  string    `json:"currency"`
+	Balance   string    `json:"balance"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type UICreateVirtualAccountRequest struct {
+	AccountID string `json:"account_id" binding:"required"`
+	Name      string `json:"name" binding:"required"`
+}
+
+func (s *PhotonPayUIService) CreateVirtualAccount(
+	ctx context.Context,
+	req *UICreateVirtualAccountRequest,
+) (*UIVirtualAccountData, error) {
+	accountID, err := photonPayAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.CreateVirtualAccount(ctx, &biz.UICreateVirtualAccountRequest{
+		AccountID: accountID,
+		Name:      req.Name,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return photonPayUIVirtualAccountData(item), nil
+}
+
+func (s *PhotonPayUIService) ListVirtualAccounts(
+	ctx context.Context,
+	_ *struct{},
+) (*[]UIVirtualAccountData, error) {
+	items, err := s.usecase.ListVirtualAccounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]UIVirtualAccountData, 0, len(items))
+	for _, item := range items {
+		result = append(result, *photonPayUIVirtualAccountData(item))
+	}
+	return &result, nil
+}
+
 type UICreateAccountRequest struct {
 	Name string `json:"name" binding:"required"`
 }
@@ -89,8 +136,20 @@ func (s *PhotonPayUIService) CreateWebhook(ctx context.Context, req *UICreateWeb
 	}
 	return photonPayUIWebhookData(item), nil
 }
-func (s *PhotonPayUIService) ListWebhooks(ctx context.Context, _ *struct{}) (*[]UIWebhookData, error) {
-	items, err := s.usecase.ListWebhooks(ctx)
+func (s *PhotonPayUIService) ListWebhooks(ctx context.Context, req *struct {
+	AccountID string `form:"account_id"`
+}) (*[]UIWebhookData, error) {
+	accountID := model.ID(0)
+	if req.AccountID != "" {
+		var err error
+		accountID, err = photonPayAccountID(req.AccountID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	items, err := s.usecase.ListWebhooks(ctx, &biz.WebhookListRequest{
+		AccountID: accountID,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -580,11 +639,23 @@ func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationDat
 func photonPayUIWebhookData(item *model.WebhookConfig) *UIWebhookData {
 	return &UIWebhookData{
 		ID:        photonPayIDString(item.ID),
+		AccountID: photonPayIDString(item.AccountID),
 		Event:     photon.WebhookEvent(item.Event),
 		TargetURL: item.TargetURL,
 		Enabled:   item.Enabled,
 		CreatedAt: item.CreatedAt,
 		UpdatedAt: item.UpdatedAt,
+	}
+}
+
+func photonPayUIVirtualAccountData(item *model.VirtualAccount) *UIVirtualAccountData {
+	return &UIVirtualAccountData{
+		ID:        photonPayIDString(item.ID),
+		AccountID: photonPayIDString(item.AccountID),
+		Name:      item.Name,
+		Currency:  string(item.Wallet.Currency),
+		Balance:   item.Wallet.Amount.String(),
+		CreatedAt: item.CreatedAt,
 	}
 }
 

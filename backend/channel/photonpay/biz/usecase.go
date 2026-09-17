@@ -34,6 +34,11 @@ type WalletRepository interface {
 	Save(context.Context, *model.Wallet) error
 }
 
+type VirtualAccountRepository interface {
+	Create(context.Context, *model.VirtualAccount) error
+	List(context.Context) ([]*model.VirtualAccount, error)
+}
+
 type CardHolderRepository interface {
 	Create(context.Context, *model.CardHolder) error
 	ExistCardHolderByID(context.Context, model.ID) (bool, error)
@@ -90,9 +95,13 @@ type WebhookConfigRepository interface {
 	Create(context.Context, *model.WebhookConfig) error
 	ExistByID(context.Context, model.ID) (bool, error)
 	FindByID(context.Context, model.ID) (*model.WebhookConfig, error)
-	List(context.Context) ([]*model.WebhookConfig, error)
+	List(context.Context, *WebhookListRequest) ([]*model.WebhookConfig, error)
 	Save(context.Context, *model.WebhookConfig) error
 	Delete(context.Context, model.ID) error
+}
+
+type WebhookListRequest struct {
+	AccountID model.ID
 }
 
 type WebhookRecordRepository interface {

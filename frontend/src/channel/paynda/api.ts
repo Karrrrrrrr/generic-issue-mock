@@ -57,8 +57,14 @@ export const accountApi = {
   },
 };
 export const webhookApi = {
-  async list() {
-    return (await request.get<Webhook[]>(`${baseURL}/webhooks`)).data;
+  async list(accountID?: string) {
+    return (
+      await request.get<Webhook[]>(`${baseURL}/webhooks`, {
+        params: {
+          account_id: accountID || undefined,
+        },
+      })
+    ).data;
   },
   async listEvents() {
     return (await request.get<string[]>(`${baseURL}/webhooks/events`)).data;

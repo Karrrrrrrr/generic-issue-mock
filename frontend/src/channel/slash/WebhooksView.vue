@@ -14,14 +14,26 @@ import {
   NSwitch,
   NTag,
 } from "naive-ui";
-import { type Webhook, webhookApi } from "@/channel/slash/api";
+import {
+  type Account,
+  accountApi,
+  type Webhook,
+  webhookApi,
+} from "@/channel/slash/api";
 
 const { dialog, message } = createDiscreteApi(["dialog", "message"]);
 const loading = ref(false);
 const rows = ref<Webhook[]>([]);
+const accounts = ref<Account[]>([]);
+const filterAccountID = ref<string | null>(null);
 const creating = ref(false);
 const editing = ref<Webhook | null>(null);
-const form = ref({ event: "transaction.created", target_url: "", enabled: true });
+const form = ref({
+  account_id: "",
+  event: "transaction.created",
+  target_url: "",
+  enabled: true,
+});
 const eventOptions = [
   "transaction.created",
   "transaction.updated",
@@ -32,7 +44,12 @@ const eventOptions = [
 async function load() {
   loading.value = true;
   try {
-    rows.value = await webhookApi.list();
+    const [items, accountItems] = await Promise.all([
+      webhookApi.list(filterAccountID.value || undefined),
+      accountApi.list(),
+    ]);
+    rows.value = items;
+    accounts.value = accountItems.data;
   } catch (error) {
     message.error(error instanceof Error ? error.message : "无法加载 Webhook 配置");
   } finally {
@@ -42,24 +59,42 @@ async function load() {
 
 function openCreate() {
   editing.value = null;
-  form.value = { event: "transaction.created", target_url: "", enabled: true };
+  form.value = {
+    account_id: "",
+    event: "transaction.created",
+    target_url: "",
+    enabled: true,
+  };
   creating.value = true;
+}
+
+function changeAccountFilter(value: string | null) {
+  filterAccountID.value = value;
+  void load();
 }
 
 function openEdit(item: Webhook) {
   editing.value = item;
-  form.value = { event: item.event, target_url: item.target_url, enabled: item.enabled };
+  form.value = {
+    account_id: item.account_id,
+    event: item.event,
+    target_url: item.target_url,
+    enabled: item.enabled,
+  };
   creating.value = true;
 }
 
 async function save() {
-  if (!form.value.target_url) {
-    message.warning("请填写 Webhook URL");
+  if (!form.value.account_id || !form.value.target_url) {
+    message.warning("请选择账户并填写 Webhook URL");
     return;
   }
   try {
     if (editing.value) {
-      await webhookApi.update(editing.value.id, { target_url: form.value.target_url, enabled: form.value.enabled });
+      await webhookApi.update(editing.value.id, {
+        target_url: form.value.target_url,
+        enabled: form.value.enabled,
+      });
     } else {
       await webhookApi.create(form.value);
     }
@@ -88,6 +123,11 @@ function remove(item: Webhook) {
 }
 
 const columns: DataTableColumns<Webhook> = [
+  {
+    title: "账户 ID",
+    key: "account_id",
+    width: 180,
+  },
   {
     title: "事件",
     key: "event",
@@ -132,10 +172,26 @@ onMounted(() => void load());
         <p>管理事件回调地址与启用状态。</p></div>
       <n-button type="primary" @click="openCreate">新增 Webhook</n-button>
     </div>
+    <n-select
+        v-model:value="filterAccountID"
+        :options="accounts.map((account) => ({ label: `${account.name} (${account.id})`, value: account.id }))"
+        clearable
+        filterable
+        placeholder="按账户名称或账户 ID 过滤"
+        style="width: min(360px, 100%)"
+        @update:value="changeAccountFilter"
+    />
     <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false"/>
     <n-modal v-model:show="creating" preset="card" :title="editing ? '编辑 Webhook' : '新增 Webhook'"
              style="width: min(560px, calc(100vw - 32px))">
       <n-form label-placement="top">
+        <n-form-item label="账户">
+          <n-select
+              v-model:value="form.account_id"
+              :options="accounts.map((account) => ({ label: `${account.name} (${account.id})`, value: account.id }))"
+              :disabled="Boolean(editing)"
+          />
+        </n-form-item>
         <n-form-item label="事件">
           <n-select v-model:value="form.event" :options="eventOptions" :disabled="Boolean(editing)"/>
         </n-form-item>

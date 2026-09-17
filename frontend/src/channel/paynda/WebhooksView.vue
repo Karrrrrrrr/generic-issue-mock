@@ -22,6 +22,7 @@ const visible = ref(false);
 const editing = ref<Webhook | null>(null);
 const rows = ref<Webhook[]>([]);
 const accounts = ref<Account[]>([]);
+const filterAccountID = ref<string | null>(null);
 const form = ref({ account_id: "", event: "", target_url: "", enabled: true });
 const eventOptions = ref<{ label: string; value: string }[]>([]);
 
@@ -30,7 +31,7 @@ async function load() {
 
   try {
     const [items, events, accountItems] = await Promise.all([
-      webhookApi.list(),
+      webhookApi.list(filterAccountID.value || undefined),
       webhookApi.listEvents(),
       accountApi.list(),
     ]);
@@ -58,6 +59,11 @@ function create() {
     enabled: true,
   };
   visible.value = true;
+}
+
+function changeAccountFilter(value: string | null) {
+  filterAccountID.value = value;
+  void load();
 }
 
 function edit(item: Webhook) {
@@ -164,6 +170,16 @@ onMounted(() => void load());
       </div>
       <n-button type="primary" @click="create">新增 Webhook</n-button>
     </div>
+
+    <n-select
+        v-model:value="filterAccountID"
+        :options="accounts.map((account) => ({ label: `${account.name} (${account.id})`, value: account.id }))"
+        clearable
+        filterable
+        placeholder="按账户名称或账户 ID 过滤"
+        style="width: min(360px, 100%)"
+        @update:value="changeAccountFilter"
+    />
 
     <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false"/>
 

@@ -98,9 +98,13 @@ type SlashWebhookConfigRepository interface {
 	Create(context.Context, *model.WebhookConfig) error
 	ExistByID(context.Context, model.ID) (bool, error)
 	FindByID(context.Context, model.ID) (*model.WebhookConfig, error)
-	List(context.Context) ([]*model.WebhookConfig, error)
+	List(context.Context, *ListWebhooksRequest) ([]*model.WebhookConfig, error)
 	Save(context.Context, *model.WebhookConfig) error
 	Delete(context.Context, model.ID) error
+}
+
+type ListWebhooksRequest struct {
+	AccountID model.ID
 }
 
 type SlashUIUsecase struct {
@@ -304,13 +308,24 @@ func (u *SlashUIUsecase) ListCardHolders(ctx context.Context, req *ListCardHolde
 }
 
 type CreateWebhookRequest struct {
+	AccountID model.ID
 	Event     string
 	TargetURL string
 	Enabled   bool
 }
 
 func (u *SlashUIUsecase) CreateWebhook(ctx context.Context, req *CreateWebhookRequest) (*model.WebhookConfig, error) {
+	exists, err := u.accountRepository.Exist(ctx, req.AccountID)
+	if err != nil {
+		zap.S().Errorw("check slash webhook account", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
+
 	item := &model.WebhookConfig{
+		AccountID: req.AccountID,
 		Channel:   enums.Channel_Slash,
 		Event:     req.Event,
 		TargetURL: req.TargetURL,
@@ -323,8 +338,11 @@ func (u *SlashUIUsecase) CreateWebhook(ctx context.Context, req *CreateWebhookRe
 	return item, nil
 }
 
-func (u *SlashUIUsecase) ListWebhooks(ctx context.Context) ([]*model.WebhookConfig, error) {
-	items, err := u.webhookConfigRepository.List(ctx)
+func (u *SlashUIUsecase) ListWebhooks(
+	ctx context.Context,
+	req *ListWebhooksRequest,
+) ([]*model.WebhookConfig, error) {
+	items, err := u.webhookConfigRepository.List(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list slash webhooks", "error", err)
 		return nil, ErrDatabaseOperation

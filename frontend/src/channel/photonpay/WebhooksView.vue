@@ -14,27 +14,41 @@ import {
   NSwitch,
   NTag,
 } from "naive-ui";
-import { type Webhook, webhookApi } from "./api";
+import {
+  type Account,
+  accountApi,
+  type Webhook,
+  webhookApi,
+} from "./api";
 
 const { dialog, message } = createDiscreteApi(["dialog", "message"]);
 const loading = ref(false);
 const visible = ref(false);
 const editing = ref<Webhook | null>(null);
 const rows = ref<Webhook[]>([]);
-const form = ref({ event: "", target_url: "", enabled: true });
+const accounts = ref<Account[]>([]);
+const filterAccountID = ref<string | null>(null);
+const form = ref({
+  account_id: "",
+  event: "",
+  target_url: "",
+  enabled: true,
+});
 const eventOptions = ref<{ label: string; value: string }[]>([]);
 
 async function load() {
   loading.value = true;
 
   try {
-    const [items, events] = await Promise.all([
-      webhookApi.list(),
+    const [items, events, accountItems] = await Promise.all([
+      webhookApi.list(filterAccountID.value || undefined),
       webhookApi.listEvents(),
+      accountApi.list(),
     ]);
 
     rows.value = items;
     eventOptions.value = events.map((value) => ({ label: value, value }));
+    accounts.value = accountItems.data;
 
     if (!eventOptions.value.some((item) => item.value === form.value.event)) {
       form.value.event = eventOptions.value[0]?.value ?? "";
@@ -49,6 +63,7 @@ async function load() {
 function create() {
   editing.value = null;
   form.value = {
+    account_id: "",
     event: eventOptions.value[0]?.value ?? "",
     target_url: "",
     enabled: true,
@@ -56,9 +71,15 @@ function create() {
   visible.value = true;
 }
 
+function changeAccountFilter(value: string | null) {
+  filterAccountID.value = value;
+  void load();
+}
+
 function edit(item: Webhook) {
   editing.value = item;
   form.value = {
+    account_id: item.account_id,
     event: item.event,
     target_url: item.target_url,
     enabled: item.enabled,
@@ -67,8 +88,8 @@ function edit(item: Webhook) {
 }
 
 async function save() {
-  if (!form.value.target_url) {
-    message.warning("请填写 Webhook URL");
+  if (!form.value.account_id || !form.value.target_url) {
+    message.warning("请选择账户并填写 Webhook URL");
     return;
   }
 
@@ -104,6 +125,11 @@ function remove(item: Webhook) {
 }
 
 const columns: DataTableColumns<Webhook> = [
+  {
+    title: "账户 ID",
+    key: "account_id",
+    width: 180,
+  },
   {
     title: "事件",
     key: "event",
@@ -155,6 +181,16 @@ onMounted(() => void load());
       <n-button type="primary" @click="create">新增 Webhook</n-button>
     </div>
 
+    <n-select
+        v-model:value="filterAccountID"
+        :options="accounts.map((account) => ({ label: `${account.name} (${account.id})`, value: account.id }))"
+        clearable
+        filterable
+        placeholder="按账户名称或账户 ID 过滤"
+        style="width: min(360px, 100%)"
+        @update:value="changeAccountFilter"
+    />
+
     <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false"/>
 
     <n-modal
@@ -164,6 +200,13 @@ onMounted(() => void load());
         style="width: min(560px, calc(100vw - 32px))"
     >
       <n-form label-placement="top">
+        <n-form-item label="账户">
+          <n-select
+              v-model:value="form.account_id"
+              :options="accounts.map((account) => ({ label: `${account.name} (${account.id})`, value: account.id }))"
+              :disabled="Boolean(editing)"
+          />
+        </n-form-item>
         <n-form-item label="事件">
           <n-select v-model:value="form.event" :options="eventOptions" :disabled="Boolean(editing)"/>
         </n-form-item>

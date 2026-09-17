@@ -29,6 +29,7 @@ type PhotonPayUIUsecase struct {
 	webhookClient       WebhookClient
 	accountRepo         AccountRepository
 	walletRepo          WalletRepository
+	virtualAccountRepo  VirtualAccountRepository
 }
 
 func NewPhotonPayUIUsecase(injector *do.Injector) (*PhotonPayUIUsecase, error) {
@@ -44,7 +45,67 @@ func NewPhotonPayUIUsecase(injector *do.Injector) (*PhotonPayUIUsecase, error) {
 		webhookClient:       do.MustInvoke[WebhookClient](injector),
 		accountRepo:         do.MustInvoke[AccountRepository](injector),
 		walletRepo:          do.MustInvoke[WalletRepository](injector),
+		virtualAccountRepo:  do.MustInvoke[VirtualAccountRepository](injector),
 	}, nil
+}
+
+type UICreateVirtualAccountRequest struct {
+	AccountID model.ID
+	Name      string
+}
+
+func (u *PhotonPayUIUsecase) CreateVirtualAccount(
+	ctx context.Context,
+	req *UICreateVirtualAccountRequest,
+) (*model.VirtualAccount, error) {
+	var item *model.VirtualAccount
+	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		exists, err := u.accountRepo.Exist(txCtx, req.AccountID)
+		if err != nil {
+			zap.S().Errorw("check photonpay virtual account", "error", err)
+			return ErrDatabaseOperation
+		}
+		if !exists {
+			return ErrResourceNotFound
+		}
+
+		wallet := &model.Wallet{
+			AccountID: req.AccountID,
+			Channel:   enums.Channel_PhotonPay,
+			Type:      enums.WalletType_VirtualAccount,
+			Currency:  enums.Currency_USD,
+		}
+		if err := u.walletRepo.Create(txCtx, wallet); err != nil {
+			zap.S().Errorw("create photonpay virtual account wallet", "error", err)
+			return ErrDatabaseOperation
+		}
+
+		item = &model.VirtualAccount{
+			AccountID: req.AccountID,
+			Channel:   enums.Channel_PhotonPay,
+			WalletID:  wallet.ID,
+			Name:      req.Name,
+			Wallet:    wallet,
+		}
+		if err := u.virtualAccountRepo.Create(txCtx, item); err != nil {
+			zap.S().Errorw("create photonpay virtual account", "error", err)
+			return ErrDatabaseOperation
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
+func (u *PhotonPayUIUsecase) ListVirtualAccounts(ctx context.Context) ([]*model.VirtualAccount, error) {
+	items, err := u.virtualAccountRepo.List(ctx)
+	if err != nil {
+		zap.S().Errorw("list photonpay virtual accounts", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return items, nil
 }
 
 type UICreateAccountRequest struct{ Name string }
@@ -221,6 +282,15 @@ func (u *PhotonPayUIUsecase) CreateWebhook(ctx context.Context, req *UICreateWeb
 	if !req.Event.Valid() {
 		return nil, ErrInvalidOperation
 	}
+	exists, err := u.accountRepo.Exist(ctx, req.AccountID)
+	if err != nil {
+		zap.S().Errorw("check photonpay webhook account", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
+
 	item := &model.WebhookConfig{
 		AccountID: req.AccountID,
 		Channel:   enums.Channel_PhotonPay,
@@ -234,8 +304,11 @@ func (u *PhotonPayUIUsecase) CreateWebhook(ctx context.Context, req *UICreateWeb
 	}
 	return item, nil
 }
-func (u *PhotonPayUIUsecase) ListWebhooks(ctx context.Context) ([]*model.WebhookConfig, error) {
-	items, err := u.webhookRepo.List(ctx)
+func (u *PhotonPayUIUsecase) ListWebhooks(
+	ctx context.Context,
+	req *WebhookListRequest,
+) ([]*model.WebhookConfig, error) {
+	items, err := u.webhookRepo.List(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list photonpay UI webhooks", "error", err)
 		return nil, ErrDatabaseOperation
@@ -783,7 +856,9 @@ func (u *PhotonPayUIUsecase) dispatch(ctx context.Context, event photon.WebhookE
 		zap.S().Errorw("marshal photonpay webhook payload", "error", err)
 		return
 	}
-	configs, err := u.webhookRepo.List(ctx)
+	configs, err := u.webhookRepo.List(ctx, &WebhookListRequest{
+		AccountID: transaction.AccountID,
+	})
 	if err != nil {
 		zap.S().Errorw("list photonpay webhook configs", "error", err)
 		return

@@ -30,6 +30,7 @@ export const accountApi = {
 
 export interface Webhook {
   id: string;
+  account_id: string;
   event: string;
   target_url: string;
   enabled: boolean;
@@ -56,8 +57,14 @@ export interface WebhookRecord {
 }
 
 export const webhookApi = {
-  async list() {
-    return (await request.get<Webhook[]>(`${baseURL}/webhooks`)).data;
+  async list(accountID?: string) {
+    return (
+      await request.get<Webhook[]>(`${baseURL}/webhooks`, {
+        params: {
+          account_id: accountID || undefined,
+        },
+      })
+    ).data;
   },
   async listEvents() {
     return (await request.get<string[]>(`${baseURL}/webhooks/events`)).data;

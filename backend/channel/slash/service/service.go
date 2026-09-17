@@ -98,6 +98,7 @@ func (s *SlashUIService) UpdateAccount(
 
 type WebhookData struct {
 	ID        string    `json:"id"`
+	AccountID string    `json:"account_id"`
 	Event     string    `json:"event"`
 	TargetURL string    `json:"target_url"`
 	Enabled   bool      `json:"enabled"`
@@ -106,13 +107,20 @@ type WebhookData struct {
 }
 
 type CreateWebhookRequest struct {
+	AccountID string `json:"account_id" binding:"required"`
 	Event     string `json:"event" binding:"required"`
 	TargetURL string `json:"target_url" binding:"required,url"`
 	Enabled   bool   `json:"enabled"`
 }
 
 func (s *SlashUIService) CreateWebhook(ctx context.Context, req *CreateWebhookRequest) (*WebhookData, error) {
+	accountID, err := slashAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+
 	item, err := s.usecase.CreateWebhook(ctx, &biz.CreateWebhookRequest{
+		AccountID: accountID,
 		Event:     req.Event,
 		TargetURL: req.TargetURL,
 		Enabled:   req.Enabled,
@@ -123,8 +131,20 @@ func (s *SlashUIService) CreateWebhook(ctx context.Context, req *CreateWebhookRe
 	return webhookData(item), nil
 }
 
-func (s *SlashUIService) ListWebhooks(ctx context.Context, _ *struct{}) (*[]WebhookData, error) {
-	items, err := s.usecase.ListWebhooks(ctx)
+func (s *SlashUIService) ListWebhooks(ctx context.Context, req *struct {
+	AccountID string `form:"account_id"`
+}) (*[]WebhookData, error) {
+	accountID := model.ID(0)
+	if req.AccountID != "" {
+		var err error
+		accountID, err = slashAccountID(req.AccountID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	items, err := s.usecase.ListWebhooks(ctx, &biz.ListWebhooksRequest{
+		AccountID: accountID,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -635,6 +655,7 @@ func cardHolderData(item *model.CardHolder) *CardHolderData {
 func webhookData(item *model.WebhookConfig) *WebhookData {
 	return &WebhookData{
 		ID:        slashIDString(item.ID),
+		AccountID: slashIDString(item.AccountID),
 		Event:     item.Event,
 		TargetURL: item.TargetURL,
 		Enabled:   item.Enabled,
