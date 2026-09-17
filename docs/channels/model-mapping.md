@@ -27,6 +27,14 @@
 
 所有仓储的 `Exist`、`Find`、`List`、`Save`、`Delete` 都必须以 `(account_id, channel)` 过滤；每个账户拥有资源的唯一索引也必须包含这两个字段及自然键。渠道外部 ID 始终只由本表 `ID` 经 formatter 编码，不能将账户域或渠道拼入 ID。
 
+账户范围是显式参数，不是 `context.Context` 状态。service 使用渠道 `service/id.go` 解析账户选择器后，在 usecase/repository 请求结构中传递 `AccountID`。单资源请求结构包含 `AccountID` 和资源 `ID`，对应查询必须包含 `id`、`account_id`、`channel`；列表请求包含可选 `AccountID`，非零时直接追加过滤。UI 是总后台，因此列表可以不传账户以查看全部数据，但创建和指定账户的变更不得传 `0`。
+
+| 渠道 | OpenAPI 账户选择器 | 外部格式 | service 到 biz 的显式字段 |
+| --- | --- | --- | --- |
+| Paynda | 路径或 body 的 `balanceAccountId` | 十进制字符串 | `AccountID` |
+| PhotonPay | `oauth2/token/accessToken` 的 `app_id`，后续请求 `X-PD-TOKEN` | 十进制字符串 | `AccountID` |
+| Slash | 请求 `X-API-Key` | Slash 可逆 UUID | `AccountID` |
+
 浏览器账户管理是独立菜单组。选中的账户决定 UI 管理范围；渠道只在实际下游协议要求时，把该域映射为下游账户字段，例如 Paynda 的 `balanceAccountId`。不要将某个渠道的账户路径或字段强加给其他渠道。
 | `WebhookConfig` | 渠道 webhook 订阅配置 | 渠道、事件、目标地址、启用状态 |
 | `WebhookRecord` | 一次 webhook 投递记录 | 配置、来源资源、请求报文、响应、投递状态和次数 |

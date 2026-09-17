@@ -143,11 +143,17 @@ func (r *cardProductRepository) FindByIDForUpdate(
 		First()
 }
 
-func (r *cardProductRepository) List(ctx context.Context) ([]*model.CardProduct, error) {
+func (r *cardProductRepository) List(
+	ctx context.Context,
+	req *biz.PayndaListRequest,
+) ([]*model.CardProduct, error) {
 	db := r.repository.DB(ctx)
+	query := db.CardProduct.WithContext(ctx).Where(db.CardProduct.Channel.Eq(string(enums.Channel_Paynda)))
+	if req.AccountID != 0 {
+		query = query.Where(db.CardProduct.AccountID.Eq(req.AccountID))
+	}
 
-	return db.CardProduct.WithContext(ctx).
-		Where(db.CardProduct.Channel.Eq(string(enums.Channel_Paynda))).
+	return query.
 		Order(db.CardProduct.ID.Desc()).
 		Find()
 }
@@ -172,9 +178,13 @@ func (r *cardRepository) Create(ctx context.Context, item *model.Card) error {
 	return r.repository.DB(ctx).Card.WithContext(ctx).Create(item)
 }
 
-func (r *cardRepository) ExistByID(ctx context.Context, id model.ID) (bool, error) {
+func (r *cardRepository) ExistByID(ctx context.Context, req *biz.PayndaResourceRequest) (bool, error) {
 	db := r.repository.DB(ctx)
-	count, err := db.Card.WithContext(ctx).Where(db.Card.ID.Eq(id), db.Card.Channel.Eq(string(enums.Channel_Paynda))).Count()
+	query := db.Card.WithContext(ctx).Where(db.Card.ID.Eq(req.ID), db.Card.Channel.Eq(string(enums.Channel_Paynda)))
+	if req.AccountID != 0 {
+		query = query.Where(db.Card.AccountID.Eq(req.AccountID))
+	}
+	count, err := query.Count()
 
 	return count > 0, err
 }
@@ -196,10 +206,13 @@ func (r *cardRepository) ExistByLastOperationRequestID(
 	return count > 0, err
 }
 
-func (r *cardRepository) FindByID(ctx context.Context, id model.ID) (*model.Card, error) {
+func (r *cardRepository) FindByID(ctx context.Context, req *biz.PayndaResourceRequest) (*model.Card, error) {
 	db := r.repository.DB(ctx)
-
-	return db.Card.WithContext(ctx).Where(db.Card.ID.Eq(id), db.Card.Channel.Eq(string(enums.Channel_Paynda))).First()
+	query := db.Card.WithContext(ctx).Where(db.Card.ID.Eq(req.ID), db.Card.Channel.Eq(string(enums.Channel_Paynda)))
+	if req.AccountID != 0 {
+		query = query.Where(db.Card.AccountID.Eq(req.AccountID))
+	}
+	return query.First()
 }
 
 func (r *cardRepository) FindByRequestID(ctx context.Context, requestID string) (*model.Card, error) {
@@ -251,25 +264,35 @@ func (r *walletRepository) Create(ctx context.Context, item *model.Wallet) error
 	return r.repository.DB(ctx).Wallet.WithContext(ctx).Create(item)
 }
 
-func (r *walletRepository) ExistByID(ctx context.Context, id model.ID) (bool, error) {
+func (r *walletRepository) ExistByID(ctx context.Context, req *biz.PayndaResourceRequest) (bool, error) {
 	db := r.repository.DB(ctx)
-	count, err := db.Wallet.WithContext(ctx).Where(db.Wallet.ID.Eq(id), db.Wallet.Channel.Eq(string(enums.Channel_Paynda))).Count()
+	query := db.Wallet.WithContext(ctx).Where(db.Wallet.ID.Eq(req.ID), db.Wallet.Channel.Eq(string(enums.Channel_Paynda)))
+	if req.AccountID != 0 {
+		query = query.Where(db.Wallet.AccountID.Eq(req.AccountID))
+	}
+	count, err := query.Count()
 
 	return count > 0, err
 }
 
-func (r *walletRepository) FindByID(ctx context.Context, id model.ID) (*model.Wallet, error) {
+func (r *walletRepository) FindByID(ctx context.Context, req *biz.PayndaResourceRequest) (*model.Wallet, error) {
 	db := r.repository.DB(ctx)
-	return db.Wallet.WithContext(ctx).Where(db.Wallet.ID.Eq(id), db.Wallet.Channel.Eq(string(enums.Channel_Paynda))).First()
+	query := db.Wallet.WithContext(ctx).Where(db.Wallet.ID.Eq(req.ID), db.Wallet.Channel.Eq(string(enums.Channel_Paynda)))
+	if req.AccountID != 0 {
+		query = query.Where(db.Wallet.AccountID.Eq(req.AccountID))
+	}
+	return query.First()
 }
 
-func (r *walletRepository) FindByIDForUpdate(ctx context.Context, id model.ID) (*model.Wallet, error) {
+func (r *walletRepository) FindByIDForUpdate(ctx context.Context, req *biz.PayndaResourceRequest) (*model.Wallet, error) {
 	db := r.repository.DB(ctx)
-
-	return db.Wallet.WithContext(ctx).
+	query := db.Wallet.WithContext(ctx).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
-		Where(db.Wallet.ID.Eq(id), db.Wallet.Channel.Eq(string(enums.Channel_Paynda))).
-		First()
+		Where(db.Wallet.ID.Eq(req.ID), db.Wallet.Channel.Eq(string(enums.Channel_Paynda)))
+	if req.AccountID != 0 {
+		query = query.Where(db.Wallet.AccountID.Eq(req.AccountID))
+	}
+	return query.First()
 }
 
 func (r *walletRepository) Save(ctx context.Context, item *model.Wallet) error {

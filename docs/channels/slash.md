@@ -9,7 +9,7 @@
 | Slash 字段 | 通用表字段 | 处理 |
 | --- | --- | --- |
 | `id`、`:id` | `Card.ID` 或 `CardTransaction.ID` | 通过 Slash UUID formatter 输出；入参反解析为内部 ID |
-| `ApiKey` | `Account.ID` | Slash UUID formatter 解析的渠道账户 ID；中间件写入当前账户域 |
+| `X-API-Key` | `Account.ID` | Slash UUID formatter 解析的渠道账户 ID；service 显式传入 usecase 请求 |
 | `cardProductId` | `Card.CardProductID` | Slash UUID 解析后关联 `CardProduct`；其 `Prefix` 写入 `Card.CardBin` |
 | `pan`、`cvv`、`last4`、`expiryMonth`/`expiryYear` | `Card.CardNumber`、`Card.Cvv`、`Card.ExpireAt` | `last4` 从卡号派生，不单独存储 |
 | `status`、`isPhysical` | `Card.Status`、`Card.FormType` | 枚举和布尔值转换；当前只创建虚拟卡 |
@@ -22,7 +22,7 @@
 
 ## 账户解析
 
-Slash 的 `ApiKey` 是当前账户 ID，使用 Slash UUID formatter 解析为 `Account.ID`。账户中间件校验其 `Channel=slash` 后，将 `(AccountID, Channel)` 写入请求上下文；所有卡、持卡人、授权、交易、钱包和虚拟账户查询都以该域过滤。`VirtualAccount` 是该域内的独立余额资源，不能取代 `Account`，也不能作为 `ApiKey`。
+Slash 的 `X-API-Key` 是当前账户 ID，使用 Slash UUID formatter 解析为 `Account.ID`。service 将该值放入每个账户资源的 usecase/repository 请求结构；不得通过中间件或 `context.Context` 保存账户范围。所有卡、持卡人、授权、交易、钱包和虚拟账户查询都以 `(AccountID, Channel=slash)` 过滤。`VirtualAccount` 是该域内的独立余额资源，不能取代 `Account`，也不能作为 `X-API-Key`。
 
 ## Marxo 调用基准
 

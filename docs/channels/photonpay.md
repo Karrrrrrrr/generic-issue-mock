@@ -24,7 +24,7 @@
 
 ## 账户解析
 
-所有 PhotonPay 资源按 `(AccountID, Channel=photonpay)` 隔离。先调用 token 接口：`app_id` 由 PhotonPay `service/id.go` 解析为 `Account.ID`，`secret` 必须为空；成功时 `access_token` 返回同一账户 ID 的十进制格式。后续 OpenAPI 请求使用该 token 解析当前账户并过滤全部账户资源。不得使用固定 token、固定账户或通过卡片推导账户。
+所有 PhotonPay 资源按 `(AccountID, Channel=photonpay)` 隔离。先调用 token 接口：`app_id` 由 PhotonPay `service/id.go` 解析为 `Account.ID`，`secret` 必须为空；成功时 `access_token` 返回同一账户 ID 的十进制格式。后续 OpenAPI 请求从 Marxo SDK 使用的 token 字段解析账户，并将 `AccountID` 显式传到 usecase/repository 请求；不得使用固定 token、固定账户、`context.Context` 隐式范围或通过卡片推导账户。
 
 ```bash
 curl -X POST http://127.0.0.1:8000/photonpay/oauth2/token/accessToken \

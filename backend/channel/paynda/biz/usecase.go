@@ -32,16 +32,16 @@ type PayndaCardHolderRepository interface {
 type PayndaCardProductRepository interface {
 	ExistByID(context.Context, model.ID) (bool, error)
 	FindByIDForUpdate(context.Context, model.ID) (*model.CardProduct, error)
-	List(context.Context) ([]*model.CardProduct, error)
+	List(context.Context, *PayndaListRequest) ([]*model.CardProduct, error)
 	Save(context.Context, *model.CardProduct) error
 }
 
 type PayndaCardRepository interface {
 	Create(context.Context, *model.Card) error
-	ExistByID(context.Context, model.ID) (bool, error)
+	ExistByID(context.Context, *PayndaResourceRequest) (bool, error)
 	ExistByRequestID(context.Context, string) (bool, error)
 	ExistByLastOperationRequestID(context.Context, string) (bool, error)
-	FindByID(context.Context, model.ID) (*model.Card, error)
+	FindByID(context.Context, *PayndaResourceRequest) (*model.Card, error)
 	FindByRequestID(context.Context, string) (*model.Card, error)
 	FindByLastOperationRequestID(context.Context, string) (*model.Card, error)
 	List(context.Context, *PayndaListRequest) ([]*model.Card, error)
@@ -50,9 +50,9 @@ type PayndaCardRepository interface {
 
 type PayndaWalletRepository interface {
 	Create(context.Context, *model.Wallet) error
-	ExistByID(context.Context, model.ID) (bool, error)
-	FindByID(context.Context, model.ID) (*model.Wallet, error)
-	FindByIDForUpdate(context.Context, model.ID) (*model.Wallet, error)
+	ExistByID(context.Context, *PayndaResourceRequest) (bool, error)
+	FindByID(context.Context, *PayndaResourceRequest) (*model.Wallet, error)
+	FindByIDForUpdate(context.Context, *PayndaResourceRequest) (*model.Wallet, error)
 	Save(context.Context, *model.Wallet) error
 }
 
@@ -125,6 +125,11 @@ type PayndaListRequest struct {
 	AccountID model.ID
 	Offset    int
 	Limit     int
+}
+
+type PayndaResourceRequest struct {
+	AccountID model.ID
+	ID        model.ID
 }
 
 type PayndaListTransactionsRequest struct {
@@ -371,8 +376,11 @@ func (u *PayndaOpenAPIUsecase) CreateCard(ctx context.Context, req *PayndaCreate
 	return card, nil
 }
 
-func (u *PayndaOpenAPIUsecase) ListCardProducts(ctx context.Context) ([]*model.CardProduct, error) {
-	items, err := u.cardProductRepository.List(ctx)
+func (u *PayndaOpenAPIUsecase) ListCardProducts(
+	ctx context.Context,
+	req *PayndaListRequest,
+) ([]*model.CardProduct, error) {
+	items, err := u.cardProductRepository.List(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list paynda card products", "error", err)
 		return nil, ErrDatabaseOperation
@@ -381,12 +389,12 @@ func (u *PayndaOpenAPIUsecase) ListCardProducts(ctx context.Context) ([]*model.C
 	return items, nil
 }
 
-func (u *PayndaOpenAPIUsecase) GetCard(ctx context.Context, id model.ID) (*model.Card, error) {
-	if err := u.requireCard(ctx, id); err != nil {
+func (u *PayndaOpenAPIUsecase) GetCard(ctx context.Context, req *PayndaResourceRequest) (*model.Card, error) {
+	if err := u.requireCard(ctx, req); err != nil {
 		return nil, err
 	}
 
-	card, err := u.cardRepository.FindByID(ctx, id)
+	card, err := u.cardRepository.FindByID(ctx, req)
 	if err != nil {
 		zap.S().Errorw("find paynda card", "error", err)
 		return nil, ErrDatabaseOperation
@@ -405,8 +413,8 @@ func (u *PayndaOpenAPIUsecase) ListCards(ctx context.Context, req *PayndaListReq
 	return items, nil
 }
 
-func (u *PayndaOpenAPIUsecase) GetCardBalance(ctx context.Context, cardID model.ID) (*model.Wallet, error) {
-	card, err := u.GetCard(ctx, cardID)
+func (u *PayndaOpenAPIUsecase) GetCardBalance(ctx context.Context, req *PayndaResourceRequest) (*model.Wallet, error) {
+	card, err := u.GetCard(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -414,7 +422,8 @@ func (u *PayndaOpenAPIUsecase) GetCardBalance(ctx context.Context, cardID model.
 		return nil, ErrResourceNotFound
 	}
 
-	exists, err := u.walletRepository.ExistByID(ctx, *card.WalletID)
+	walletRequest := &PayndaResourceRequest{AccountID: req.AccountID, ID: *card.WalletID}
+	exists, err := u.walletRepository.ExistByID(ctx, walletRequest)
 	if err != nil {
 		zap.S().Errorw("check paynda card wallet", "error", err)
 		return nil, ErrDatabaseOperation
@@ -423,7 +432,7 @@ func (u *PayndaOpenAPIUsecase) GetCardBalance(ctx context.Context, cardID model.
 		return nil, ErrResourceNotFound
 	}
 
-	wallet, err := u.walletRepository.FindByID(ctx, *card.WalletID)
+	wallet, err := u.walletRepository.FindByID(ctx, walletRequest)
 	if err != nil {
 		zap.S().Errorw("find paynda card wallet", "error", err)
 		return nil, ErrDatabaseOperation
@@ -476,7 +485,7 @@ func (u *PayndaOpenAPIUsecase) GetAccountWallet(ctx context.Context) (*PayndaAcc
 			zap.S().Errorw("find paynda account", "error", err)
 			return ErrDatabaseOperation
 		}
-		wallet, err := u.walletRepository.FindByID(txCtx, account.WalletID)
+		wallet, err := u.walletRepository.FindByID(txCtx, &PayndaResourceRequest{AccountID: account.ID, ID: account.WalletID})
 		if err != nil {
 			zap.S().Errorw("find paynda account wallet", "error", err)
 			return ErrDatabaseOperation
@@ -509,7 +518,7 @@ func (u *PayndaOpenAPIUsecase) TransferAccountWallet(
 	}
 
 	err = u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, accountWallet.Wallet.ID)
+		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, &PayndaResourceRequest{AccountID: accountWallet.Account.ID, ID: accountWallet.Wallet.ID})
 		if err != nil {
 			zap.S().Errorw("lock paynda account wallet", "error", err)
 			return ErrDatabaseOperation
@@ -532,6 +541,7 @@ func (u *PayndaOpenAPIUsecase) TransferAccountWallet(
 }
 
 type PayndaTransferRequest struct {
+	AccountID model.ID
 	CardID    model.ID
 	RequestID string
 	Amount    decimal.Decimal
@@ -544,7 +554,7 @@ func (u *PayndaOpenAPIUsecase) TransferCardBalance(
 ) (*model.CardTransaction, error) {
 	var transaction *model.CardTransaction
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		card, err := u.GetCard(txCtx, req.CardID)
+		card, err := u.GetCard(txCtx, &PayndaResourceRequest{AccountID: req.AccountID, ID: req.CardID})
 		if err != nil {
 			return err
 		}
@@ -552,7 +562,7 @@ func (u *PayndaOpenAPIUsecase) TransferCardBalance(
 			return ErrResourceNotFound
 		}
 
-		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, *card.WalletID)
+		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, &PayndaResourceRequest{AccountID: req.AccountID, ID: *card.WalletID})
 		if err != nil {
 			zap.S().Errorw("lock paynda card wallet", "error", err)
 			return ErrDatabaseOperation
@@ -576,6 +586,7 @@ func (u *PayndaOpenAPIUsecase) TransferCardBalance(
 		}
 
 		transaction = &model.CardTransaction{
+			AccountID:  req.AccountID,
 			Channel:    enums.Channel_Paynda,
 			CardID:     card.ID,
 			Status:     enums.TransactionStatus_SUCCEED,
@@ -602,6 +613,7 @@ func (u *PayndaOpenAPIUsecase) TransferCardBalance(
 }
 
 type PayndaUpdateCardStatusRequest struct {
+	AccountID model.ID
 	CardID    model.ID
 	RequestID string
 	Status    paynda.CardStatus
@@ -618,7 +630,7 @@ func (u *PayndaOpenAPIUsecase) UpdateCardStatus(
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		var err error
-		card, err = u.GetCard(txCtx, req.CardID)
+		card, err = u.GetCard(txCtx, &PayndaResourceRequest{AccountID: req.AccountID, ID: req.CardID})
 		if err != nil {
 			return err
 		}
@@ -640,16 +652,9 @@ func (u *PayndaOpenAPIUsecase) UpdateCardStatus(
 	return card, nil
 }
 
-func (u *PayndaOpenAPIUsecase) ReleaseCard(
-	ctx context.Context,
-	cardID model.ID,
-	requestID string,
-) (*model.Card, error) {
-	return u.UpdateCardStatus(ctx, &PayndaUpdateCardStatusRequest{
-		CardID:    cardID,
-		RequestID: requestID,
-		Status:    paynda.CardStatus_Deleted,
-	})
+func (u *PayndaOpenAPIUsecase) ReleaseCard(ctx context.Context, req *PayndaUpdateCardStatusRequest) (*model.Card, error) {
+	req.Status = paynda.CardStatus_Deleted
+	return u.UpdateCardStatus(ctx, req)
 }
 
 type PayndaCardTransactionDetail struct {
@@ -839,8 +844,8 @@ func (u *PayndaOpenAPIUsecase) requireCardProduct(ctx context.Context, id model.
 	return nil
 }
 
-func (u *PayndaOpenAPIUsecase) requireCard(ctx context.Context, id model.ID) error {
-	exists, err := u.cardRepository.ExistByID(ctx, id)
+func (u *PayndaOpenAPIUsecase) requireCard(ctx context.Context, req *PayndaResourceRequest) error {
+	exists, err := u.cardRepository.ExistByID(ctx, req)
 	if err != nil {
 		zap.S().Errorw("check paynda card", "error", err)
 		return ErrDatabaseOperation
@@ -1088,7 +1093,7 @@ func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCar
 		if !exists {
 			return ErrResourceNotFound
 		}
-		products, err := u.cardProductRepository.List(txCtx)
+		products, err := u.cardProductRepository.List(txCtx, &PayndaListRequest{AccountID: req.AccountID})
 		if err != nil {
 			zap.S().Errorw("list paynda UI card products", "error", err)
 			return ErrDatabaseOperation
@@ -1169,7 +1174,7 @@ type PayndaUIUpdateCardStatusRequest struct {
 func (u *PayndaUIUsecase) UpdateCardStatus(ctx context.Context, req *PayndaUIUpdateCardStatusRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		exists, err := u.cardRepository.ExistByID(txCtx, req.CardID)
+		exists, err := u.cardRepository.ExistByID(txCtx, &PayndaResourceRequest{ID: req.CardID})
 		if err != nil {
 			zap.S().Errorw("check paynda UI card", "error", err)
 			return ErrDatabaseOperation
@@ -1177,7 +1182,7 @@ func (u *PayndaUIUsecase) UpdateCardStatus(ctx context.Context, req *PayndaUIUpd
 		if !exists {
 			return ErrResourceNotFound
 		}
-		card, err = u.cardRepository.FindByID(txCtx, req.CardID)
+		card, err = u.cardRepository.FindByID(txCtx, &PayndaResourceRequest{ID: req.CardID})
 		if err != nil {
 			zap.S().Errorw("find paynda UI card", "error", err)
 			return ErrDatabaseOperation
@@ -1255,7 +1260,7 @@ func (u *PayndaUIUsecase) SimulateAuthorization(
 ) (*PayndaSimulateAuthorizationResult, error) {
 	var result *PayndaSimulateAuthorizationResult
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		exists, err := u.cardRepository.ExistByID(txCtx, req.CardID)
+		exists, err := u.cardRepository.ExistByID(txCtx, &PayndaResourceRequest{ID: req.CardID})
 		if err != nil {
 			zap.S().Errorw("check paynda UI card", "error", err)
 			return ErrDatabaseOperation
@@ -1264,7 +1269,7 @@ func (u *PayndaUIUsecase) SimulateAuthorization(
 			return ErrResourceNotFound
 		}
 
-		card, err := u.cardRepository.FindByID(txCtx, req.CardID)
+		card, err := u.cardRepository.FindByID(txCtx, &PayndaResourceRequest{ID: req.CardID})
 		if err != nil {
 			zap.S().Errorw("find paynda UI card", "error", err)
 			return ErrDatabaseOperation
@@ -1333,7 +1338,7 @@ func (u *PayndaUIUsecase) SimulateRefund(ctx context.Context, req *PayndaSimulat
 	}
 	var transaction *model.CardTransaction
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		exists, err := u.cardRepository.ExistByID(txCtx, req.CardID)
+		exists, err := u.cardRepository.ExistByID(txCtx, &PayndaResourceRequest{ID: req.CardID})
 		if err != nil {
 			zap.S().Errorw("check paynda UI card for simulated refund", "error", err)
 			return ErrDatabaseOperation
@@ -1341,7 +1346,7 @@ func (u *PayndaUIUsecase) SimulateRefund(ctx context.Context, req *PayndaSimulat
 		if !exists {
 			return ErrResourceNotFound
 		}
-		card, err := u.cardRepository.FindByID(txCtx, req.CardID)
+		card, err := u.cardRepository.FindByID(txCtx, &PayndaResourceRequest{ID: req.CardID})
 		if err != nil {
 			zap.S().Errorw("find paynda UI card for simulated refund", "error", err)
 			return ErrDatabaseOperation
@@ -1410,7 +1415,7 @@ func (u *PayndaUIUsecase) ApplyTransactionStep(ctx context.Context, req *PayndaU
 			return ErrInvalidOperation
 		}
 
-		card, err := u.cardRepository.FindByID(txCtx, origin.CardID)
+		card, err := u.cardRepository.FindByID(txCtx, &PayndaResourceRequest{AccountID: origin.AccountID, ID: origin.CardID})
 		if err != nil {
 			zap.S().Errorw("find paynda UI transaction card", "error", err)
 			return ErrDatabaseOperation
@@ -1418,7 +1423,7 @@ func (u *PayndaUIUsecase) ApplyTransactionStep(ctx context.Context, req *PayndaU
 		if card.WalletID == nil {
 			return ErrResourceNotFound
 		}
-		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, *card.WalletID)
+		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, &PayndaResourceRequest{AccountID: card.AccountID, ID: *card.WalletID})
 		if err != nil {
 			zap.S().Errorw("lock paynda UI card wallet", "error", err)
 			return ErrDatabaseOperation
@@ -1492,7 +1497,7 @@ func (u *PayndaUIUsecase) dispatchTransaction(ctx context.Context, transaction *
 }
 
 func (u *PayndaUIUsecase) dispatch(ctx context.Context, event paynda.WebhookEvent, sourceID model.ID, transaction *model.CardTransaction) {
-	card, err := u.cardRepository.FindByID(ctx, transaction.CardID)
+	card, err := u.cardRepository.FindByID(ctx, &PayndaResourceRequest{AccountID: transaction.AccountID, ID: transaction.CardID})
 	if err != nil {
 		zap.S().Errorw("find paynda webhook card for account", "error", err)
 		return
@@ -1581,7 +1586,7 @@ type payndaCardTransactionWebhook struct {
 }
 
 func (u *PayndaUIUsecase) payndaWebhookPayload(ctx context.Context, transaction *model.CardTransaction) ([]byte, error) {
-	card, err := u.cardRepository.FindByID(ctx, transaction.CardID)
+	card, err := u.cardRepository.FindByID(ctx, &PayndaResourceRequest{AccountID: transaction.AccountID, ID: transaction.CardID})
 	if err != nil {
 		zap.S().Errorw("find paynda webhook card", "error", err)
 		return nil, ErrDatabaseOperation
@@ -1594,7 +1599,7 @@ func (u *PayndaUIUsecase) payndaWebhookPayload(ctx context.Context, transaction 
 	if card.WalletID == nil {
 		return nil, ErrResourceNotFound
 	}
-	wallet, err := u.walletRepository.FindByID(ctx, *card.WalletID)
+	wallet, err := u.walletRepository.FindByID(ctx, &PayndaResourceRequest{AccountID: card.AccountID, ID: *card.WalletID})
 	if err != nil {
 		zap.S().Errorw("find paynda webhook wallet", "error", err)
 		return nil, ErrDatabaseOperation
