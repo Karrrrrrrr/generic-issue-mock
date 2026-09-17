@@ -11,6 +11,9 @@ func Register(
 	openAPIService *service.PhotonPayOpenAPIService,
 	uiService *service.PhotonPayUIService,
 ) {
+	router.GET("/ui/accounts", bindUI(uiService.ListAccounts))
+	router.POST("/ui/accounts", bindUI(uiService.CreateAccount))
+	router.PUT("/ui/accounts/:id", bindUI(uiService.UpdateAccount))
 	router.GET("/ui/cardholders", bindUI(uiService.ListCardHolders))
 	router.POST("/ui/cardholders", bindUI(uiService.CreateCardHolder))
 	router.GET("/ui/cards", bindUI(uiService.ListCards))

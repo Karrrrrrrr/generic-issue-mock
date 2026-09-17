@@ -19,6 +19,15 @@ type PhotonPayTransaction interface {
 	InTx(context.Context, func(context.Context) error) error
 }
 
+type AccountRepository interface {
+	Create(context.Context, *model.Account) error
+	Exist(context.Context, model.ID) (bool, error)
+	Find(context.Context, model.ID) (*model.Account, error)
+	Count(context.Context) (int64, error)
+	List(context.Context, *ListRequest) ([]*model.Account, error)
+	Save(context.Context, *model.Account) error
+}
+
 type CardHolderRepository interface {
 	Create(context.Context, *model.CardHolder) error
 	ExistCardHolderByID(context.Context, model.ID) (bool, error)
@@ -166,6 +175,7 @@ func (u *PhotonPayOpenAPIUsecase) CreateCardHolder(ctx context.Context, req *Cre
 }
 
 type UpdateCardHolderRequest struct {
+	AccountID    model.ID
 	CardholderID model.ID
 	Email        *string
 	Mobile       *string
@@ -185,6 +195,9 @@ func (u *PhotonPayOpenAPIUsecase) UpdateCardHolder(ctx context.Context, req *Upd
 			zap.S().Errorw("find photonpay card holder", "error", err)
 
 			return ErrDatabaseOperation
+		}
+		if holder.AccountID != req.AccountID {
+			return ErrResourceNotFound
 		}
 
 		if req.Email != nil {
@@ -252,9 +265,20 @@ func (u *PhotonPayOpenAPIUsecase) OpenCard(ctx context.Context, req *OpenCardReq
 		if err := u.requireCardHolder(txCtx, req.CardholderID); err != nil {
 			return err
 		}
+		holder, err := u.cardHolderRepo.FindCardHolderByID(txCtx, req.CardholderID)
+		if err != nil {
+			zap.S().Errorw("find photonpay card holder", "error", err)
+			return ErrDatabaseOperation
+		}
+		if holder.AccountID != req.AccountID {
+			return ErrResourceNotFound
+		}
 		product, err := u.getCardProductByBinPrefix(txCtx, req.CardBin)
 		if err != nil {
 			return err
+		}
+		if product.AccountID != req.AccountID {
+			return ErrResourceNotFound
 		}
 		product.NextCardNumber++
 		cardNumber, ok := cardnumber.Generate(product.Prefix, product.NextCardNumber)
@@ -342,25 +366,33 @@ func (u *PhotonPayOpenAPIUsecase) ListCards(ctx context.Context, req *ListReques
 	return cards, nil
 }
 
-func (u *PhotonPayOpenAPIUsecase) GetRequestResult(ctx context.Context, requestID string) (*model.Card, error) {
-	exists, err := u.cardRepo.ExistCardByRequestID(ctx, requestID)
+type RequestResultResourceRequest struct {
+	AccountID model.ID
+	RequestID string
+}
+
+func (u *PhotonPayOpenAPIUsecase) GetRequestResult(ctx context.Context, req *RequestResultResourceRequest) (*model.Card, error) {
+	exists, err := u.cardRepo.ExistCardByRequestID(ctx, req.RequestID)
 	if err != nil {
 		zap.S().Errorw("check photonpay card request", "error", err)
 
 		return nil, ErrDatabaseOperation
 	}
 	if exists {
-		card, err := u.cardRepo.FindByRequestID(ctx, requestID)
+		card, err := u.cardRepo.FindByRequestID(ctx, req.RequestID)
 		if err != nil {
 			zap.S().Errorw("find photonpay card request", "error", err)
 
 			return nil, ErrDatabaseOperation
 		}
 
+		if card.AccountID != req.AccountID {
+			return nil, ErrResourceNotFound
+		}
 		return card, nil
 	}
 
-	exists, err = u.cardRepo.ExistCardByLastOperationRequestID(ctx, requestID)
+	exists, err = u.cardRepo.ExistCardByLastOperationRequestID(ctx, req.RequestID)
 	if err != nil {
 		zap.S().Errorw("check photonpay card operation request", "error", err)
 
@@ -370,13 +402,16 @@ func (u *PhotonPayOpenAPIUsecase) GetRequestResult(ctx context.Context, requestI
 		return nil, ErrResourceNotFound
 	}
 
-	card, err := u.cardRepo.FindByLastOperationRequestID(ctx, requestID)
+	card, err := u.cardRepo.FindByLastOperationRequestID(ctx, req.RequestID)
 	if err != nil {
 		zap.S().Errorw("find photonpay card operation request", "error", err)
 
 		return nil, ErrDatabaseOperation
 	}
 
+	if card.AccountID != req.AccountID {
+		return nil, ErrResourceNotFound
+	}
 	return card, nil
 }
 
@@ -519,6 +554,9 @@ func (u *PhotonPayOpenAPIUsecase) SandboxTransaction(ctx context.Context, req *S
 				zap.S().Errorw("find photonpay origin transaction", "error", err)
 
 				return ErrDatabaseOperation
+			}
+			if originTransaction.AccountID != req.AccountID {
+				return ErrResourceNotFound
 			}
 		}
 

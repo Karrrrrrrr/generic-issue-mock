@@ -9,6 +9,12 @@ import { authorizationPayload, request } from "@/channel/shared";
 
 const baseURL = "/slash/ui";
 
+export interface Account { id: string; name: string; created_at: string; }
+export const accountApi = {
+  async list() { return (await request.get<Account[]>(`${baseURL}/accounts`)).data; },
+  async create(payload: Pick<Account, "name">) { return (await request.post<Account>(`${baseURL}/accounts`, payload)).data; },
+};
+
 export interface Webhook {
   id: string;
   event: string;

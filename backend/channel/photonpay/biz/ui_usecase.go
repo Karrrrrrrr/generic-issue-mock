@@ -27,6 +27,7 @@ type PhotonPayUIUsecase struct {
 	webhookRepo         WebhookConfigRepository
 	webhookRecordRepo   WebhookRecordRepository
 	webhookClient       WebhookClient
+	accountRepo         AccountRepository
 }
 
 func NewPhotonPayUIUsecase(injector *do.Injector) (*PhotonPayUIUsecase, error) {
@@ -40,7 +41,60 @@ func NewPhotonPayUIUsecase(injector *do.Injector) (*PhotonPayUIUsecase, error) {
 		webhookRepo:         do.MustInvoke[WebhookConfigRepository](injector),
 		webhookRecordRepo:   do.MustInvoke[WebhookRecordRepository](injector),
 		webhookClient:       do.MustInvoke[WebhookClient](injector),
+		accountRepo:         do.MustInvoke[AccountRepository](injector),
 	}, nil
+}
+
+type UICreateAccountRequest struct{ Name string }
+
+func (u *PhotonPayUIUsecase) CreateAccount(ctx context.Context, req *UICreateAccountRequest) (*model.Account, error) {
+	item := &model.Account{Channel: enums.Channel_PhotonPay, Name: req.Name}
+	if err := u.accountRepo.Create(ctx, item); err != nil {
+		zap.S().Errorw("create photonpay UI account", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return item, nil
+}
+
+func (u *PhotonPayUIUsecase) ListAccounts(ctx context.Context, req *ListRequest) ([]*model.Account, int64, error) {
+	items, err := u.accountRepo.List(ctx, req)
+	if err != nil {
+		zap.S().Errorw("list photonpay UI accounts", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+	total, err := u.accountRepo.Count(ctx)
+	if err != nil {
+		zap.S().Errorw("count photonpay UI accounts", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+	return items, total, nil
+}
+
+type UIUpdateAccountRequest struct {
+	ID   model.ID
+	Name string
+}
+
+func (u *PhotonPayUIUsecase) UpdateAccount(ctx context.Context, req *UIUpdateAccountRequest) (*model.Account, error) {
+	exists, err := u.accountRepo.Exist(ctx, req.ID)
+	if err != nil {
+		zap.S().Errorw("check photonpay UI account", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
+	item, err := u.accountRepo.Find(ctx, req.ID)
+	if err != nil {
+		zap.S().Errorw("find photonpay UI account", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	item.Name = req.Name
+	if err := u.accountRepo.Save(ctx, item); err != nil {
+		zap.S().Errorw("rename photonpay UI account", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return item, nil
 }
 
 type UICreateWebhookRequest struct {

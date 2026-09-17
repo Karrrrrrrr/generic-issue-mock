@@ -24,6 +24,16 @@ type UIListResponse[T any] struct {
 	Data       []T `json:"data"`
 }
 
+type UIAccountData struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type UICreateAccountRequest struct {
+	Name string `json:"name" binding:"required"`
+}
+
 type UIWebhookData struct {
 	ID        string              `json:"id"`
 	AccountID string              `json:"account_id"`
@@ -116,6 +126,40 @@ type UICardHolderData struct {
 
 type PhotonPayUIService struct {
 	usecase *biz.PhotonPayUIUsecase
+}
+
+func (s *PhotonPayUIService) CreateAccount(ctx context.Context, req *UICreateAccountRequest) (*UIAccountData, error) {
+	item, err := s.usecase.CreateAccount(ctx, &biz.UICreateAccountRequest{Name: req.Name})
+	if err != nil {
+		return nil, err
+	}
+	return photonPayUIAccountData(item), nil
+}
+
+func (s *PhotonPayUIService) ListAccounts(ctx context.Context, req *UIListRequest) (*UIListResponse[*UIAccountData], error) {
+	page, size := types.NormalizePagination(req.PageNumber, req.PageSize)
+	items, total, err := s.usecase.ListAccounts(ctx, &biz.ListRequest{Offset: (page - 1) * size, Limit: size})
+	if err != nil {
+		return nil, err
+	}
+	return &UIListResponse[*UIAccountData]{TotalItems: int(total), Data: types.BulkConvertSlice(items, photonPayUIAccountData)}, nil
+}
+
+type UIUpdateAccountRequest struct {
+	ID   string `uri:"id" binding:"required"`
+	Name string `json:"name" binding:"required"`
+}
+
+func (s *PhotonPayUIService) UpdateAccount(ctx context.Context, req *UIUpdateAccountRequest) (*UIAccountData, error) {
+	id, err := photonPayAccountID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.UpdateAccount(ctx, &biz.UIUpdateAccountRequest{ID: id, Name: req.Name})
+	if err != nil {
+		return nil, err
+	}
+	return photonPayUIAccountData(item), nil
 }
 
 func NewPhotonPayUIService(injector *do.Injector) (*PhotonPayUIService, error) {
@@ -430,6 +474,10 @@ func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationDat
 
 func photonPayUIWebhookData(item *model.WebhookConfig) *UIWebhookData {
 	return &UIWebhookData{ID: photonPayIDString(item.ID), Event: photon.WebhookEvent(item.Event), TargetURL: item.TargetURL, Enabled: item.Enabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+}
+
+func photonPayUIAccountData(item *model.Account) *UIAccountData {
+	return &UIAccountData{ID: photonPayIDString(item.ID), Name: item.Name, CreatedAt: item.CreatedAt}
 }
 
 func photonPayUITransactionData(item *model.CardTransaction) *UITransactionData {

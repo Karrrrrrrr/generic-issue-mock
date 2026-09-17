@@ -179,11 +179,16 @@ type EditCardHolderRequest struct {
 }
 
 func (s *PhotonPayOpenAPIService) EditCardHolder(ctx context.Context, req *EditCardHolderRequest) (*CardHolderData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	cardholderID, err := photonPayID(req.CardholderID)
 	if err != nil {
 		return nil, err
 	}
 	holder, err := s.usecase.UpdateCardHolder(ctx, &biz.UpdateCardHolderRequest{
+		AccountID:    accountID,
 		CardholderID: cardholderID,
 		Email:        req.Email,
 		Mobile:       req.Mobile,
@@ -476,7 +481,11 @@ type RequestResultRequest struct {
 }
 
 func (s *PhotonPayOpenAPIService) RequestResult(ctx context.Context, req *RequestResultRequest) (*OpenCardData, error) {
-	card, err := s.usecase.GetRequestResult(ctx, req.RequestID)
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
+	card, err := s.usecase.GetRequestResult(ctx, &biz.RequestResultResourceRequest{AccountID: accountID, RequestID: req.RequestID})
 	if err != nil {
 		return nil, err
 	}

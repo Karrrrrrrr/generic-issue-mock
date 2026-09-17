@@ -18,6 +18,11 @@ type SlashTransaction interface {
 	InTx(context.Context, func(context.Context) error) error
 }
 
+type SlashAccountRepository interface {
+	Create(context.Context, *model.Account) error
+	List(context.Context) ([]*model.Account, error)
+}
+
 type SlashCardHolderRepository interface {
 	Create(context.Context, *model.CardHolder) error
 	ExistByID(context.Context, model.ID) (bool, error)
@@ -102,6 +107,7 @@ type SlashUIUsecase struct {
 	cardTransactionRepository SlashCardTransactionRepository
 	webhookConfigRepository   SlashWebhookConfigRepository
 	virtualAccountRepository  SlashVirtualAccountRepository
+	accountRepository         SlashAccountRepository
 }
 
 func NewSlashUIUsecase(injector *do.Injector) (*SlashUIUsecase, error) {
@@ -114,7 +120,28 @@ func NewSlashUIUsecase(injector *do.Injector) (*SlashUIUsecase, error) {
 		cardTransactionRepository: do.MustInvoke[SlashCardTransactionRepository](injector),
 		webhookConfigRepository:   do.MustInvoke[SlashWebhookConfigRepository](injector),
 		virtualAccountRepository:  do.MustInvoke[SlashVirtualAccountRepository](injector),
+		accountRepository:         do.MustInvoke[SlashAccountRepository](injector),
 	}, nil
+}
+
+type CreateAccountRequest struct{ Name string }
+
+func (u *SlashUIUsecase) CreateAccount(ctx context.Context, req *CreateAccountRequest) (*model.Account, error) {
+	item := &model.Account{Channel: enums.Channel_Slash, Name: req.Name}
+	if err := u.accountRepository.Create(ctx, item); err != nil {
+		zap.S().Errorw("create slash UI account", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return item, nil
+}
+
+func (u *SlashUIUsecase) ListAccounts(ctx context.Context) ([]*model.Account, error) {
+	items, err := u.accountRepository.List(ctx)
+	if err != nil {
+		zap.S().Errorw("list slash UI accounts", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return items, nil
 }
 
 type ListCardHoldersRequest struct {

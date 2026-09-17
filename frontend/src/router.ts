@@ -8,6 +8,7 @@ export const router = createRouter({
       component: () => import("@/channel/slash/Shell.vue"),
       children: [
         { path: "", redirect: "/slash/cardholders" },
+        { path: "accounts", component: () => import("@/channel/slash/AccountsView.vue") },
         {
           path: "card-products",
           component: () => import("@/channel/slash/CardProductsView.vue"),
@@ -47,6 +48,7 @@ export const router = createRouter({
       component: () => import("@/channel/photonpay/Shell.vue"),
       children: [
         { path: "", redirect: "/photonpay/cardholders" },
+        { path: "accounts", component: () => import("@/channel/photonpay/AccountsView.vue") },
         {
           path: "cardholders",
           component: () => import("@/channel/photonpay/CardholdersView.vue"),

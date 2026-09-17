@@ -29,6 +29,36 @@ type ListRequest struct {
 	PageSize   int `form:"page_size"`
 }
 
+type AccountData struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type CreateAccountRequest struct {
+	Name string `json:"name" binding:"required"`
+}
+
+func (s *SlashUIService) CreateAccount(ctx context.Context, req *CreateAccountRequest) (*AccountData, error) {
+	item, err := s.usecase.CreateAccount(ctx, &biz.CreateAccountRequest{Name: req.Name})
+	if err != nil {
+		return nil, err
+	}
+	return slashAccountData(item), nil
+}
+
+func (s *SlashUIService) ListAccounts(ctx context.Context, _ *struct{}) (*[]AccountData, error) {
+	items, err := s.usecase.ListAccounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]AccountData, 0, len(items))
+	for _, item := range items {
+		result = append(result, *slashAccountData(item))
+	}
+	return &result, nil
+}
+
 type WebhookData struct {
 	ID        string    `json:"id"`
 	Event     string    `json:"event"`
@@ -558,6 +588,10 @@ func webhookData(item *model.WebhookConfig) *WebhookData {
 		CreatedAt: item.CreatedAt,
 		UpdatedAt: item.UpdatedAt,
 	}
+}
+
+func slashAccountData(item *model.Account) *AccountData {
+	return &AccountData{ID: slashIDString(item.ID), Name: item.Name, CreatedAt: item.CreatedAt}
 }
 
 func cardData(item *model.Card) *CardData {

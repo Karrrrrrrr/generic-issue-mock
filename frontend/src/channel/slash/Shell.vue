@@ -25,6 +25,7 @@ const items = [
     { label: "模拟交易", key: "/slash/authorization" },
   ] },
   { type: "group", label: "配置", key: "configuration", children: [
+    { label: "账户", key: "/slash/accounts" },
     { label: "Webhook 管理", key: "/slash/webhooks" },
   ] },
 ];
