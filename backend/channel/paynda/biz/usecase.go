@@ -59,6 +59,7 @@ type PayndaWalletRepository interface {
 type PayndaAccountRepository interface {
 	Create(context.Context, *model.Account) error
 	ExistByChannel(context.Context) (bool, error)
+	ExistByID(context.Context, model.ID) (bool, error)
 	FindByChannel(context.Context) (*model.Account, error)
 }
 
@@ -74,17 +75,29 @@ type PayndaCardTransactionRepository interface {
 
 type PayndaAuthorizationRepository interface {
 	Create(context.Context, *model.Authorization) error
+	FindByID(context.Context, *PayndaFindAuthorizationRequest) (*model.Authorization, error)
 	List(context.Context, *PayndaListRequest) ([]*model.Authorization, error)
+	ListByIDs(context.Context, *PayndaListAuthorizationsByIDsRequest) ([]*model.Authorization, error)
+}
+
+type PayndaFindAuthorizationRequest struct {
+	ID model.ID
+}
+
+type PayndaListAuthorizationsByIDsRequest struct {
+	IDs []model.ID
 }
 
 type PayndaWebhookConfigRepository interface {
 	Create(context.Context, *model.WebhookConfig) error
 	ExistByID(context.Context, model.ID) (bool, error)
 	FindByID(context.Context, model.ID) (*model.WebhookConfig, error)
-	List(context.Context) ([]*model.WebhookConfig, error)
+	ListByAccountID(context.Context, *PayndaListWebhooksRequest) ([]*model.WebhookConfig, error)
 	Save(context.Context, *model.WebhookConfig) error
 	Delete(context.Context, model.ID) error
 }
+
+type PayndaListWebhooksRequest struct{ AccountID model.ID }
 
 type PayndaWebhookRecordRepository interface {
 	Create(context.Context, *model.WebhookRecord) error
@@ -127,6 +140,7 @@ type PayndaOpenAPIUsecase struct {
 	walletRepository          PayndaWalletRepository
 	accountRepository         PayndaAccountRepository
 	cardTransactionRepository PayndaCardTransactionRepository
+	authorizationRepository   PayndaAuthorizationRepository
 }
 
 func NewPayndaOpenAPIUsecase(injector *do.Injector) (*PayndaOpenAPIUsecase, error) {
@@ -138,6 +152,7 @@ func NewPayndaOpenAPIUsecase(injector *do.Injector) (*PayndaOpenAPIUsecase, erro
 		walletRepository:          do.MustInvoke[PayndaWalletRepository](injector),
 		accountRepository:         do.MustInvoke[PayndaAccountRepository](injector),
 		cardTransactionRepository: do.MustInvoke[PayndaCardTransactionRepository](injector),
+		authorizationRepository:   do.MustInvoke[PayndaAuthorizationRepository](injector),
 	}, nil
 }
 
@@ -264,6 +279,7 @@ func (u *PayndaOpenAPIUsecase) ListCardHolders(
 }
 
 type PayndaCreateCardRequest struct {
+	AccountID     model.ID
 	CardHolderID  model.ID
 	CardProductID model.ID
 	Currency      enums.Currency
@@ -274,6 +290,14 @@ type PayndaCreateCardRequest struct {
 func (u *PayndaOpenAPIUsecase) CreateCard(ctx context.Context, req *PayndaCreateCardRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		exists, err := u.accountRepository.ExistByID(txCtx, req.AccountID)
+		if err != nil {
+			zap.S().Errorw("check paynda card account", "error", err)
+			return ErrDatabaseOperation
+		}
+		if !exists {
+			return ErrResourceNotFound
+		}
 		if err := u.requireCardHolder(txCtx, req.CardHolderID); err != nil {
 			return err
 		}
@@ -308,6 +332,7 @@ func (u *PayndaOpenAPIUsecase) CreateCard(ctx context.Context, req *PayndaCreate
 
 		card = &model.Card{
 			Channel:                enums.Channel_Paynda,
+			AccountID:              req.AccountID,
 			CardProductID:          product.ID,
 			CardBin:                product.Prefix,
 			CardNumber:             cardNumber,
@@ -620,10 +645,15 @@ func (u *PayndaOpenAPIUsecase) ReleaseCard(
 	})
 }
 
+type PayndaCardTransactionDetail struct {
+	Transaction   *model.CardTransaction
+	Authorization *model.Authorization
+}
+
 func (u *PayndaOpenAPIUsecase) GetCardTransaction(
 	ctx context.Context,
 	id model.ID,
-) (*model.CardTransaction, error) {
+) (*PayndaCardTransactionDetail, error) {
 	exists, err := u.cardTransactionRepository.ExistByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check paynda card transaction", "error", err)
@@ -639,33 +669,86 @@ func (u *PayndaOpenAPIUsecase) GetCardTransaction(
 		return nil, ErrDatabaseOperation
 	}
 
-	return transaction, nil
+	details, err := u.cardTransactionDetails(ctx, []*model.CardTransaction{transaction})
+	if err != nil {
+		return nil, err
+	}
+
+	return details[0], nil
 }
 
 func (u *PayndaOpenAPIUsecase) ListCardTransactions(
 	ctx context.Context,
 	req *PayndaListTransactionsRequest,
-) ([]*model.CardTransaction, error) {
+) ([]*PayndaCardTransactionDetail, error) {
 	items, err := u.cardTransactionRepository.List(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list paynda card transactions", "error", err)
 		return nil, ErrDatabaseOperation
 	}
 
-	return items, nil
+	return u.cardTransactionDetails(ctx, items)
+}
+
+func (u *PayndaOpenAPIUsecase) cardTransactionDetails(
+	ctx context.Context,
+	transactions []*model.CardTransaction,
+) ([]*PayndaCardTransactionDetail, error) {
+	authorizationIDs := make([]model.ID, 0, len(transactions))
+	seenAuthorizationIDs := make(map[model.ID]struct{}, len(transactions))
+	for _, transaction := range transactions {
+		if transaction.AuthorizationID == 0 {
+			continue
+		}
+		if _, exists := seenAuthorizationIDs[transaction.AuthorizationID]; exists {
+			continue
+		}
+		seenAuthorizationIDs[transaction.AuthorizationID] = struct{}{}
+		authorizationIDs = append(authorizationIDs, transaction.AuthorizationID)
+	}
+
+	authorizationsByID := make(map[model.ID]*model.Authorization, len(authorizationIDs))
+	if len(authorizationIDs) > 0 {
+		authorizations, err := u.authorizationRepository.ListByIDs(ctx, &PayndaListAuthorizationsByIDsRequest{
+			IDs: authorizationIDs,
+		})
+		if err != nil {
+			zap.S().Errorw("list paynda transaction authorizations", "error", err)
+			return nil, ErrDatabaseOperation
+		}
+		for _, authorization := range authorizations {
+			authorizationsByID[authorization.ID] = authorization
+		}
+	}
+
+	details := make([]*PayndaCardTransactionDetail, 0, len(transactions))
+	for _, transaction := range transactions {
+		details = append(details, &PayndaCardTransactionDetail{
+			Transaction:   transaction,
+			Authorization: authorizationsByID[transaction.AuthorizationID],
+		})
+	}
+
+	return details, nil
 }
 
 func (u *PayndaOpenAPIUsecase) ListCardBalanceUpdates(
 	ctx context.Context,
 	req *PayndaListRequest,
 ) ([]*model.CardTransaction, error) {
-	return u.ListCardTransactions(ctx, &PayndaListTransactionsRequest{
+	items, err := u.cardTransactionRepository.List(ctx, &PayndaListTransactionsRequest{
 		PayndaListRequest: *req,
 		Types: []enums.CardTransactionType{
 			enums.CardTransactionType_FundIn,
 			enums.CardTransactionType_FundOut,
 		},
 	})
+	if err != nil {
+		zap.S().Errorw("list paynda card balance updates", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+
+	return items, nil
 }
 
 type PayndaRequestResult struct {
@@ -802,6 +885,7 @@ func NewPayndaUIUsecase(injector *do.Injector) (*PayndaUIUsecase, error) {
 }
 
 type PayndaUICreateWebhookRequest struct {
+	AccountID model.ID
 	Event     paynda.WebhookEvent
 	TargetURL string
 	Enabled   bool
@@ -816,15 +900,23 @@ func (u *PayndaUIUsecase) CreateWebhook(ctx context.Context, req *PayndaUICreate
 	if !req.Event.Valid() {
 		return nil, ErrInvalidOperation
 	}
-	item := &model.WebhookConfig{Channel: enums.Channel_Paynda, Event: string(req.Event), TargetURL: req.TargetURL, Enabled: req.Enabled}
+	exists, err := u.accountRepository.ExistByID(ctx, req.AccountID)
+	if err != nil {
+		zap.S().Errorw("check paynda webhook account", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
+	item := &model.WebhookConfig{Channel: enums.Channel_Paynda, AccountID: req.AccountID, Event: string(req.Event), TargetURL: req.TargetURL, Enabled: req.Enabled}
 	if err := u.webhookConfigRepository.Create(ctx, item); err != nil {
 		zap.S().Errorw("create paynda UI webhook", "error", err)
 		return nil, ErrDatabaseOperation
 	}
 	return item, nil
 }
-func (u *PayndaUIUsecase) ListWebhooks(ctx context.Context) ([]*model.WebhookConfig, error) {
-	items, err := u.webhookConfigRepository.List(ctx)
+func (u *PayndaUIUsecase) ListWebhooks(ctx context.Context, req *PayndaListWebhooksRequest) ([]*model.WebhookConfig, error) {
+	items, err := u.webhookConfigRepository.ListByAccountID(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list paynda UI webhooks", "error", err)
 		return nil, ErrDatabaseOperation
@@ -1312,12 +1404,20 @@ func (u *PayndaUIUsecase) dispatchTransaction(ctx context.Context, transaction *
 }
 
 func (u *PayndaUIUsecase) dispatch(ctx context.Context, event paynda.WebhookEvent, sourceID model.ID, transaction *model.CardTransaction) {
+	card, err := u.cardRepository.FindByID(ctx, transaction.CardID)
+	if err != nil {
+		zap.S().Errorw("find paynda webhook card for account", "error", err)
+		return
+	}
+	if card.AccountID == 0 {
+		return
+	}
 	payload, err := u.payndaWebhookPayload(ctx, transaction)
 	if err != nil {
 		zap.S().Errorw("marshal paynda webhook payload", "error", err)
 		return
 	}
-	configs, err := u.webhookConfigRepository.List(ctx)
+	configs, err := u.webhookConfigRepository.ListByAccountID(ctx, &PayndaListWebhooksRequest{AccountID: card.AccountID})
 	if err != nil {
 		zap.S().Errorw("list paynda webhook configs", "error", err)
 		return
@@ -1416,6 +1516,17 @@ func (u *PayndaUIUsecase) payndaWebhookPayload(ctx context.Context, transaction 
 		zap.S().Errorw("find paynda webhook account", "error", err)
 		return nil, ErrDatabaseOperation
 	}
+	authorizationTime := ""
+	if transaction.AuthorizationID != 0 {
+		authorization, err := u.authorizationRepository.FindByID(ctx, &PayndaFindAuthorizationRequest{
+			ID: transaction.AuthorizationID,
+		})
+		if err != nil {
+			zap.S().Errorw("find paynda webhook transaction authorization", "error", err)
+			return nil, ErrDatabaseOperation
+		}
+		authorizationTime = authorization.OccurredAt.UTC().Format(time.RFC3339)
+	}
 	transactionID := strconv.FormatInt(transaction.ID, 10)
 	payload := payndaEventPayload{CardTransactionWebhook: payndaCardTransactionWebhook{
 		ID:                                  transactionID,
@@ -1435,7 +1546,7 @@ func (u *PayndaUIUsecase) payndaWebhookPayload(ctx context.Context, transaction 
 		TransactionAmountInOriginalCurrency: transaction.TxAmount.String(),
 		ReversalFlag:                        strconv.FormatBool(transaction.Type == enums.CardTransactionType_VOID),
 		TransactionTime:                     transaction.OccurredAt.UTC().Format(time.RFC3339),
-		AuthorizationTime:                   transaction.OccurredAt.UTC().Format(time.RFC3339),
+		AuthorizationTime:                   authorizationTime,
 		MerchantMCC:                         transaction.MerchantMCC,
 		MerchantName:                        transaction.MerchantName,
 		MerchantAddressCountry:              transaction.MerchantCountry,

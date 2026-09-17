@@ -36,9 +36,14 @@ func (r *webhookConfigRepository) FindByID(ctx context.Context, id model.ID) (*m
 	db := r.repository.DB(ctx)
 	return db.WebhookConfig.WithContext(ctx).Where(db.WebhookConfig.ID.Eq(id), db.WebhookConfig.Channel.Eq(string(enums.Channel_Paynda))).First()
 }
-func (r *webhookConfigRepository) List(ctx context.Context) ([]*model.WebhookConfig, error) {
+func (r *webhookConfigRepository) ListByAccountID(ctx context.Context, req *biz.PayndaListWebhooksRequest) ([]*model.WebhookConfig, error) {
 	db := r.repository.DB(ctx)
-	return db.WebhookConfig.WithContext(ctx).Where(db.WebhookConfig.Channel.Eq(string(enums.Channel_Paynda))).Order(db.WebhookConfig.ID.Desc()).Find()
+	query := db.WebhookConfig.WithContext(ctx).Where(db.WebhookConfig.Channel.Eq(string(enums.Channel_Paynda)))
+	if req.AccountID != 0 {
+		query = query.Where(db.WebhookConfig.AccountID.Eq(req.AccountID))
+	}
+
+	return query.Order(db.WebhookConfig.ID.Desc()).Find()
 }
 func (r *webhookConfigRepository) Save(ctx context.Context, item *model.WebhookConfig) error {
 	return r.repository.DB(ctx).WebhookConfig.WithContext(ctx).Save(item)
@@ -321,6 +326,12 @@ func (r *accountRepository) ExistByChannel(ctx context.Context) (bool, error) {
 	return count > 0, err
 }
 
+func (r *accountRepository) ExistByID(ctx context.Context, id model.ID) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.Account.WithContext(ctx).Where(db.Account.ID.Eq(id), db.Account.Channel.Eq(string(enums.Channel_Paynda))).Count()
+	return count > 0, err
+}
+
 func (r *accountRepository) FindByChannel(ctx context.Context) (*model.Account, error) {
 	db := r.repository.DB(ctx)
 
@@ -448,9 +459,33 @@ func (r *authorizationRepository) Create(ctx context.Context, item *model.Author
 	return r.repository.DB(ctx).Authorization.WithContext(ctx).Create(item)
 }
 
+func (r *authorizationRepository) FindByID(
+	ctx context.Context,
+	req *biz.PayndaFindAuthorizationRequest,
+) (*model.Authorization, error) {
+	db := r.repository.DB(ctx)
+
+	return db.Authorization.WithContext(ctx).Where(
+		db.Authorization.ID.Eq(req.ID),
+		db.Authorization.Channel.Eq(string(enums.Channel_Paynda)),
+	).First()
+}
+
 func (r *authorizationRepository) List(ctx context.Context, req *biz.PayndaListRequest) ([]*model.Authorization, error) {
 	db := r.repository.DB(ctx)
 	return db.Authorization.WithContext(ctx).Where(db.Authorization.Channel.Eq(string(enums.Channel_Paynda))).Order(db.Authorization.ID.Desc()).Offset(req.Offset).Limit(req.Limit).Find()
+}
+
+func (r *authorizationRepository) ListByIDs(
+	ctx context.Context,
+	req *biz.PayndaListAuthorizationsByIDsRequest,
+) ([]*model.Authorization, error) {
+	db := r.repository.DB(ctx)
+
+	return db.Authorization.WithContext(ctx).Where(
+		db.Authorization.ID.In(req.IDs...),
+		db.Authorization.Channel.Eq(string(enums.Channel_Paynda)),
+	).Order(db.Authorization.ID.Desc()).Find()
 }
 
 var _ biz.PayndaAuthorizationRepository = (*authorizationRepository)(nil)

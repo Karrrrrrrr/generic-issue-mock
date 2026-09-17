@@ -20,6 +20,7 @@ type BaseModel struct {
 type Card struct {
 	BaseModel
 	Channel                enums.Channel
+	AccountID              ID
 	CardProductID          ID
 	CardBin                string
 	CardNumber             string `gorm:"uniqueIndex"`
@@ -167,6 +168,7 @@ type CardHolder struct {
 type WebhookConfig struct {
 	BaseModel
 	Channel   enums.Channel
+	AccountID ID
 	Event     string
 	TargetURL string
 	Enabled   bool

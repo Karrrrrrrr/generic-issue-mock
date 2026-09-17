@@ -21,7 +21,7 @@ const loading = ref(false);
 const visible = ref(false);
 const editing = ref<Webhook | null>(null);
 const rows = ref<Webhook[]>([]);
-const form = ref({ event: "", target_url: "", enabled: true });
+const form = ref({ account_id: "", event: "", target_url: "", enabled: true });
 const eventOptions = ref<{ label: string; value: string }[]>([]);
 
 async function load() {
@@ -49,6 +49,7 @@ async function load() {
 function create() {
   editing.value = null;
   form.value = {
+    account_id: "",
     event: eventOptions.value[0]?.value ?? "",
     target_url: "",
     enabled: true,
@@ -59,6 +60,7 @@ function create() {
 function edit(item: Webhook) {
   editing.value = item;
   form.value = {
+    account_id: item.account_id,
     event: item.event,
     target_url: item.target_url,
     enabled: item.enabled,
@@ -104,6 +106,11 @@ function remove(item: Webhook) {
 }
 
 const columns: DataTableColumns<Webhook> = [
+  {
+    title: "资金账户",
+    key: "account_id",
+    width: 160,
+  },
   {
     title: "事件",
     key: "event",
@@ -164,6 +171,9 @@ onMounted(() => void load());
       style="width: min(560px, calc(100vw - 32px))"
     >
       <n-form label-placement="top">
+        <n-form-item label="资金账户 ID">
+          <n-input v-model:value="form.account_id" :disabled="Boolean(editing)" />
+        </n-form-item>
         <n-form-item label="事件">
           <n-select v-model:value="form.event" :options="eventOptions" :disabled="Boolean(editing)" />
         </n-form-item>

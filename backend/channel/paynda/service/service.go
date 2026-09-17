@@ -235,6 +235,10 @@ type PayndaCreateCardRequest struct {
 }
 
 func (s *PayndaOpenAPIService) CreateCard(ctx context.Context, req *PayndaCreateCardRequest) (*PayndaCardDetail, error) {
+	accountID, err := payndaID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	cardholderID, err := payndaID(req.CardholderID)
 	if err != nil {
 		return nil, err
@@ -252,6 +256,7 @@ func (s *PayndaOpenAPIService) CreateCard(ctx context.Context, req *PayndaCreate
 		expireAt = value.UTC()
 	}
 	item, err := s.usecase.CreateCard(ctx, &biz.PayndaCreateCardRequest{
+		AccountID:     accountID,
 		CardHolderID:  cardholderID,
 		CardProductID: cardProductID,
 		Currency:      req.Currency,
@@ -909,22 +914,26 @@ func payndaCardBalanceTransferData(item *model.CardTransaction) *PayndaCardBalan
 	}
 }
 
-func payndaTransactionData(item *model.CardTransaction) *PayndaTransactionData {
-	transactionTime := item.OccurredAt.Format(time.DateTime)
+func payndaTransactionData(item *biz.PayndaCardTransactionDetail) *PayndaTransactionData {
+	transactionTime := item.Transaction.OccurredAt.Format(time.DateTime)
+	authorizationTime := ""
+	if item.Authorization != nil {
+		authorizationTime = item.Authorization.OccurredAt.Format(time.DateTime)
+	}
 	return &PayndaTransactionData{
-		ID:                payndaIDString(item.ID),
-		CreateTime:        item.CreatedAt.UTC(),
-		UpdateTime:        item.UpdatedAt.UTC(),
-		CardID:            payndaIDString(item.CardID),
-		Type:              paynda.TransactionTypeFromGeneric(item.Type),
-		ApprovalCode:      item.AuthorizationCode,
-		PreAuthAmount:     item.TxAmount.String(),
-		PostedAmount:      item.TxAmount.String(),
-		Currency:          item.Currency,
+		ID:                payndaIDString(item.Transaction.ID),
+		CreateTime:        item.Transaction.CreatedAt.UTC(),
+		UpdateTime:        item.Transaction.UpdatedAt.UTC(),
+		CardID:            payndaIDString(item.Transaction.CardID),
+		Type:              paynda.TransactionTypeFromGeneric(item.Transaction.Type),
+		ApprovalCode:      item.Transaction.AuthorizationCode,
+		PreAuthAmount:     item.Transaction.TxAmount.String(),
+		PostedAmount:      item.Transaction.TxAmount.String(),
+		Currency:          item.Transaction.Currency,
 		TransactionTime:   transactionTime,
-		AuthorizationTime: transactionTime,
-		MerchantMcc:       item.MerchantMCC,
-		MerchantName:      item.MerchantName,
+		AuthorizationTime: authorizationTime,
+		MerchantMcc:       item.Transaction.MerchantMCC,
+		MerchantName:      item.Transaction.MerchantName,
 	}
 }
 

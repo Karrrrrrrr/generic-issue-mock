@@ -36,6 +36,7 @@ type PayndaUIListResponse[T any] struct {
 
 type PayndaUIWebhookData struct {
 	ID        string              `json:"id"`
+	AccountID string              `json:"account_id"`
 	Event     paynda.WebhookEvent `json:"event"`
 	TargetURL string              `json:"target_url"`
 	Enabled   bool                `json:"enabled"`
@@ -43,6 +44,7 @@ type PayndaUIWebhookData struct {
 	UpdatedAt time.Time           `json:"updated_at"`
 }
 type PayndaUICreateWebhookRequest struct {
+	AccountID string              `json:"account_id" binding:"required"`
 	Event     paynda.WebhookEvent `json:"event" binding:"required"`
 	TargetURL string              `json:"target_url" binding:"required,url"`
 	Enabled   bool                `json:"enabled"`
@@ -54,14 +56,28 @@ type PayndaUIUpdateWebhookRequest struct {
 }
 
 func (s *PayndaUIService) CreateWebhook(ctx context.Context, req *PayndaUICreateWebhookRequest) (*PayndaUIWebhookData, error) {
-	item, err := s.usecase.CreateWebhook(ctx, &biz.PayndaUICreateWebhookRequest{Event: req.Event, TargetURL: req.TargetURL, Enabled: req.Enabled})
+	accountID, err := payndaID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.CreateWebhook(ctx, &biz.PayndaUICreateWebhookRequest{AccountID: accountID, Event: req.Event, TargetURL: req.TargetURL, Enabled: req.Enabled})
 	if err != nil {
 		return nil, err
 	}
 	return payndaUIWebhookData(item), nil
 }
-func (s *PayndaUIService) ListWebhooks(ctx context.Context, _ *struct{}) (*[]PayndaUIWebhookData, error) {
-	items, err := s.usecase.ListWebhooks(ctx)
+func (s *PayndaUIService) ListWebhooks(ctx context.Context, req *struct {
+	AccountID string `form:"account_id"`
+}) (*[]PayndaUIWebhookData, error) {
+	accountID := model.ID(0)
+	if req.AccountID != "" {
+		var err error
+		accountID, err = payndaID(req.AccountID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	items, err := s.usecase.ListWebhooks(ctx, &biz.PayndaListWebhooksRequest{AccountID: accountID})
 	if err != nil {
 		return nil, err
 	}
@@ -367,7 +383,7 @@ func payndaUIAuthorizationData(item *model.Authorization) *PayndaUIAuthorization
 	}
 }
 func payndaUIWebhookData(item *model.WebhookConfig) *PayndaUIWebhookData {
-	return &PayndaUIWebhookData{ID: payndaIDString(item.ID), Event: paynda.WebhookEvent(item.Event), TargetURL: item.TargetURL, Enabled: item.Enabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	return &PayndaUIWebhookData{ID: payndaIDString(item.ID), AccountID: payndaIDString(item.AccountID), Event: paynda.WebhookEvent(item.Event), TargetURL: item.TargetURL, Enabled: item.Enabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 func payndaUITransactionData(item *model.CardTransaction) *PayndaUITransactionData {
 	return &PayndaUITransactionData{
