@@ -67,6 +67,28 @@ type WebhookConfigRepository interface {
 	Delete(context.Context, model.ID) error
 }
 
+type WebhookRecordRepository interface {
+	Create(context.Context, *model.WebhookRecord) error
+	Save(context.Context, *model.WebhookRecord) error
+}
+
+type WebhookDeliveryResult struct {
+	StatusCode   int
+	ResponseBody string
+}
+
+type WebhookClient interface {
+	Deliver(context.Context, *PhotonPayWebhookDeliveryRequest) (*WebhookDeliveryResult, error)
+}
+
+type PhotonPayWebhookDeliveryRequest struct {
+	TargetURL      string
+	Payload        []byte
+	NotifyCategory string
+	NotifyType     string
+	PublishedAt    string
+}
+
 type PhotonPayOpenAPIUsecase struct {
 	transaction         PhotonPayTransaction
 	cardHolderRepo      CardHolderRepository

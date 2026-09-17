@@ -1,66 +1,47 @@
-# 项目说明
+# Generic Mock
 
-这是一个通用的mock, 旨在兼容各种渠道的清算/开卡模型
-## 概念
-1. 对于支持虚拟账户的渠道, 开卡可以选择一个虚拟账户, 账户里面的卡共享账户余额; 不支持的渠道使用普通卡, 每张卡保存自己的卡余额
-2. 不是所有渠道都支持同步授权, 部分渠道授权仅推送webhook, 不需要http接口调用成功
-3. 每种渠道都有自己的webhook规则, 开发的时候需要参照各渠道的定义
-4. 各种渠道用同一个web, 在打包的时候通过环境变量来区分展示的页面
-5. 持卡人: 部分渠道需要传递持卡人id, 部分渠道只需要传递持卡人姓名等参数, 不使用id, 所以我这边设计为可共享持卡人模型
-6. 后端分层设计, 所有渠道只复用通用表结构, 不复用开卡、授权、清算、持卡人和 webhook 等业务逻辑; 每个渠道自行实现完整业务流程
-7. 通过渠道枚举做单独的功能区分, 具体说明参照如下
-8. 每种渠道都有自己 OpenAPI 接口参数和加密方式, 通过适配器模式在各自 channel 的 service、biz、data 中实现; 不允许为了复用而改变渠道既有接口定义
-9. 三方openapi可能比我方多参数, 但是不需要的参数 这边不做处理, 直接在service写死或者不返回, 对外保留参数的时候, 把我方枚举,时间按照三方要求转换
+用于模拟发卡渠道的服务。通用模型只保存渠道无关的数据；每个渠道在自己的 `channel/<channel>` 包中实现 OpenAPI、业务规则和 DTO 转换。
 
-## 数据模型与 ID
-1. 所有通用表使用数据库自增主键 `id` 作为内部关联键, 不使用 UUID。
+通用表结构及字段命名与渠道 API 的映射见 [通用模型映射](docs/channels/model-mapping.md)。
 
-## 功能
-1. 开卡
-2. 授权
-3. 交易清算
-4. 持卡人
-5. webhook
-6. 可视化管理
+## 渠道菜单
 
-## 渠道
-
-### 1. payful
-1. 不支持虚拟账户
-2. 不支持同步授权
-
-### 2. photonpay
-1. 必须同步授权
-2. 支持虚拟账户
-
-### 3. paynda
-1. 不支持虚拟账户, 使用普通卡, 每张卡独立持有卡余额
-2. 不支持同步授权
-
-### 4. uqpay(暂不实现)
-1. 支持实体卡 
-2. 必须同步授权
-3. 支持虚拟账户
+| 渠道 | 菜单功能 | 状态 | 文档 |
+| --- | --- | --- | --- |
+| PhotonPay | 持卡人、卡片、授权管理、卡交易、模拟交易、Webhook 管理 | 已实现 | [PhotonPay](docs/channels/photonpay.md) |
+| Paynda | 持卡人、卡片、授权管理、卡交易、模拟交易、Webhook 管理 | 已实现 | [Paynda](docs/channels/paynda.md) |
+| Slash | 卡产品、虚拟账户、持卡人、卡片、授权管理、卡交易、模拟交易、Webhook 管理 | 部分实现 | [Slash](docs/channels/slash.md) |
+| Payful | 尚无菜单 | 未实现 | [Payful](docs/channels/payful.md) |
+| UQPay | 尚无菜单 | 未实现 | [UQPay](docs/channels/uqpay.md) |
 
 
-### 5. slash(暂不实现)
-1. 支持实体卡
-2. 必须同步授权
-3. 支持虚拟账户
+## 功能摘要
 
-## 前端技术
-1. vue3
-2. naive-ui
-3. ts
-4. axios
-
-## 后端技术
-1. gin
-2. do(依赖注入)
-3. gorm-gen
-4. postgres
-5. resty-v3 (发送webhook)
+| 模块 | PhotonPay | Paynda | Slash | Payful | UQPay |
+| --- | --- | --- | --- | --- |
+| 持卡人 | 已实现 | 已实现 | 已实现 | 未实现 | 未实现 |
+| 开卡 | 虚拟账户卡 | 独立余额卡 | 虚拟卡 | 未实现 | 未实现 |
+| 授权 | 同步 sandbox 模拟 | 异步模拟，缺 webhook 投递 | 同步模拟 | 未实现 | 未实现 |
+| 清算/冲正/退款 | 已实现 | 已实现 | 已实现 | 未实现 | 未实现 |
+| Webhook 配置 | 已实现 | 已实现 | 已实现 | 未实现 | 未实现 |
+| Webhook 投递与记录 | 已实现，自动重试待补 | 已实现，自动重试待补 | 未实现 | 未实现 | 未实现 |
 
 
-下游仓库 `/home/kar/workspace/ptm/marxo` 写之前先阅读这个仓库
-mock参照物 `/home/kar/workspace/github/slash-mock` , 只参照前端和逻辑, 不参照后端kratos
+## 运行方式
+
+后端默认监听 `:8000`，数据库连接通过 `DATABASE_DSN` 配置。前端开发服务器默认监听 `:3000`，代理已实现渠道的 UI 路径。
+
+```bash
+cd backend
+DATABASE_DSN='postgres://postgres:postgres@127.0.0.1:5432/generic_mock?sslmode=disable' go run .
+
+cd ../frontend
+bun dev
+```
+
+## 约束
+
+1. 通用模型使用自增 `int64 ID`；渠道 DTO 用本渠道 `service/id.go` 格式化和反解析 mock 自有资源 ID。
+2. 实现或调整 OpenAPI 前，先核对 `/home/kar/workspace/ptm/marxo` 的 SDK 和实际调用点。
+3. OpenAPI、浏览器 UI、业务 usecase 分层独立；仓储使用 GORM Gen，列表显式按 ID 倒序。
+4. 模型变化后运行 generator，再执行 `gofmt` 和 `GOCACHE=/home/kar/.cache/go-build GOTMPDIR=/home/kar/.cache/go-tmp go build ./...`；除非明确要求，不运行单元测试。

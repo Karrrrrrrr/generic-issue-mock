@@ -87,6 +87,7 @@ func Register(router *gin.RouterGroup, openapi *service.PayndaOpenAPIService, ui
 	router.POST("/ui/simulate/refunds", bindUI(ui.SimulateRefund))
 	router.GET("/ui/authorizations", bindUI(ui.ListAuthorizations))
 	router.GET("/ui/webhooks", bindUI(ui.ListWebhooks))
+	router.GET("/ui/webhooks/events", bindUI(ui.ListWebhookEvents))
 	router.POST("/ui/webhooks", bindUI(ui.CreateWebhook))
 	router.PUT("/ui/webhooks/:id", bindUI(ui.UpdateWebhook))
 	router.DELETE("/ui/webhooks/:id", bindUI(ui.DeleteWebhook))

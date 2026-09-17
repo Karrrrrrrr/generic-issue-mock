@@ -2,7 +2,7 @@
 
 ## 范围
 
-已实现持卡人、独立余额卡开卡、余额划拨、交易查询、管理端授权/清算/冲正/退款模拟和管理 UI。Paynda 不支持同步授权；当前尚未实现事件 webhook 投递。
+已实现持卡人、独立余额卡开卡、余额划拨、交易查询、管理端授权/清算/冲正/退款模拟和管理 UI。Paynda 不支持同步授权；已支持 `xm-event` 交易投递和投递记录，自动重试与记录查询 UI 尚未实现。
 
 ## 字段映射
 
@@ -121,3 +121,5 @@ curl -X POST "$MARXO_BASE_URL/api/v1/notify/xm-event" \
 卡状态 body 则是 `{"cardStatusWebhook":{"id":"pcs-401","createTime":"...","updateTime":"...","merchantId":9001,"balanceAccountId":7001,"cardholderId":101,"cardId":401,"maskCardNo":"486699******0001","status":"ACTIVE"}}`，header 分类为 `CARD_STATUS`。Marxo 当前只对 `ACTIVE` 和 `FROZEN` 收敛卡状态；其它状态可以记录但不会触发状态更新。
 
 该入口返回空成功响应，投递成功以 HTTP 2xx 为准。提交业务 transaction 后，先建立 `WebhookRecord`（`Channel=paynda`、分类事件、target、格式化 `SourceID`、完整 JSON、attempt 1、pending），再 POST；记录 HTTP 状态、响应、时间或失败原因，并在重试时更新同一 record。交易 body 的 `id`/`transactionId` 应稳定复用，避免 Marxo 将重投视作新清算消息。
+
+配置事件直接使用当前已实现的 Marxo `X-VK-NOTIFICATION-CATEGORY` 值：`CARD_TRANSACTION`。卡状态投递尚未实现，因此 `CARD_STATUS` 不在后端事件列表中返回。当前 UI 模拟授权、退款、清算/冲正均投递 `CARD_TRANSACTION`。若 Marxo 开启验签，设置 `PAYNDA_WEBHOOK_APP_ID` 与 `PAYNDA_WEBHOOK_APP_SECRET`；未设置时仍发送分类 header 与 body，适用于关闭验签的本地环境。投递记录已经持久化，自动重试和记录查询 UI 仍待实现。

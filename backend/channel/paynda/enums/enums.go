@@ -31,15 +31,33 @@ func TransferTypeFromString(value string) (TransferType, bool) {
 type TransactionType string
 
 const (
-	TransactionType_Approved      TransactionType = "transaction.authentication.approved"
-	TransactionType_Settled       TransactionType = "transaction.authentication.settled"
-	TransactionType_RefundSettled TransactionType = "transaction.refund.settled"
+	TransactionType_Approved        TransactionType = "transaction.authentication.approved"
+	TransactionType_Settled         TransactionType = "transaction.authentication.settled"
+	TransactionType_ReversalSettled TransactionType = "transaction.authentication.reversal.settled"
+	TransactionType_RefundSettled   TransactionType = "transaction.refund.settled"
 )
+
+type WebhookEvent string
+
+const (
+	WebhookEventCardTransaction WebhookEvent = "CARD_TRANSACTION"
+	WebhookEventCardStatus      WebhookEvent = "CARD_STATUS"
+)
+
+func (v WebhookEvent) Valid() bool {
+	return v == WebhookEventCardTransaction
+}
+
+func WebhookEvents() []WebhookEvent {
+	return []WebhookEvent{WebhookEventCardTransaction}
+}
 
 func TransactionTypeFromGeneric(value common.CardTransactionType) TransactionType {
 	switch value {
 	case common.CardTransactionType_CLEAR:
 		return TransactionType_Settled
+	case common.CardTransactionType_VOID:
+		return TransactionType_ReversalSettled
 	case common.CardTransactionType_REFUND:
 		return TransactionType_RefundSettled
 	default:

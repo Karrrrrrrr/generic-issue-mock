@@ -35,17 +35,17 @@ type PayndaUIListResponse[T any] struct {
 }
 
 type PayndaUIWebhookData struct {
-	ID        string    `json:"id"`
-	Event     string    `json:"event"`
-	TargetURL string    `json:"target_url"`
-	Enabled   bool      `json:"enabled"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        string              `json:"id"`
+	Event     paynda.WebhookEvent `json:"event"`
+	TargetURL string              `json:"target_url"`
+	Enabled   bool                `json:"enabled"`
+	CreatedAt time.Time           `json:"created_at"`
+	UpdatedAt time.Time           `json:"updated_at"`
 }
 type PayndaUICreateWebhookRequest struct {
-	Event     string `json:"event" binding:"required"`
-	TargetURL string `json:"target_url" binding:"required,url"`
-	Enabled   bool   `json:"enabled"`
+	Event     paynda.WebhookEvent `json:"event" binding:"required"`
+	TargetURL string              `json:"target_url" binding:"required,url"`
+	Enabled   bool                `json:"enabled"`
 }
 type PayndaUIUpdateWebhookRequest struct {
 	ID        string `uri:"id" binding:"required"`
@@ -70,6 +70,11 @@ func (s *PayndaUIService) ListWebhooks(ctx context.Context, _ *struct{}) (*[]Pay
 		result = append(result, *payndaUIWebhookData(item))
 	}
 	return &result, nil
+}
+
+func (s *PayndaUIService) ListWebhookEvents(context.Context, *struct{}) (*[]paynda.WebhookEvent, error) {
+	events := paynda.WebhookEvents()
+	return &events, nil
 }
 func (s *PayndaUIService) UpdateWebhook(ctx context.Context, req *PayndaUIUpdateWebhookRequest) (*PayndaUIWebhookData, error) {
 	id, err := payndaID(req.ID)
@@ -362,7 +367,7 @@ func payndaUIAuthorizationData(item *model.Authorization) *PayndaUIAuthorization
 	}
 }
 func payndaUIWebhookData(item *model.WebhookConfig) *PayndaUIWebhookData {
-	return &PayndaUIWebhookData{ID: payndaIDString(item.ID), Event: item.Event, TargetURL: item.TargetURL, Enabled: item.Enabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	return &PayndaUIWebhookData{ID: payndaIDString(item.ID), Event: paynda.WebhookEvent(item.Event), TargetURL: item.TargetURL, Enabled: item.Enabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 func payndaUITransactionData(item *model.CardTransaction) *PayndaUITransactionData {
 	return &PayndaUITransactionData{

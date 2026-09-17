@@ -25,17 +25,17 @@ type UIListResponse[T any] struct {
 }
 
 type UIWebhookData struct {
-	ID        string    `json:"id"`
-	Event     string    `json:"event"`
-	TargetURL string    `json:"target_url"`
-	Enabled   bool      `json:"enabled"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        string              `json:"id"`
+	Event     photon.WebhookEvent `json:"event"`
+	TargetURL string              `json:"target_url"`
+	Enabled   bool                `json:"enabled"`
+	CreatedAt time.Time           `json:"created_at"`
+	UpdatedAt time.Time           `json:"updated_at"`
 }
 type UICreateWebhookRequest struct {
-	Event     string `json:"event" binding:"required"`
-	TargetURL string `json:"target_url" binding:"required,url"`
-	Enabled   bool   `json:"enabled"`
+	Event     photon.WebhookEvent `json:"event" binding:"required"`
+	TargetURL string              `json:"target_url" binding:"required,url"`
+	Enabled   bool                `json:"enabled"`
 }
 type UIUpdateWebhookRequest struct {
 	ID        string `uri:"id" binding:"required"`
@@ -60,6 +60,11 @@ func (s *PhotonPayUIService) ListWebhooks(ctx context.Context, _ *struct{}) (*[]
 		result = append(result, *photonPayUIWebhookData(item))
 	}
 	return &result, nil
+}
+
+func (s *PhotonPayUIService) ListWebhookEvents(context.Context, *struct{}) (*[]photon.WebhookEvent, error) {
+	events := photon.WebhookEvents()
+	return &events, nil
 }
 func (s *PhotonPayUIService) UpdateWebhook(ctx context.Context, req *UIUpdateWebhookRequest) (*UIWebhookData, error) {
 	id, err := photonPayID(req.ID)
@@ -406,7 +411,7 @@ func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationDat
 }
 
 func photonPayUIWebhookData(item *model.WebhookConfig) *UIWebhookData {
-	return &UIWebhookData{ID: photonPayIDString(item.ID), Event: item.Event, TargetURL: item.TargetURL, Enabled: item.Enabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	return &UIWebhookData{ID: photonPayIDString(item.ID), Event: photon.WebhookEvent(item.Event), TargetURL: item.TargetURL, Enabled: item.Enabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 
 func photonPayUITransactionData(item *model.CardTransaction) *UITransactionData {

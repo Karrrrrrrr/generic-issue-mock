@@ -2,7 +2,7 @@
 
 ## 范围
 
-已实现持卡人、虚拟账户卡开卡、同步 sandbox 授权/冲正/退款、交易列表、卡状态更新和管理 UI。Webhook 目前只支持配置管理，不会实际投递。
+已实现持卡人、虚拟账户卡开卡、同步 sandbox 授权/冲正/退款、交易列表、卡状态更新和管理 UI。Webhook 已支持 PhotonPay `ds-event` 投递和投递记录；自动重试与记录查询 UI 尚未实现。
 
 ## 字段映射
 
@@ -142,3 +142,5 @@ curl -X POST "$MARXO_BASE_URL/api/v1/notify/ds-event" \
 退款/冲正必须带格式化 `originTransactionId`。`feeReturn*` 和 `feeReturnDetailJson` 仅在有退费时提供；`memberId`、`matrixAccount`、资金变动账户和手续费明细仍是 PhotonPay 专属 DTO 字段，不能扩展进通用模型。卡状态事件的 body 至少为 `{"cardId":"201","cardStatus":"frozen"}`，headers 为 `issuing_card` / `card_status_update`；持卡人状态事件提供 `cardholderId`、`status`、`cardholderReviewStatus`、`reason`。
 
 Marxo 不使用通用成功信封，必须收到裸响应 `{"roger":true}`；连续八次不规范响应会使 PhotonPay 停止全部事件通知。因此 mock 的投递判定需要同时检查 HTTP 2xx 和该 JSON body 的 `roger=true`。提交业务 transaction 后先创建 `WebhookRecord`（`Channel=photonpay`、事件、目标、格式化 `SourceID`、原始 body、attempt 1、pending），再发送；将状态码、响应 body、投递时间或错误写回同一 record，重试不得重新生成业务交易。
+
+配置事件直接使用当前已实现的 Marxo `X-PD-NOTIFICATION-TYPE` 值：`auth`、`verification`、`void`、`refund`。卡状态和持卡人状态投递尚未实现，因此不在后端事件列表中返回。在 Marxo 开启验签时设置 `PHOTONPAY_WEBHOOK_PRIVATE_KEY`（PKCS#8 RSA PEM）；未设置时只发送事件 headers 和 body，适用于关闭验签的本地环境。投递记录已经持久化，自动重试和记录查询 UI 仍待实现。

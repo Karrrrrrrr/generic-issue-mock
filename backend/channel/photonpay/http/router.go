@@ -20,6 +20,7 @@ func Register(
 	router.POST("/ui/simulate/refunds", bindUI(uiService.SimulateRefund))
 	router.GET("/ui/authorizations", bindUI(uiService.ListAuthorizations))
 	router.GET("/ui/webhooks", bindUI(uiService.ListWebhooks))
+	router.GET("/ui/webhooks/events", bindUI(uiService.ListWebhookEvents))
 	router.POST("/ui/webhooks", bindUI(uiService.CreateWebhook))
 	router.PUT("/ui/webhooks/:id", bindUI(uiService.UpdateWebhook))
 	router.DELETE("/ui/webhooks/:id", bindUI(uiService.DeleteWebhook))

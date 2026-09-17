@@ -12,6 +12,7 @@ const baseURL = "/paynda/ui";
 export interface Webhook { id: string; event: string; target_url: string; enabled: boolean; created_at: string; updated_at: string; }
 export const webhookApi = {
   async list() { return (await request.get<Webhook[]>(`${baseURL}/webhooks`)).data; },
+  async listEvents() { return (await request.get<string[]>(`${baseURL}/webhooks/events`)).data; },
   async create(payload: Omit<Webhook, "id" | "created_at" | "updated_at">) { return (await request.post<Webhook>(`${baseURL}/webhooks`, payload)).data; },
   async update(id: string, payload: Pick<Webhook, "target_url" | "enabled">) { return (await request.put<Webhook>(`${baseURL}/webhooks/${id}`, payload)).data; },
   async remove(id: string) { await request.delete(`${baseURL}/webhooks/${id}`); },

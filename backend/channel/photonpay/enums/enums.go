@@ -52,6 +52,59 @@ type AuthorizationStatus string
 
 const AuthorizationStatus_Authorized AuthorizationStatus = "authorized"
 
+type WebhookNotificationCategory string
+
+const (
+	WebhookNotificationCategoryIssuing           WebhookNotificationCategory = "issuing"
+	WebhookNotificationCategoryIssuingSettlement WebhookNotificationCategory = "issuing_settlement"
+	WebhookNotificationCategoryIssuingCard       WebhookNotificationCategory = "issuing_card"
+	WebhookSuccessCode                                                       = "0"
+	WebhookSuccessMessage                                                    = "success"
+	WebhookBalanceAccountCard                                                = "card"
+)
+
+type WebhookEvent string
+
+const (
+	WebhookEventAuth                   WebhookEvent = "auth"
+	WebhookEventVerification           WebhookEvent = "verification"
+	WebhookEventVoid                   WebhookEvent = "void"
+	WebhookEventRefund                 WebhookEvent = "refund"
+	WebhookEventCardStatusUpdate       WebhookEvent = "card_status_update"
+	WebhookEventCardholderStatusUpdate WebhookEvent = "cardholder_status_update"
+)
+
+func WebhookEventFromGenericTransactionType(value generic.CardTransactionType) WebhookEvent {
+	switch value {
+	case generic.CardTransactionType_VERIFICATION:
+		return WebhookEventVerification
+	case generic.CardTransactionType_VOID:
+		return WebhookEventVoid
+	case generic.CardTransactionType_REFUND:
+		return WebhookEventRefund
+	default:
+		return WebhookEventAuth
+	}
+}
+
+func (v WebhookEvent) Valid() bool {
+	switch v {
+	case WebhookEventAuth, WebhookEventVerification, WebhookEventVoid, WebhookEventRefund:
+		return true
+	default:
+		return false
+	}
+}
+
+func WebhookEvents() []WebhookEvent {
+	return []WebhookEvent{
+		WebhookEventAuth,
+		WebhookEventVerification,
+		WebhookEventVoid,
+		WebhookEventRefund,
+	}
+}
+
 type TransactionStatus string
 
 const (
