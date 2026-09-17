@@ -37,6 +37,8 @@ type CardRepository interface {
 	FindByLastOperationRequestID(context.Context, string) (*model.Card, error)
 	ListCards(context.Context, *ListRequest) ([]*model.Card, error)
 	SaveCard(context.Context, *model.Card) error
+	ExistCardByAccountID(context.Context, *ResourceRequest) (bool, error)
+	FindCardByAccountID(context.Context, *ResourceRequest) (*model.Card, error)
 }
 
 type CardProductRepository interface {
@@ -44,6 +46,7 @@ type CardProductRepository interface {
 	FindByPrefixForUpdate(context.Context, string) (*model.CardProduct, error)
 	List(context.Context) ([]*model.CardProduct, error)
 	Save(context.Context, *model.CardProduct) error
+	ListByAccountID(context.Context, model.ID) ([]*model.CardProduct, error)
 }
 
 type CardTransactionRepository interface {
@@ -210,8 +213,14 @@ func (u *PhotonPayOpenAPIUsecase) UpdateCardHolder(ctx context.Context, req *Upd
 }
 
 type ListRequest struct {
-	Offset int
-	Limit  int
+	AccountID model.ID
+	Offset    int
+	Limit     int
+}
+
+type ResourceRequest struct {
+	AccountID *model.ID
+	ID        model.ID
 }
 
 func (u *PhotonPayOpenAPIUsecase) ListCardHolders(ctx context.Context, req *ListRequest) ([]*model.CardHolder, error) {
@@ -297,8 +306,8 @@ func (u *PhotonPayOpenAPIUsecase) OpenCard(ctx context.Context, req *OpenCardReq
 	return card, nil
 }
 
-func (u *PhotonPayOpenAPIUsecase) ListCardProducts(ctx context.Context) ([]*model.CardProduct, error) {
-	products, err := u.cardProductRepo.List(ctx)
+func (u *PhotonPayOpenAPIUsecase) ListCardProducts(ctx context.Context, accountID model.ID) ([]*model.CardProduct, error) {
+	products, err := u.cardProductRepo.ListByAccountID(ctx, accountID)
 	if err != nil {
 		zap.S().Errorw("list photonpay card products", "error", err)
 		return nil, ErrDatabaseOperation
@@ -307,12 +316,12 @@ func (u *PhotonPayOpenAPIUsecase) ListCardProducts(ctx context.Context) ([]*mode
 	return products, nil
 }
 
-func (u *PhotonPayOpenAPIUsecase) GetCard(ctx context.Context, cardID model.ID) (*model.Card, error) {
-	if err := u.requireCard(ctx, cardID); err != nil {
+func (u *PhotonPayOpenAPIUsecase) GetCard(ctx context.Context, req *ResourceRequest) (*model.Card, error) {
+	if err := u.requireCard(ctx, req); err != nil {
 		return nil, err
 	}
 
-	card, err := u.cardRepo.FindCardByID(ctx, cardID)
+	card, err := u.cardRepo.FindCardByAccountID(ctx, req)
 	if err != nil {
 		zap.S().Errorw("find photonpay card", "error", err)
 
@@ -372,6 +381,7 @@ func (u *PhotonPayOpenAPIUsecase) GetRequestResult(ctx context.Context, requestI
 }
 
 type ChangeCardStatusRequest struct {
+	AccountID model.ID
 	CardID    model.ID
 	RequestID string
 	Status    common.CardStatus
@@ -381,7 +391,7 @@ type ChangeCardStatusRequest struct {
 func (u *PhotonPayOpenAPIUsecase) ChangeCardStatus(ctx context.Context, req *ChangeCardStatusRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		if err := u.requireCard(txCtx, req.CardID); err != nil {
+		if err := u.requireCard(txCtx, &ResourceRequest{AccountID: &req.AccountID, ID: req.CardID}); err != nil {
 			return err
 		}
 
@@ -418,6 +428,7 @@ func (u *PhotonPayOpenAPIUsecase) ChangeCardStatus(ctx context.Context, req *Cha
 }
 
 type UpdateCardRequest struct {
+	AccountID model.ID
 	CardID    model.ID
 	RequestID string
 }
@@ -425,7 +436,7 @@ type UpdateCardRequest struct {
 func (u *PhotonPayOpenAPIUsecase) UpdateCard(ctx context.Context, req *UpdateCardRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		if err := u.requireCard(txCtx, req.CardID); err != nil {
+		if err := u.requireCard(txCtx, &ResourceRequest{AccountID: &req.AccountID, ID: req.CardID}); err != nil {
 			return err
 		}
 
@@ -467,6 +478,7 @@ func (u *PhotonPayOpenAPIUsecase) ListTransactions(ctx context.Context, req *Lis
 }
 
 type SandboxTransactionRequest struct {
+	AccountID           model.ID
 	RequestID           string
 	CardID              model.ID
 	OriginTransactionID model.ID
@@ -480,7 +492,7 @@ type SandboxTransactionRequest struct {
 
 func (u *PhotonPayOpenAPIUsecase) SandboxTransaction(ctx context.Context, req *SandboxTransactionRequest) error {
 	return u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		if err := u.requireCard(txCtx, req.CardID); err != nil {
+		if err := u.requireCard(txCtx, &ResourceRequest{AccountID: &req.AccountID, ID: req.CardID}); err != nil {
 			return err
 		}
 		card, err := u.cardRepo.FindCardByID(txCtx, req.CardID)
@@ -581,8 +593,8 @@ func (u *PhotonPayOpenAPIUsecase) requireCardHolder(ctx context.Context, id mode
 	return nil
 }
 
-func (u *PhotonPayOpenAPIUsecase) requireCard(ctx context.Context, id model.ID) error {
-	exists, err := u.cardRepo.ExistCardByID(ctx, id)
+func (u *PhotonPayOpenAPIUsecase) requireCard(ctx context.Context, req *ResourceRequest) error {
+	exists, err := u.cardRepo.ExistCardByAccountID(ctx, req)
 	if err != nil {
 		zap.S().Errorw("check photonpay card", "error", err)
 

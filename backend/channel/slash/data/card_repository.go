@@ -57,9 +57,37 @@ func (r *cardRepository) Save(ctx context.Context, item *model.Card) error {
 	return r.repository.DB(ctx).Card.WithContext(ctx).Save(item)
 }
 
+func (r *cardRepository) ExistByAccountID(ctx context.Context, req *biz.ResourceRequest) (bool, error) {
+	db := r.repository.DB(ctx)
+	query := db.Card.WithContext(ctx).Where(
+		db.Card.ID.Eq(req.ID),
+		db.Card.Channel.Eq(string(enums.Channel_Slash)),
+	)
+	if req.AccountID != nil {
+		query = query.Where(db.Card.AccountID.Eq(*req.AccountID))
+	}
+	count, err := query.Count()
+	return count > 0, err
+}
+
+func (r *cardRepository) FindByAccountID(ctx context.Context, req *biz.ResourceRequest) (*model.Card, error) {
+	db := r.repository.DB(ctx)
+	query := db.Card.WithContext(ctx).Where(
+		db.Card.ID.Eq(req.ID),
+		db.Card.Channel.Eq(string(enums.Channel_Slash)),
+	)
+	if req.AccountID != nil {
+		query = query.Where(db.Card.AccountID.Eq(*req.AccountID))
+	}
+	return query.First()
+}
+
 func cardPredicates(db *query.Query, req *biz.ListCardsRequest) []gen.Condition {
 	predicates := make([]gen.Condition, 0, 4)
 	predicates = append(predicates, db.Card.Channel.Eq(string(enums.Channel_Slash)))
+	if req.AccountID != 0 {
+		predicates = append(predicates, db.Card.AccountID.Eq(req.AccountID))
+	}
 	if req.IDContains != "" {
 		predicates = append(predicates, db.Card.ID.Like("%"+req.IDContains+"%"))
 	}

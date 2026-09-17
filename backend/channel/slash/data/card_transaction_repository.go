@@ -53,9 +53,31 @@ func (r *cardTransactionRepository) List(ctx context.Context, req *biz.ListCardT
 	return db.CardTransaction.WithContext(ctx).Where(cardTransactionPredicates(db, req)...).Order(db.CardTransaction.ID.Desc()).Offset(req.Offset).Limit(req.Limit).Find()
 }
 
+func (r *cardTransactionRepository) ExistByAccountID(ctx context.Context, req *biz.ResourceRequest) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.CardTransaction.WithContext(ctx).Where(
+		db.CardTransaction.ID.Eq(req.ID),
+		db.CardTransaction.AccountID.Eq(*req.AccountID),
+		db.CardTransaction.Channel.Eq(string(enums.Channel_Slash)),
+	).Count()
+	return count > 0, err
+}
+
+func (r *cardTransactionRepository) FindByAccountID(ctx context.Context, req *biz.ResourceRequest) (*model.CardTransaction, error) {
+	db := r.repository.DB(ctx)
+	return db.CardTransaction.WithContext(ctx).Where(
+		db.CardTransaction.ID.Eq(req.ID),
+		db.CardTransaction.AccountID.Eq(*req.AccountID),
+		db.CardTransaction.Channel.Eq(string(enums.Channel_Slash)),
+	).First()
+}
+
 func cardTransactionPredicates(db *query.Query, req *biz.ListCardTransactionsRequest) []gen.Condition {
 	predicates := make([]gen.Condition, 0, 6)
 	predicates = append(predicates, db.CardTransaction.Channel.Eq(string(enums.Channel_Slash)))
+	if req.AccountID != 0 {
+		predicates = append(predicates, db.CardTransaction.AccountID.Eq(req.AccountID))
+	}
 	if req.ID != 0 {
 		predicates = append(predicates, db.CardTransaction.ID.Eq(req.ID))
 	}

@@ -95,9 +95,11 @@ func (r *cardRepository) FindByLastOperationRequestID(ctx context.Context, reque
 
 func (r *cardRepository) ListCards(ctx context.Context, req *biz.ListRequest) ([]*model.Card, error) {
 	db := r.repository.DB(ctx)
-
-	return db.Card.WithContext(ctx).
-		Where(db.Card.Channel.Eq(string(enums.Channel_PhotonPay))).
+	query := db.Card.WithContext(ctx).Where(db.Card.Channel.Eq(string(enums.Channel_PhotonPay)))
+	if req.AccountID != 0 {
+		query = query.Where(db.Card.AccountID.Eq(req.AccountID))
+	}
+	return query.
 		Order(db.Card.ID.Desc()).
 		Offset(req.Offset).
 		Limit(req.Limit).
@@ -106,6 +108,31 @@ func (r *cardRepository) ListCards(ctx context.Context, req *biz.ListRequest) ([
 
 func (r *cardRepository) SaveCard(ctx context.Context, card *model.Card) error {
 	return r.repository.DB(ctx).Card.WithContext(ctx).Save(card)
+}
+
+func (r *cardRepository) ExistCardByAccountID(ctx context.Context, req *biz.ResourceRequest) (bool, error) {
+	db := r.repository.DB(ctx)
+	query := db.Card.WithContext(ctx).Where(
+		db.Card.ID.Eq(req.ID),
+		db.Card.Channel.Eq(string(enums.Channel_PhotonPay)),
+	)
+	if req.AccountID != nil {
+		query = query.Where(db.Card.AccountID.Eq(*req.AccountID))
+	}
+	count, err := query.Count()
+	return count > 0, err
+}
+
+func (r *cardRepository) FindCardByAccountID(ctx context.Context, req *biz.ResourceRequest) (*model.Card, error) {
+	db := r.repository.DB(ctx)
+	query := db.Card.WithContext(ctx).Where(
+		db.Card.ID.Eq(req.ID),
+		db.Card.Channel.Eq(string(enums.Channel_PhotonPay)),
+	)
+	if req.AccountID != nil {
+		query = query.Where(db.Card.AccountID.Eq(*req.AccountID))
+	}
+	return query.First()
 }
 
 var _ biz.CardRepository = (*cardRepository)(nil)

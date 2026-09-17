@@ -48,6 +48,14 @@ func (r *cardProductRepository) List(ctx context.Context) ([]*model.CardProduct,
 	).Order(db.CardProduct.ID.Desc()).Find()
 }
 
+func (r *cardProductRepository) ListByAccountID(ctx context.Context, accountID model.ID) ([]*model.CardProduct, error) {
+	db := r.repository.DB(ctx)
+	return db.CardProduct.WithContext(ctx).Where(
+		db.CardProduct.AccountID.Eq(accountID),
+		db.CardProduct.Channel.Eq(string(enums.Channel_PhotonPay)),
+	).Order(db.CardProduct.ID.Desc()).Find()
+}
+
 func (r *cardProductRepository) Save(ctx context.Context, item *model.CardProduct) error {
 	return r.repository.DB(ctx).CardProduct.WithContext(ctx).Save(item)
 }

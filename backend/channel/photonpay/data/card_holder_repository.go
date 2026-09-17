@@ -53,9 +53,11 @@ func (r *cardHolderRepository) Save(ctx context.Context, holder *model.CardHolde
 
 func (r *cardHolderRepository) List(ctx context.Context, req *biz.ListRequest) ([]*model.CardHolder, error) {
 	db := r.repository.DB(ctx)
-
-	return db.CardHolder.WithContext(ctx).
-		Where(db.CardHolder.Channel.Eq(string(enums.Channel_PhotonPay))).
+	query := db.CardHolder.WithContext(ctx).Where(db.CardHolder.Channel.Eq(string(enums.Channel_PhotonPay)))
+	if req.AccountID != 0 {
+		query = query.Where(db.CardHolder.AccountID.Eq(req.AccountID))
+	}
+	return query.
 		Order(db.CardHolder.ID.Desc()).
 		Offset(req.Offset).
 		Limit(req.Limit).

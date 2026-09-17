@@ -20,6 +20,14 @@ type PhotonPayOpenAPIService struct {
 	usecase *biz.PhotonPayOpenAPIUsecase
 }
 
+type OpenAPIAccountRequest struct {
+	Token string `header:"X-PD-TOKEN" binding:"required"`
+}
+
+func (s *PhotonPayOpenAPIService) accountID(req *OpenAPIAccountRequest) (model.ID, error) {
+	return photonPayAccountID(req.Token)
+}
+
 func NewPhotonPayOpenAPIService(injector *do.Injector) (*PhotonPayOpenAPIService, error) {
 	return &PhotonPayOpenAPIService{
 		usecase: do.MustInvoke[*biz.PhotonPayOpenAPIUsecase](injector),
@@ -56,6 +64,7 @@ func (s *PhotonPayOpenAPIService) AccessToken(_ context.Context, req *AccessToke
 }
 
 type AccountSingleRequest struct {
+	OpenAPIAccountRequest
 	Currency      *string             `form:"currency" json:"currency"`
 	AccountNo     *string             `form:"accountNo" json:"accountNo"` // Invalid: mock has one generic account.
 	MemberID      *string             `form:"memberId" json:"memberId"`   // Invalid: mock does not partition by member.
@@ -92,6 +101,7 @@ func (s *PhotonPayOpenAPIService) AccountSingle(_ context.Context, req *AccountS
 }
 
 type CreateCardHolderRequest struct {
+	OpenAPIAccountRequest
 	MemberID                   *string `json:"memberId"`      // Invalid: mock does not partition by member.
 	MatrixAccount              *string `json:"matrixAccount"` // Invalid: Matrix is unsupported.
 	FirstName                  string  `json:"firstName" binding:"required"`
@@ -124,12 +134,17 @@ type CardHolderData struct {
 }
 
 func (s *PhotonPayOpenAPIService) CreateCardHolder(ctx context.Context, req *CreateCardHolderRequest) (*CardHolderData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	dateOfBirth, err := timeparse.ParseDate(req.DateOfBirth)
 	if err != nil {
 		return nil, biz.ErrInvalidDateOfBirth
 	}
 
 	holder, err := s.usecase.CreateCardHolder(ctx, &biz.CreateCardHolderRequest{
+		AccountID:              accountID,
 		FirstName:              req.FirstName,
 		LastName:               req.LastName,
 		Email:                  req.Email,
@@ -156,6 +171,7 @@ func (s *PhotonPayOpenAPIService) CreateCardHolder(ctx context.Context, req *Cre
 }
 
 type EditCardHolderRequest struct {
+	OpenAPIAccountRequest
 	CardholderID string  `json:"cardholderId" binding:"required"`
 	Email        *string `json:"email"`
 	Mobile       *string `json:"mobile"`
@@ -181,6 +197,7 @@ func (s *PhotonPayOpenAPIService) EditCardHolder(ctx context.Context, req *EditC
 }
 
 type ListCardHolderRequest struct {
+	OpenAPIAccountRequest
 	PageIndex int `form:"pageIndex"`
 	PageSize  int `form:"pageSize"`
 }
@@ -197,10 +214,15 @@ type CardHolderListItem struct {
 }
 
 func (s *PhotonPayOpenAPIService) ListCardHolders(ctx context.Context, req *ListCardHolderRequest) (*[]CardHolderListItem, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	page, size := types.NormalizePagination(req.PageIndex, req.PageSize)
 	holders, err := s.usecase.ListCardHolders(ctx, &biz.ListRequest{
-		Offset: (page - 1) * size,
-		Limit:  size,
+		AccountID: accountID,
+		Offset:    (page - 1) * size,
+		Limit:     size,
 	})
 	if err != nil {
 		return nil, err
@@ -223,6 +245,7 @@ func (s *PhotonPayOpenAPIService) ListCardHolders(ctx context.Context, req *List
 }
 
 type CardBinRequest struct {
+	OpenAPIAccountRequest
 	CardType       *photon.CardType       `form:"cardType"`
 	CardFormFactor *photon.CardFormFactor `form:"cardFormFactor"`
 	CardCurrency   *common.Currency       `form:"cardCurrency"`
@@ -236,8 +259,12 @@ type CardBinData struct {
 	RemainingAvailableCard string                `json:"remainingAvailableCard"`
 }
 
-func (s *PhotonPayOpenAPIService) CardBins(ctx context.Context, _ *CardBinRequest) (*[]CardBinData, error) {
-	products, err := s.usecase.ListCardProducts(ctx)
+func (s *PhotonPayOpenAPIService) CardBins(ctx context.Context, req *CardBinRequest) (*[]CardBinData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
+	products, err := s.usecase.ListCardProducts(ctx, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -256,6 +283,7 @@ func (s *PhotonPayOpenAPIService) CardBins(ctx context.Context, _ *CardBinReques
 }
 
 type OpenCardRequest struct {
+	OpenAPIAccountRequest
 	MemberID             *string               `json:"memberId"`      // Invalid: mock does not partition by member.
 	MatrixAccount        *string               `json:"matrixAccount"` // Invalid: Matrix is unsupported.
 	CardBin              string                `json:"cardBin" binding:"required"`
@@ -300,6 +328,10 @@ type OpenCardData struct {
 }
 
 func (s *PhotonPayOpenAPIService) OpenCard(ctx context.Context, req *OpenCardRequest) (*OpenCardData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	cardholderID, err := photonPayID(req.CardholderID)
 	if err != nil {
 		return nil, err
@@ -309,6 +341,7 @@ func (s *PhotonPayOpenAPIService) OpenCard(ctx context.Context, req *OpenCardReq
 		formFactor = photon.CardFormFactor_Virtual
 	}
 	card, err := s.usecase.OpenCard(ctx, &biz.OpenCardRequest{
+		AccountID:        accountID,
 		CardBin:          req.CardBin,
 		Currency:         req.CardCurrency,
 		CardScheme:       req.CardScheme,
@@ -330,15 +363,20 @@ func (s *PhotonPayOpenAPIService) OpenCard(ctx context.Context, req *OpenCardReq
 }
 
 type CardIDRequest struct {
+	OpenAPIAccountRequest
 	CardID string `form:"cardId" json:"cardId" binding:"required"`
 }
 
 func (s *PhotonPayOpenAPIService) CardDetail(ctx context.Context, req *CardIDRequest) (*CardData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := photonPayID(req.CardID)
 	if err != nil {
 		return nil, err
 	}
-	card, err := s.usecase.GetCard(ctx, cardID)
+	card, err := s.usecase.GetCard(ctx, &biz.ResourceRequest{AccountID: &accountID, ID: cardID})
 	if err != nil {
 		return nil, err
 	}
@@ -347,11 +385,15 @@ func (s *PhotonPayOpenAPIService) CardDetail(ctx context.Context, req *CardIDReq
 }
 
 func (s *PhotonPayOpenAPIService) CardCVV(ctx context.Context, req *CardIDRequest) (*CardData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := photonPayID(req.CardID)
 	if err != nil {
 		return nil, err
 	}
-	card, err := s.usecase.GetCard(ctx, cardID)
+	card, err := s.usecase.GetCard(ctx, &biz.ResourceRequest{AccountID: &accountID, ID: cardID})
 	if err != nil {
 		return nil, err
 	}
@@ -360,6 +402,7 @@ func (s *PhotonPayOpenAPIService) CardCVV(ctx context.Context, req *CardIDReques
 }
 
 type ListCardsRequest struct {
+	OpenAPIAccountRequest
 	PageIndex  int                `form:"pageIndex"`
 	PageSize   int                `form:"pageSize"`
 	CardBin    *string            `form:"cardBin"`    // Invalid: card BIN filtering is unsupported.
@@ -368,10 +411,15 @@ type ListCardsRequest struct {
 }
 
 func (s *PhotonPayOpenAPIService) ListCards(ctx context.Context, req *ListCardsRequest) (*[]*CardData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	page, size := types.NormalizePagination(req.PageIndex, req.PageSize)
 	cards, err := s.usecase.ListCards(ctx, &biz.ListRequest{
-		Offset: (page - 1) * size,
-		Limit:  size,
+		AccountID: accountID,
+		Offset:    (page - 1) * size,
+		Limit:     size,
 	})
 	if err != nil {
 		return nil, err
@@ -383,6 +431,7 @@ func (s *PhotonPayOpenAPIService) ListCards(ctx context.Context, req *ListCardsR
 }
 
 type UpdateCardRequest struct {
+	OpenAPIAccountRequest
 	CardID                     string                 `json:"cardId" binding:"required"`
 	RequestID                  string                 `json:"requestId" binding:"required"`
 	CardFormFactor             *photon.CardFormFactor `json:"cardFormFactor"`             // Invalid: changing card form factor is unsupported.
@@ -396,11 +445,16 @@ type UpdateCardRequest struct {
 }
 
 func (s *PhotonPayOpenAPIService) UpdateCard(ctx context.Context, req *UpdateCardRequest) (*OpenCardData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := photonPayID(req.CardID)
 	if err != nil {
 		return nil, err
 	}
 	card, err := s.usecase.UpdateCard(ctx, &biz.UpdateCardRequest{
+		AccountID: accountID,
 		CardID:    cardID,
 		RequestID: req.RequestID,
 	})
@@ -416,6 +470,7 @@ func (s *PhotonPayOpenAPIService) UpdateCard(ctx context.Context, req *UpdateCar
 }
 
 type RequestResultRequest struct {
+	OpenAPIAccountRequest
 	RequestID string                   `form:"requestId" json:"requestId" binding:"required"`
 	Type      photon.RequestResultType `form:"type" json:"type"`
 }
@@ -434,17 +489,23 @@ func (s *PhotonPayOpenAPIService) RequestResult(ctx context.Context, req *Reques
 }
 
 type ChangeCardStatusRequest struct {
+	OpenAPIAccountRequest
 	CardID    string              `json:"cardId" binding:"required"`
 	RequestID string              `json:"requestId" binding:"required"`
 	Status    photon.FreezeStatus `json:"status" binding:"required"`
 }
 
 func (s *PhotonPayOpenAPIService) FreezeCard(ctx context.Context, req *ChangeCardStatusRequest) (*CardData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := photonPayID(req.CardID)
 	if err != nil {
 		return nil, err
 	}
 	card, err := s.usecase.ChangeCardStatus(ctx, &biz.ChangeCardStatusRequest{
+		AccountID: accountID,
 		CardID:    cardID,
 		RequestID: req.RequestID,
 		Status:    photon.FreezeStatusToGeneric(req.Status),
@@ -458,15 +519,21 @@ func (s *PhotonPayOpenAPIService) FreezeCard(ctx context.Context, req *ChangeCar
 }
 
 type CancelCardRequest struct {
+	OpenAPIAccountRequest
 	CardID string `json:"cardId" binding:"required"`
 }
 
 func (s *PhotonPayOpenAPIService) CancelCard(ctx context.Context, req *CancelCardRequest) (*CardData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := photonPayID(req.CardID)
 	if err != nil {
 		return nil, err
 	}
 	card, err := s.usecase.ChangeCardStatus(ctx, &biz.ChangeCardStatusRequest{
+		AccountID: accountID,
 		CardID:    cardID,
 		RequestID: "",
 		Status:    common.CardStatus_Deleted,
@@ -480,6 +547,7 @@ func (s *PhotonPayOpenAPIService) CancelCard(ctx context.Context, req *CancelCar
 }
 
 type ListTradeRequest struct {
+	OpenAPIAccountRequest
 	PageIndex int `form:"pageIndex"`
 	PageSize  int `form:"pageSize"`
 }
@@ -494,10 +562,15 @@ type TradeData struct {
 }
 
 func (s *PhotonPayOpenAPIService) ListTrades(ctx context.Context, req *ListTradeRequest) (*[]TradeData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	page, size := types.NormalizePagination(req.PageIndex, req.PageSize)
 	transactions, err := s.usecase.ListTransactions(ctx, &biz.ListRequest{
-		Offset: (page - 1) * size,
-		Limit:  size,
+		AccountID: accountID,
+		Offset:    (page - 1) * size,
+		Limit:     size,
 	})
 	if err != nil {
 		return nil, err
@@ -518,11 +591,13 @@ func (s *PhotonPayOpenAPIService) ListTrades(ctx context.Context, req *ListTrade
 }
 
 type UploadRequest struct {
+	OpenAPIAccountRequest
 	BusinessKey string                `uri:"businessKey" binding:"required"`
 	File        *multipart.FileHeader `form:"file" binding:"required"`
 }
 
 type SandboxTransactionRequest struct {
+	OpenAPIAccountRequest
 	RequestID           string                        `json:"requestId" binding:"required"`
 	CardID              string                        `json:"cardID" binding:"required"`
 	Cvv                 string                        `json:"cvv" binding:"required"`            // Invalid: the mock does not verify card security codes.
@@ -541,6 +616,10 @@ type SandboxTransactionRequest struct {
 type SandboxTransactionData struct{}
 
 func (s *PhotonPayOpenAPIService) SandboxTransaction(ctx context.Context, req *SandboxTransactionRequest) (*SandboxTransactionData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := photonPayID(req.CardID)
 	if err != nil {
 		return nil, err
@@ -553,6 +632,7 @@ func (s *PhotonPayOpenAPIService) SandboxTransaction(ctx context.Context, req *S
 		}
 	}
 	err = s.usecase.SandboxTransaction(ctx, &biz.SandboxTransactionRequest{
+		AccountID:           accountID,
 		RequestID:           req.RequestID,
 		CardID:              cardID,
 		OriginTransactionID: originTransactionID,

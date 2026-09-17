@@ -25,7 +25,16 @@ func NewSlashOpenAPIService(injector *do.Injector) (*SlashOpenAPIService, error)
 	}, nil
 }
 
+type OpenAPIAccountRequest struct {
+	APIKey string `header:"X-API-Key" binding:"required"`
+}
+
+func (s *SlashOpenAPIService) accountID(req *OpenAPIAccountRequest) (model.ID, error) {
+	return slashAccountID(req.APIKey)
+}
+
 type OpenAPIListRequest struct {
+	OpenAPIAccountRequest
 	PageNumber int `form:"page_number"`
 	PageSize   int `form:"page_size"`
 }
@@ -55,8 +64,12 @@ type OpenAPIListVirtualAccountsData struct {
 	Metadata OpenAPIMetadata              `json:"metadata"`
 }
 
-func (s *SlashOpenAPIService) ListVirtualAccounts(ctx context.Context, _ *struct{}) (*OpenAPIListVirtualAccountsData, error) {
-	items, err := s.usecase.ListVirtualAccounts(ctx)
+func (s *SlashOpenAPIService) ListVirtualAccounts(ctx context.Context, req *OpenAPIAccountRequest) (*OpenAPIListVirtualAccountsData, error) {
+	accountID, err := s.accountID(req)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.usecase.ListVirtualAccounts(ctx, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +85,7 @@ func (s *SlashOpenAPIService) ListVirtualAccounts(ctx context.Context, _ *struct
 }
 
 type OpenAPIVirtualAccountTransferRequest struct {
+	OpenAPIAccountRequest
 	Source      string `json:"source" binding:"required"`
 	Destination string `json:"destination" binding:"required"`
 	AmountCents int64  `json:"amountCents" binding:"required"`
@@ -82,6 +96,10 @@ type OpenAPIVirtualAccountTransferData struct {
 }
 
 func (s *SlashOpenAPIService) TransferVirtualAccount(ctx context.Context, req *OpenAPIVirtualAccountTransferRequest) (*OpenAPIVirtualAccountTransferData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	source, err := slashID(req.Source)
 	if err != nil {
 		return nil, err
@@ -90,7 +108,7 @@ func (s *SlashOpenAPIService) TransferVirtualAccount(ctx context.Context, req *O
 	if err != nil {
 		return nil, err
 	}
-	err = s.usecase.TransferVirtualAccount(ctx, &biz.OpenAPIVirtualAccountTransferRequest{Source: source, Destination: destination, AmountCents: req.AmountCents})
+	err = s.usecase.TransferVirtualAccount(ctx, &biz.OpenAPIVirtualAccountTransferRequest{AccountID: accountID, Source: source, Destination: destination, AmountCents: req.AmountCents})
 	if err != nil {
 		return nil, err
 	}
@@ -127,11 +145,16 @@ type OpenAPIListCardsData struct {
 }
 
 func (s *SlashOpenAPIService) ListCards(ctx context.Context, req *OpenAPIListCardsRequest) (*OpenAPIListCardsData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	offset, limit := openAPIPagination(req.PageNumber, req.PageSize)
 	items, err := s.usecase.ListCards(ctx, &biz.OpenAPIListCardsRequest{
-		Offset: offset,
-		Limit:  limit,
-		Status: slash.CardStatusToGeneric(req.FilterStatus),
+		AccountID: accountID,
+		Offset:    offset,
+		Limit:     limit,
+		Status:    slash.CardStatusToGeneric(req.FilterStatus),
 	})
 	if err != nil {
 		return nil, err
@@ -146,6 +169,7 @@ func (s *SlashOpenAPIService) ListCards(ctx context.Context, req *OpenAPIListCar
 }
 
 type OpenAPICreateCardRequest struct {
+	OpenAPIAccountRequest
 	AccountID          string          `json:"accountId"`        // Invalid: mock has one generic account.
 	VirtualAccountID   string          `json:"virtualAccountId"` // Invalid: virtual-account assignment is unsupported.
 	Type               slash.CardType  `json:"type" binding:"required"`
@@ -163,11 +187,16 @@ type OpenAPIUserData struct {
 }
 
 func (s *SlashOpenAPIService) CreateCard(ctx context.Context, req *OpenAPICreateCardRequest) (*OpenAPICard, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	cardProductID, err := slashID(req.CardProductID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.CreateCard(ctx, &biz.OpenAPICreateCardRequest{
+		AccountID:     accountID,
 		CardProductID: cardProductID,
 		Currency:      enums.Currency_USD,
 		RequestID:     req.UserData.RequestID,
@@ -180,15 +209,20 @@ func (s *SlashOpenAPIService) CreateCard(ctx context.Context, req *OpenAPICreate
 }
 
 type OpenAPIIDRequest struct {
+	OpenAPIAccountRequest
 	ID string `uri:"id" binding:"required"`
 }
 
 func (s *SlashOpenAPIService) GetCard(ctx context.Context, req *OpenAPIIDRequest) (*OpenAPICard, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	id, err := slashID(req.ID)
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.GetCard(ctx, id)
+	item, err := s.usecase.GetCard(ctx, &biz.ResourceRequest{AccountID: &accountID, ID: id})
 	if err != nil {
 		return nil, err
 	}
@@ -206,13 +240,18 @@ type OpenAPIUpdateCardRequest struct {
 }
 
 func (s *SlashOpenAPIService) UpdateCard(ctx context.Context, req *OpenAPIUpdateCardRequest) (*OpenAPICard, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	id, err := slashID(req.ID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.UpdateCard(ctx, &biz.OpenAPIUpdateCardRequest{
-		ID:     id,
-		Status: slash.CardStatusToGeneric(req.Status),
+		AccountID: accountID,
+		ID:        id,
+		Status:    slash.CardStatusToGeneric(req.Status),
 	})
 	if err != nil {
 		return nil, err
@@ -227,14 +266,20 @@ type OpenAPICardProduct struct {
 	Status slash.CardProductStatus `json:"status"`
 }
 
-type OpenAPIListCardProductsRequest struct{}
+type OpenAPIListCardProductsRequest struct {
+	OpenAPIAccountRequest
+}
 
 type OpenAPIListCardProductsData struct {
 	Items []*OpenAPICardProduct `json:"items"`
 }
 
-func (s *SlashOpenAPIService) ListCardProducts(ctx context.Context, _ *OpenAPIListCardProductsRequest) (*OpenAPIListCardProductsData, error) {
-	items, err := s.usecase.ListCardProducts(ctx)
+func (s *SlashOpenAPIService) ListCardProducts(ctx context.Context, req *OpenAPIListCardProductsRequest) (*OpenAPIListCardProductsData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.usecase.ListCardProducts(ctx, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -278,6 +323,10 @@ type OpenAPIListTransactionsData struct {
 }
 
 func (s *SlashOpenAPIService) ListTransactions(ctx context.Context, req *OpenAPIListTransactionsRequest) (*OpenAPIListTransactionsData, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	offset, limit := openAPIPagination(req.PageNumber, req.PageSize)
 	cardID, err := slashOptionalID(req.FilterCardID)
 	if err != nil {
@@ -288,6 +337,7 @@ func (s *SlashOpenAPIService) ListTransactions(ctx context.Context, req *OpenAPI
 		return nil, err
 	}
 	items, err := s.usecase.ListTransactions(ctx, &biz.OpenAPIListTransactionsRequest{
+		AccountID:       accountID,
 		Offset:          offset,
 		Limit:           limit,
 		CardID:          cardID,
@@ -306,11 +356,15 @@ func (s *SlashOpenAPIService) ListTransactions(ctx context.Context, req *OpenAPI
 }
 
 func (s *SlashOpenAPIService) GetTransaction(ctx context.Context, req *OpenAPIIDRequest) (*OpenAPITransaction, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
 	id, err := slashID(req.ID)
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.GetTransaction(ctx, id)
+	item, err := s.usecase.GetTransaction(ctx, &biz.ResourceRequest{AccountID: &accountID, ID: id})
 	if err != nil {
 		return nil, err
 	}
@@ -320,16 +374,18 @@ func (s *SlashOpenAPIService) GetTransaction(ctx context.Context, req *OpenAPIID
 
 func openAPICard(item *model.Card) *OpenAPICard {
 	return &OpenAPICard{
-		ID:            slashIDString(item.ID),
-		Last4:         item.CardNumber[len(item.CardNumber)-4:],
-		ExpiryMonth:   item.ExpireAt.Format("01"),
-		ExpiryYear:    item.ExpireAt.Format("2006"),
-		Status:        slash.CardStatusFromGeneric(item.Status),
-		IsPhysical:    item.FormType == enums.CardFormType_Physical,
-		Pan:           item.CardNumber,
-		Cvv:           item.Cvv,
-		CreatedAt:     item.CreatedAt,
-		CardProductID: slashIDString(item.CardProductID),
+		ID:               slashIDString(item.ID),
+		AccountID:        slashIDString(item.AccountID),
+		VirtualAccountID: virtualAccountIDString(item.VirtualAccountID),
+		Last4:            item.CardNumber[len(item.CardNumber)-4:],
+		ExpiryMonth:      item.ExpireAt.Format("01"),
+		ExpiryYear:       item.ExpireAt.Format("2006"),
+		Status:           slash.CardStatusFromGeneric(item.Status),
+		IsPhysical:       item.FormType == enums.CardFormType_Physical,
+		Pan:              item.CardNumber,
+		Cvv:              item.Cvv,
+		CreatedAt:        item.CreatedAt,
+		CardProductID:    slashIDString(item.CardProductID),
 	}
 }
 
@@ -342,10 +398,18 @@ func openAPITransaction(item *model.CardTransaction) *OpenAPITransaction {
 		AmountCents:             int(item.TxAmount.Mul(decimal.NewFromInt(100)).IntPart()),
 		Status:                  slash.TransactionStatusFromGeneric(item.Status),
 		DetailedStatus:          slash.TransactionStatusFromGeneric(item.Status),
+		AccountID:               slashIDString(item.AccountID),
 		CardID:                  slashIDString(item.CardID),
 		AuthorizedAt:            item.OccurredAt.UTC(),
 		ProviderAuthorizationID: slashIDString(item.AuthorizationID),
 	}
+}
+
+func virtualAccountIDString(id *model.ID) string {
+	if id == nil {
+		return ""
+	}
+	return slashIDString(*id)
 }
 
 func openAPIPagination(pageNumber int, pageSize int) (int, int) {

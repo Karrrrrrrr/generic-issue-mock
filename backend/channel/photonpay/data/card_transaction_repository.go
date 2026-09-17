@@ -45,9 +45,11 @@ func (r *cardTransactionRepository) FindByID(ctx context.Context, id model.ID) (
 
 func (r *cardTransactionRepository) ListTransactions(ctx context.Context, req *biz.ListRequest) ([]*model.CardTransaction, error) {
 	db := r.repository.DB(ctx)
-
-	return db.CardTransaction.WithContext(ctx).
-		Where(db.CardTransaction.Channel.Eq(string(enums.Channel_PhotonPay))).
+	query := db.CardTransaction.WithContext(ctx).Where(db.CardTransaction.Channel.Eq(string(enums.Channel_PhotonPay)))
+	if req.AccountID != 0 {
+		query = query.Where(db.CardTransaction.AccountID.Eq(req.AccountID))
+	}
+	return query.
 		Order(db.CardTransaction.ID.Desc()).
 		Offset(req.Offset).
 		Limit(req.Limit).

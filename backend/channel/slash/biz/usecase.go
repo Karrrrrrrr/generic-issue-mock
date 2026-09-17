@@ -34,6 +34,8 @@ type SlashCardRepository interface {
 	Count(context.Context, *ListCardsRequest) (int64, error)
 	List(context.Context, *ListCardsRequest) ([]*model.Card, error)
 	Save(context.Context, *model.Card) error
+	ExistByAccountID(context.Context, *ResourceRequest) (bool, error)
+	FindByAccountID(context.Context, *ResourceRequest) (*model.Card, error)
 }
 
 type SlashCardProductRepository interface {
@@ -43,6 +45,9 @@ type SlashCardProductRepository interface {
 	FindDefaultForUpdate(context.Context) (*model.CardProduct, error)
 	List(context.Context) ([]*model.CardProduct, error)
 	Save(context.Context, *model.CardProduct) error
+	ExistByAccountID(context.Context, *ResourceRequest) (bool, error)
+	FindByAccountIDForUpdate(context.Context, *ResourceRequest) (*model.CardProduct, error)
+	ListByAccountID(context.Context, model.ID) ([]*model.CardProduct, error)
 }
 
 type SlashAuthorizationRepository interface {
@@ -60,17 +65,23 @@ type SlashCardTransactionRepository interface {
 	FindByID(context.Context, model.ID) (*model.CardTransaction, error)
 	Count(context.Context, *ListCardTransactionsRequest) (int64, error)
 	List(context.Context, *ListCardTransactionsRequest) ([]*model.CardTransaction, error)
+	ExistByAccountID(context.Context, *ResourceRequest) (bool, error)
+	FindByAccountID(context.Context, *ResourceRequest) (*model.CardTransaction, error)
 }
 
 type SlashVirtualAccountRepository interface {
 	List(context.Context) ([]*model.VirtualAccount, error)
 	ExistByID(context.Context, model.ID) (bool, error)
 	FindByID(context.Context, model.ID) (*model.VirtualAccount, error)
+	ListByAccountID(context.Context, model.ID) ([]*model.VirtualAccount, error)
+	ExistByAccountID(context.Context, *ResourceRequest) (bool, error)
+	FindByAccountID(context.Context, *ResourceRequest) (*model.VirtualAccount, error)
 }
 
 type SlashWalletRepository interface {
 	FindByIDForUpdate(context.Context, model.ID) (*model.Wallet, error)
 	Save(context.Context, *model.Wallet) error
+	FindByAccountIDForUpdate(context.Context, *ResourceRequest) (*model.Wallet, error)
 }
 
 type SlashWebhookConfigRepository interface {
@@ -107,11 +118,13 @@ func NewSlashUIUsecase(injector *do.Injector) (*SlashUIUsecase, error) {
 }
 
 type ListCardHoldersRequest struct {
-	Offset int
-	Limit  int
+	AccountID model.ID
+	Offset    int
+	Limit     int
 }
 
 type ListCardsRequest struct {
+	AccountID  model.ID
 	Offset     int
 	Limit      int
 	IDContains string
@@ -120,14 +133,16 @@ type ListCardsRequest struct {
 }
 
 type ListAuthorizationsRequest struct {
-	Offset int
-	Limit  int
-	ID     model.ID
-	CardID model.ID
-	Status enums.CardTransactionStatus
+	AccountID model.ID
+	Offset    int
+	Limit     int
+	ID        model.ID
+	CardID    model.ID
+	Status    enums.CardTransactionStatus
 }
 
 type ListCardTransactionsRequest struct {
+	AccountID       model.ID
 	Offset          int
 	Limit           int
 	ID              model.ID
@@ -135,6 +150,11 @@ type ListCardTransactionsRequest struct {
 	AuthorizationID model.ID
 	Type            enums.CardTransactionType
 	Status          enums.CardTransactionStatus
+}
+
+type ResourceRequest struct {
+	AccountID *model.ID
+	ID        model.ID
 }
 
 type CreateCardHolderRequest struct {
