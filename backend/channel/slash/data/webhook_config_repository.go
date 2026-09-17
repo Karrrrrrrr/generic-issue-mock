@@ -33,22 +33,26 @@ func (r *webhookConfigRepository) ExistByID(ctx context.Context, id model.ID) (b
 
 func (r *webhookConfigRepository) FindByID(ctx context.Context, id model.ID) (*model.WebhookConfig, error) {
 	db := r.repository.DB(ctx)
-	return db.WebhookConfig.WithContext(ctx).Where(
-		db.WebhookConfig.ID.Eq(id),
-		db.WebhookConfig.Channel.Eq(string(enums.Channel_Slash)),
-	).First()
+	return db.WebhookConfig.WithContext(ctx).
+		Preload(db.WebhookConfig.Account).
+		Where(
+			db.WebhookConfig.ID.Eq(id),
+			db.WebhookConfig.Channel.Eq(string(enums.Channel_Slash)),
+		).First()
 }
 
 func (r *webhookConfigRepository) List(
 	ctx context.Context,
-	req *biz.ListWebhooksRequest,
+	req *biz.WebhookConfigListRequest,
 ) ([]*model.WebhookConfig, error) {
 	db := r.repository.DB(ctx)
-	query := db.WebhookConfig.WithContext(ctx).Where(
-		db.WebhookConfig.Channel.Eq(string(enums.Channel_Slash)),
-	)
-	if req.AccountID != 0 {
-		query = query.Where(db.WebhookConfig.AccountID.Eq(req.AccountID))
+	query := db.WebhookConfig.WithContext(ctx).
+		Preload(db.WebhookConfig.Account).
+		Where(
+			db.WebhookConfig.Channel.Eq(string(enums.Channel_Slash)),
+		)
+	if len(req.AccountIDs) != 0 {
+		query = query.Where(db.WebhookConfig.AccountID.In(req.AccountIDs...))
 	}
 	return query.Order(db.WebhookConfig.ID.Desc()).Find()
 }

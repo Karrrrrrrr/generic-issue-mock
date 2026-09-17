@@ -1,4 +1,6 @@
 export interface Cardholder {
+  account_id: string;
+  account_name: string;
   id: string;
   first_name: string;
   last_name: string;
@@ -9,6 +11,9 @@ export interface Cardholder {
 }
 
 export interface Card {
+  account_id: string;
+  account_name: string;
+  wallet_id: string;
   id: string;
   cardholder_id: string;
   card_number: string;
@@ -23,6 +28,8 @@ export interface Card {
 }
 
 export interface Transaction {
+  account_id: string;
+  account_name: string;
   id: string;
   card_id: string;
   authorization_id: string;
@@ -43,16 +50,7 @@ export interface ListResponse<T> {
 export interface ChannelAPI {
   listCardholders(): Promise<ListResponse<Cardholder>>;
 
-  createCardholder(payload: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    mobile: string;
-  }): Promise<Cardholder>;
-
   listCards(): Promise<ListResponse<Card>>;
-
-  createCard(cardholderID: string, currency: string): Promise<Card>;
 
   updateCardStatus(id: string, status: string): Promise<Card>;
 
@@ -69,8 +67,8 @@ export interface ChannelAPI {
   }): Promise<void>;
 
   applyTransactionStep(
-      id: string,
-      action: "clear" | "reverse" | "refund",
-      amount?: number,
+    id: string,
+    action: "clear" | "reverse" | "refund",
+    amount?: number,
   ): Promise<void>;
 }

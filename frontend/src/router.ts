@@ -48,6 +48,10 @@ export const router = createRouter({
       component: () => import("@/channel/photonpay/Shell.vue"),
       children: [
         { path: "", redirect: "/photonpay/cardholders" },
+        {
+          path: "virtual-accounts",
+          component: () => import("@/channel/photonpay/VirtualAccountsView.vue"),
+        },
         { path: "accounts", component: () => import("@/channel/photonpay/AccountsView.vue") },
         {
           path: "cardholders",

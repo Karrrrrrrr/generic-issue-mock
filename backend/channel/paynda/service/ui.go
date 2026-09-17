@@ -25,9 +25,9 @@ func NewPayndaUIService(injector *do.Injector) (*PayndaUIService, error) {
 }
 
 type PayndaUIListRequest struct {
-	AccountID  string `form:"account_id"`
-	PageNumber int    `form:"page_number"`
-	PageSize   int    `form:"page_size"`
+	AccountID  *string `form:"account_id"`
+	PageNumber *int    `form:"page_number" binding:"omitempty,min=1"`
+	PageSize   *int    `form:"page_size" binding:"omitempty,min=1"`
 }
 
 type PayndaUIListResponse[T any] struct {
@@ -36,16 +36,18 @@ type PayndaUIListResponse[T any] struct {
 }
 
 type PayndaUIWebhookData struct {
-	ID        string              `json:"id"`
-	AccountID string              `json:"account_id"`
-	Event     paynda.WebhookEvent `json:"event"`
-	TargetURL string              `json:"target_url"`
-	Enabled   bool                `json:"enabled"`
-	CreatedAt time.Time           `json:"created_at"`
-	UpdatedAt time.Time           `json:"updated_at"`
+	AccountName string              `json:"account_name"`
+	ID          string              `json:"id"`
+	AccountID   string              `json:"account_id"`
+	Event       paynda.WebhookEvent `json:"event"`
+	TargetURL   string              `json:"target_url"`
+	Enabled     bool                `json:"enabled"`
+	CreatedAt   time.Time           `json:"created_at"`
+	UpdatedAt   time.Time           `json:"updated_at"`
 }
 
 type PayndaUIWebhookRecordData struct {
+	AccountName     string     `json:"account_name"`
 	ID              string     `json:"id"`
 	AccountID       string     `json:"account_id"`
 	Event           string     `json:"event"`
@@ -64,10 +66,11 @@ type PayndaUIWebhookRecordData struct {
 }
 
 type PayndaUIAccountData struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	WalletID  string    `json:"wallet_id"`
-	CreatedAt time.Time `json:"created_at"`
+	Balance   decimal.Decimal `json:"balance"`
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	WalletID  string          `json:"wallet_id"`
+	CreatedAt time.Time       `json:"created_at"`
 }
 
 type PayndaUICreateAccountRequest struct {
@@ -90,11 +93,11 @@ func (s *PayndaUIService) ListAccounts(
 	ctx context.Context,
 	req *PayndaUIListRequest,
 ) (*PayndaUIListResponse[*PayndaUIAccountData], error) {
-	page, size := types.NormalizePagination(req.PageNumber, req.PageSize)
-	items, total, err := s.usecase.ListAccounts(ctx, &biz.PayndaListRequest{
-		Offset: (page - 1) * size,
-		Limit:  size,
-	})
+	listRequest, err := payndaUIListRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	items, total, err := s.usecase.ListAccounts(ctx, listRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +137,11 @@ func (s *PayndaUIService) ListWebhookRecords(
 	ctx context.Context,
 	req *PayndaUIListRequest,
 ) (*PayndaUIListResponse[*PayndaUIWebhookRecordData], error) {
-	items, total, err := s.usecase.ListWebhookRecords(ctx, payndaUIListRequest(req))
+	listRequest, err := payndaUIListRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	items, total, err := s.usecase.ListWebhookRecords(ctx, listRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -193,15 +200,11 @@ func (s *PayndaUIService) CreateWebhook(ctx context.Context, req *PayndaUICreate
 	return payndaUIWebhookData(item), nil
 }
 func (s *PayndaUIService) ListWebhooks(ctx context.Context, req *struct {
-	AccountID string `form:"account_id"`
+	AccountID *string `form:"account_id"`
 }) (*[]PayndaUIWebhookData, error) {
-	accountID := model.ID(0)
-	if req.AccountID != "" {
-		var err error
-		accountID, err = payndaID(req.AccountID)
-		if err != nil {
-			return nil, err
-		}
+	accountID, err := payndaOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
 	}
 	items, err := s.usecase.ListWebhooks(ctx, &biz.PayndaListWebhooksRequest{AccountID: accountID})
 	if err != nil {
@@ -255,13 +258,15 @@ type PayndaUICardHolderRequest struct {
 }
 
 type PayndaUICardHolderData struct {
-	ID        string                  `json:"id"`
-	FirstName string                  `json:"first_name"`
-	LastName  string                  `json:"last_name"`
-	Email     string                  `json:"email"`
-	Mobile    string                  `json:"phone_number"`
-	Status    paynda.CardHolderStatus `json:"status"`
-	CreatedAt time.Time               `json:"created_at"`
+	AccountName string                  `json:"account_name"`
+	AccountID   string                  `json:"account_id"`
+	ID          string                  `json:"id"`
+	FirstName   string                  `json:"first_name"`
+	LastName    string                  `json:"last_name"`
+	Email       string                  `json:"email"`
+	Mobile      string                  `json:"phone_number"`
+	Status      paynda.CardHolderStatus `json:"status"`
+	CreatedAt   time.Time               `json:"created_at"`
 }
 type PayndaUICreateCardRequest struct {
 	AccountID    string          `json:"account_id" binding:"required"`
@@ -269,6 +274,9 @@ type PayndaUICreateCardRequest struct {
 	CardCurrency common.Currency `json:"card_currency" binding:"required"`
 }
 type PayndaUICardData struct {
+	AccountName   string            `json:"account_name"`
+	AccountID     string            `json:"account_id"`
+	WalletID      string            `json:"wallet_id"`
 	ID            string            `json:"id"`
 	CardHolderID  string            `json:"cardholder_id"`
 	CardNumber    string            `json:"card_number"`
@@ -305,7 +313,11 @@ func (s *PayndaUIService) CreateCardHolder(ctx context.Context, req *PayndaUICar
 }
 
 func (s *PayndaUIService) ListCards(ctx context.Context, req *PayndaUIListRequest) (*PayndaUIListResponse[*PayndaUICardData], error) {
-	items, err := s.usecase.ListCards(ctx, payndaUIListRequest(req))
+	listRequest, err := payndaUIListRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.usecase.ListCards(ctx, listRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +328,11 @@ func (s *PayndaUIService) ListCards(ctx context.Context, req *PayndaUIListReques
 }
 
 func (s *PayndaUIService) ListAuthorizations(ctx context.Context, req *PayndaUIListRequest) (*PayndaUIListResponse[*PayndaUIAuthorizationData], error) {
-	items, err := s.usecase.ListAuthorizations(ctx, payndaUIListRequest(req))
+	listRequest, err := payndaUIListRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.usecase.ListAuthorizations(ctx, listRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +343,11 @@ func (s *PayndaUIService) ListAuthorizations(ctx context.Context, req *PayndaUIL
 }
 
 func (s *PayndaUIService) ListCardHolders(ctx context.Context, req *PayndaUIListRequest) (*PayndaUIListResponse[*PayndaUICardHolderData], error) {
-	items, err := s.usecase.ListCardHolders(ctx, payndaUIListRequest(req))
+	listRequest, err := payndaUIListRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.usecase.ListCardHolders(ctx, listRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +382,10 @@ func (s *PayndaUIService) UpdateCardStatus(ctx context.Context, req *PayndaUIUpd
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.UpdateCardStatus(ctx, &biz.PayndaUIUpdateCardStatusRequest{CardID: id, Status: paynda.CardStatusToGeneric(req.CardStatus)})
+	item, err := s.usecase.UpdateCardStatus(ctx, &biz.PayndaUIUpdateCardStatusRequest{
+		CardID: id,
+		Status: paynda.CardStatusToGeneric(req.CardStatus),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -385,6 +408,7 @@ type PayndaUISimulateAuthorizationData struct {
 }
 
 type PayndaUISimulateRefundRequest struct {
+	AuthorizationID      *string         `json:"authorization_id"`
 	CardID               string          `json:"card_id" binding:"required"`
 	Amount               decimal.Decimal `json:"amount" binding:"required"`
 	Currency             common.Currency `json:"currency" binding:"required"`
@@ -395,11 +419,16 @@ type PayndaUISimulateRefundRequest struct {
 }
 
 func (s *PayndaUIService) SimulateRefund(ctx context.Context, req *PayndaUISimulateRefundRequest) (*PayndaUITransactionData, error) {
+	authorizationID, err := payndaRefundAuthorizationID(req.AuthorizationID)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := payndaID(req.CardID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.SimulateRefund(ctx, &biz.PayndaSimulateRefundRequest{
+		AuthorizationID: authorizationID,
 		CardID:          cardID,
 		Amount:          req.Amount,
 		Currency:        req.Currency,
@@ -414,6 +443,8 @@ func (s *PayndaUIService) SimulateRefund(ctx context.Context, req *PayndaUISimul
 }
 
 type PayndaUIAuthorizationData struct {
+	AccountID            string                   `json:"account_id"`
+	AccountName          string                   `json:"account_name"`
 	ID                   string                   `json:"id"`
 	CardID               string                   `json:"card_id"`
 	Status               paynda.TransactionStatus `json:"status"`
@@ -424,6 +455,8 @@ type PayndaUIAuthorizationData struct {
 	AuthorizedAt         time.Time                `json:"authorized_at"`
 }
 type PayndaUITransactionData struct {
+	AccountName          string                   `json:"account_name"`
+	AccountID            string                   `json:"account_id"`
 	ID                   string                   `json:"id"`
 	CardID               string                   `json:"card_id"`
 	AuthorizationID      string                   `json:"authorization_id"`
@@ -463,8 +496,8 @@ func (s *PayndaUIService) SimulateAuthorization(
 }
 
 type PayndaUIApplyTransactionStepRequest struct {
-	ID     string          `uri:"id" binding:"required"`
-	Amount decimal.Decimal `json:"amount"`
+	ID     string           `uri:"id" binding:"required"`
+	Amount *decimal.Decimal `json:"amount"`
 }
 
 func (s *PayndaUIService) ClearTransaction(ctx context.Context, req *PayndaUIApplyTransactionStepRequest) (*PayndaUITransactionData, error) {
@@ -477,7 +510,11 @@ func (s *PayndaUIService) RefundTransaction(ctx context.Context, req *PayndaUIAp
 	return s.applyTransactionStep(ctx, req, common.CardTransactionType_REFUND)
 }
 func (s *PayndaUIService) ListTransactions(ctx context.Context, req *PayndaUIListRequest) (*PayndaUIListResponse[*PayndaUITransactionData], error) {
-	items, err := s.usecase.ListTransactions(ctx, payndaUIListRequest(req))
+	listRequest, err := payndaUIListRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.usecase.ListTransactions(ctx, listRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -505,40 +542,42 @@ func (s *PayndaUIService) applyTransactionStep(
 	}
 	return payndaUITransactionData(item), nil
 }
-func payndaUIListRequest(req *PayndaUIListRequest) *biz.PayndaListRequest {
-	page, size := types.NormalizePagination(req.PageNumber, req.PageSize)
-	accountID := model.ID(0)
-	if req.AccountID != "" {
-		accountID, _ = payndaAccountID(req.AccountID)
+func payndaUIListRequest(req *PayndaUIListRequest) (*biz.PayndaListRequest, error) {
+	page, size := types.NormalizePagination(types.Value(req.PageNumber), types.Value(req.PageSize))
+	accountID, err := payndaOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
 	}
 	return &biz.PayndaListRequest{
 		AccountID: accountID,
 		Offset:    (page - 1) * size,
 		Limit:     size,
-	}
+	}, nil
 }
 func payndaUICardHolderData(item *model.CardHolder) *PayndaUICardHolderData {
 	return &PayndaUICardHolderData{
-		ID:        payndaIDString(item.ID),
-		FirstName: item.FirstName,
-		LastName:  item.LastName,
-		Email:     item.Email,
-		Mobile:    item.Mobile,
-		Status:    paynda.CardHolderStatusFromGeneric(item.Status),
-		CreatedAt: item.CreatedAt,
+		AccountID:   payndaIDString(item.AccountID),
+		AccountName: uiAccountName(item.Account),
+		ID:          payndaIDString(item.ID),
+		FirstName:   item.FirstName,
+		LastName:    item.LastName,
+		Email:       item.Email,
+		Mobile:      item.Mobile,
+		Status:      paynda.CardHolderStatusFromGeneric(item.Status),
+		CreatedAt:   item.CreatedAt,
 	}
 }
 func payndaUICardData(item *model.Card) *PayndaUICardData {
 	balance := decimal.Zero
 	fundingSource := "卡资金"
-	if item.VirtualAccount != nil && item.VirtualAccount.Wallet != nil {
-		balance = item.VirtualAccount.Wallet.Amount
-		fundingSource = "虚拟账户共享资金"
-	} else if item.Wallet != nil {
+	if item.Wallet != nil {
 		balance = item.Wallet.Amount
 	}
 
 	return &PayndaUICardData{
+		AccountID:     payndaIDString(item.AccountID),
+		AccountName:   uiAccountName(item.Account),
+		WalletID:      payndaIDString(item.WalletID),
 		ID:            payndaIDString(item.ID),
 		CardHolderID:  payndaIDString(item.CardHolderID),
 		CardNumber:    item.CardNumber,
@@ -554,6 +593,8 @@ func payndaUICardData(item *model.Card) *PayndaUICardData {
 }
 func payndaUIAuthorizationData(item *model.Authorization) *PayndaUIAuthorizationData {
 	return &PayndaUIAuthorizationData{
+		AccountID:            payndaIDString(item.AccountID),
+		AccountName:          uiAccountName(item.Account),
 		ID:                   payndaIDString(item.ID),
 		CardID:               payndaIDString(item.CardID),
 		Status:               paynda.TransactionStatusFromGeneric(item.Status),
@@ -566,13 +607,14 @@ func payndaUIAuthorizationData(item *model.Authorization) *PayndaUIAuthorization
 }
 func payndaUIWebhookData(item *model.WebhookConfig) *PayndaUIWebhookData {
 	return &PayndaUIWebhookData{
-		ID:        payndaIDString(item.ID),
-		AccountID: payndaIDString(item.AccountID),
-		Event:     paynda.WebhookEvent(item.Event),
-		TargetURL: item.TargetURL,
-		Enabled:   item.Enabled,
-		CreatedAt: item.CreatedAt,
-		UpdatedAt: item.UpdatedAt,
+		ID:          payndaIDString(item.ID),
+		AccountID:   payndaIDString(item.AccountID),
+		AccountName: uiAccountName(item.Account),
+		Event:       paynda.WebhookEvent(item.Event),
+		TargetURL:   item.TargetURL,
+		Enabled:     item.Enabled,
+		CreatedAt:   item.CreatedAt,
+		UpdatedAt:   item.UpdatedAt,
 	}
 }
 
@@ -580,6 +622,7 @@ func payndaUIWebhookRecordData(item *model.WebhookRecord) *PayndaUIWebhookRecord
 	return &PayndaUIWebhookRecordData{
 		ID:              payndaIDString(item.ID),
 		AccountID:       payndaIDString(item.AccountID),
+		AccountName:     uiAccountName(item.Account),
 		Event:           item.Event,
 		TargetURL:       item.TargetURL,
 		SourceID:        item.SourceID,
@@ -597,7 +640,12 @@ func payndaUIWebhookRecordData(item *model.WebhookRecord) *PayndaUIWebhookRecord
 }
 
 func payndaUIAccountData(item *model.Account) *PayndaUIAccountData {
+	balance := decimal.Zero
+	if item.Wallet != nil {
+		balance = item.Wallet.Amount
+	}
 	return &PayndaUIAccountData{
+		Balance:   balance,
 		ID:        payndaIDString(item.ID),
 		Name:      item.Name,
 		WalletID:  payndaIDString(item.WalletID),
@@ -606,6 +654,8 @@ func payndaUIAccountData(item *model.Account) *PayndaUIAccountData {
 }
 func payndaUITransactionData(item *model.CardTransaction) *PayndaUITransactionData {
 	return &PayndaUITransactionData{
+		AccountID:            payndaIDString(item.AccountID),
+		AccountName:          uiAccountName(item.Account),
 		ID:                   payndaIDString(item.ID),
 		CardID:               payndaIDString(item.CardID),
 		AuthorizationID:      payndaIDString(item.AuthorizationID),
@@ -617,4 +667,166 @@ func payndaUITransactionData(item *model.CardTransaction) *PayndaUITransactionDa
 		MerchantCategoryCode: item.MerchantMCC,
 		TransactedAt:         item.CreatedAt,
 	}
+}
+
+type ManagementListRequest struct {
+	AccountID *string `form:"account_id"`
+}
+
+type ManagementAccountRequest struct {
+	AccountID string `form:"account_id" json:"account_id" binding:"required"`
+}
+type FundsData struct {
+	AccountName string            `json:"account_name"`
+	AccountID   string            `json:"account_id"`
+	ID          string            `json:"id"`
+	Currency    common.Currency   `json:"currency"`
+	Kind        paynda.WalletKind `json:"kind"`
+	Amount      string            `json:"amount"`
+}
+
+func (s *PayndaUIService) ListFunds(ctx context.Context, req *ManagementListRequest) (*[]FundsData, error) {
+	accountID, err := payndaOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.usecase.ListFunds(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]FundsData, 0, len(items))
+	for _, item := range items {
+		var kind paynda.WalletKind
+		switch item.Type {
+		case common.WalletType_Account:
+			kind = paynda.WalletKindAccount
+		case common.WalletType_Card:
+			kind = paynda.WalletKindCard
+		default:
+			continue
+		}
+		result = append(result, FundsData{
+			AccountID:   payndaIDString(item.AccountID),
+			AccountName: uiAccountName(item.Account),
+			ID:          payndaIDString(item.ID),
+			Currency:    item.Currency,
+			Kind:        kind,
+			Amount:      item.Amount.String(),
+		})
+	}
+	return &result, nil
+}
+
+type MoveFundsRequest struct {
+	ManagementAccountRequest
+	SourceID string          `json:"source_id"`
+	TargetID string          `json:"target_id"`
+	Amount   decimal.Decimal `json:"amount"`
+}
+
+func (s *PayndaUIService) MoveFunds(ctx context.Context, req *MoveFundsRequest) (*struct{}, error) {
+	accountID, err := payndaAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	var sourceID, targetID int64
+	if req.SourceID != "" {
+		sourceID, err = payndaID(req.SourceID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if req.TargetID != "" {
+		targetID, err = payndaID(req.TargetID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err := s.usecase.MoveFunds(ctx, &biz.MoveFundsRequest{
+		AccountID: accountID,
+		SourceID:  sourceID,
+		TargetID:  targetID,
+		Amount:    req.Amount,
+	}); err != nil {
+		return nil, err
+	}
+	return &struct{}{}, nil
+}
+
+type AuthorizationBalanceData struct {
+	AccountName  string          `json:"account_name"`
+	AccountID    string          `json:"account_id"`
+	ID           string          `json:"id"`
+	CardID       string          `json:"card_id"`
+	Currency     common.Currency `json:"currency"`
+	Amount       string          `json:"amount"`
+	Settled      string          `json:"settled"`
+	Remaining    string          `json:"remaining"`
+	MerchantName string          `json:"merchant_name"`
+	CreatedAt    time.Time       `json:"created_at"`
+}
+
+func (s *PayndaUIService) ListAuthorizationBalances(ctx context.Context, req *ManagementListRequest) (*[]AuthorizationBalanceData, error) {
+	accountID, err := payndaOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.usecase.ListAuthorizationBalances(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]AuthorizationBalanceData, 0, len(items))
+	for _, item := range items {
+		auth := item.Authorization
+		result = append(result, AuthorizationBalanceData{
+			AccountID:    payndaIDString(auth.AccountID),
+			AccountName:  uiAccountName(auth.Account),
+			ID:           payndaIDString(auth.ID),
+			CardID:       payndaIDString(auth.CardID),
+			Currency:     auth.Currency,
+			Amount:       auth.Amount.String(),
+			Settled:      item.Settled.String(),
+			Remaining:    item.Remaining.String(),
+			MerchantName: auth.MerchantName,
+			CreatedAt:    auth.CreatedAt,
+		})
+	}
+	return &result, nil
+}
+
+type ClearAuthorizationRequest struct {
+	ManagementAccountRequest
+	ID     string          `uri:"id" binding:"required"`
+	Amount decimal.Decimal `json:"amount"`
+}
+type ClearAuthorizationData struct {
+	ID string `json:"id"`
+}
+
+func (s *PayndaUIService) ClearAuthorization(ctx context.Context, req *ClearAuthorizationRequest) (*ClearAuthorizationData, error) {
+	accountID, err := payndaAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	authID, err := payndaID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.ClearAuthorization(ctx, &biz.ClearAuthorizationRequest{
+		AccountID: accountID,
+		ID:        authID,
+		Amount:    req.Amount,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &ClearAuthorizationData{ID: payndaIDString(item.ID)}, nil
+}
+
+func uiAccountName(account *model.Account) string {
+	if account == nil {
+		return ""
+	}
+	return account.Name
 }

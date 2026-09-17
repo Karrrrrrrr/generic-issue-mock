@@ -22,3 +22,30 @@ func payndaID(value string) (model.ID, error) {
 func payndaAccountID(value string) (model.ID, error) {
 	return payndaID(value)
 }
+
+// payndaRefundAuthorizationID permits the channel-formatted zero ID for an independent refund.
+func payndaRefundAuthorizationID(value *string) (*model.ID, error) {
+	if value == nil {
+		return nil, nil
+	}
+	var id model.ID
+	if *value == payndaIDString(0) {
+		return &id, nil
+	}
+	id, err := payndaID(*value)
+	if err != nil {
+		return nil, err
+	}
+	return &id, nil
+}
+
+func payndaOptionalID(value *string) (*model.ID, error) {
+	if value == nil {
+		return nil, nil
+	}
+	id, err := payndaID(*value)
+	if err != nil {
+		return nil, err
+	}
+	return &id, nil
+}

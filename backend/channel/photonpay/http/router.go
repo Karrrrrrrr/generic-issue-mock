@@ -11,6 +11,12 @@ func Register(
 	openAPIService *service.PhotonPayOpenAPIService,
 	uiService *service.PhotonPayUIService,
 ) {
+	router.GET("/ui/funds", bindUI(uiService.ListFunds))
+	router.POST("/ui/funds/transfer", bindUI(uiService.MoveFunds))
+	router.GET("/ui/managed-virtual-accounts", bindUI(uiService.ListManagedVirtualAccounts))
+	router.POST("/ui/managed-virtual-accounts", bindUI(uiService.CreateManagedVirtualAccount))
+	router.GET("/ui/authorization-balances", bindUI(uiService.ListAuthorizationBalances))
+	router.POST("/ui/authorizations/:id/clear", bindUI(uiService.ClearAuthorization))
 	router.GET("/ui/accounts", bindUI(uiService.ListAccounts))
 	router.POST("/ui/accounts", bindUI(uiService.CreateAccount))
 	router.PUT("/ui/accounts/:id", bindUI(uiService.UpdateAccount))
@@ -19,9 +25,7 @@ func Register(
 	router.GET("/ui/virtual-accounts", bindUI(uiService.ListVirtualAccounts))
 	router.POST("/ui/virtual-accounts", bindUI(uiService.CreateVirtualAccount))
 	router.GET("/ui/cardholders", bindUI(uiService.ListCardHolders))
-	router.POST("/ui/cardholders", bindUI(uiService.CreateCardHolder))
 	router.GET("/ui/cards", bindUI(uiService.ListCards))
-	router.POST("/ui/cards", bindUI(uiService.CreateCard))
 	router.PUT("/ui/cards/:id/status", bindUI(uiService.UpdateCardStatus))
 	router.POST("/ui/cards/:id/fund", bindUI(uiService.FundCard))
 	router.POST("/ui/simulate/authorizations", bindUI(uiService.SimulateAuthorization))
@@ -35,7 +39,6 @@ func Register(
 	router.GET("/ui/webhook-records", bindUI(uiService.ListWebhookRecords))
 	router.POST("/ui/webhook-records/:id/replay", bindUI(uiService.ReplayWebhookRecord))
 	router.GET("/ui/transactions", bindUI(uiService.ListTransactions))
-	router.POST("/ui/transactions/:id/clear", bindUI(uiService.ClearTransaction))
 	router.POST("/ui/transactions/:id/reverse", bindUI(uiService.ReverseTransaction))
 	router.POST("/ui/transactions/:id/refund", bindUI(uiService.RefundTransaction))
 

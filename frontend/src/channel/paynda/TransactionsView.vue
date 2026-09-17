@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { h, onMounted, ref } from "vue";
-import { createDiscreteApi, NButton, NCard, NDataTable, NSpace, NTag, } from "naive-ui";
+import { createDiscreteApi, NButton, NCard, NDataTable, NSpace, NTag } from "naive-ui";
 import { api } from "./api";
 import type { Transaction } from "@/channel/types";
 
@@ -24,28 +24,27 @@ function actions(r: Transaction) {
   if (r.transaction_type === "auth" && r.status === "authorized")
     return [
       h(
-          NButton,
-          { size: "small", onClick: () => apply(r.id, "clear") },
-          { default: () => "清算" },
-      ),
-      h(
-          NButton,
-          { size: "small", onClick: () => apply(r.id, "reverse") },
-          { default: () => "撤销" },
+        NButton,
+        { size: "small", onClick: () => apply(r.id, "reverse") },
+        { default: () => "撤销" },
       ),
     ];
   if (r.transaction_type === "clear" && r.status === "succeed")
     return [
       h(
-          NButton,
-          { size: "small", onClick: () => apply(r.id, "refund") },
-          { default: () => "退款" },
+        NButton,
+        { size: "small", onClick: () => apply(r.id, "refund") },
+        { default: () => "退款" },
       ),
     ];
   return [h(NTag, { size: "small" }, { default: () => "已处理" })];
 }
 
 const columns = [
+  {
+    title: "账户名称",
+    key: "account_name",
+  },
   {
     title: "金额",
     key: "amount",
@@ -66,11 +65,11 @@ onMounted(() => void load());
   <div class="page-heading">
     <div>
       <h1>交易处理</h1>
-      <p>Paynda 清算和退款</p>
+      <p>查看交易并执行撤销或退款；清算请到授权管理。</p>
     </div>
     <n-button @click="load">刷新</n-button>
   </div>
   <n-card :bordered="false">
-    <n-data-table :columns="columns" :data="rows"/>
+    <n-data-table :columns="columns" :data="rows" />
   </n-card>
 </template>

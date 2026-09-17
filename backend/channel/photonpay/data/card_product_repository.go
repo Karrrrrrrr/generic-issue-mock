@@ -34,36 +34,12 @@ func (r *cardProductRepository) ExistByPrefix(ctx context.Context, prefix string
 func (r *cardProductRepository) FindByPrefixForUpdate(ctx context.Context, prefix string) (*model.CardProduct, error) {
 	db := r.repository.DB(ctx)
 
-	return db.CardProduct.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).Where(
+	return db.CardProduct.WithContext(ctx).Clauses(clause.Locking{
+		Strength: "UPDATE",
+		Table:    clause.Table{Name: clause.CurrentTable},
+	}).Where(
 		db.CardProduct.Channel.Eq(string(enums.Channel_PhotonPay)),
 		db.CardProduct.Prefix.Eq(prefix),
-	).Order(db.CardProduct.ID.Desc()).First()
-}
-
-func (r *cardProductRepository) ExistByPrefixForAccount(
-	ctx context.Context,
-	req *biz.CardProductResourceRequest,
-) (bool, error) {
-	db := r.repository.DB(ctx)
-	count, err := db.CardProduct.WithContext(ctx).Where(
-		db.CardProduct.AccountID.Eq(req.AccountID),
-		db.CardProduct.Channel.Eq(string(enums.Channel_PhotonPay)),
-		db.CardProduct.Prefix.Eq(req.Prefix),
-	).Count()
-
-	return count > 0, err
-}
-
-func (r *cardProductRepository) FindByPrefixForAccountForUpdate(
-	ctx context.Context,
-	req *biz.CardProductResourceRequest,
-) (*model.CardProduct, error) {
-	db := r.repository.DB(ctx)
-
-	return db.CardProduct.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).Where(
-		db.CardProduct.AccountID.Eq(req.AccountID),
-		db.CardProduct.Channel.Eq(string(enums.Channel_PhotonPay)),
-		db.CardProduct.Prefix.Eq(req.Prefix),
 	).Order(db.CardProduct.ID.Desc()).First()
 }
 
@@ -71,14 +47,6 @@ func (r *cardProductRepository) List(ctx context.Context) ([]*model.CardProduct,
 	db := r.repository.DB(ctx)
 
 	return db.CardProduct.WithContext(ctx).Where(
-		db.CardProduct.Channel.Eq(string(enums.Channel_PhotonPay)),
-	).Order(db.CardProduct.ID.Desc()).Find()
-}
-
-func (r *cardProductRepository) ListByAccountID(ctx context.Context, accountID model.ID) ([]*model.CardProduct, error) {
-	db := r.repository.DB(ctx)
-	return db.CardProduct.WithContext(ctx).Where(
-		db.CardProduct.AccountID.Eq(accountID),
 		db.CardProduct.Channel.Eq(string(enums.Channel_PhotonPay)),
 	).Order(db.CardProduct.ID.Desc()).Find()
 }

@@ -34,15 +34,22 @@ func (r *accountRepository) Find(ctx context.Context, id model.ID) (*model.Accou
 	return db.Account.WithContext(ctx).Where(db.Account.ID.Eq(id), db.Account.Channel.Eq(string(enums.Channel_PhotonPay))).First()
 }
 
-func (r *accountRepository) Count(ctx context.Context) (int64, error) {
+func (r *accountRepository) Count(ctx context.Context, req *biz.AccountCountRequest) (int64, error) {
 	db := r.repository.DB(ctx)
-	return db.Account.WithContext(ctx).Where(db.Account.Channel.Eq(string(enums.Channel_PhotonPay))).Count()
+	query := db.Account.WithContext(ctx).Where(db.Account.Channel.Eq(string(enums.Channel_PhotonPay)))
+	if len(req.IDs) != 0 {
+		query = query.Where(db.Account.ID.In(req.IDs...))
+	}
+	return query.Count()
 }
 
-func (r *accountRepository) List(ctx context.Context, req *biz.ListRequest) ([]*model.Account, error) {
+func (r *accountRepository) List(ctx context.Context, req *biz.AccountListRequest) ([]*model.Account, error) {
 	db := r.repository.DB(ctx)
-	return db.Account.WithContext(ctx).
-		Where(db.Account.Channel.Eq(string(enums.Channel_PhotonPay))).
+	query := db.Account.WithContext(ctx).Where(db.Account.Channel.Eq(string(enums.Channel_PhotonPay)))
+	if len(req.IDs) != 0 {
+		query = query.Where(db.Account.ID.In(req.IDs...))
+	}
+	return query.
 		Preload(db.Account.Wallet).
 		Order(db.Account.ID.Desc()).
 		Offset(req.Offset).

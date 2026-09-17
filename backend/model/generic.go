@@ -18,12 +18,13 @@ type BaseModel struct {
 }
 
 type Card struct {
+	Account *Account `gorm:"foreignKey:AccountID,Channel;references:ID,Channel;->"`
 	BaseModel
-	Channel                enums.Channel         `gorm:"column:channel;type:varchar;not null;default:''"`
-	AccountID              ID                    `gorm:"column:account_id;type:bigint;not null;default:0"`
+	Channel                enums.Channel         `gorm:"column:channel;type:varchar;not null;default:'';uniqueIndex:idx_cards_scope_number;uniqueIndex:idx_cards_scope_request;uniqueIndex:idx_cards_scope_operation"`
+	AccountID              ID                    `gorm:"column:account_id;type:bigint;not null;default:0;uniqueIndex:idx_cards_scope_number;uniqueIndex:idx_cards_scope_request;uniqueIndex:idx_cards_scope_operation"`
 	CardProductID          ID                    `gorm:"column:card_product_id;type:bigint;not null;default:0"`
 	CardBin                string                `gorm:"column:card_bin;type:varchar;not null;default:''"`
-	CardNumber             string                `gorm:"column:card_number;type:varchar;not null;default:'';uniqueIndex"`
+	CardNumber             string                `gorm:"column:card_number;type:varchar;not null;default:'';uniqueIndex:idx_cards_scope_number"`
 	Cvv                    string                `gorm:"column:cvv;type:varchar;not null;default:''"`
 	ExpireAt               time.Time             `gorm:"column:expire_at;type:timestamptz;not null"`
 	Status                 enums.CardStatus      `gorm:"column:status;type:varchar;not null;default:''"`
@@ -31,8 +32,8 @@ type Card struct {
 	WalletID               ID                    `gorm:"column:wallet_id;type:bigint;not null;default:0"`      // 虚拟账户卡指向虚拟账户的钱包 ID，减少一次查询。
 	CardHolderID           ID                    `gorm:"column:card_holder_id;type:bigint;not null;default:0"` // 持卡人 ID，允许为空。
 	FormType               enums.CardFormType    `gorm:"column:form_type;type:varchar;not null;default:''"`
-	RequestID              string                `gorm:"column:request_id;type:varchar;not null;default:'';uniqueIndex"`
-	LastOperationRequestID string                `gorm:"column:last_operation_request_id;type:varchar;not null;default:'';uniqueIndex"`
+	RequestID              string                `gorm:"column:request_id;type:varchar;not null;default:'';uniqueIndex:idx_cards_scope_request,where:request_id <> ''"`
+	LastOperationRequestID string                `gorm:"column:last_operation_request_id;type:varchar;not null;default:'';uniqueIndex:idx_cards_scope_operation,where:last_operation_request_id <> ''"`
 	LastOperationType      enums.OperationType   `gorm:"column:last_operation_type;type:varchar;not null;default:''"`
 	LastOperationStatus    enums.OperationStatus `gorm:"column:last_operation_status;type:varchar;not null;default:''"`
 	CardCurrency           enums.Currency        `gorm:"column:card_currency;type:varchar;not null;default:''"`
@@ -52,9 +53,8 @@ type Card struct {
 
 type CardProduct struct {
 	BaseModel
-	AccountID      ID            `gorm:"column:account_id;type:bigint;not null;default:0;uniqueIndex:idx_card_products_account_channel_prefix"`
-	Channel        enums.Channel `gorm:"column:channel;type:varchar;not null;default:'';uniqueIndex:idx_card_products_account_channel_prefix"`
-	Prefix         string        `gorm:"column:prefix;type:varchar;not null;default:'';uniqueIndex:idx_card_products_account_channel_prefix"`
+	Channel        enums.Channel `gorm:"column:channel;type:varchar;not null;default:'';uniqueIndex:idx_card_products_channel_prefix"`
+	Prefix         string        `gorm:"column:prefix;type:varchar;not null;default:'';uniqueIndex:idx_card_products_channel_prefix"`
 	NextCardNumber int64         `gorm:"column:next_card_number;type:bigint;not null;default:0"`
 	IsDefault      bool          `gorm:"column:is_default;type:boolean;not null;default:false"`
 
@@ -76,6 +76,7 @@ type PhysicalCard struct {
 }
 
 type Wallet struct {
+	Account *Account `gorm:"foreignKey:AccountID,Channel;references:ID,Channel;->"`
 	BaseModel
 	AccountID  ID               `gorm:"column:account_id;type:bigint;not null;default:0"`
 	Channel    enums.Channel    `gorm:"column:channel;type:varchar;not null;default:''"`
@@ -89,6 +90,7 @@ type Wallet struct {
 }
 
 type VirtualAccount struct {
+	Account *Account `gorm:"foreignKey:AccountID,Channel;references:ID,Channel;->"`
 	BaseModel
 	AccountID ID            `gorm:"column:account_id;type:bigint;not null;default:0"`
 	Channel   enums.Channel `gorm:"column:channel;type:varchar;not null;default:''"`
@@ -106,6 +108,7 @@ type Account struct {
 }
 
 type CardTransaction struct {
+	Account *Account `gorm:"foreignKey:AccountID,Channel;references:ID,Channel;->"`
 	BaseModel
 	AccountID               ID                          `gorm:"column:account_id;type:bigint;not null;default:0"`
 	Channel                 enums.Channel               `gorm:"column:channel;type:varchar;not null;default:''"`
@@ -130,6 +133,7 @@ type CardTransaction struct {
 }
 
 type Authorization struct {
+	Account *Account `gorm:"foreignKey:AccountID,Channel;references:ID,Channel;->"`
 	BaseModel
 	AccountID ID            `gorm:"column:account_id;type:bigint;not null;default:0"`
 	Channel   enums.Channel `gorm:"column:channel;type:varchar;not null;default:''"`
@@ -149,6 +153,7 @@ type Authorization struct {
 }
 
 type CardHolder struct {
+	Account *Account `gorm:"foreignKey:AccountID,Channel;references:ID,Channel;->"`
 	BaseModel
 	AccountID              ID                           `gorm:"column:account_id;type:bigint;not null;default:0"`
 	Channel                enums.Channel                `gorm:"column:channel;type:varchar;not null;default:''"`
@@ -175,6 +180,7 @@ type CardHolder struct {
 }
 
 type WebhookConfig struct {
+	Account *Account `gorm:"foreignKey:AccountID,Channel;references:ID,Channel;->"`
 	BaseModel
 	Channel   enums.Channel `gorm:"column:channel;type:varchar;not null;default:''"`
 	AccountID ID            `gorm:"column:account_id;type:bigint;not null;default:0"`
@@ -187,6 +193,7 @@ type WebhookConfig struct {
 // one channel account. It is intentionally separate from asynchronous event
 // webhook subscriptions.
 type AuthorizationConfig struct {
+	Account *Account `gorm:"foreignKey:AccountID,Channel;references:ID,Channel;->"`
 	BaseModel
 	AccountID     ID            `gorm:"column:account_id;type:bigint;not null;default:0;uniqueIndex:idx_authorization_configs_account_channel"`
 	Channel       enums.Channel `gorm:"column:channel;type:varchar;not null;default:'';uniqueIndex:idx_authorization_configs_account_channel"`
@@ -196,6 +203,7 @@ type AuthorizationConfig struct {
 }
 
 type WebhookRecord struct {
+	Account *Account `gorm:"foreignKey:AccountID,Channel;references:ID,Channel;->"`
 	BaseModel
 	WebhookConfigID ID                          `gorm:"column:webhook_config_id;type:bigint;not null;default:0"`
 	AccountID       ID                          `gorm:"column:account_id;type:bigint;not null;default:0"`

@@ -75,6 +75,17 @@ func migrate(db *gorm.DB) error {
 	if err := db.AutoMigrate(genericModels()...); err != nil {
 		return err
 	}
+	for _, index := range []string{
+		"idx_cards_card_number",
+		"idx_cards_request_id",
+		"idx_cards_last_operation_request_id",
+	} {
+		if db.Migrator().HasIndex(&model.Card{}, index) {
+			if err := db.Migrator().DropIndex(&model.Card{}, index); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

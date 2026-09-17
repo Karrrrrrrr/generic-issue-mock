@@ -1,24 +1,37 @@
-import type { Card, Cardholder, ChannelAPI, ListResponse, Transaction, } from "@/channel/types";
+import type { Card, Cardholder, ChannelAPI, ListResponse, Transaction } from "@/channel/types";
 import { authorizationPayload, request } from "@/channel/shared";
 
 const baseURL = "/photonpay/ui";
 
 export interface Account {
   id: string;
+  wallet_id: string;
   name: string;
   balance: string;
   created_at: string;
 }
 
 export const accountApi = {
+  async listAll(): Promise<Account[]> {
+    const accounts: Account[] = [];
+    let page = 1;
+    while (true) {
+      const result = await this.list(page, 100);
+      accounts.push(...result.data);
+      if (accounts.length >= result.total_items || result.data.length === 0) {
+        return accounts;
+      }
+      page += 1;
+    }
+  },
   async list(pageNumber = 1, pageSize = 20) {
     return (
-        await request.get<ListResponse<Account>>(`${baseURL}/accounts`, {
-          params: {
-            page_number: pageNumber,
-            page_size: pageSize,
-          },
-        })
+      await request.get<ListResponse<Account>>(`${baseURL}/accounts`, {
+        params: {
+          page_number: pageNumber,
+          page_size: pageSize,
+        },
+      })
     ).data;
   },
   async create(payload: Pick<Account, "name">) {
@@ -29,13 +42,10 @@ export const accountApi = {
   },
 };
 
-export async function fundCard(id: string, amount: number) {
-  return (await request.post<Card>(`${baseURL}/cards/${id}/fund`, { amount })).data;
-}
-
 export interface Webhook {
   id: string;
   account_id: string;
+  account_name: string;
   event: string;
   target_url: string;
   enabled: boolean;
@@ -46,6 +56,7 @@ export interface Webhook {
 export interface WebhookRecord {
   id: string;
   account_id: string;
+  account_name: string;
   event: string;
   target_url: string;
   source_id: string;
@@ -74,7 +85,7 @@ export const webhookApi = {
   async listEvents() {
     return (await request.get<string[]>(`${baseURL}/webhooks/events`)).data;
   },
-  async create(payload: Omit<Webhook, "id" | "created_at" | "updated_at">) {
+  async create(payload: Omit<Webhook, "id" | "created_at" | "updated_at" | "account_name">) {
     return (await request.post<Webhook>(`${baseURL}/webhooks`, payload)).data;
   },
   async update(id: string, payload: Pick<Webhook, "target_url" | "enabled">) {
@@ -88,12 +99,12 @@ export const webhookApi = {
 export const webhookRecordApi = {
   async list(pageNumber = 1, pageSize = 20) {
     return (
-        await request.get<ListResponse<WebhookRecord>>(`${baseURL}/webhook-records`, {
-          params: {
-            page_number: pageNumber,
-            page_size: pageSize,
-          },
-        })
+      await request.get<ListResponse<WebhookRecord>>(`${baseURL}/webhook-records`, {
+        params: {
+          page_number: pageNumber,
+          page_size: pageSize,
+        },
+      })
     ).data;
   },
   async replay(id: string) {
@@ -103,6 +114,7 @@ export const webhookRecordApi = {
 
 export const refundApi = {
   async simulate(payload: {
+    authorization_id?: string;
     card_id: string;
     amount: number;
     currency: string;
@@ -117,51 +129,74 @@ export const refundApi = {
 
 export const api: ChannelAPI = {
   async listCardholders() {
-    return (
-        await request.get<ListResponse<Cardholder>>(`${baseURL}/cardholders`)
-    ).data;
-  },
-  async createCardholder(payload) {
-    return (
-        await request.post<Cardholder>(`${baseURL}/cardholders`, {
-          first_name: payload.firstName,
-          last_name: payload.lastName,
-          email: payload.email,
-          phone_number: payload.mobile,
-        })
-    ).data;
+    return (await request.get<ListResponse<Cardholder>>(`${baseURL}/cardholders`)).data;
   },
   async listCards() {
     return (await request.get<ListResponse<Card>>(`${baseURL}/cards`)).data;
   },
-  async createCard(cardholderID, currency) {
-    return (
-        await request.post<Card>(`${baseURL}/cards`, {
-          cardholder_id: cardholderID,
-          card_currency: currency,
-          request_id: crypto.randomUUID(),
-        })
-    ).data;
-  },
   async updateCardStatus(id, status) {
     return (
-        await request.put<Card>(`${baseURL}/cards/${id}/status`, {
-          card_status: status,
-        })
+      await request.put<Card>(`${baseURL}/cards/${id}/status`, {
+        card_status: status,
+      })
     ).data;
   },
   async listTransactions() {
-    return (
-        await request.get<ListResponse<Transaction>>(`${baseURL}/transactions`)
-    ).data;
+    return (await request.get<ListResponse<Transaction>>(`${baseURL}/transactions`)).data;
   },
   async simulateAuthorization(payload) {
-    await request.post(
-        `${baseURL}/simulate/authorizations`,
-        authorizationPayload(payload),
-    );
+    await request.post(`${baseURL}/simulate/authorizations`, authorizationPayload(payload));
   },
   async applyTransactionStep(id, action, amount) {
     await request.post(`${baseURL}/transactions/${id}/${action}`, { amount });
+  },
+};
+
+export interface Wallet {
+  id: string;
+  account_id: string;
+  account_name: string;
+  kind: "account" | "virtual_account" | "card";
+  currency: string;
+  amount: string;
+}
+
+export const fundsApi = {
+  async list(accountID?: string) {
+    return (
+      await request.get<Wallet[]>(baseURL + "/funds", {
+        params: {
+          account_id: accountID,
+        },
+      })
+    ).data;
+  },
+
+  async adjustAccount(account: Account, amount: number) {
+    await request.post(baseURL + "/funds/transfer", {
+      account_id: account.id,
+      source_id: amount < 0 ? account.wallet_id : "",
+      target_id: amount > 0 ? account.wallet_id : "",
+      amount: String(Math.abs(amount)),
+    });
+  },
+
+  async transferResource(input: {
+    accountID: string;
+    walletID: string;
+    amount: number;
+    withdraw: boolean;
+  }) {
+    const wallets = await this.list(input.accountID);
+    const accountWallet = wallets.find((wallet) => wallet.kind === "account");
+    if (!accountWallet) {
+      throw new Error("关联账户钱包不存在");
+    }
+    await request.post(baseURL + "/funds/transfer", {
+      account_id: input.accountID,
+      source_id: input.withdraw ? input.walletID : accountWallet.id,
+      target_id: input.withdraw ? accountWallet.id : input.walletID,
+      amount: String(input.amount),
+    });
   },
 };

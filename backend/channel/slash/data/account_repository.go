@@ -43,22 +43,29 @@ func (r *accountRepository) Find(ctx context.Context, id model.ID) (*model.Accou
 	).First()
 }
 
-func (r *accountRepository) Count(ctx context.Context) (int64, error) {
+func (r *accountRepository) Count(ctx context.Context, req *biz.AccountCountRequest) (int64, error) {
 	db := r.repository.DB(ctx)
-
-	return db.Account.WithContext(ctx).Where(
+	query := db.Account.WithContext(ctx).Where(
 		db.Account.Channel.Eq(string(enums.Channel_Slash)),
-	).Count()
+	)
+	if len(req.IDs) != 0 {
+		query = query.Where(db.Account.ID.In(req.IDs...))
+	}
+	return query.Count()
 }
 
 func (r *accountRepository) List(
 	ctx context.Context,
-	req *biz.ListAccountsRequest,
+	req *biz.AccountListRequest,
 ) ([]*model.Account, error) {
 	db := r.repository.DB(ctx)
 
-	return db.Account.WithContext(ctx).
-		Where(db.Account.Channel.Eq(string(enums.Channel_Slash))).
+	query := db.Account.WithContext(ctx).
+		Where(db.Account.Channel.Eq(string(enums.Channel_Slash)))
+	if len(req.IDs) != 0 {
+		query = query.Where(db.Account.ID.In(req.IDs...))
+	}
+	return query.
 		Preload(db.Account.Wallet).
 		Order(db.Account.ID.Desc()).
 		Offset(req.Offset).

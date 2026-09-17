@@ -37,8 +37,8 @@ func (s *SlashOpenAPIService) accountID(req *OpenAPIAccountRequest) (model.ID, e
 
 type OpenAPIListRequest struct {
 	OpenAPIAccountRequest
-	PageNumber int `form:"page_number"`
-	PageSize   int `form:"page_size"`
+	PageNumber *int `form:"page_number" binding:"omitempty,min=1"`
+	PageSize   *int `form:"page_size" binding:"omitempty,min=1"`
 }
 
 type OpenAPIMetadata struct {
@@ -151,8 +151,8 @@ type OpenAPICard struct {
 
 type OpenAPIListCardsRequest struct {
 	OpenAPIListRequest
-	FilterStatus slash.CardStatus `form:"filter:status"`
-	Cursor       string           `form:"cursor"` // Invalid: cursor pagination is unsupported.
+	FilterStatus *slash.CardStatus `form:"filter:status" binding:"omitempty,oneof=active paused inactive closed"`
+	Cursor       string            `form:"cursor"` // Invalid: cursor pagination is unsupported.
 }
 
 type OpenAPIListCardsData struct {
@@ -165,12 +165,12 @@ func (s *SlashOpenAPIService) ListCards(ctx context.Context, req *OpenAPIListCar
 	if err != nil {
 		return nil, err
 	}
-	offset, limit := openAPIPagination(req.PageNumber, req.PageSize)
+	offset, limit := openAPIPagination(types.Value(req.PageNumber), types.Value(req.PageSize))
 	items, err := s.usecase.ListCards(ctx, &biz.OpenAPIListCardsRequest{
 		AccountID: accountID,
 		Offset:    offset,
 		Limit:     limit,
-		Status:    slash.CardStatusToGeneric(req.FilterStatus),
+		Status:    types.ConvertPointer(req.FilterStatus, slash.CardStatusToGeneric),
 	})
 	if err != nil {
 		return nil, err
@@ -297,7 +297,7 @@ type OpenAPICardProduct struct {
 }
 
 type OpenAPIListCardProductsRequest struct {
-	OpenAPIAccountRequest
+	APIKey string `header:"X-API-Key"` // Invalid: products are channel-level; no account selection or token validation.
 }
 
 type OpenAPIListCardProductsData struct {
@@ -305,11 +305,7 @@ type OpenAPIListCardProductsData struct {
 }
 
 func (s *SlashOpenAPIService) ListCardProducts(ctx context.Context, req *OpenAPIListCardProductsRequest) (*OpenAPIListCardProductsData, error) {
-	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
-	if err != nil {
-		return nil, err
-	}
-	items, err := s.usecase.ListCardProducts(ctx, accountID)
+	items, err := s.usecase.ListCardProducts(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -342,9 +338,9 @@ type OpenAPITransaction struct {
 
 type OpenAPIListTransactionsRequest struct {
 	OpenAPIListRequest
-	FilterCardID    string `form:"filter:cardId"`
-	Cursor          string `form:"cursor"` // Invalid: cursor pagination is unsupported.
-	AuthorizationID string `form:"filter:providerAuthorizationId"`
+	FilterCardID    *string `form:"filter:cardId"`
+	Cursor          string  `form:"cursor"` // Invalid: cursor pagination is unsupported.
+	AuthorizationID *string `form:"filter:providerAuthorizationId"`
 }
 
 type OpenAPIListTransactionsData struct {
@@ -357,7 +353,7 @@ func (s *SlashOpenAPIService) ListTransactions(ctx context.Context, req *OpenAPI
 	if err != nil {
 		return nil, err
 	}
-	offset, limit := openAPIPagination(req.PageNumber, req.PageSize)
+	offset, limit := openAPIPagination(types.Value(req.PageNumber), types.Value(req.PageSize))
 	cardID, err := slashOptionalID(req.FilterCardID)
 	if err != nil {
 		return nil, err

@@ -203,8 +203,8 @@ func (s *PhotonPayOpenAPIService) EditCardHolder(ctx context.Context, req *EditC
 
 type ListCardHolderRequest struct {
 	OpenAPIAccountRequest
-	PageIndex int `form:"pageIndex"`
-	PageSize  int `form:"pageSize"`
+	PageIndex *int `form:"pageIndex" binding:"omitempty,min=1"`
+	PageSize  *int `form:"pageSize" binding:"omitempty,min=1"`
 }
 type CardHolderListItem struct {
 	CardholderID           string                        `json:"cardholderId"`
@@ -223,9 +223,9 @@ func (s *PhotonPayOpenAPIService) ListCardHolders(ctx context.Context, req *List
 	if err != nil {
 		return nil, err
 	}
-	page, size := types.NormalizePagination(req.PageIndex, req.PageSize)
+	page, size := types.NormalizePagination(types.Value(req.PageIndex), types.Value(req.PageSize))
 	holders, err := s.usecase.ListCardHolders(ctx, &biz.ListRequest{
-		AccountID: accountID,
+		AccountID: &accountID,
 		Offset:    (page - 1) * size,
 		Limit:     size,
 	})
@@ -250,7 +250,7 @@ func (s *PhotonPayOpenAPIService) ListCardHolders(ctx context.Context, req *List
 }
 
 type CardBinRequest struct {
-	OpenAPIAccountRequest
+	Token          string                 `header:"X-PD-TOKEN"` // Invalid: products are channel-level; no account selection or token validation.
 	CardType       *photon.CardType       `form:"cardType"`
 	CardFormFactor *photon.CardFormFactor `form:"cardFormFactor"`
 	CardCurrency   *common.Currency       `form:"cardCurrency"`
@@ -265,11 +265,7 @@ type CardBinData struct {
 }
 
 func (s *PhotonPayOpenAPIService) CardBins(ctx context.Context, req *CardBinRequest) (*[]CardBinData, error) {
-	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
-	if err != nil {
-		return nil, err
-	}
-	products, err := s.usecase.ListCardProducts(ctx, accountID)
+	products, err := s.usecase.ListCardProducts(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -408,8 +404,8 @@ func (s *PhotonPayOpenAPIService) CardCVV(ctx context.Context, req *CardIDReques
 
 type ListCardsRequest struct {
 	OpenAPIAccountRequest
-	PageIndex  int                `form:"pageIndex"`
-	PageSize   int                `form:"pageSize"`
+	PageIndex  *int               `form:"pageIndex" binding:"omitempty,min=1"`
+	PageSize   *int               `form:"pageSize" binding:"omitempty,min=1"`
 	CardBin    *string            `form:"cardBin"`    // Invalid: card BIN filtering is unsupported.
 	CardType   *photon.CardType   `form:"cardType"`   // Invalid: card type filtering is unsupported.
 	CardStatus *photon.CardStatus `form:"cardStatus"` // Invalid: card status filtering is unsupported.
@@ -420,9 +416,9 @@ func (s *PhotonPayOpenAPIService) ListCards(ctx context.Context, req *ListCardsR
 	if err != nil {
 		return nil, err
 	}
-	page, size := types.NormalizePagination(req.PageIndex, req.PageSize)
+	page, size := types.NormalizePagination(types.Value(req.PageIndex), types.Value(req.PageSize))
 	cards, err := s.usecase.ListCards(ctx, &biz.ListRequest{
-		AccountID: accountID,
+		AccountID: &accountID,
 		Offset:    (page - 1) * size,
 		Limit:     size,
 	})
@@ -557,8 +553,8 @@ func (s *PhotonPayOpenAPIService) CancelCard(ctx context.Context, req *CancelCar
 
 type ListTradeRequest struct {
 	OpenAPIAccountRequest
-	PageIndex int `form:"pageIndex"`
-	PageSize  int `form:"pageSize"`
+	PageIndex *int `form:"pageIndex" binding:"omitempty,min=1"`
+	PageSize  *int `form:"pageSize" binding:"omitempty,min=1"`
 }
 type TradeData struct {
 	TransactionID       string                   `json:"transactionId"`
@@ -575,9 +571,9 @@ func (s *PhotonPayOpenAPIService) ListTrades(ctx context.Context, req *ListTrade
 	if err != nil {
 		return nil, err
 	}
-	page, size := types.NormalizePagination(req.PageIndex, req.PageSize)
+	page, size := types.NormalizePagination(types.Value(req.PageIndex), types.Value(req.PageSize))
 	transactions, err := s.usecase.ListTransactions(ctx, &biz.ListRequest{
-		AccountID: accountID,
+		AccountID: &accountID,
 		Offset:    (page - 1) * size,
 		Limit:     size,
 	})

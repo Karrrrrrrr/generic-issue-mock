@@ -46,10 +46,12 @@ func (r *authorizationConfigRepository) FindByAccountID(
 	accountID model.ID,
 ) (*model.AuthorizationConfig, error) {
 	db := r.repository.DB(ctx)
-	return db.AuthorizationConfig.WithContext(ctx).Where(
-		db.AuthorizationConfig.AccountID.Eq(accountID),
-		db.AuthorizationConfig.Channel.Eq(string(enums.Channel_PhotonPay)),
-	).First()
+	return db.AuthorizationConfig.WithContext(ctx).
+		Preload(db.AuthorizationConfig.Account).
+		Where(
+			db.AuthorizationConfig.AccountID.Eq(accountID),
+			db.AuthorizationConfig.Channel.Eq(string(enums.Channel_PhotonPay)),
+		).First()
 }
 
 func (r *authorizationConfigRepository) Save(

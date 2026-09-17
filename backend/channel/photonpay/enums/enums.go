@@ -285,3 +285,11 @@ func TransactionTypeFromGeneric(value generic.CardTransactionType) TransactionTy
 		return TransactionType_Auth
 	}
 }
+
+type WalletKind string
+
+const (
+	WalletKindAccount        WalletKind = "account"
+	WalletKindVirtualAccount WalletKind = "virtual_account"
+	WalletKindCard           WalletKind = "card"
+)

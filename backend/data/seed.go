@@ -31,19 +31,16 @@ func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 	}
 	items := []*model.CardProduct{
 		{
-			AccountID: accounts[enums.Channel_Slash].ID,
 			Channel:   enums.Channel_Slash,
 			Prefix:    slashDefaultCardProductPrefix,
 			IsDefault: true,
 		},
 		{
-			AccountID: accounts[enums.Channel_PhotonPay].ID,
 			Channel:   enums.Channel_PhotonPay,
 			Prefix:    photon.DefaultCardBin,
 			IsDefault: true,
 		},
 		{
-			AccountID: accounts[enums.Channel_Paynda].ID,
 			Channel:   enums.Channel_Paynda,
 			Prefix:    payndaDefaultCardProductPrefix,
 			IsDefault: true,
@@ -306,9 +303,8 @@ func seedChannelCards(
 		product := products[index]
 		var persistedProduct model.CardProduct
 		if err := db.WithContext(ctx).Where(&model.CardProduct{
-			AccountID: account.ID,
-			Channel:   product.Channel,
-			Prefix:    product.Prefix,
+			Channel: product.Channel,
+			Prefix:  product.Prefix,
 		}).First(&persistedProduct).Error; err != nil {
 			return err
 		}

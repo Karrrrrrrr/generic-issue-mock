@@ -35,6 +35,7 @@ const form = ref({
   merchantCity: "Seattle",
 });
 const refundForm = ref({
+  authorization_id: "",
   card_id: "",
   amount: 100,
   currency: "USD",
@@ -44,11 +45,11 @@ const refundForm = ref({
   merchant_city: "Seattle",
 });
 const options = computed(() =>
-    cards.value.map((card) => ({
-          label: `${card.card_number}  ${card.card_currency}`,
-          value: card.id,
-          disabled: card.card_status !== "active",
-        })),
+  cards.value.map((card) => ({
+    label: `${card.account_name || "账户不存在"} · ${card.card_number}  ${card.card_currency}`,
+    value: card.id,
+    disabled: card.card_status !== "active",
+  })),
 );
 
 async function loadCards() {
@@ -57,18 +58,16 @@ async function loadCards() {
     form.value.cardID = options.value[0]?.value ?? "";
   }
   if (!refundForm.value.card_id) {
-    refundForm.value.card_id = cards.value.find(
-        (card) => card.card_status === "active",
-    )?.id ?? "";
+    refundForm.value.card_id = cards.value.find((card) => card.card_status === "active")?.id ?? "";
   }
 }
 
 async function submit() {
   if (
-      !form.value.cardID ||
-      !form.value.merchantName ||
-      !form.value.merchantMCC ||
-      form.value.amount <= 0
+    !form.value.cardID ||
+    !form.value.merchantName ||
+    !form.value.merchantMCC ||
+    form.value.amount <= 0
   ) {
     message.warning("请选择卡，并填写正数金额、商户名称和 MCC");
     return;
@@ -88,11 +87,11 @@ async function submit() {
 
 async function submitRefund() {
   if (
-      !refundForm.value.card_id ||
-      !refundForm.value.merchant_name ||
-      !refundForm.value.merchant_category_code ||
-      !refundForm.value.merchant_country ||
-      refundForm.value.amount <= 0
+    !refundForm.value.card_id ||
+    !refundForm.value.merchant_name ||
+    !refundForm.value.merchant_category_code ||
+    !refundForm.value.merchant_country ||
+    refundForm.value.amount <= 0
   ) {
     message.warning("请选择卡，并填写正数金额、商户名称、MCC 和国家");
     return;
@@ -100,7 +99,10 @@ async function submitRefund() {
   refundLoading.value = true;
   refundResult.value = "";
   try {
-    const refund = await refundApi.simulate(refundForm.value);
+    const refund = await refundApi.simulate({
+      ...refundForm.value,
+      authorization_id: refundForm.value.authorization_id || undefined,
+    });
     refundResult.value = `退款交易已创建：${refund.id}`;
     emit("completed");
   } catch (error) {
@@ -129,49 +131,48 @@ onMounted(() => {
               <div class="form-grid">
                 <n-form-item class="form-wide" label="卡" required>
                   <n-select
-                      v-model:value="form.cardID"
-                      :options="options"
-                      filterable
-                      placeholder="选择卡"
+                    v-model:value="form.cardID"
+                    :options="options"
+                    filterable
+                    placeholder="选择卡"
                   />
                 </n-form-item>
                 <n-form-item label="交易金额" required>
                   <n-input-number
-                      v-model:value="form.amount"
-                      :min="0.01"
-                      :precision="2"
-                      style="width: 100%"
+                    v-model:value="form.amount"
+                    :min="0.01"
+                    :precision="2"
+                    style="width: 100%"
                   />
                 </n-form-item>
                 <n-form-item label="币种">
                   <n-select
-                      v-model:value="form.currency"
-                      :options="[
-              { label: 'USD', value: 'USD' },
-              { label: 'GBP', value: 'GBP' },
-              { label: 'EUR', value: 'EUR' },
-            ]"
+                    v-model:value="form.currency"
+                    :options="[
+                      { label: 'USD', value: 'USD' },
+                      { label: 'GBP', value: 'GBP' },
+                      { label: 'EUR', value: 'EUR' },
+                    ]"
                   />
                 </n-form-item>
                 <n-form-item label="商户名称" required>
-                  <n-input
-                      v-model:value="form.merchantName"
-                      placeholder="例如 Amazon"
-                  />
+                  <n-input v-model:value="form.merchantName" placeholder="例如 Amazon" />
                 </n-form-item>
                 <n-form-item label="MCC" required>
-                  <n-input v-model:value="form.merchantMCC" placeholder="例如 5411"/>
+                  <n-input v-model:value="form.merchantMCC" placeholder="例如 5411" />
                 </n-form-item>
                 <n-form-item label="商户国家">
-                  <n-input v-model:value="form.merchantCountry"/>
+                  <n-input v-model:value="form.merchantCountry" />
                 </n-form-item>
                 <n-form-item label="地区">
-                  <n-input v-model:value="form.merchantCity" placeholder="例如 Seattle"/>
+                  <n-input v-model:value="form.merchantCity" placeholder="例如 Seattle" />
                 </n-form-item>
               </div>
               <n-button type="primary" block :loading="loading" @click="submit">模拟授权</n-button>
             </n-form>
-            <n-alert v-if="result" type="success" :show-icon="false" style="margin-top: 16px">{{ result }}</n-alert>
+            <n-alert v-if="result" type="success" :show-icon="false" style="margin-top: 16px">{{
+              result
+            }}</n-alert>
           </n-card>
         </n-tab-pane>
         <n-tab-pane name="refund" tab="模拟退款">
@@ -179,33 +180,56 @@ onMounted(() => {
             <n-form label-placement="top">
               <div class="form-grid">
                 <n-form-item class="form-wide" label="卡" required>
-                  <n-select v-model:value="refundForm.card_id" :options="options" filterable placeholder="选择卡"/>
+                  <n-select
+                    v-model:value="refundForm.card_id"
+                    :options="options"
+                    filterable
+                    placeholder="选择卡"
+                  />
+                </n-form-item>
+                <n-form-item label="关联授权 ID（可选，留空为独立退款）">
+                  <n-input v-model:value="refundForm.authorization_id" placeholder="不要求先清算" />
                 </n-form-item>
                 <n-form-item label="退款金额" required>
-                  <n-input-number v-model:value="refundForm.amount" :min="0.01" :precision="2" style="width: 100%"/>
+                  <n-input-number
+                    v-model:value="refundForm.amount"
+                    :min="0.01"
+                    :precision="2"
+                    style="width: 100%"
+                  />
                 </n-form-item>
                 <n-form-item label="币种">
-                  <n-select v-model:value="refundForm.currency"
-                            :options="[{ label: 'USD', value: 'USD' }, { label: 'EUR', value: 'EUR' }, { label: 'GBP', value: 'GBP' }]"/>
+                  <n-select
+                    v-model:value="refundForm.currency"
+                    :options="[
+                      { label: 'USD', value: 'USD' },
+                      { label: 'EUR', value: 'EUR' },
+                      { label: 'GBP', value: 'GBP' },
+                    ]"
+                  />
                 </n-form-item>
                 <n-form-item label="商户名称" required>
-                  <n-input v-model:value="refundForm.merchant_name" placeholder="例如 Amazon"/>
+                  <n-input v-model:value="refundForm.merchant_name" placeholder="例如 Amazon" />
                 </n-form-item>
                 <n-form-item label="MCC" required>
-                  <n-input v-model:value="refundForm.merchant_category_code" placeholder="例如 5411"/>
+                  <n-input
+                    v-model:value="refundForm.merchant_category_code"
+                    placeholder="例如 5411"
+                  />
                 </n-form-item>
                 <n-form-item label="商户国家" required>
-                  <n-input v-model:value="refundForm.merchant_country" placeholder="例如 US"/>
+                  <n-input v-model:value="refundForm.merchant_country" placeholder="例如 US" />
                 </n-form-item>
                 <n-form-item label="地区">
-                  <n-input v-model:value="refundForm.merchant_city" placeholder="例如 Seattle"/>
+                  <n-input v-model:value="refundForm.merchant_city" placeholder="例如 Seattle" />
                 </n-form-item>
               </div>
-              <n-button type="error" block :loading="refundLoading" @click="submitRefund">模拟退款</n-button>
+              <n-button type="error" block :loading="refundLoading" @click="submitRefund"
+                >模拟退款</n-button
+              >
             </n-form>
-            <n-alert v-if="refundResult" type="success" :show-icon="false" style="margin-top: 16px">{{
-                refundResult
-              }}
+            <n-alert v-if="refundResult" type="success" :show-icon="false" style="margin-top: 16px"
+              >{{ refundResult }}
             </n-alert>
           </n-card>
         </n-tab-pane>

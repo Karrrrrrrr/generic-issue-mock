@@ -7,6 +7,7 @@ import (
 	"generic-mock/enums"
 	"generic-mock/internal/query"
 	"generic-mock/model"
+	"generic-mock/pkg/types"
 
 	"github.com/samber/do"
 	"gorm.io/gen"
@@ -38,6 +39,7 @@ func (r *cardTransactionRepository) ExistByID(ctx context.Context, id model.ID) 
 func (r *cardTransactionRepository) FindByID(ctx context.Context, id model.ID) (*model.CardTransaction, error) {
 	db := r.repository.DB(ctx)
 	return db.CardTransaction.WithContext(ctx).
+		Preload(db.CardTransaction.Account).
 		Preload(db.CardTransaction.Authorization).
 		Where(
 			db.CardTransaction.ID.Eq(id),
@@ -45,16 +47,17 @@ func (r *cardTransactionRepository) FindByID(ctx context.Context, id model.ID) (
 		).First()
 }
 
-func (r *cardTransactionRepository) Count(ctx context.Context, req *biz.ListCardTransactionsRequest) (int64, error) {
+func (r *cardTransactionRepository) Count(ctx context.Context, req *biz.CardTransactionCountRequest) (int64, error) {
 	db := r.repository.DB(ctx)
 	return db.CardTransaction.WithContext(ctx).
-		Where(cardTransactionPredicates(db, req)...).
+		Where(cardTransactionPredicates(db, (*biz.CardTransactionListRequest)(req))...).
 		Count()
 }
 
-func (r *cardTransactionRepository) List(ctx context.Context, req *biz.ListCardTransactionsRequest) ([]*model.CardTransaction, error) {
+func (r *cardTransactionRepository) List(ctx context.Context, req *biz.CardTransactionListRequest) ([]*model.CardTransaction, error) {
 	db := r.repository.DB(ctx)
 	return db.CardTransaction.WithContext(ctx).
+		Preload(db.CardTransaction.Account).
 		Preload(db.CardTransaction.Authorization).
 		Where(cardTransactionPredicates(db, req)...).
 		Order(db.CardTransaction.ID.Desc()).
@@ -63,7 +66,7 @@ func (r *cardTransactionRepository) List(ctx context.Context, req *biz.ListCardT
 		Find()
 }
 
-func (r *cardTransactionRepository) ExistByAccountID(ctx context.Context, req *biz.ResourceRequest) (bool, error) {
+func (r *cardTransactionRepository) ExistByAccountID(ctx context.Context, req *biz.CardTransactionExistByAccountIDRequest) (bool, error) {
 	db := r.repository.DB(ctx)
 	count, err := db.CardTransaction.WithContext(ctx).Where(
 		db.CardTransaction.ID.Eq(req.ID),
@@ -73,9 +76,10 @@ func (r *cardTransactionRepository) ExistByAccountID(ctx context.Context, req *b
 	return count > 0, err
 }
 
-func (r *cardTransactionRepository) FindByAccountID(ctx context.Context, req *biz.ResourceRequest) (*model.CardTransaction, error) {
+func (r *cardTransactionRepository) FindByAccountID(ctx context.Context, req *biz.CardTransactionFindByAccountIDRequest) (*model.CardTransaction, error) {
 	db := r.repository.DB(ctx)
 	return db.CardTransaction.WithContext(ctx).
+		Preload(db.CardTransaction.Account).
 		Preload(db.CardTransaction.Authorization).
 		Where(
 			db.CardTransaction.ID.Eq(req.ID),
@@ -84,28 +88,43 @@ func (r *cardTransactionRepository) FindByAccountID(ctx context.Context, req *bi
 		).First()
 }
 
-func cardTransactionPredicates(db *query.Query, req *biz.ListCardTransactionsRequest) []gen.Condition {
+func cardTransactionPredicates(db *query.Query, req *biz.CardTransactionListRequest) []gen.Condition {
 	predicates := make([]gen.Condition, 0, 6)
 	predicates = append(predicates, db.CardTransaction.Channel.Eq(string(enums.Channel_Slash)))
-	if req.AccountID != 0 {
-		predicates = append(predicates, db.CardTransaction.AccountID.Eq(req.AccountID))
+	if len(req.AccountIDs) != 0 {
+		predicates = append(predicates, db.CardTransaction.AccountID.In(req.AccountIDs...))
 	}
-	if req.ID != 0 {
-		predicates = append(predicates, db.CardTransaction.ID.Eq(req.ID))
+	if len(req.IDs) != 0 {
+		predicates = append(predicates, db.CardTransaction.ID.In(req.IDs...))
 	}
-	if req.CardID != 0 {
-		predicates = append(predicates, db.CardTransaction.CardID.Eq(req.CardID))
+	if len(req.CardIDs) != 0 {
+		predicates = append(predicates, db.CardTransaction.CardID.In(req.CardIDs...))
 	}
-	if req.AuthorizationID != 0 {
-		predicates = append(predicates, db.CardTransaction.AuthorizationID.Eq(req.AuthorizationID))
+	if len(req.AuthorizationIDs) != 0 {
+		predicates = append(predicates, db.CardTransaction.AuthorizationID.In(req.AuthorizationIDs...))
 	}
-	if req.Type != "" {
-		predicates = append(predicates, db.CardTransaction.Type.Eq(string(req.Type)))
+	if len(req.Types) != 0 {
+		predicates = append(predicates, db.CardTransaction.Type.In(types.BulkConvertSlice(req.Types, func(value enums.CardTransactionType) string {
+			return string(value)
+		})...))
 	}
-	if req.Status != "" {
-		predicates = append(predicates, db.CardTransaction.Status.Eq(string(req.Status)))
+	if len(req.Statuses) != 0 {
+		predicates = append(predicates, db.CardTransaction.Status.In(types.BulkConvertSlice(req.Statuses, func(value enums.CardTransactionStatus) string {
+			return string(value)
+		})...))
 	}
 	return predicates
 }
 
 var _ biz.SlashCardTransactionRepository = (*cardTransactionRepository)(nil)
+
+func (r *cardTransactionRepository) ListStages(ctx context.Context, req *biz.ListAuthorizationStagesRequest) ([]*model.CardTransaction, error) {
+	db := r.repository.DB(ctx)
+	return db.CardTransaction.WithContext(ctx).
+		Preload(db.CardTransaction.Account).
+		Where(
+			db.CardTransaction.AuthorizationID.Eq(req.ID),
+			db.CardTransaction.AccountID.Eq(req.AccountID),
+			db.CardTransaction.Channel.Eq(string(enums.Channel_Slash)),
+		).Order(db.CardTransaction.ID.Desc()).Find()
+}

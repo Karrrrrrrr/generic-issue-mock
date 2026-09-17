@@ -2,13 +2,13 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"generic-mock/channel/paynda/biz"
 	paynda "generic-mock/channel/paynda/enums"
 	common "generic-mock/enums"
 	"generic-mock/model"
+	"generic-mock/pkg/types"
 
 	"github.com/samber/do"
 	"github.com/shopspring/decimal"
@@ -162,8 +162,8 @@ func (s *PayndaOpenAPIService) UpdateCardHolder(
 
 type PayndaListRequest struct {
 	BalanceAccountID string `uri:"balanceAccountId"`
-	Current          int    `form:"current"`
-	PageSize         int    `form:"pageSize"`
+	Current          *int   `form:"current" binding:"omitempty,min=1"`
+	PageSize         *int   `form:"pageSize" binding:"omitempty,min=1"`
 }
 
 type PayndaCardholdersData struct {
@@ -183,9 +183,9 @@ func (s *PayndaOpenAPIService) ListCardHolders(
 	if err != nil {
 		return nil, err
 	}
-	offset, limit, current := payndaPagination(req.Current, req.PageSize)
+	offset, limit, current := payndaPagination(types.Value(req.Current), types.Value(req.PageSize))
 	items, err := s.usecase.ListCardHolders(ctx, &biz.PayndaListRequest{
-		AccountID: accountID,
+		AccountID: &accountID,
 		Offset:    offset,
 		Limit:     limit,
 	})
@@ -208,7 +208,7 @@ func (s *PayndaOpenAPIService) ListCardHolders(
 }
 
 type PayndaCardBinsRequest struct {
-	BalanceAccountID string `uri:"balanceAccountId"`
+	BalanceAccountID string `uri:"balanceAccountId"` // Invalid: retained for the SDK path; products are channel-level.
 	CreditLimitType  string `form:"creditLimitType"` // Invalid: all mock cards use independent generic balances.
 }
 type PayndaCardBinData struct {
@@ -225,11 +225,7 @@ type PayndaCardBinsData struct {
 }
 
 func (s *PayndaOpenAPIService) ListCardBins(ctx context.Context, req *PayndaCardBinsRequest) (*PayndaCardBinsData, error) {
-	accountID, err := payndaAccountID(req.BalanceAccountID)
-	if err != nil {
-		return nil, err
-	}
-	items, err := s.usecase.ListCardProducts(ctx, &biz.PayndaListRequest{AccountID: accountID})
+	items, err := s.usecase.ListCardProducts(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +309,10 @@ func (s *PayndaOpenAPIService) GetCard(ctx context.Context, req *PayndaCardReque
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.GetCard(ctx, &biz.PayndaResourceRequest{AccountID: accountID, ID: id})
+	item, err := s.usecase.GetCard(ctx, &biz.PayndaResourceRequest{
+		AccountID: accountID,
+		ID:        id,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -335,9 +334,9 @@ func (s *PayndaOpenAPIService) ListCards(ctx context.Context, req *PayndaListReq
 	if err != nil {
 		return nil, err
 	}
-	offset, limit, current := payndaPagination(req.Current, req.PageSize)
+	offset, limit, current := payndaPagination(types.Value(req.Current), types.Value(req.PageSize))
 	items, err := s.usecase.ListCards(ctx, &biz.PayndaListRequest{
-		AccountID: accountID,
+		AccountID: &accountID,
 		Offset:    offset,
 		Limit:     limit,
 	})
@@ -369,7 +368,10 @@ func (s *PayndaOpenAPIService) GetCardSensitive(ctx context.Context, req *Paynda
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.GetCard(ctx, &biz.PayndaResourceRequest{AccountID: accountID, ID: id})
+	item, err := s.usecase.GetCard(ctx, &biz.PayndaResourceRequest{
+		AccountID: accountID,
+		ID:        id,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +392,10 @@ func (s *PayndaOpenAPIService) GetCardBalance(
 	if err != nil {
 		return nil, err
 	}
-	wallet, err := s.usecase.GetCardBalance(ctx, &biz.PayndaResourceRequest{AccountID: accountID, ID: id})
+	wallet, err := s.usecase.GetCardBalance(ctx, &biz.PayndaResourceRequest{
+		AccountID: accountID,
+		ID:        id,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -438,15 +443,15 @@ type PayndaMerchantWalletData struct {
 }
 
 type PayndaMerchantWalletsRequest struct {
-	Current  int `form:"current"`
-	PageSize int `form:"pageSize"`
+	Current  *int `form:"current" binding:"omitempty,min=1"`
+	PageSize *int `form:"pageSize" binding:"omitempty,min=1"`
 }
 
 func (s *PayndaOpenAPIService) ListMerchantWallets(
-	ctx context.Context,
+	_ context.Context,
 	_ *PayndaMerchantWalletsRequest,
 ) (*[]*PayndaMerchantWalletData, error) {
-	return nil, biz.ErrInvalidOperation
+	return nil, biz.ErrAccountScopeUnavailable
 }
 
 type PayndaBalanceAccountWalletTransferRequest struct {
@@ -512,50 +517,11 @@ type PayndaRequestResultData struct {
 	Result     string    `json:"result"`
 }
 
-func (s *PayndaOpenAPIService) RequestResult(ctx context.Context, req *PayndaRequestResultRequest) (*PayndaRequestResultData, error) {
-	result, err := s.usecase.FindRequestResult(ctx, req.RequestID)
-	if err != nil {
-		return nil, err
-	}
-
-	var (
-		data      any
-		id        string
-		createdAt time.Time
-		updatedAt time.Time
-	)
-	if result.IsCardCreate {
-		data = payndaCardDetail(result.Card, "")
-		id = payndaIDString(result.Card.ID)
-		createdAt = result.Card.CreatedAt
-		updatedAt = result.Card.UpdatedAt
-	} else if result.Transaction != nil {
-		data = payndaCardBalanceTransferData(result.Transaction)
-		id = payndaIDString(result.Transaction.ID)
-		createdAt = result.Transaction.CreatedAt
-		updatedAt = result.Transaction.UpdatedAt
-	} else {
-		data = struct{}{}
-		id = payndaIDString(result.Card.ID)
-		createdAt = result.Card.CreatedAt
-		updatedAt = result.Card.UpdatedAt
-	}
-	raw, err := json.Marshal(PayndaEmbeddedResponse{
-		Code:    paynda.SuccessCode,
-		Message: paynda.SuccessMessage,
-		Data:    data,
-		Success: true,
-	})
-	if err != nil {
-		return nil, biz.ErrInvalidOperation
-	}
-	return &PayndaRequestResultData{
-		ID:         id,
-		CreateTime: createdAt.UTC(),
-		UpdateTime: updatedAt.UTC(),
-		RequestID:  req.RequestID,
-		Result:     string(raw),
-	}, nil
+func (s *PayndaOpenAPIService) RequestResult(
+	_ context.Context,
+	_ *PayndaRequestResultRequest,
+) (*PayndaRequestResultData, error) {
+	return nil, biz.ErrAccountScopeUnavailable
 }
 
 type PayndaCardStatusRequest struct {
@@ -691,9 +657,9 @@ func (s *PayndaOpenAPIService) ListCardBalanceUpdates(
 	if err != nil {
 		return nil, err
 	}
-	offset, limit, _ := payndaPagination(req.Current, req.PageSize)
+	offset, limit, _ := payndaPagination(types.Value(req.Current), types.Value(req.PageSize))
 	items, err := s.usecase.ListCardBalanceUpdates(ctx, &biz.PayndaListRequest{
-		AccountID: accountID,
+		AccountID: &accountID,
 		Offset:    offset,
 		Limit:     limit,
 	})
@@ -727,13 +693,13 @@ func (s *PayndaOpenAPIService) ListCardBalanceUpdates(
 }
 
 type PayndaTransactionsRequest struct {
-	BalanceAccountID     string `uri:"balanceAccountId"`
-	Current              int    `form:"current"`
-	PageSize             int    `form:"pageSize"`
-	CardholderID         string `form:"cardholderId"` // Invalid: generic transactions do not repeat the cardholder relation.
-	CardID               string `form:"cardId"`
-	TransactionTimeStart string `form:"transactionTimeStart"`
-	TransactionTimeEnd   string `form:"transactionTimeEnd"`
+	BalanceAccountID     string  `uri:"balanceAccountId"`
+	Current              *int    `form:"current" binding:"omitempty,min=1"`
+	PageSize             *int    `form:"pageSize" binding:"omitempty,min=1"`
+	CardholderID         string  `form:"cardholderId"` // Invalid: generic transactions do not repeat the cardholder relation.
+	CardID               *string `form:"cardId"`
+	TransactionTimeStart *string `form:"transactionTimeStart"`
+	TransactionTimeEnd   *string `form:"transactionTimeEnd"`
 }
 
 type PayndaTransactionData struct {
@@ -771,7 +737,7 @@ func (s *PayndaOpenAPIService) ListCardTransactions(
 	if err != nil {
 		return nil, err
 	}
-	offset, limit, current := payndaPagination(req.Current, req.PageSize)
+	offset, limit, current := payndaPagination(types.Value(req.Current), types.Value(req.PageSize))
 	start, err := payndaTransactionTime(req.TransactionTimeStart)
 	if err != nil {
 		return nil, err
@@ -780,22 +746,22 @@ func (s *PayndaOpenAPIService) ListCardTransactions(
 	if err != nil {
 		return nil, err
 	}
-	cardID := model.ID(0)
-	if req.CardID != "" {
-		cardID, err = payndaID(req.CardID)
-		if err != nil {
-			return nil, err
-		}
+	if start != nil && end != nil && start.After(*end) {
+		return nil, biz.ErrInvalidOperation
+	}
+	cardID, err := payndaOptionalID(req.CardID)
+	if err != nil {
+		return nil, err
 	}
 	items, err := s.usecase.ListCardTransactions(ctx, &biz.PayndaListTransactionsRequest{
 		PayndaListRequest: biz.PayndaListRequest{
-			AccountID: accountID,
+			AccountID: &accountID,
 			Offset:    offset,
 			Limit:     limit,
 		},
-		CardID:        cardID,
-		OccurredAtGTE: start,
-		OccurredAtLTE: end,
+		CardID:         cardID,
+		StartCreatedAt: start,
+		EndCreatedAt:   end,
 	})
 	if err != nil {
 		return nil, err
@@ -1037,11 +1003,11 @@ func payndaPagination(current int, pageSize int) (int, int, int) {
 	return (current - 1) * pageSize, pageSize, current
 }
 
-func payndaTransactionTime(value string) (*time.Time, error) {
-	if value == "" {
+func payndaTransactionTime(value *string) (*time.Time, error) {
+	if value == nil {
 		return nil, nil
 	}
-	parsed, err := time.Parse(time.DateTime, value)
+	parsed, err := time.Parse(time.DateTime, *value)
 	if err != nil {
 		return nil, biz.ErrInvalidOperation
 	}

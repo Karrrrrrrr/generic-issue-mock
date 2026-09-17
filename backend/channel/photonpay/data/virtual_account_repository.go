@@ -30,6 +30,7 @@ func (r *virtualAccountRepository) FindByAccountID(
 ) (*model.VirtualAccount, error) {
 	db := r.repository.DB(ctx)
 	return db.VirtualAccount.WithContext(ctx).
+		Preload(db.VirtualAccount.Account).
 		Preload(db.VirtualAccount.Wallet).
 		Where(
 			db.VirtualAccount.AccountID.Eq(accountID),
@@ -39,13 +40,18 @@ func (r *virtualAccountRepository) FindByAccountID(
 		First()
 }
 
-func (r *virtualAccountRepository) List(ctx context.Context) ([]*model.VirtualAccount, error) {
-	db := r.repository.DB(ctx)
-	return db.VirtualAccount.WithContext(ctx).
-		Preload(db.VirtualAccount.Wallet).
-		Where(db.VirtualAccount.Channel.Eq(string(enums.Channel_PhotonPay))).
-		Order(db.VirtualAccount.ID.Desc()).
-		Find()
-}
-
 var _ biz.VirtualAccountRepository = (*virtualAccountRepository)(nil)
+
+func (r *virtualAccountRepository) ListVirtualAccounts(ctx context.Context, req *biz.VirtualAccountListRequest) ([]*model.VirtualAccount, error) {
+	db := r.repository.DB(ctx)
+	query := db.VirtualAccount.WithContext(ctx).
+		Preload(db.VirtualAccount.Account).
+		Preload(db.VirtualAccount.Wallet).
+		Where(
+			db.VirtualAccount.Channel.Eq(string(enums.Channel_PhotonPay)),
+		)
+	if len(req.AccountIDs) != 0 {
+		query = query.Where(db.VirtualAccount.AccountID.In(req.AccountIDs...))
+	}
+	return query.Order(db.VirtualAccount.ID.Desc()).Find()
+}

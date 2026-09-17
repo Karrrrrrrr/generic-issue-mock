@@ -10,8 +10,8 @@
 
 | 通用表 | 作用 | 主要关联 |
 | --- | --- | --- |
-| `CardProduct` | 可开卡 BIN/产品配置 | `Card.CardProductID` |
-| `Account` | 渠道账户域；浏览器管理资源的隔离边界 | 所有业务表的 `AccountID` |
+| `CardProduct` | 渠道级可开卡 BIN/产品配置，同渠道账户共享 | `Card.CardProductID` |
+| `Account` | 渠道账户域；浏览器管理资源的隔离边界 | 账户级业务表的 `AccountID` |
 | `CardHolder` | 可复用持卡人资料 | `Card.CardHolderID` |
 | `Wallet` | 余额、待入账/待出账和累计入出账 | `Card.WalletID`、`VirtualAccount.WalletID`、`Account.WalletID` |
 | `VirtualAccount` | 可共享余额的账户 | `Card.VirtualAccountID` |
@@ -23,11 +23,13 @@
 
 `Account` 与 `VirtualAccount` 是不同概念。`Account` 是渠道账户域，保留 `Channel`；Slash 的 `VirtualAccount` 只是该账户域内可共享余额的资源，不能替代 `Account`。
 
-除 `Account` 自身外，每张持久化业务表都必须保存 `AccountID` 与 `Channel`。`AccountID` 引用 `Account.ID`，同一行的 `Channel` 必须与账户的渠道一致。创建卡、持卡人、钱包、授权、交易、Webhook 配置和投递记录等子资源时，在同一事务中从所属聚合继承这两个字段。
+除 `Account` 与渠道级 `CardProduct` 外，每张持久化业务表都必须保存 `AccountID` 与 `Channel`。`AccountID` 引用 `Account.ID`，同一行的 `Channel` 必须与账户的渠道一致。创建卡、持卡人、钱包、授权、交易、Webhook 配置和投递记录等子资源时，在同一事务中从所属聚合继承这两个字段。
 
-所有仓储的 `Exist`、`Find`、`List`、`Save`、`Delete` 都必须以 `(account_id, channel)` 过滤；每个账户拥有资源的唯一索引也必须包含这两个字段及自然键。渠道外部 ID 始终只由本表 `ID` 经 formatter 编码，不能将账户域或渠道拼入 ID。
+账户级仓储的 `Exist`、`Find`、`List`、`Save`、`Delete` 都必须以 `(account_id, channel)` 过滤；每个账户拥有资源的唯一索引也必须包含这两个字段及自然键。渠道外部 ID 始终只由本表 `ID` 经 formatter 编码，不能将账户域或渠道拼入 ID。
 
-账户范围是显式参数，不是 `context.Context` 状态。service 使用渠道 `service/id.go` 解析账户选择器后，在 usecase/repository 请求结构中传递 `AccountID`。单资源请求结构包含 `AccountID` 和资源 `ID`，对应查询必须包含 `id`、`account_id`、`channel`；列表请求包含可选 `AccountID`，非零时直接追加过滤。UI 是总后台，因此列表可以不传账户以查看全部数据，但创建和指定账户的变更不得传 `0`。
+账户范围是显式参数，不是 `context.Context` 状态。service 使用渠道 `service/id.go` 解析账户选择器后，在 usecase/repository 请求结构中传递 `AccountID`。账户级单资源请求结构包含必填的 `AccountID` 和资源 `ID`，对应查询必须包含 `id`、`account_id`、`channel`；列表的可选账户过滤使用 `AccountID *model.ID`，仅 `nil` 表示未提供，非 `nil` 时验证 ID 并追加过滤，不得用 `!= 0` 判断是否传入。显式传入无效 ID 应报错，不能退化为跨账户查询。UI 是总后台，因此列表可以不传账户以查看全部数据，但创建和指定账户的变更必须提供有效账户 ID。
+
+仓储请求结构在 biz 中按具体资源和操作单独定义，不复用 service/usecase 请求，也不使用 `ManagementScope`、`ResourceRequest` 或渠道级 `ListRequest` 这类含义模糊的通用请求。可以在各自的请求结构中嵌入语义明确的公共字段结构，但不得用类型别名代替独立请求类型。所有可选参数一律使用指针，以 `nil` 区分未提供与显式零值。
 
 | 渠道 | OpenAPI 账户选择器 | 外部格式 | service 到 biz 的显式字段 |
 | --- | --- | --- | --- |
@@ -43,10 +45,10 @@
 | --- | --- | --- |
 | 创建账户并创建账户钱包 | 已完成 | PhotonPay、Paynda 与 Slash 均在同一事务创建 USD 账户钱包并回写 `Account.WalletID`。 |
 | 账户 UI 列表、分页与改名 | 已完成 | PhotonPay、Paynda 与 Slash 均提供分页列表、创建与改名。 |
-| OpenAPI 账户范围 | 部分完成 | Slash 和 PhotonPay 的账户资源查询已按账户限定。Paynda 的 `balanceAccountId` 路径资源、账户钱包、持卡人、开卡及单笔交易均已按账户限定；`requestResults` 和 `merchant/wallets` 当前协议 DTO 未提供账户选择器，待 Marxo 调用点核对后处理，不能臆造请求字段。 |
+| OpenAPI 账户范围 | 部分完成 | Slash 和 PhotonPay 的账户资源查询已按账户限定。Paynda 的 `balanceAccountId` 路径资源、账户钱包、持卡人、开卡及单笔交易均已按账户限定；`requestResults` 和 `merchant/wallets` 当前协议 DTO 未提供账户选择器，明确返回 HTTP 501，待确认商户凭据与账户映射后接入，不能臆造请求字段或将 `appId` 解析为资源 ID。 |
 | Marxo SDK 与调用点核对 | 受阻 | 当前工作区未提供 Marxo 源码；恢复可访问后逐端点核对 DTO、路径、调用点和错误码。 |
-| 账户余额直接调整 | 待实现 | 管理端可直接变更账户钱包余额，不要求资金来源。 |
-| 账户钱包充值普通卡与虚拟账户 | 待实现 | 事务中锁定来源与目标钱包，更新余额和累计入出账，并创建资金交易。 |
+| 账户余额直接调整 | 已实现 | 在账户页面直接增加或扣减账户钱包余额，不要求资金来源。 |
+| 账户钱包与卡/虚拟账户双向划转 | 余额操作已实现 | 在资源页面充值/转出；同一事务按钱包 ID 顺序锁定来源与目标，验证账户与币种，更新余额和累计入出账。统一资金流水仍待补齐。 |
 | `WebhookConfig` | 渠道 webhook 订阅配置 | 渠道、事件、目标地址、启用状态 |
 | `AuthorizationConfig` | 同步授权回调配置 | 账户、渠道、目标地址、启用状态和超时；每个账户和渠道唯一，回调失败即交易失败 |
 | `WebhookRecord` | 一次 webhook 投递记录 | 配置、来源资源、请求报文、响应、投递状态和次数 |
@@ -57,22 +59,28 @@
 | --- | --- |
 | `BaseModel.ID` | 内部主键；对外必须经渠道 formatter 输出 |
 | `Account.ID` / `Account.Channel` | 渠道账户域主键和渠道范围；`Account` 不再额外引用 `AccountID` |
-| 所有非 `Account` 业务表的 `AccountID` / `Channel` | 资源所属账户域和渠道；仓储操作与唯一索引必须包含两列 |
+| 除 `Account`、`CardProduct` 外业务表的 `AccountID` / `Channel` | 资源所属账户域和渠道；仓储操作与唯一索引必须包含两列 |
 | `Card.CardProductID` / `Card.CardBin` | 产品主键及开卡时从产品派生的 BIN 前缀 |
 | `Card.WalletID` | 卡余额钱包；共享卡可指向虚拟账户钱包 |
+| `Card.VirtualAccountID` | 非空表示共享余额卡；为空表示独立卡 |
+| `Card.RequestID` | 开卡请求的商户幂等键 |
+| `Card.LastOperation*` | 最近一次开卡/冻结/更新/销卡操作的幂等键、类型和结果 |
+| `CardTransaction.AuthorizationID` | 清算和撤销必须关联同账户同卡的有效授权；退款可为 `0`（独立退款），也可关联授权，无须先清算 |
+| `CardTransaction.OriginCardTransactionID` | 从原交易发起操作时记录的原交易；独立退款或直接关联授权的退款不要求该字段 |
+| `CardTransaction.TxAmount` / `TxCurrency` | 原始交易金额和币种；`Currency` 是结算/卡币种语义 |
+| `CardTransaction.RawPayload` / `Authorization.RawPayload` | 保留渠道原始事件或计算所需原始数据，不能代替字段化的中立业务概念 |
 
-## 资金流待实现
+## 资金流规则
 
 - 创建账户必须在同一事务创建 `WalletType_Account` 的 USD 钱包，并将其 ID 回写到 `Account.WalletID`。
 - 账户余额调整是管理端的直接余额变更，可凭空增加或减少余额，不要求资金来源。
 - 普通卡和虚拟账户充值均从所属账户的钱包转出，并在同一事务锁定来源与目标钱包；来源余额不足时拒绝操作。
 - 充值不是直接修改目标余额：应同时更新两个钱包的 `Amount`、`In`/`Out`，并按已实现渠道的规则创建资金变动交易。
-| `Card.VirtualAccountID` | 非空表示共享余额卡；为空表示独立卡 |
-| `Card.RequestID` | 开卡请求的商户幂等键 |
-| `Card.LastOperation*` | 最近一次开卡/冻结/更新/销卡操作的幂等键、类型和结果 |
-| `CardTransaction.AuthorizationID` | 关联的授权记录；没有授权上下文时为零值 |
-| `CardTransaction.OriginCardTransactionID` | 退款或冲正所关联的原交易 |
-| `CardTransaction.TxAmount` / `TxCurrency` | 原始交易金额和币种；`Currency` 是结算/卡币种语义 |
-| `CardTransaction.RawPayload` / `Authorization.RawPayload` | 保留渠道原始事件或计算所需原始数据，不能代替字段化的中立业务概念 |
+
+模拟授权和清算不校验余额是否充足；清算允许超过授权金额，钱包余额和剩余授权金额均可为负数，并允许继续清算。每次输入金额仍须为正数，展示剩余额度时不得截断为零。普通账户、卡、虚拟账户资金划转不适用这一例外。
+
+账户关联资源的 UI DTO 在原接口直接返回 `account_id`、`account_name`。账户名称通过只读账户关联查询获得，不在业务记录中冗余存储；前端不再为了显示名称单独拉取账户列表。
 
 下列渠道文档说明具体 API 字段如何映射到该结构：PhotonPay、Paynda、Slash、Payful、UQPay。
+
+`CardProduct` 是渠道级配置，不包含 `AccountID`；产品查询按 `Channel` 隔离，唯一索引为 `(channel, prefix)`。同渠道账户共享产品及发卡序列，创建账户不再复制产品；卡片仍按账户隔离，且只能引用同渠道产品。

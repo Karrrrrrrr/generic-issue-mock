@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"gorm.io/gorm/clause"
 
 	"generic-mock/channel/photonpay/biz"
 	"generic-mock/enums"
@@ -24,9 +25,48 @@ func (r *authorizationRepository) Create(ctx context.Context, item *model.Author
 	return r.repository.DB(ctx).Authorization.WithContext(ctx).Create(item)
 }
 
-func (r *authorizationRepository) List(ctx context.Context, req *biz.ListRequest) ([]*model.Authorization, error) {
+func (r *authorizationRepository) List(ctx context.Context, req *biz.AuthorizationListRequest) ([]*model.Authorization, error) {
 	db := r.repository.DB(ctx)
-	return db.Authorization.WithContext(ctx).Where(db.Authorization.Channel.Eq(string(enums.Channel_PhotonPay))).Order(db.Authorization.ID.Desc()).Offset(req.Offset).Limit(req.Limit).Find()
+	return db.Authorization.WithContext(ctx).
+		Preload(db.Authorization.Account).
+		Where(db.Authorization.Channel.Eq(string(enums.Channel_PhotonPay))).Order(db.Authorization.ID.Desc()).Offset(req.Offset).Limit(req.Limit).Find()
 }
 
 var _ biz.AuthorizationRepository = (*authorizationRepository)(nil)
+
+func (r *authorizationRepository) AuthorizationExists(ctx context.Context, req *biz.ExistAuthorizationRequest) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.Authorization.WithContext(ctx).Where(
+		db.Authorization.ID.Eq(req.ID),
+		db.Authorization.AccountID.Eq(req.AccountID),
+		db.Authorization.Channel.Eq(string(enums.Channel_PhotonPay)),
+	).Count()
+	return count > 0, err
+}
+
+func (r *authorizationRepository) LockAuthorization(ctx context.Context, req *biz.LockAuthorizationRequest) (*model.Authorization, error) {
+	db := r.repository.DB(ctx)
+	return db.Authorization.WithContext(ctx).
+		Preload(db.Authorization.Account).
+		Clauses(clause.Locking{
+			Strength: "UPDATE",
+			Table:    clause.Table{Name: clause.CurrentTable},
+		}).Where(
+		db.Authorization.ID.Eq(req.ID),
+		db.Authorization.AccountID.Eq(req.AccountID),
+		db.Authorization.Channel.Eq(string(enums.Channel_PhotonPay)),
+	).First()
+}
+
+func (r *authorizationRepository) ListAuthorizations(ctx context.Context, req *biz.AuthorizationListBalancesRequest) ([]*model.Authorization, error) {
+	db := r.repository.DB(ctx)
+	query := db.Authorization.WithContext(ctx).
+		Preload(db.Authorization.Account).
+		Where(
+			db.Authorization.Channel.Eq(string(enums.Channel_PhotonPay)),
+		)
+	if len(req.AccountIDs) != 0 {
+		query = query.Where(db.Authorization.AccountID.In(req.AccountIDs...))
+	}
+	return query.Order(db.Authorization.ID.Desc()).Find()
+}

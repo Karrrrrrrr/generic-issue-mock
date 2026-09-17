@@ -130,3 +130,10 @@ func CardStatusToGeneric(value CardStatus) common.CardStatus {
 
 	return common.CardStatus_Active
 }
+
+type WalletKind string
+
+const (
+	WalletKindAccount WalletKind = "account"
+	WalletKindCard    WalletKind = "card"
+)

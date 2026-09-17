@@ -2,37 +2,16 @@ package biz
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	slash "generic-mock/channel/slash/enums"
 	"generic-mock/enums"
 	"generic-mock/model"
 
+	"encoding/json"
 	"github.com/samber/do"
 	"go.uber.org/zap"
 )
-
-type SlashWebhookRecordRepository interface {
-	Create(context.Context, *model.WebhookRecord) error
-	Save(context.Context, *model.WebhookRecord) error
-}
-
-type SlashWebhookClient interface {
-	Deliver(context.Context, *SlashWebhookDeliveryRequest) (*SlashWebhookDeliveryResult, error)
-}
-
-type SlashWebhookDeliveryRequest struct {
-	TargetURL string
-	Payload   []byte
-}
-
-type SlashWebhookDeliveryResult struct {
-	StatusCode      int
-	ResponseBody    string
-	RequestHeaders  []byte
-	ResponseHeaders []byte
-}
 
 type DispatchWebhookRequest struct {
 	AccountID model.ID
@@ -69,8 +48,8 @@ func (u *SlashWebhookUsecase) Dispatch(ctx context.Context, req *DispatchWebhook
 		zap.S().Errorw("marshal slash webhook payload", "error", err)
 		return
 	}
-	configs, err := u.webhookConfigRepository.List(ctx, &ListWebhooksRequest{
-		AccountID: req.AccountID,
+	configs, err := u.webhookConfigRepository.List(ctx, &WebhookConfigListRequest{
+		AccountIDs: []model.ID{req.AccountID},
 	})
 	if err != nil {
 		zap.S().Errorw("list slash webhook configs", "error", err)

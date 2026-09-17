@@ -78,13 +78,15 @@ func uiFailure(err error) (int, any) {
 }
 
 func Register(router *gin.RouterGroup, openapi *service.PayndaOpenAPIService, ui *service.PayndaUIService) {
+	router.GET("/ui/funds", bindUI(ui.ListFunds))
+	router.POST("/ui/funds/transfer", bindUI(ui.MoveFunds))
+	router.GET("/ui/authorization-balances", bindUI(ui.ListAuthorizationBalances))
+	router.POST("/ui/authorizations/:id/clear", bindUI(ui.ClearAuthorization))
 	router.GET("/ui/accounts", bindUI(ui.ListAccounts))
 	router.POST("/ui/accounts", bindUI(ui.CreateAccount))
 	router.PUT("/ui/accounts/:id", bindUI(ui.UpdateAccount))
 	router.GET("/ui/cardholders", bindUI(ui.ListCardHolders))
-	router.POST("/ui/cardholders", bindUI(ui.CreateCardHolder))
 	router.GET("/ui/cards", bindUI(ui.ListCards))
-	router.POST("/ui/cards", bindUI(ui.CreateCard))
 	router.PUT("/ui/cards/:id/status", bindUI(ui.UpdateCardStatus))
 	router.POST("/ui/simulate/authorizations", bindUI(ui.SimulateAuthorization))
 	router.POST("/ui/simulate/refunds", bindUI(ui.SimulateRefund))
@@ -97,7 +99,6 @@ func Register(router *gin.RouterGroup, openapi *service.PayndaOpenAPIService, ui
 	router.GET("/ui/webhook-records", bindUI(ui.ListWebhookRecords))
 	router.POST("/ui/webhook-records/:id/replay", bindUI(ui.ReplayWebhookRecord))
 	router.GET("/ui/transactions", bindUI(ui.ListTransactions))
-	router.POST("/ui/transactions/:id/clear", bindUI(ui.ClearTransaction))
 	router.POST("/ui/transactions/:id/reverse", bindUI(ui.ReverseTransaction))
 	router.POST("/ui/transactions/:id/refund", bindUI(ui.RefundTransaction))
 	router.GET("/openapi/merchant/wallets", bind(openapi.ListMerchantWallets))

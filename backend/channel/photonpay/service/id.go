@@ -22,3 +22,30 @@ func photonPayID(value string) (model.ID, error) {
 func photonPayAccountID(value string) (model.ID, error) {
 	return photonPayID(value)
 }
+
+// photonpayRefundAuthorizationID permits the channel-formatted zero ID for an independent refund.
+func photonpayRefundAuthorizationID(value *string) (*model.ID, error) {
+	if value == nil {
+		return nil, nil
+	}
+	var id model.ID
+	if *value == photonPayIDString(0) {
+		return &id, nil
+	}
+	id, err := photonPayID(*value)
+	if err != nil {
+		return nil, err
+	}
+	return &id, nil
+}
+
+func photonPayOptionalID(value *string) (*model.ID, error) {
+	if value == nil {
+		return nil, nil
+	}
+	id, err := photonPayID(*value)
+	if err != nil {
+		return nil, err
+	}
+	return &id, nil
+}

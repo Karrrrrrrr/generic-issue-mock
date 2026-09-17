@@ -41,11 +41,13 @@ func slashWebhookDispatchRequest(
 }
 
 type ListRequest struct {
-	PageNumber int `form:"page_number"`
-	PageSize   int `form:"page_size"`
+	AccountID  *string `form:"account_id"`
+	PageNumber *int    `form:"page_number" binding:"omitempty,min=1"`
+	PageSize   *int    `form:"page_size" binding:"omitempty,min=1"`
 }
 
 type AccountData struct {
+	WalletID  string          `json:"wallet_id"`
 	ID        string          `json:"id"`
 	Name      string          `json:"name"`
 	Balance   decimal.Decimal `json:"balance"`
@@ -53,6 +55,7 @@ type AccountData struct {
 }
 
 type AuthorizationConfigData struct {
+	AccountName   string    `json:"account_name"`
 	AccountID     string    `json:"account_id"`
 	TargetURL     string    `json:"target_url"`
 	Enabled       bool      `json:"enabled"`
@@ -127,10 +130,15 @@ func (s *SlashUIService) ListAccounts(
 	ctx context.Context,
 	req *ListRequest,
 ) (*ListAccountsResponse, error) {
-	page, size := types.NormalizePagination(req.PageNumber, req.PageSize)
+	accountID, err := slashOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	page, size := types.NormalizePagination(types.Value(req.PageNumber), types.Value(req.PageSize))
 	items, total, err := s.usecase.ListAccounts(ctx, &biz.ListAccountsRequest{
-		Offset: (page - 1) * size,
-		Limit:  size,
+		AccountID: accountID,
+		Offset:    (page - 1) * size,
+		Limit:     size,
 	})
 	if err != nil {
 		return nil, err
@@ -168,13 +176,14 @@ func (s *SlashUIService) UpdateAccount(
 }
 
 type WebhookData struct {
-	ID        string             `json:"id"`
-	AccountID string             `json:"account_id"`
-	Event     slash.WebhookEvent `json:"event"`
-	TargetURL string             `json:"target_url"`
-	Enabled   bool               `json:"enabled"`
-	CreatedAt time.Time          `json:"created_at"`
-	UpdatedAt time.Time          `json:"updated_at"`
+	AccountName string             `json:"account_name"`
+	ID          string             `json:"id"`
+	AccountID   string             `json:"account_id"`
+	Event       slash.WebhookEvent `json:"event"`
+	TargetURL   string             `json:"target_url"`
+	Enabled     bool               `json:"enabled"`
+	CreatedAt   time.Time          `json:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at"`
 }
 
 type CreateWebhookRequest struct {
@@ -208,15 +217,11 @@ func (s *SlashUIService) CreateWebhook(ctx context.Context, req *CreateWebhookRe
 }
 
 func (s *SlashUIService) ListWebhooks(ctx context.Context, req *struct {
-	AccountID string `form:"account_id"`
+	AccountID *string `form:"account_id"`
 }) (*[]WebhookData, error) {
-	accountID := model.ID(0)
-	if req.AccountID != "" {
-		var err error
-		accountID, err = slashAccountID(req.AccountID)
-		if err != nil {
-			return nil, err
-		}
+	accountID, err := slashOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
 	}
 	items, err := s.usecase.ListWebhooks(ctx, &biz.ListWebhooksRequest{
 		AccountID: accountID,
@@ -299,6 +304,8 @@ func (s *SlashUIService) ListCardProducts(ctx context.Context, _ *ListCardProduc
 }
 
 type VirtualAccountData struct {
+	AccountID     string    `json:"account_id"`
+	AccountName   string    `json:"account_name"`
 	ID            string    `json:"id"`
 	Name          string    `json:"name"`
 	Currency      string    `json:"currency"`
@@ -329,6 +336,7 @@ func (s *SlashUIService) ListVirtualAccounts(ctx context.Context, _ *struct{}) (
 }
 
 type CardHolderRequest struct {
+	AccountID string `json:"account_id" binding:"required"`
 	FirstName string `json:"first_name" binding:"required"`
 	LastName  string `json:"last_name" binding:"required"`
 	Email     string `json:"email" binding:"required"`
@@ -336,18 +344,25 @@ type CardHolderRequest struct {
 }
 
 type CardHolderData struct {
-	ID        string                 `json:"id"`
-	FirstName string                 `json:"first_name"`
-	LastName  string                 `json:"last_name"`
-	Email     string                 `json:"email"`
-	Mobile    string                 `json:"phone_number"`
-	Status    slash.CardHolderStatus `json:"status"`
-	CreatedAt time.Time              `json:"created_at"`
-	UpdatedAt time.Time              `json:"updated_at"`
+	AccountName string                 `json:"account_name"`
+	AccountID   string                 `json:"account_id"`
+	ID          string                 `json:"id"`
+	FirstName   string                 `json:"first_name"`
+	LastName    string                 `json:"last_name"`
+	Email       string                 `json:"email"`
+	Mobile      string                 `json:"phone_number"`
+	Status      slash.CardHolderStatus `json:"status"`
+	CreatedAt   time.Time              `json:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at"`
 }
 
 func (s *SlashUIService) CreateCardHolder(ctx context.Context, req *CardHolderRequest) (*CardHolderData, error) {
+	accountID, err := slashAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
 	item, err := s.usecase.CreateCardHolder(ctx, &biz.CreateCardHolderRequest{
+		AccountID: accountID,
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
 		Email:     req.Email,
@@ -360,10 +375,15 @@ func (s *SlashUIService) CreateCardHolder(ctx context.Context, req *CardHolderRe
 }
 
 func (s *SlashUIService) ListCardHolders(ctx context.Context, req *ListRequest) (*ListResponse[*CardHolderData], error) {
-	offset, limit := pagination(req.PageNumber, req.PageSize)
+	accountID, err := slashOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	offset, limit := pagination(types.Value(req.PageNumber), types.Value(req.PageSize))
 	items, total, err := s.usecase.ListCardHolders(ctx, &biz.ListCardHoldersRequest{
-		Offset: offset,
-		Limit:  limit,
+		AccountID: accountID,
+		Offset:    offset,
+		Limit:     limit,
 	})
 	if err != nil {
 		return nil, err
@@ -375,9 +395,10 @@ func (s *SlashUIService) ListCardHolders(ctx context.Context, req *ListRequest) 
 }
 
 type CreateCardRequest struct {
-	CardHolderID  string `json:"cardholder_id" binding:"required"`
-	CardProductID string `json:"card_product_id"`
-	CardCurrency  string `json:"card_currency" binding:"required"`
+	AccountID     string  `json:"account_id" binding:"required"`
+	CardHolderID  string  `json:"cardholder_id" binding:"required"`
+	CardProductID *string `json:"card_product_id"`
+	CardCurrency  string  `json:"card_currency" binding:"required"`
 }
 
 type UpdateCardStatusRequest struct {
@@ -385,6 +406,9 @@ type UpdateCardStatusRequest struct {
 }
 
 type CardData struct {
+	AccountName   string            `json:"account_name"`
+	AccountID     string            `json:"account_id"`
+	WalletID      string            `json:"wallet_id"`
 	ID            string            `json:"id"`
 	CardHolderID  string            `json:"cardholder_id"`
 	CardProductID string            `json:"card_product_id"`
@@ -405,15 +429,20 @@ type CardData struct {
 }
 
 func (s *SlashUIService) CreateCard(ctx context.Context, req *CreateCardRequest) (*CardData, error) {
+	accountID, err := slashAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
 	cardHolderID, err := slashID(req.CardHolderID)
 	if err != nil {
 		return nil, err
 	}
-	cardProductID, err := slashID(req.CardProductID)
+	cardProductID, err := slashOptionalID(req.CardProductID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.CreateCard(ctx, &biz.CreateCardRequest{
+		AccountID:     accountID,
 		CardHolderID:  cardHolderID,
 		CardProductID: cardProductID,
 		Currency:      common.Currency(req.CardCurrency),
@@ -431,19 +460,24 @@ func (s *SlashUIService) CreateCard(ctx context.Context, req *CreateCardRequest)
 
 type ListCardsRequest struct {
 	ListRequest
-	ID         string           `form:"id"`
-	CardNumber string           `form:"card_number"`
-	CardStatus slash.CardStatus `form:"card_status"`
+	ID         *string           `form:"id" binding:"omitempty,min=1"`
+	CardNumber *string           `form:"card_number" binding:"omitempty,min=1"`
+	CardStatus *slash.CardStatus `form:"card_status" binding:"omitempty,oneof=active paused inactive closed"`
 }
 
 func (s *SlashUIService) ListCards(ctx context.Context, req *ListCardsRequest) (*ListResponse[*CardData], error) {
-	offset, limit := pagination(req.PageNumber, req.PageSize)
+	accountID, err := slashOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	offset, limit := pagination(types.Value(req.PageNumber), types.Value(req.PageSize))
 	items, total, err := s.usecase.ListCards(ctx, &biz.ListCardsRequest{
+		AccountID:  accountID,
 		Offset:     offset,
 		Limit:      limit,
 		IDContains: req.ID,
 		CardNumber: req.CardNumber,
-		Status:     slash.CardStatusToGeneric(req.CardStatus),
+		Status:     types.ConvertPointer(req.CardStatus, slash.CardStatusToGeneric),
 	})
 	if err != nil {
 		return nil, err
@@ -517,6 +551,7 @@ type SimulateAuthorizationData struct {
 }
 
 type SimulateRefundRequest struct {
+	AuthorizationID      *string `json:"authorization_id"`
 	CardID               string  `json:"card_id" binding:"required"`
 	Amount               float64 `json:"amount" binding:"required,gt=0"`
 	Currency             string  `json:"currency" binding:"required"`
@@ -527,11 +562,16 @@ type SimulateRefundRequest struct {
 }
 
 func (s *SlashUIService) SimulateRefund(ctx context.Context, req *SimulateRefundRequest) (*TransactionData, error) {
+	authorizationID, err := slashRefundAuthorizationID(req.AuthorizationID)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := slashID(req.CardID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.SimulateRefund(ctx, &biz.SimulateRefundRequest{
+		AuthorizationID: authorizationID,
 		CardID:          cardID,
 		Amount:          decimal.NewFromFloat(req.Amount),
 		Currency:        common.Currency(req.Currency),
@@ -581,12 +621,14 @@ func (s *SlashUIService) SimulateAuthorization(ctx context.Context, req *Simulat
 
 type ListAuthorizationsRequest struct {
 	ListRequest
-	ID     string                  `form:"id"`
-	CardID string                  `form:"card_id"`
-	Status slash.TransactionStatus `form:"status"`
+	ID     *string                  `form:"id"`
+	CardID *string                  `form:"card_id"`
+	Status *slash.TransactionStatus `form:"status" binding:"omitempty,oneof=pending posted failed"`
 }
 
 type AuthorizationData struct {
+	AccountID            string                  `json:"account_id"`
+	AccountName          string                  `json:"account_name"`
 	ID                   string                  `json:"id"`
 	CardID               string                  `json:"card_id"`
 	Status               slash.TransactionStatus `json:"status"`
@@ -600,7 +642,11 @@ type AuthorizationData struct {
 }
 
 func (s *SlashUIService) ListAuthorizations(ctx context.Context, req *ListAuthorizationsRequest) (*ListResponse[*AuthorizationData], error) {
-	offset, limit := pagination(req.PageNumber, req.PageSize)
+	accountID, err := slashOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	offset, limit := pagination(types.Value(req.PageNumber), types.Value(req.PageSize))
 	id, err := slashOptionalID(req.ID)
 	if err != nil {
 		return nil, err
@@ -610,11 +656,12 @@ func (s *SlashUIService) ListAuthorizations(ctx context.Context, req *ListAuthor
 		return nil, err
 	}
 	items, total, err := s.usecase.ListAuthorizations(ctx, &biz.ListAuthorizationsRequest{
-		Offset: offset,
-		Limit:  limit,
-		ID:     id,
-		CardID: cardID,
-		Status: slash.TransactionStatusToGeneric(req.Status),
+		AccountID: accountID,
+		Offset:    offset,
+		Limit:     limit,
+		ID:        id,
+		CardID:    cardID,
+		Status:    types.ConvertPointer(req.Status, slash.TransactionStatusToGeneric),
 	})
 	if err != nil {
 		return nil, err
@@ -639,14 +686,16 @@ func (s *SlashUIService) GetAuthorization(ctx context.Context, req *IDRequest) (
 
 type ListTransactionsRequest struct {
 	ListRequest
-	ID              string                  `form:"id"`
-	CardID          string                  `form:"card_id"`
-	AuthorizationID string                  `form:"authorization_id"`
-	TransactionType slash.TransactionType   `form:"transaction_type"`
-	Status          slash.TransactionStatus `form:"status"`
+	ID              *string                  `form:"id"`
+	CardID          *string                  `form:"card_id"`
+	AuthorizationID *string                  `form:"authorization_id"`
+	TransactionType *slash.TransactionType   `form:"transaction_type" binding:"omitempty,oneof=auth clear void refund"`
+	Status          *slash.TransactionStatus `form:"status" binding:"omitempty,oneof=pending posted failed"`
 }
 
 type TransactionData struct {
+	AccountName          string                  `json:"account_name"`
+	AccountID            string                  `json:"account_id"`
 	ID                   string                  `json:"id"`
 	CardID               string                  `json:"card_id"`
 	AuthorizationID      string                  `json:"authorization_id"`
@@ -663,7 +712,11 @@ type TransactionData struct {
 }
 
 func (s *SlashUIService) ListTransactions(ctx context.Context, req *ListTransactionsRequest) (*ListResponse[*TransactionData], error) {
-	offset, limit := pagination(req.PageNumber, req.PageSize)
+	accountID, err := slashOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	offset, limit := pagination(types.Value(req.PageNumber), types.Value(req.PageSize))
 	id, err := slashOptionalID(req.ID)
 	if err != nil {
 		return nil, err
@@ -677,13 +730,14 @@ func (s *SlashUIService) ListTransactions(ctx context.Context, req *ListTransact
 		return nil, err
 	}
 	items, total, err := s.usecase.ListCardTransactions(ctx, &biz.ListCardTransactionsRequest{
+		AccountID:       accountID,
 		Offset:          offset,
 		Limit:           limit,
 		ID:              id,
 		CardID:          cardID,
 		AuthorizationID: authorizationID,
-		Type:            slash.TransactionTypeToGeneric(req.TransactionType),
-		Status:          slash.TransactionStatusToGeneric(req.Status),
+		Type:            types.ConvertPointer(req.TransactionType, slash.TransactionTypeToGeneric),
+		Status:          types.ConvertPointer(req.Status, slash.TransactionStatusToGeneric),
 	})
 	if err != nil {
 		return nil, err
@@ -708,7 +762,7 @@ func (s *SlashUIService) GetTransaction(ctx context.Context, req *IDRequest) (*T
 
 type ApplyTransactionStepRequest struct {
 	IDRequest
-	Amount float64 `json:"amount"`
+	Amount *decimal.Decimal `json:"amount"`
 }
 
 func (s *SlashUIService) ClearTransaction(ctx context.Context, req *ApplyTransactionStepRequest) (*TransactionData, error) {
@@ -731,7 +785,7 @@ func (s *SlashUIService) applyTransactionStep(ctx context.Context, req *ApplyTra
 	item, err := s.usecase.ApplyTransactionStep(ctx, &biz.ApplyTransactionStepRequest{
 		CardTransactionID: id,
 		Type:              transactionType,
-		Amount:            decimal.NewFromFloat(req.Amount),
+		Amount:            req.Amount,
 	})
 	if err != nil {
 		return nil, err
@@ -746,26 +800,29 @@ func (s *SlashUIService) applyTransactionStep(ctx context.Context, req *ApplyTra
 
 func cardHolderData(item *model.CardHolder) *CardHolderData {
 	return &CardHolderData{
-		ID:        slashIDString(item.ID),
-		FirstName: item.FirstName,
-		LastName:  item.LastName,
-		Email:     item.Email,
-		Mobile:    item.Mobile,
-		Status:    slash.CardHolderStatusFromGeneric(item.Status),
-		CreatedAt: item.CreatedAt,
-		UpdatedAt: item.UpdatedAt,
+		AccountID:   slashIDString(item.AccountID),
+		AccountName: uiAccountName(item.Account),
+		ID:          slashIDString(item.ID),
+		FirstName:   item.FirstName,
+		LastName:    item.LastName,
+		Email:       item.Email,
+		Mobile:      item.Mobile,
+		Status:      slash.CardHolderStatusFromGeneric(item.Status),
+		CreatedAt:   item.CreatedAt,
+		UpdatedAt:   item.UpdatedAt,
 	}
 }
 
 func webhookData(item *model.WebhookConfig) *WebhookData {
 	return &WebhookData{
-		ID:        slashIDString(item.ID),
-		AccountID: slashIDString(item.AccountID),
-		Event:     slash.WebhookEvent(item.Event),
-		TargetURL: item.TargetURL,
-		Enabled:   item.Enabled,
-		CreatedAt: item.CreatedAt,
-		UpdatedAt: item.UpdatedAt,
+		ID:          slashIDString(item.ID),
+		AccountID:   slashIDString(item.AccountID),
+		AccountName: uiAccountName(item.Account),
+		Event:       slash.WebhookEvent(item.Event),
+		TargetURL:   item.TargetURL,
+		Enabled:     item.Enabled,
+		CreatedAt:   item.CreatedAt,
+		UpdatedAt:   item.UpdatedAt,
 	}
 }
 
@@ -775,6 +832,7 @@ func slashAccountData(item *model.Account) *AccountData {
 		balance = item.Wallet.Amount
 	}
 	return &AccountData{
+		WalletID:  slashIDString(item.WalletID),
 		ID:        slashIDString(item.ID),
 		Name:      item.Name,
 		Balance:   balance,
@@ -785,6 +843,7 @@ func slashAccountData(item *model.Account) *AccountData {
 func authorizationConfigData(item *model.AuthorizationConfig) *AuthorizationConfigData {
 	return &AuthorizationConfigData{
 		AccountID:     slashIDString(item.AccountID),
+		AccountName:   uiAccountName(item.Account),
 		TargetURL:     item.TargetURL,
 		Enabled:       item.Enabled,
 		TimeoutMillis: item.TimeoutMillis,
@@ -803,6 +862,9 @@ func cardData(item *model.Card) *CardData {
 	}
 
 	return &CardData{
+		AccountID:     slashIDString(item.AccountID),
+		AccountName:   uiAccountName(item.Account),
+		WalletID:      slashIDString(item.WalletID),
 		ID:            slashIDString(item.ID),
 		CardHolderID:  slashIDString(item.CardHolderID),
 		CardProductID: slashIDString(item.CardProductID),
@@ -825,6 +887,8 @@ func cardData(item *model.Card) *CardData {
 
 func authorizationData(item *model.Authorization) *AuthorizationData {
 	return &AuthorizationData{
+		AccountID:            slashIDString(item.AccountID),
+		AccountName:          uiAccountName(item.Account),
 		ID:                   slashIDString(item.ID),
 		CardID:               slashIDString(item.CardID),
 		Status:               slash.TransactionStatusFromGeneric(item.Status),
@@ -840,6 +904,8 @@ func authorizationData(item *model.Authorization) *AuthorizationData {
 
 func transactionData(item *model.CardTransaction) *TransactionData {
 	return &TransactionData{
+		AccountID:            slashIDString(item.AccountID),
+		AccountName:          uiAccountName(item.Account),
 		ID:                   slashIDString(item.ID),
 		CardID:               slashIDString(item.CardID),
 		AuthorizationID:      slashIDString(item.AuthorizationID),
@@ -866,4 +932,224 @@ func last4(value string) string {
 		return value
 	}
 	return value[len(value)-4:]
+}
+
+type ManagementListRequest struct {
+	AccountID *string `form:"account_id"`
+}
+
+type ManagementAccountRequest struct {
+	AccountID string `form:"account_id" json:"account_id" binding:"required"`
+}
+type FundsData struct {
+	AccountName string           `json:"account_name"`
+	AccountID   string           `json:"account_id"`
+	ID          string           `json:"id"`
+	Currency    common.Currency  `json:"currency"`
+	Kind        slash.WalletKind `json:"kind"`
+	Amount      string           `json:"amount"`
+}
+
+func (s *SlashUIService) ListFunds(ctx context.Context, req *ManagementListRequest) (*[]FundsData, error) {
+	accountID, err := slashOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.usecase.ListFunds(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]FundsData, 0, len(items))
+	for _, item := range items {
+		var kind slash.WalletKind
+		switch item.Type {
+		case common.WalletType_Account:
+			kind = slash.WalletKindAccount
+		case common.WalletType_VirtualAccount:
+			kind = slash.WalletKindVirtualAccount
+		case common.WalletType_Card:
+			kind = slash.WalletKindCard
+		}
+		result = append(result, FundsData{
+			AccountID:   slashIDString(item.AccountID),
+			AccountName: uiAccountName(item.Account),
+			ID:          slashIDString(item.ID),
+			Currency:    item.Currency,
+			Kind:        kind,
+			Amount:      item.Amount.String(),
+		})
+	}
+	return &result, nil
+}
+
+type MoveFundsRequest struct {
+	ManagementAccountRequest
+	SourceID string          `json:"source_id"`
+	TargetID string          `json:"target_id"`
+	Amount   decimal.Decimal `json:"amount"`
+}
+
+func (s *SlashUIService) MoveFunds(ctx context.Context, req *MoveFundsRequest) (*struct{}, error) {
+	accountID, err := slashAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	var sourceID, targetID int64
+	if req.SourceID != "" {
+		sourceID, err = slashID(req.SourceID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if req.TargetID != "" {
+		targetID, err = slashID(req.TargetID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err := s.usecase.MoveFunds(ctx, &biz.MoveFundsRequest{
+		AccountID: accountID,
+		SourceID:  sourceID,
+		TargetID:  targetID,
+		Amount:    req.Amount,
+	}); err != nil {
+		return nil, err
+	}
+	return &struct{}{}, nil
+}
+
+type ManagedVirtualAccountData struct {
+	AccountName string `json:"account_name"`
+	AccountID   string `json:"account_id"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	WalletID    string `json:"wallet_id"`
+}
+
+func (s *SlashUIService) ListManagedVirtualAccounts(ctx context.Context, req *ManagementListRequest) (*[]ManagedVirtualAccountData, error) {
+	accountID, err := slashOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.usecase.ListManagedVirtualAccounts(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]ManagedVirtualAccountData, 0, len(items))
+	for _, item := range items {
+		result = append(result, ManagedVirtualAccountData{
+			AccountID:   slashIDString(item.AccountID),
+			AccountName: uiAccountName(item.Account),
+			ID:          slashIDString(item.ID),
+			Name:        item.Name,
+			WalletID:    slashIDString(item.WalletID),
+		})
+	}
+	return &result, nil
+}
+
+type CreateManagedVirtualAccountRequest struct {
+	ManagementAccountRequest
+	Name     string          `json:"name" binding:"required"`
+	Currency common.Currency `json:"currency" binding:"required,oneof=USD GBP JPY CNY"`
+}
+
+func (s *SlashUIService) CreateManagedVirtualAccount(ctx context.Context, req *CreateManagedVirtualAccountRequest) (*ManagedVirtualAccountData, error) {
+	accountID, err := slashAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.CreateManagedVirtualAccount(ctx, &biz.CreateManagedVirtualAccountRequest{
+		AccountID: accountID,
+		Name:      req.Name,
+		Currency:  req.Currency,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ManagedVirtualAccountData{
+		AccountID:   slashIDString(item.AccountID),
+		AccountName: uiAccountName(item.Account),
+		ID:          slashIDString(item.ID),
+		Name:        item.Name,
+		WalletID:    slashIDString(item.WalletID),
+	}, nil
+}
+
+type AuthorizationBalanceData struct {
+	AccountName  string          `json:"account_name"`
+	AccountID    string          `json:"account_id"`
+	ID           string          `json:"id"`
+	CardID       string          `json:"card_id"`
+	Currency     common.Currency `json:"currency"`
+	Amount       string          `json:"amount"`
+	Settled      string          `json:"settled"`
+	Remaining    string          `json:"remaining"`
+	MerchantName string          `json:"merchant_name"`
+	CreatedAt    time.Time       `json:"created_at"`
+}
+
+func (s *SlashUIService) ListAuthorizationBalances(ctx context.Context, req *ManagementListRequest) (*[]AuthorizationBalanceData, error) {
+	accountID, err := slashOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.usecase.ListAuthorizationBalances(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]AuthorizationBalanceData, 0, len(items))
+	for _, item := range items {
+		auth := item.Authorization
+		result = append(result, AuthorizationBalanceData{
+			AccountID:    slashIDString(auth.AccountID),
+			AccountName:  uiAccountName(auth.Account),
+			ID:           slashIDString(auth.ID),
+			CardID:       slashIDString(auth.CardID),
+			Currency:     auth.Currency,
+			Amount:       auth.Amount.String(),
+			Settled:      item.Settled.String(),
+			Remaining:    item.Remaining.String(),
+			MerchantName: auth.MerchantName,
+			CreatedAt:    auth.CreatedAt,
+		})
+	}
+	return &result, nil
+}
+
+type ClearAuthorizationRequest struct {
+	ManagementAccountRequest
+	ID     string          `uri:"id" binding:"required"`
+	Amount decimal.Decimal `json:"amount"`
+}
+type ClearAuthorizationData struct {
+	ID string `json:"id"`
+}
+
+func (s *SlashUIService) ClearAuthorization(ctx context.Context, req *ClearAuthorizationRequest) (*ClearAuthorizationData, error) {
+	accountID, err := slashAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	authID, err := slashID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.ClearAuthorization(ctx, &biz.ClearAuthorizationRequest{
+		AccountID: accountID,
+		ID:        authID,
+		Amount:    req.Amount,
+	})
+	if err != nil {
+		return nil, err
+	}
+	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(item.AccountID, slash.WebhookEventTransactionCreate, item.ID))
+	return &ClearAuthorizationData{ID: slashIDString(item.ID)}, nil
+}
+
+func uiAccountName(account *model.Account) string {
+	if account == nil {
+		return ""
+	}
+	return account.Name
 }

@@ -12,6 +12,11 @@ const (
 )
 
 var (
+	ErrAccountScopeUnavailable = kratosErrors.New(
+		501,
+		"PAYNDA_ACCOUNT_SCOPE_UNAVAILABLE",
+		"account mapping for this merchant-level endpoint is not configured",
+	)
 	ErrDatabaseOperation = kratosErrors.InternalServer(
 		errorReasonDatabaseOperation,
 		errorMessageDatabaseOperation,

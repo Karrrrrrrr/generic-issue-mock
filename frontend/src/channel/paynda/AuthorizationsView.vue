@@ -1,64 +1,145 @@
 <script setup lang="ts">
 import { h, onMounted, ref } from "vue";
-import { createDiscreteApi, NButton, NCard, NDataTable, NTag } from "naive-ui";
+import { createDiscreteApi, NButton, NCard, NDataTable, NInputNumber, NModal } from "naive-ui";
 import { request } from "@/channel/shared";
 
 type Authorization = {
   id: string;
+  account_id: string;
+  account_name: string;
   card_id: string;
-  status: string;
-  authorized_amount: string;
+  amount: string;
+  settled: string;
+  remaining: string;
   currency: string;
   merchant_name: string;
-  merchant_category_code: string;
-  authorized_at: string;
+  created_at: string;
 };
 
+const baseURL = "/paynda/ui";
 const { message } = createDiscreteApi(["message"]);
 const loading = ref(false);
+const saving = ref(false);
 const rows = ref<Authorization[]>([]);
+const selected = ref<Authorization>();
+const amount = ref<number | null>(null);
 const columns = [
-  { title: "授权 ID", key: "id" },
-  { title: "卡片 ID", key: "card_id" },
   {
-    title: "金额",
-    key: "authorized_amount",
-    render: (row: Authorization) => `${row.currency} ${row.authorized_amount}`
+    title: "账户名称",
+    key: "account_name",
   },
-  { title: "商户", key: "merchant_name" },
-  { title: "MCC", key: "merchant_category_code" },
   {
-    title: "状态",
-    key: "status",
-    render: (row: Authorization) => h(NTag, {
-      type: row.status === "authorized" ? "success" : "warning",
-      size: "small"
-    }, { default: () => row.status })
+    title: "所属账户 ID",
+    key: "account_id",
   },
-  { title: "授权时间", key: "authorized_at" },
+  {
+    title: "授权 ID",
+    key: "id",
+  },
+  {
+    title: "卡 ID",
+    key: "card_id",
+  },
+  {
+    title: "授权金额",
+    key: "amount",
+  },
+  {
+    title: "已清算",
+    key: "settled",
+  },
+  {
+    title: "可清算",
+    key: "remaining",
+  },
+  {
+    title: "币种",
+    key: "currency",
+  },
+  {
+    title: "商户",
+    key: "merchant_name",
+  },
+  {
+    title: "时间",
+    key: "created_at",
+  },
+  {
+    title: "操作",
+    key: "actions",
+    render: (row: Authorization) =>
+      h(
+        NButton,
+        {
+          size: "small",
+          type: "primary",
+          onClick: () => {
+            selected.value = row;
+            amount.value = Number(row.remaining) > 0 ? Number(row.remaining) : null;
+          },
+        },
+        { default: () => "清算" },
+      ),
+  },
 ];
 
 async function load() {
   loading.value = true;
   try {
-    rows.value = (await request.get<{ data: Authorization[] }>("/paynda/ui/authorizations")).data.data;
+    rows.value = (await request.get<Authorization[]>(baseURL + "/authorization-balances")).data;
   } catch (error) {
-    message.error(error instanceof Error ? error.message : "加载授权列表失败");
+    message.error(error instanceof Error ? error.message : "加载授权失败");
   } finally {
     loading.value = false;
   }
 }
 
-onMounted(() => void load());
+async function clear() {
+  if (!selected.value || !amount.value || amount.value <= 0) return;
+  saving.value = true;
+  try {
+    await request.post(baseURL + "/authorizations/" + selected.value.id + "/clear", {
+      account_id: selected.value.account_id,
+      amount: String(amount.value),
+    });
+    selected.value = undefined;
+    message.success("清算成功，已生成清算交易");
+    await load();
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : "清算失败");
+  } finally {
+    saving.value = false;
+  }
+}
+
+onMounted(load);
 </script>
 
 <template>
   <div class="page-heading">
-    <div><h1>授权管理</h1>
-      <p>查看 Paynda 已模拟的授权记录。</p></div>
+    <div>
+      <h1>授权管理</h1>
+      <p>从授权发起部分或全额清算，每次清算生成一笔独立交易。</p>
+    </div>
     <n-button :loading="loading" @click="load">刷新</n-button>
   </div>
   <n-card :bordered="false">
-    <n-data-table :loading="loading" :columns="columns" :data="rows"/>
+    <n-data-table :loading="loading" :columns="columns" :data="rows" />
   </n-card>
+  <n-modal
+    :show="Boolean(selected)"
+    preset="card"
+    title="授权清算"
+    @update:show="
+      (shown) => {
+        if (!shown) selected = undefined;
+      }
+    "
+  >
+    <p>授权 {{ selected?.id }} · 剩余 {{ selected?.remaining }} {{ selected?.currency }}</p>
+    <n-input-number v-model:value="amount" :min="0.01" :precision="2" />
+    <template #action>
+      <n-button type="primary" :loading="saving" @click="clear">确认清算</n-button>
+    </template>
+  </n-modal>
 </template>

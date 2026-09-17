@@ -15,8 +15,9 @@ import (
 )
 
 type UIListRequest struct {
-	PageNumber int `form:"page_number"`
-	PageSize   int `form:"page_size"`
+	AccountID  *string `form:"account_id"`
+	PageNumber *int    `form:"page_number" binding:"omitempty,min=1"`
+	PageSize   *int    `form:"page_size" binding:"omitempty,min=1"`
 }
 
 type UIListResponse[T any] struct {
@@ -25,6 +26,7 @@ type UIListResponse[T any] struct {
 }
 
 type UIAccountData struct {
+	WalletID  string          `json:"wallet_id"`
 	ID        string          `json:"id"`
 	Name      string          `json:"name"`
 	Balance   decimal.Decimal `json:"balance"`
@@ -32,12 +34,13 @@ type UIAccountData struct {
 }
 
 type UIVirtualAccountData struct {
-	ID        string    `json:"id"`
-	AccountID string    `json:"account_id"`
-	Name      string    `json:"name"`
-	Currency  string    `json:"currency"`
-	Balance   string    `json:"balance"`
-	CreatedAt time.Time `json:"created_at"`
+	AccountName string    `json:"account_name"`
+	ID          string    `json:"id"`
+	AccountID   string    `json:"account_id"`
+	Name        string    `json:"name"`
+	Currency    string    `json:"currency"`
+	Balance     string    `json:"balance"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type UICreateVirtualAccountRequest struct {
@@ -83,16 +86,18 @@ type UICreateAccountRequest struct {
 }
 
 type UIWebhookData struct {
-	ID        string              `json:"id"`
-	AccountID string              `json:"account_id"`
-	Event     photon.WebhookEvent `json:"event"`
-	TargetURL string              `json:"target_url"`
-	Enabled   bool                `json:"enabled"`
-	CreatedAt time.Time           `json:"created_at"`
-	UpdatedAt time.Time           `json:"updated_at"`
+	AccountName string              `json:"account_name"`
+	ID          string              `json:"id"`
+	AccountID   string              `json:"account_id"`
+	Event       photon.WebhookEvent `json:"event"`
+	TargetURL   string              `json:"target_url"`
+	Enabled     bool                `json:"enabled"`
+	CreatedAt   time.Time           `json:"created_at"`
+	UpdatedAt   time.Time           `json:"updated_at"`
 }
 
 type UIAuthorizationConfigData struct {
+	AccountName   string    `json:"account_name"`
 	AccountID     string    `json:"account_id"`
 	TargetURL     string    `json:"target_url"`
 	Enabled       bool      `json:"enabled"`
@@ -147,6 +152,7 @@ func (s *PhotonPayUIService) UpdateAuthorizationConfig(
 }
 
 type UIWebhookRecordData struct {
+	AccountName     string     `json:"account_name"`
 	ID              string     `json:"id"`
 	AccountID       string     `json:"account_id"`
 	Event           string     `json:"event"`
@@ -192,15 +198,11 @@ func (s *PhotonPayUIService) CreateWebhook(ctx context.Context, req *UICreateWeb
 	return photonPayUIWebhookData(item), nil
 }
 func (s *PhotonPayUIService) ListWebhooks(ctx context.Context, req *struct {
-	AccountID string `form:"account_id"`
+	AccountID *string `form:"account_id"`
 }) (*[]UIWebhookData, error) {
-	accountID := model.ID(0)
-	if req.AccountID != "" {
-		var err error
-		accountID, err = photonPayAccountID(req.AccountID)
-		if err != nil {
-			return nil, err
-		}
+	accountID, err := photonPayOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
 	}
 	items, err := s.usecase.ListWebhooks(ctx, &biz.WebhookListRequest{
 		AccountID: accountID,
@@ -256,13 +258,15 @@ type UICardHolderRequest struct {
 }
 
 type UICardHolderData struct {
-	ID        string                  `json:"id"`
-	FirstName string                  `json:"first_name"`
-	LastName  string                  `json:"last_name"`
-	Email     string                  `json:"email"`
-	Mobile    string                  `json:"phone_number"`
-	Status    photon.CardHolderStatus `json:"status"`
-	CreatedAt time.Time               `json:"created_at"`
+	AccountName string                  `json:"account_name"`
+	AccountID   string                  `json:"account_id"`
+	ID          string                  `json:"id"`
+	FirstName   string                  `json:"first_name"`
+	LastName    string                  `json:"last_name"`
+	Email       string                  `json:"email"`
+	Mobile      string                  `json:"phone_number"`
+	Status      photon.CardHolderStatus `json:"status"`
+	CreatedAt   time.Time               `json:"created_at"`
 }
 
 type PhotonPayUIService struct {
@@ -278,8 +282,11 @@ func (s *PhotonPayUIService) CreateAccount(ctx context.Context, req *UICreateAcc
 }
 
 func (s *PhotonPayUIService) ListAccounts(ctx context.Context, req *UIListRequest) (*UIListResponse[*UIAccountData], error) {
-	page, size := types.NormalizePagination(req.PageNumber, req.PageSize)
-	items, total, err := s.usecase.ListAccounts(ctx, &biz.ListRequest{Offset: (page - 1) * size, Limit: size})
+	listRequest, err := photonPayUIListRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	items, total, err := s.usecase.ListAccounts(ctx, listRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +306,10 @@ func (s *PhotonPayUIService) UpdateAccount(ctx context.Context, req *UIUpdateAcc
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.UpdateAccount(ctx, &biz.UIUpdateAccountRequest{ID: id, Name: req.Name})
+	item, err := s.usecase.UpdateAccount(ctx, &biz.UIUpdateAccountRequest{
+		ID:   id,
+		Name: req.Name,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -310,11 +320,11 @@ func (s *PhotonPayUIService) ListWebhookRecords(
 	ctx context.Context,
 	req *UIListRequest,
 ) (*UIListResponse[*UIWebhookRecordData], error) {
-	page, size := types.NormalizePagination(req.PageNumber, req.PageSize)
-	items, total, err := s.usecase.ListWebhookRecords(ctx, &biz.ListRequest{
-		Offset: (page - 1) * size,
-		Limit:  size,
-	})
+	listRequest, err := photonPayUIListRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	items, total, err := s.usecase.ListWebhookRecords(ctx, listRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +380,11 @@ func (s *PhotonPayUIService) CreateCardHolder(ctx context.Context, req *UICardHo
 }
 
 func (s *PhotonPayUIService) ListCardHolders(ctx context.Context, req *UIListRequest) (*UIListResponse[*UICardHolderData], error) {
-	holders, err := s.usecase.ListCardHolders(ctx, photonPayUIListRequest(req))
+	listRequest, err := photonPayUIListRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	holders, err := s.usecase.ListCardHolders(ctx, listRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -389,6 +403,9 @@ type UICreateCardRequest struct {
 }
 
 type UICardData struct {
+	AccountName   string            `json:"account_name"`
+	AccountID     string            `json:"account_id"`
+	WalletID      string            `json:"wallet_id"`
 	ID            string            `json:"id"`
 	CardHolderID  string            `json:"cardholder_id"`
 	CardNumber    string            `json:"card_number"`
@@ -425,7 +442,11 @@ func (s *PhotonPayUIService) CreateCard(ctx context.Context, req *UICreateCardRe
 }
 
 func (s *PhotonPayUIService) ListCards(ctx context.Context, req *UIListRequest) (*UIListResponse[*UICardData], error) {
-	cards, err := s.usecase.ListCards(ctx, photonPayUIListRequest(req))
+	listRequest, err := photonPayUIListRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	cards, err := s.usecase.ListCards(ctx, listRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +458,11 @@ func (s *PhotonPayUIService) ListCards(ctx context.Context, req *UIListRequest) 
 }
 
 func (s *PhotonPayUIService) ListAuthorizations(ctx context.Context, req *UIListRequest) (*UIListResponse[*UIAuthorizationData], error) {
-	items, err := s.usecase.ListAuthorizations(ctx, photonPayUIListRequest(req))
+	listRequest, err := photonPayUIListRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.usecase.ListAuthorizations(ctx, listRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -490,6 +515,8 @@ func (s *PhotonPayUIService) UpdateCardStatus(ctx context.Context, req *UIUpdate
 }
 
 type UITransactionData struct {
+	AccountName          string                   `json:"account_name"`
+	AccountID            string                   `json:"account_id"`
 	ID                   string                   `json:"id"`
 	CardID               string                   `json:"card_id"`
 	AuthorizationID      string                   `json:"authorization_id"`
@@ -503,6 +530,8 @@ type UITransactionData struct {
 }
 
 type UIAuthorizationData struct {
+	AccountID            string                     `json:"account_id"`
+	AccountName          string                     `json:"account_name"`
 	ID                   string                     `json:"id"`
 	CardID               string                     `json:"card_id"`
 	Status               photon.AuthorizationStatus `json:"status"`
@@ -532,6 +561,7 @@ type UISimulateAuthorizationData struct {
 }
 
 type UISimulateRefundRequest struct {
+	AuthorizationID      *string `json:"authorization_id"`
 	CardID               string  `json:"card_id" binding:"required"`
 	Amount               float64 `json:"amount" binding:"required,gt=0"`
 	Currency             string  `json:"currency" binding:"required"`
@@ -542,11 +572,16 @@ type UISimulateRefundRequest struct {
 }
 
 func (s *PhotonPayUIService) SimulateRefund(ctx context.Context, req *UISimulateRefundRequest) (*UITransactionData, error) {
+	authorizationID, err := photonpayRefundAuthorizationID(req.AuthorizationID)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := photonPayID(req.CardID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.SimulateRefund(ctx, &biz.UISimulateRefundRequest{
+		AuthorizationID: authorizationID,
 		CardID:          cardID,
 		Amount:          decimal.NewFromFloat(req.Amount),
 		Currency:        common.Currency(req.Currency),
@@ -586,8 +621,8 @@ func (s *PhotonPayUIService) SimulateAuthorization(ctx context.Context, req *UIS
 }
 
 type UIApplyTransactionStepRequest struct {
-	ID     string  `uri:"id" binding:"required"`
-	Amount float64 `json:"amount"`
+	ID     string           `uri:"id" binding:"required"`
+	Amount *decimal.Decimal `json:"amount"`
 }
 
 func (s *PhotonPayUIService) ClearTransaction(ctx context.Context, req *UIApplyTransactionStepRequest) (*UITransactionData, error) {
@@ -610,7 +645,7 @@ func (s *PhotonPayUIService) applyTransactionStep(ctx context.Context, req *UIAp
 	item, err := s.usecase.ApplyTransactionStep(ctx, &biz.UIApplyTransactionStepRequest{
 		CardTransactionID: transactionID,
 		Type:              transactionType,
-		Amount:            decimal.NewFromFloat(req.Amount),
+		Amount:            req.Amount,
 	})
 	if err != nil {
 		return nil, err
@@ -620,7 +655,11 @@ func (s *PhotonPayUIService) applyTransactionStep(ctx context.Context, req *UIAp
 }
 
 func (s *PhotonPayUIService) ListTransactions(ctx context.Context, req *UIListRequest) (*UIListResponse[*UITransactionData], error) {
-	transactions, err := s.usecase.ListTransactions(ctx, photonPayUIListRequest(req))
+	listRequest, err := photonPayUIListRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	transactions, err := s.usecase.ListTransactions(ctx, listRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -631,24 +670,30 @@ func (s *PhotonPayUIService) ListTransactions(ctx context.Context, req *UIListRe
 	}, nil
 }
 
-func photonPayUIListRequest(req *UIListRequest) *biz.ListRequest {
-	page, size := types.NormalizePagination(req.PageNumber, req.PageSize)
-
-	return &biz.ListRequest{
-		Offset: (page - 1) * size,
-		Limit:  size,
+func photonPayUIListRequest(req *UIListRequest) (*biz.ListRequest, error) {
+	page, size := types.NormalizePagination(types.Value(req.PageNumber), types.Value(req.PageSize))
+	accountID, err := photonPayOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
 	}
+	return &biz.ListRequest{
+		AccountID: accountID,
+		Offset:    (page - 1) * size,
+		Limit:     size,
+	}, nil
 }
 
 func photonPayUICardHolderData(item *model.CardHolder) *UICardHolderData {
 	return &UICardHolderData{
-		ID:        photonPayIDString(item.ID),
-		FirstName: item.FirstName,
-		LastName:  item.LastName,
-		Email:     item.Email,
-		Mobile:    item.Mobile,
-		Status:    photon.CardHolderStatusFromGeneric(item.Status),
-		CreatedAt: item.CreatedAt,
+		AccountID:   photonPayIDString(item.AccountID),
+		AccountName: uiAccountName(item.Account),
+		ID:          photonPayIDString(item.ID),
+		FirstName:   item.FirstName,
+		LastName:    item.LastName,
+		Email:       item.Email,
+		Mobile:      item.Mobile,
+		Status:      photon.CardHolderStatusFromGeneric(item.Status),
+		CreatedAt:   item.CreatedAt,
 	}
 }
 
@@ -663,6 +708,9 @@ func photonPayUICardData(item *model.Card) *UICardData {
 	}
 
 	return &UICardData{
+		AccountID:     photonPayIDString(item.AccountID),
+		AccountName:   uiAccountName(item.Account),
+		WalletID:      photonPayIDString(item.WalletID),
 		ID:            photonPayIDString(item.ID),
 		CardHolderID:  photonPayIDString(item.CardHolderID),
 		CardNumber:    item.CardNumber,
@@ -679,6 +727,8 @@ func photonPayUICardData(item *model.Card) *UICardData {
 
 func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationData {
 	return &UIAuthorizationData{
+		AccountID:            photonPayIDString(item.AccountID),
+		AccountName:          uiAccountName(item.Account),
 		ID:                   photonPayIDString(item.ID),
 		CardID:               photonPayIDString(item.CardID),
 		Status:               photon.AuthorizationStatusFromGeneric(item.Status),
@@ -693,30 +743,33 @@ func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationDat
 
 func photonPayUIWebhookData(item *model.WebhookConfig) *UIWebhookData {
 	return &UIWebhookData{
-		ID:        photonPayIDString(item.ID),
-		AccountID: photonPayIDString(item.AccountID),
-		Event:     photon.WebhookEvent(item.Event),
-		TargetURL: item.TargetURL,
-		Enabled:   item.Enabled,
-		CreatedAt: item.CreatedAt,
-		UpdatedAt: item.UpdatedAt,
+		ID:          photonPayIDString(item.ID),
+		AccountID:   photonPayIDString(item.AccountID),
+		AccountName: uiAccountName(item.Account),
+		Event:       photon.WebhookEvent(item.Event),
+		TargetURL:   item.TargetURL,
+		Enabled:     item.Enabled,
+		CreatedAt:   item.CreatedAt,
+		UpdatedAt:   item.UpdatedAt,
 	}
 }
 
 func photonPayUIVirtualAccountData(item *model.VirtualAccount) *UIVirtualAccountData {
 	return &UIVirtualAccountData{
-		ID:        photonPayIDString(item.ID),
-		AccountID: photonPayIDString(item.AccountID),
-		Name:      item.Name,
-		Currency:  string(item.Wallet.Currency),
-		Balance:   item.Wallet.Amount.String(),
-		CreatedAt: item.CreatedAt,
+		AccountID:   photonPayIDString(item.AccountID),
+		AccountName: uiAccountName(item.Account),
+		ID:          photonPayIDString(item.ID),
+		Name:        item.Name,
+		Currency:    string(item.Wallet.Currency),
+		Balance:     item.Wallet.Amount.String(),
+		CreatedAt:   item.CreatedAt,
 	}
 }
 
 func photonPayUIAuthorizationConfigData(item *model.AuthorizationConfig) *UIAuthorizationConfigData {
 	return &UIAuthorizationConfigData{
 		AccountID:     photonPayIDString(item.AccountID),
+		AccountName:   uiAccountName(item.Account),
 		TargetURL:     item.TargetURL,
 		Enabled:       item.Enabled,
 		TimeoutMillis: item.TimeoutMillis,
@@ -728,6 +781,7 @@ func photonPayUIWebhookRecordData(item *model.WebhookRecord) *UIWebhookRecordDat
 	return &UIWebhookRecordData{
 		ID:              photonPayIDString(item.ID),
 		AccountID:       photonPayIDString(item.AccountID),
+		AccountName:     uiAccountName(item.Account),
 		Event:           item.Event,
 		TargetURL:       item.TargetURL,
 		SourceID:        item.SourceID,
@@ -750,6 +804,7 @@ func photonPayUIAccountData(item *model.Account) *UIAccountData {
 		balance = item.Wallet.Amount
 	}
 	return &UIAccountData{
+		WalletID:  photonPayIDString(item.WalletID),
 		ID:        photonPayIDString(item.ID),
 		Name:      item.Name,
 		Balance:   balance,
@@ -759,6 +814,8 @@ func photonPayUIAccountData(item *model.Account) *UIAccountData {
 
 func photonPayUITransactionData(item *model.CardTransaction) *UITransactionData {
 	return &UITransactionData{
+		AccountID:            photonPayIDString(item.AccountID),
+		AccountName:          uiAccountName(item.Account),
 		ID:                   photonPayIDString(item.ID),
 		CardID:               photonPayIDString(item.CardID),
 		AuthorizationID:      photonPayIDString(item.AuthorizationID),
@@ -770,4 +827,224 @@ func photonPayUITransactionData(item *model.CardTransaction) *UITransactionData 
 		MerchantCategoryCode: item.MerchantMCC,
 		TransactedAt:         item.CreatedAt,
 	}
+}
+
+type ManagementListRequest struct {
+	AccountID *string `form:"account_id"`
+}
+
+type ManagementAccountRequest struct {
+	AccountID string `form:"account_id" json:"account_id" binding:"required"`
+}
+type FundsData struct {
+	AccountName string            `json:"account_name"`
+	AccountID   string            `json:"account_id"`
+	ID          string            `json:"id"`
+	Currency    common.Currency   `json:"currency"`
+	Kind        photon.WalletKind `json:"kind"`
+	Amount      string            `json:"amount"`
+}
+
+func (s *PhotonPayUIService) ListFunds(ctx context.Context, req *ManagementListRequest) (*[]FundsData, error) {
+	accountID, err := photonPayOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.usecase.ListFunds(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]FundsData, 0, len(items))
+	for _, item := range items {
+		var kind photon.WalletKind
+		switch item.Type {
+		case common.WalletType_Account:
+			kind = photon.WalletKindAccount
+		case common.WalletType_VirtualAccount:
+			kind = photon.WalletKindVirtualAccount
+		case common.WalletType_Card:
+			kind = photon.WalletKindCard
+		}
+		result = append(result, FundsData{
+			AccountID:   photonPayIDString(item.AccountID),
+			AccountName: uiAccountName(item.Account),
+			ID:          photonPayIDString(item.ID),
+			Currency:    item.Currency,
+			Kind:        kind,
+			Amount:      item.Amount.String(),
+		})
+	}
+	return &result, nil
+}
+
+type MoveFundsRequest struct {
+	ManagementAccountRequest
+	SourceID string          `json:"source_id"`
+	TargetID string          `json:"target_id"`
+	Amount   decimal.Decimal `json:"amount"`
+}
+
+func (s *PhotonPayUIService) MoveFunds(ctx context.Context, req *MoveFundsRequest) (*struct{}, error) {
+	accountID, err := photonPayAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	var sourceID, targetID int64
+	if req.SourceID != "" {
+		sourceID, err = photonPayID(req.SourceID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if req.TargetID != "" {
+		targetID, err = photonPayID(req.TargetID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err := s.usecase.MoveFunds(ctx, &biz.MoveFundsRequest{
+		AccountID: accountID,
+		SourceID:  sourceID,
+		TargetID:  targetID,
+		Amount:    req.Amount,
+	}); err != nil {
+		return nil, err
+	}
+	return &struct{}{}, nil
+}
+
+type ManagedVirtualAccountData struct {
+	AccountName string `json:"account_name"`
+	AccountID   string `json:"account_id"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	WalletID    string `json:"wallet_id"`
+}
+
+func (s *PhotonPayUIService) ListManagedVirtualAccounts(ctx context.Context, req *ManagementListRequest) (*[]ManagedVirtualAccountData, error) {
+	accountID, err := photonPayOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.usecase.ListManagedVirtualAccounts(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]ManagedVirtualAccountData, 0, len(items))
+	for _, item := range items {
+		result = append(result, ManagedVirtualAccountData{
+			AccountID:   photonPayIDString(item.AccountID),
+			AccountName: uiAccountName(item.Account),
+			ID:          photonPayIDString(item.ID),
+			Name:        item.Name,
+			WalletID:    photonPayIDString(item.WalletID),
+		})
+	}
+	return &result, nil
+}
+
+type CreateManagedVirtualAccountRequest struct {
+	ManagementAccountRequest
+	Name     string          `json:"name" binding:"required"`
+	Currency common.Currency `json:"currency" binding:"required,oneof=USD GBP JPY CNY"`
+}
+
+func (s *PhotonPayUIService) CreateManagedVirtualAccount(ctx context.Context, req *CreateManagedVirtualAccountRequest) (*ManagedVirtualAccountData, error) {
+	accountID, err := photonPayAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.CreateManagedVirtualAccount(ctx, &biz.CreateManagedVirtualAccountRequest{
+		AccountID: accountID,
+		Name:      req.Name,
+		Currency:  req.Currency,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ManagedVirtualAccountData{
+		AccountID:   photonPayIDString(item.AccountID),
+		AccountName: uiAccountName(item.Account),
+		ID:          photonPayIDString(item.ID),
+		Name:        item.Name,
+		WalletID:    photonPayIDString(item.WalletID),
+	}, nil
+}
+
+type AuthorizationBalanceData struct {
+	AccountName  string          `json:"account_name"`
+	AccountID    string          `json:"account_id"`
+	ID           string          `json:"id"`
+	CardID       string          `json:"card_id"`
+	Currency     common.Currency `json:"currency"`
+	Amount       string          `json:"amount"`
+	Settled      string          `json:"settled"`
+	Remaining    string          `json:"remaining"`
+	MerchantName string          `json:"merchant_name"`
+	CreatedAt    time.Time       `json:"created_at"`
+}
+
+func (s *PhotonPayUIService) ListAuthorizationBalances(ctx context.Context, req *ManagementListRequest) (*[]AuthorizationBalanceData, error) {
+	accountID, err := photonPayOptionalID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.usecase.ListAuthorizationBalances(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]AuthorizationBalanceData, 0, len(items))
+	for _, item := range items {
+		auth := item.Authorization
+		result = append(result, AuthorizationBalanceData{
+			AccountID:    photonPayIDString(auth.AccountID),
+			AccountName:  uiAccountName(auth.Account),
+			ID:           photonPayIDString(auth.ID),
+			CardID:       photonPayIDString(auth.CardID),
+			Currency:     auth.Currency,
+			Amount:       auth.Amount.String(),
+			Settled:      item.Settled.String(),
+			Remaining:    item.Remaining.String(),
+			MerchantName: auth.MerchantName,
+			CreatedAt:    auth.CreatedAt,
+		})
+	}
+	return &result, nil
+}
+
+type ClearAuthorizationRequest struct {
+	ManagementAccountRequest
+	ID     string          `uri:"id" binding:"required"`
+	Amount decimal.Decimal `json:"amount"`
+}
+type ClearAuthorizationData struct {
+	ID string `json:"id"`
+}
+
+func (s *PhotonPayUIService) ClearAuthorization(ctx context.Context, req *ClearAuthorizationRequest) (*ClearAuthorizationData, error) {
+	accountID, err := photonPayAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	authID, err := photonPayID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.ClearAuthorization(ctx, &biz.ClearAuthorizationRequest{
+		AccountID: accountID,
+		ID:        authID,
+		Amount:    req.Amount,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &ClearAuthorizationData{ID: photonPayIDString(item.ID)}, nil
+}
+
+func uiAccountName(account *model.Account) string {
+	if account == nil {
+		return ""
+	}
+	return account.Name
 }

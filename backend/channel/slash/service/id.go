@@ -30,13 +30,33 @@ func slashID(value string) (model.ID, error) {
 	return model.ID(id), nil
 }
 
-func slashOptionalID(value string) (model.ID, error) {
-	if value == "" {
-		return 0, nil
+func slashOptionalID(value *string) (*model.ID, error) {
+	if value == nil {
+		return nil, nil
 	}
-	return slashID(value)
+	id, err := slashID(*value)
+	if err != nil {
+		return nil, err
+	}
+	return &id, nil
 }
 
 func slashAccountID(value string) (model.ID, error) {
 	return slashID(value)
+}
+
+// slashRefundAuthorizationID permits the channel-formatted zero ID for an independent refund.
+func slashRefundAuthorizationID(value *string) (*model.ID, error) {
+	if value == nil {
+		return nil, nil
+	}
+	var id model.ID
+	if *value == slashIDString(0) {
+		return &id, nil
+	}
+	id, err := slashID(*value)
+	if err != nil {
+		return nil, err
+	}
+	return &id, nil
 }

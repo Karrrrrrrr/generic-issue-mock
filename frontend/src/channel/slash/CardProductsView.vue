@@ -20,12 +20,21 @@ onMounted(() => void load());
 <template>
   <section>
     <div class="page-heading">
-      <div><h1>卡产品</h1>
-        <p>渠道可用 BIN 与默认开卡产品。</p></div>
+      <div>
+        <h1>卡产品</h1>
+        <p>渠道可用 BIN 与默认开卡产品。</p>
+      </div>
     </div>
     <n-card :bordered="false">
-      <n-data-table :loading="loading" :data="rows"
-                    :columns="[{ title: 'BIN', key: 'prefix' }, { title: '默认产品', key: 'is_default' }, { title: 'ID', key: 'id' }]"/>
+      <n-data-table
+        :loading="loading"
+        :data="rows"
+        :columns="[
+          { title: 'BIN', key: 'prefix' },
+          { title: '默认产品', key: 'is_default' },
+          { title: 'ID', key: 'id' },
+        ]"
+      />
     </n-card>
   </section>
 </template>

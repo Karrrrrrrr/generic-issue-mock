@@ -37,16 +37,22 @@ const form = ref({
   enabled: true,
 });
 
+async function loadAccountOptions() {
+  try {
+    accounts.value = await accountApi.listAll();
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : "加载账户选项失败");
+  }
+}
+
 async function load() {
   loading.value = true;
   try {
-    const [items, accountItems, events] = await Promise.all([
+    const [items, events] = await Promise.all([
       webhookApi.list(filterAccountID.value || undefined),
-      accountApi.list(),
       webhookApi.events(),
     ]);
     rows.value = items;
-    accounts.value = accountItems.data;
     eventOptions.value = events;
   } catch (error) {
     message.error(error instanceof Error ? error.message : "无法加载 Webhook 配置");
@@ -55,7 +61,8 @@ async function load() {
   }
 }
 
-function openCreate() {
+async function openCreate() {
+  await loadAccountOptions();
   editing.value = null;
   form.value = {
     account_id: "",
@@ -71,7 +78,8 @@ function changeAccountFilter(value: string | null) {
   void load();
 }
 
-function openEdit(item: Webhook) {
+async function openEdit(item: Webhook) {
+  await loadAccountOptions();
   editing.value = item;
   form.value = {
     account_id: item.account_id,
@@ -127,6 +135,10 @@ function remove(item: Webhook) {
 
 const columns: DataTableColumns<Webhook> = [
   {
+    title: "账户名称",
+    key: "account_name",
+  },
+  {
     title: "账户 ID",
     key: "account_id",
     width: 180,
@@ -135,33 +147,54 @@ const columns: DataTableColumns<Webhook> = [
     title: "事件",
     key: "event",
     width: 220,
-    render: (row) => h(NTag, { size: "small" }, { default: () => row.event })
+    render: (row) => h(NTag, { size: "small" }, { default: () => row.event }),
   },
   { title: "目标地址", key: "target_url", ellipsis: { tooltip: true } },
   {
     title: "状态",
     key: "enabled",
     width: 100,
-    render: (row) => h(NTag, {
-      type: row.enabled ? "success" : "default",
-      size: "small"
-    }, { default: () => row.enabled ? "启用" : "停用" })
+    render: (row) =>
+      h(
+        NTag,
+        {
+          type: row.enabled ? "success" : "default",
+          size: "small",
+        },
+        { default: () => (row.enabled ? "启用" : "停用") },
+      ),
   },
   { title: "更新时间", key: "updated_at", width: 180 },
   {
     title: "操作",
     key: "actions",
     width: 150,
-    render: (row) => h(NSpace, { size: 6 }, {
-      default: () => [h(NButton, {
-        size: "small",
-        onClick: () => openEdit(row)
-      }, { default: () => "编辑" }), h(NButton, {
-        size: "small",
-        type: "error",
-        onClick: () => remove(row)
-      }, { default: () => "删除" })]
-    })
+    render: (row) =>
+      h(
+        NSpace,
+        { size: 6 },
+        {
+          default: () => [
+            h(
+              NButton,
+              {
+                size: "small",
+                onClick: () => openEdit(row),
+              },
+              { default: () => "编辑" },
+            ),
+            h(
+              NButton,
+              {
+                size: "small",
+                type: "error",
+                onClick: () => remove(row),
+              },
+              { default: () => "删除" },
+            ),
+          ],
+        },
+      ),
   },
 ];
 
@@ -171,42 +204,59 @@ onMounted(() => void load());
 <template>
   <section>
     <div class="page-heading">
-      <div><h1>Webhook</h1>
-        <p>管理事件回调地址与启用状态。</p></div>
+      <div>
+        <h1>Webhook</h1>
+        <p>管理事件回调地址与启用状态。</p>
+      </div>
       <n-button type="primary" @click="openCreate">新增 Webhook</n-button>
     </div>
     <n-select
-        v-model:value="filterAccountID"
-        :options="accounts.map((account) => ({ label: `${account.name} (${account.id})`, value: account.id }))"
-        clearable
-        filterable
-        placeholder="按账户名称或账户 ID 过滤"
-        style="width: min(360px, 100%)"
-        @update:value="changeAccountFilter"
+      v-model:value="filterAccountID"
+      @focus="loadAccountOptions"
+      :options="
+        accounts.map((account) => ({ label: `${account.name} (${account.id})`, value: account.id }))
+      "
+      clearable
+      filterable
+      placeholder="按账户名称或账户 ID 过滤"
+      style="width: min(360px, 100%)"
+      @update:value="changeAccountFilter"
     />
-    <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false"/>
-    <n-modal v-model:show="creating" preset="card" :title="editing ? '编辑 Webhook' : '新增 Webhook'"
-             style="width: min(560px, calc(100vw - 32px))">
+    <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" />
+    <n-modal
+      v-model:show="creating"
+      preset="card"
+      :title="editing ? '编辑 Webhook' : '新增 Webhook'"
+      style="width: min(560px, calc(100vw - 32px))"
+    >
       <n-form label-placement="top">
         <n-form-item label="账户">
           <n-select
-              v-model:value="form.account_id"
-              :options="accounts.map((account) => ({ label: `${account.name} (${account.id})`, value: account.id }))"
-              :disabled="Boolean(editing)"
+            v-model:value="form.account_id"
+            :options="
+              accounts.map((account) => ({
+                label: `${account.name} (${account.id})`,
+                value: account.id,
+              }))
+            "
+            :disabled="Boolean(editing)"
           />
         </n-form-item>
         <n-form-item label="事件">
-        <n-select
+          <n-select
             v-model:value="form.event"
             :options="eventOptions.map((value) => ({ label: value, value }))"
             :disabled="Boolean(editing)"
-        />
+          />
         </n-form-item>
         <n-form-item label="Webhook URL">
-          <n-input v-model:value="form.target_url" placeholder="https://example.com/webhooks/slash"/>
+          <n-input
+            v-model:value="form.target_url"
+            placeholder="https://example.com/webhooks/slash"
+          />
         </n-form-item>
         <n-form-item label="启用">
-          <n-switch v-model:value="form.enabled"/>
+          <n-switch v-model:value="form.enabled" />
         </n-form-item>
       </n-form>
       <template #action>

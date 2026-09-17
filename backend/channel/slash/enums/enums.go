@@ -153,3 +153,11 @@ func TransactionTypeToGeneric(value TransactionType) generic.CardTransactionType
 func CardHolderStatusFromGeneric(_ generic.CardHolderStatus) CardHolderStatus {
 	return CardHolderStatus_Normal
 }
+
+type WalletKind string
+
+const (
+	WalletKindAccount        WalletKind = "account"
+	WalletKindVirtualAccount WalletKind = "virtual_account"
+	WalletKindCard           WalletKind = "card"
+)
