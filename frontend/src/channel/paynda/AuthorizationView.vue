@@ -71,7 +71,7 @@ async function submit() {
       !form.value.merchantMCC ||
       form.value.amount <= 0
   ) {
-    message.warning("请选择活动卡，并填写正数金额、商户名称和 MCC");
+    message.warning("请选择卡，并填写正数金额、商户名称和 MCC");
     return;
   }
   loading.value = true;
@@ -89,7 +89,7 @@ async function submit() {
 
 async function submitRefund() {
   if (!refundForm.value.card_id || !refundForm.value.merchant_name || !refundForm.value.merchant_category_code || !refundForm.value.merchant_country || refundForm.value.amount <= 0) {
-    message.warning("请选择活动卡，并填写正数金额、商户名称、MCC 和国家");
+    message.warning("请选择卡，并填写正数金额、商户名称、MCC 和国家");
     return;
   }
   refundLoading.value = true;
@@ -121,12 +121,12 @@ onMounted(() => {
           <n-card title="授权配置" hover style="max-width: 720px">
             <n-form label-placement="top">
               <div class="form-grid">
-                <n-form-item class="form-wide" label="活动卡" required>
+                <n-form-item class="form-wide" label="卡" required>
                   <n-select
                       v-model:value="form.cardID"
                       :options="options"
                       filterable
-                      placeholder="选择活动卡"
+                      placeholder="选择卡"
                   />
                 </n-form-item>
                 <n-form-item label="交易金额" required>
@@ -179,8 +179,8 @@ onMounted(() => {
           <n-card title="退款配置" hover style="max-width: 720px">
             <n-form label-placement="top">
               <div class="form-grid">
-                <n-form-item class="form-wide" label="活动卡" required>
-                  <n-select v-model:value="refundForm.card_id" :options="options" filterable placeholder="选择活动卡"/>
+                <n-form-item class="form-wide" label="卡" required>
+                  <n-select v-model:value="refundForm.card_id" :options="options" filterable placeholder="选择卡"/>
                 </n-form-item>
                 <n-form-item label="退款金额" required>
                   <n-input-number v-model:value="refundForm.amount" :min="0.01" :precision="2" style="width: 100%"/>

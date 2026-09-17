@@ -8,11 +8,15 @@ const route = useRoute();
 const router = useRouter();
 const items = [
   {
+    type: "group", label: "账户", key: "accounts", children: [
+      { label: "账户", key: "/slash/accounts" },
+      { label: "虚拟账户", key: "/slash/virtual-accounts" },
+    ]
+  },
+  {
     type: "group", label: "卡", key: "cards", children: [
       { label: "持卡人", key: "/slash/cardholders" },
       { label: "卡片管理", key: "/slash/cards" },
-      { label: "账户", key: "/slash/accounts" },
-      { label: "虚拟账户管理", key: "/slash/virtual-accounts" },
       { label: "卡产品管理", key: "/slash/card-products" },
     ]
   },

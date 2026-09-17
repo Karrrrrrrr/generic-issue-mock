@@ -8,6 +8,11 @@ const route = useRoute();
 const router = useRouter();
 const items = [
   {
+    type: "group", label: "账户", key: "accounts", children: [
+      { label: "资金账户", key: "/paynda/accounts" },
+    ]
+  },
+  {
     type: "group", label: "卡", key: "cards", children: [
       { label: "持卡人", key: "/paynda/cardholders" },
       { label: "卡片管理", key: "/paynda/cards" },
@@ -22,7 +27,6 @@ const items = [
   },
   {
     type: "group", label: "配置", key: "configuration", children: [
-      { label: "资金账户", key: "/paynda/accounts" },
       { label: "Webhook 管理", key: "/paynda/webhooks" },
       { label: "投递记录", key: "/paynda/webhook-records" },
     ]
