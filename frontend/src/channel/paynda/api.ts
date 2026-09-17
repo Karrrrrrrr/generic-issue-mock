@@ -19,6 +19,24 @@ export interface Webhook {
   updated_at: string;
 }
 
+export interface WebhookRecord {
+  id: string;
+  account_id: string;
+  event: string;
+  target_url: string;
+  source_id: string;
+  payload: string;
+  request_headers: string;
+  response_body: string;
+  response_headers: string;
+  status_code: number;
+  status: string;
+  attempt_count: number;
+  delivered_at: string | null;
+  error_message: string;
+  created_at: string;
+}
+
 export interface Account {
   id: string;
   name: string;
@@ -59,6 +77,22 @@ export const webhookApi = {
   },
   async remove(id: string) {
     await request.delete(`${baseURL}/webhooks/${id}`);
+  },
+};
+
+export const webhookRecordApi = {
+  async list(pageNumber = 1, pageSize = 20) {
+    return (
+      await request.get<ListResponse<WebhookRecord>>(`${baseURL}/webhook-records`, {
+        params: {
+          page_number: pageNumber,
+          page_size: pageSize,
+        },
+      })
+    ).data;
+  },
+  async replay(id: string) {
+    return (await request.post<WebhookRecord>(`${baseURL}/webhook-records/${id}/replay`)).data;
   },
 };
 

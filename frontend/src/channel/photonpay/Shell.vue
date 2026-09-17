@@ -24,6 +24,7 @@ const items = [
     type: "group", label: "配置", key: "configuration", children: [
       { label: "账户", key: "/photonpay/accounts" },
       { label: "Webhook 管理", key: "/photonpay/webhooks" },
+      { label: "投递记录", key: "/photonpay/webhook-records" },
     ]
   },
 ];

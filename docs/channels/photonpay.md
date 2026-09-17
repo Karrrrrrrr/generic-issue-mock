@@ -155,4 +155,4 @@ curl -X POST "$MARXO_BASE_URL/api/v1/notify/ds-event" \
 
 Marxo 不使用通用成功信封，必须收到裸响应 `{"roger":true}`；连续八次不规范响应会使 PhotonPay 停止全部事件通知。因此 mock 的投递判定需要同时检查 HTTP 2xx 和该 JSON body 的 `roger=true`。提交业务 transaction 后先创建 `WebhookRecord`（`Channel=photonpay`、事件、目标、格式化 `SourceID`、原始 body、attempt 1、pending），再发送；将状态码、响应 body、投递时间或错误写回同一 record，重试不得重新生成业务交易。
 
-配置事件直接使用当前已实现的 Marxo `X-PD-NOTIFICATION-TYPE` 值：`auth`、`verification`、`void`、`refund`。卡状态和持卡人状态投递尚未实现，因此不在后端事件列表中返回。在 Marxo 开启验签时设置 `PHOTONPAY_WEBHOOK_PRIVATE_KEY`（PKCS#8 RSA PEM）；未设置时只发送事件 headers 和 body，适用于关闭验签的本地环境。投递记录已经持久化，自动重试和记录查询 UI 仍待实现。
+配置事件直接使用当前已实现的 Marxo `X-PD-NOTIFICATION-TYPE` 值：`auth`、`verification`、`void`、`refund`。卡状态和持卡人状态投递尚未实现，因此不在后端事件列表中返回。在 Marxo 开启验签时设置 `PHOTONPAY_WEBHOOK_PRIVATE_KEY`（PKCS#8 RSA PEM）；未设置时只发送事件 headers 和 body，适用于关闭验签的本地环境。投递记录 UI 已支持分页、详情和 replay：详情保存并展示报文、请求头、响应体和响应头；replay 使用原始报文和请求头再次发送，并新建一条记录保留审计历史。自动重试仍待实现。

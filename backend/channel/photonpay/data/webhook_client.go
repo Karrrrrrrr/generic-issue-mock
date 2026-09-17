@@ -9,6 +9,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"io"
@@ -46,6 +47,15 @@ func (c *webhookClient) Deliver(ctx context.Context, req *biz.PhotonPayWebhookDe
 		}
 		httpRequest.Header.Set("X-PD-SIGN", signature)
 	}
+	if len(req.RequestHeaders) > 0 {
+		if err := json.Unmarshal(req.RequestHeaders, &httpRequest.Header); err != nil {
+			return nil, err
+		}
+	}
+	requestHeaders, err := json.Marshal(httpRequest.Header)
+	if err != nil {
+		return nil, err
+	}
 	response, err := c.client.Do(httpRequest)
 	if err != nil {
 		return nil, err
@@ -55,7 +65,17 @@ func (c *webhookClient) Deliver(ctx context.Context, req *biz.PhotonPayWebhookDe
 	if err != nil {
 		return nil, err
 	}
-	return &biz.WebhookDeliveryResult{StatusCode: response.StatusCode, ResponseBody: string(body)}, nil
+	responseHeaders, err := json.Marshal(response.Header)
+	if err != nil {
+		return nil, err
+	}
+
+	return &biz.WebhookDeliveryResult{
+		StatusCode:      response.StatusCode,
+		ResponseBody:    string(body),
+		RequestHeaders:  requestHeaders,
+		ResponseHeaders: responseHeaders,
+	}, nil
 }
 
 func photonPayWebhookSignature(payload []byte, privateKeyPEM string) (string, error) {

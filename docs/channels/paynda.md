@@ -127,4 +127,4 @@ curl -X POST "$MARXO_BASE_URL/api/v1/notify/xm-event" \
 
 该入口返回空成功响应，投递成功以 HTTP 2xx 为准。提交业务 transaction 后，先建立 `WebhookRecord`（`Channel=paynda`、分类事件、target、格式化 `SourceID`、完整 JSON、attempt 1、pending），再 POST；记录 HTTP 状态、响应、时间或失败原因，并在重试时更新同一 record。交易 body 的 `id`/`transactionId` 应稳定复用，避免 Marxo 将重投视作新清算消息。
 
-配置事件直接使用当前已实现的 Marxo `X-VK-NOTIFICATION-CATEGORY` 值：`CARD_TRANSACTION`。卡状态投递尚未实现，因此 `CARD_STATUS` 不在后端事件列表中返回。当前 UI 模拟授权、退款、清算/冲正均投递 `CARD_TRANSACTION`。若 Marxo 开启验签，设置 `PAYNDA_WEBHOOK_APP_ID` 与 `PAYNDA_WEBHOOK_APP_SECRET`；未设置时仍发送分类 header 与 body，适用于关闭验签的本地环境。投递记录已经持久化，自动重试和记录查询 UI 仍待实现。
+配置事件直接使用当前已实现的 Marxo `X-VK-NOTIFICATION-CATEGORY` 值：`CARD_TRANSACTION`。卡状态投递尚未实现，因此 `CARD_STATUS` 不在后端事件列表中返回。当前 UI 模拟授权、退款、清算/冲正均投递 `CARD_TRANSACTION`。若 Marxo 开启验签，设置 `PAYNDA_WEBHOOK_APP_ID` 与 `PAYNDA_WEBHOOK_APP_SECRET`；未设置时仍发送分类 header 与 body，适用于关闭验签的本地环境。投递记录 UI 已支持分页、详情和 replay：详情保存并展示报文、请求头、响应体和响应头；replay 使用原始报文和请求头再次发送，并新建一条记录保留审计历史。自动重试仍待实现。

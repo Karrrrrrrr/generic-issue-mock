@@ -70,6 +70,10 @@ export const router = createRouter({
           component: () => import("@/channel/photonpay/AuthorizationView.vue"),
         },
         { path: "webhooks", component: () => import("@/channel/photonpay/WebhooksView.vue") },
+        {
+          path: "webhook-records",
+          component: () => import("@/channel/photonpay/WebhookRecordsView.vue"),
+        },
       ],
     },
     {
@@ -99,6 +103,10 @@ export const router = createRouter({
         },
         { path: "accounts", component: () => import("@/channel/paynda/AccountsView.vue") },
         { path: "webhooks", component: () => import("@/channel/paynda/WebhooksView.vue") },
+        {
+          path: "webhook-records",
+          component: () => import("@/channel/paynda/WebhookRecordsView.vue"),
+        },
       ],
     },
     { path: "/", redirect: "/slash/cardholders" },

@@ -24,6 +24,7 @@ const items = [
     type: "group", label: "配置", key: "configuration", children: [
       { label: "资金账户", key: "/paynda/accounts" },
       { label: "Webhook 管理", key: "/paynda/webhooks" },
+      { label: "投递记录", key: "/paynda/webhook-records" },
     ]
   },
 ];

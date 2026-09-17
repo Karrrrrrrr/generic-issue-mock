@@ -111,12 +111,18 @@ type PayndaListWebhooksRequest struct{ AccountID model.ID }
 
 type PayndaWebhookRecordRepository interface {
 	Create(context.Context, *model.WebhookRecord) error
+	Exist(context.Context, model.ID) (bool, error)
+	Find(context.Context, model.ID) (*model.WebhookRecord, error)
+	Count(context.Context) (int64, error)
+	List(context.Context, *PayndaListRequest) ([]*model.WebhookRecord, error)
 	Save(context.Context, *model.WebhookRecord) error
 }
 
 type PayndaWebhookDeliveryResult struct {
-	StatusCode   int
-	ResponseBody string
+	StatusCode      int
+	ResponseBody    string
+	RequestHeaders  []byte
+	ResponseHeaders []byte
 }
 
 type PayndaWebhookClient interface {
@@ -124,9 +130,10 @@ type PayndaWebhookClient interface {
 }
 
 type PayndaWebhookDeliveryRequest struct {
-	TargetURL string
-	Payload   []byte
-	Category  string
+	TargetURL      string
+	Payload        []byte
+	RequestHeaders []byte
+	Category       string
 }
 
 type PayndaListRequest struct {
@@ -972,6 +979,90 @@ func (u *PayndaUIUsecase) ListAccounts(
 	return items, total, nil
 }
 
+func (u *PayndaUIUsecase) ListWebhookRecords(
+	ctx context.Context,
+	req *PayndaListRequest,
+) ([]*model.WebhookRecord, int64, error) {
+	items, err := u.webhookRecordRepository.List(ctx, req)
+	if err != nil {
+		zap.S().Errorw("list paynda webhook records", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+
+	total, err := u.webhookRecordRepository.Count(ctx)
+	if err != nil {
+		zap.S().Errorw("count paynda webhook records", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+
+	return items, total, nil
+}
+
+func (u *PayndaUIUsecase) ReplayWebhookRecord(
+	ctx context.Context,
+	id model.ID,
+) (*model.WebhookRecord, error) {
+	exists, err := u.webhookRecordRepository.Exist(ctx, id)
+	if err != nil {
+		zap.S().Errorw("check paynda webhook record", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
+
+	original, err := u.webhookRecordRepository.Find(ctx, id)
+	if err != nil {
+		zap.S().Errorw("find paynda webhook record", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	replay := &model.WebhookRecord{
+		WebhookConfigID: original.WebhookConfigID,
+		AccountID:       original.AccountID,
+		Channel:         enums.Channel_Paynda,
+		Event:           original.Event,
+		TargetURL:       original.TargetURL,
+		SourceID:        original.SourceID,
+		Payload:         original.Payload,
+		RequestHeaders:  original.RequestHeaders,
+		Status:          enums.WebhookDeliveryStatus_Pending,
+		AttemptCount:    original.AttemptCount + 1,
+	}
+	if err := u.webhookRecordRepository.Create(ctx, replay); err != nil {
+		zap.S().Errorw("create paynda webhook replay record", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+
+	result, deliveryErr := u.webhookClient.Deliver(ctx, &PayndaWebhookDeliveryRequest{
+		TargetURL:      replay.TargetURL,
+		Payload:        replay.Payload,
+		RequestHeaders: replay.RequestHeaders,
+	})
+	if deliveryErr != nil {
+		replay.Status = enums.WebhookDeliveryStatus_Failed
+		replay.ErrorMessage = deliveryErr.Error()
+	} else {
+		replay.StatusCode = result.StatusCode
+		replay.ResponseBody = result.ResponseBody
+		replay.RequestHeaders = result.RequestHeaders
+		replay.ResponseHeaders = result.ResponseHeaders
+		if result.StatusCode >= 200 && result.StatusCode < 300 {
+			deliveredAt := time.Now().UTC()
+			replay.Status = enums.WebhookDeliveryStatus_Succeeded
+			replay.DeliveredAt = &deliveredAt
+		} else {
+			replay.Status = enums.WebhookDeliveryStatus_Failed
+			replay.ErrorMessage = "unexpected Paynda webhook response"
+		}
+	}
+	if err := u.webhookRecordRepository.Save(ctx, replay); err != nil {
+		zap.S().Errorw("save paynda webhook replay record", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+
+	return replay, nil
+}
+
 type PayndaUIUpdateAccountRequest struct {
 	ID   model.ID
 	Name string
@@ -1577,7 +1668,10 @@ func (u *PayndaUIUsecase) dispatch(ctx context.Context, event paynda.WebhookEven
 			record.ErrorMessage = deliveryErr.Error()
 			zap.S().Errorw("deliver paynda webhook", "error", deliveryErr, "webhook_record_id", record.ID)
 		} else {
-			record.StatusCode, record.ResponseBody = result.StatusCode, result.ResponseBody
+			record.StatusCode = result.StatusCode
+			record.ResponseBody = result.ResponseBody
+			record.RequestHeaders = result.RequestHeaders
+			record.ResponseHeaders = result.ResponseHeaders
 			if result.StatusCode >= 200 && result.StatusCode < 300 {
 				deliveredAt := time.Now().UTC()
 				record.Status, record.DeliveredAt = enums.WebhookDeliveryStatus_Succeeded, &deliveredAt

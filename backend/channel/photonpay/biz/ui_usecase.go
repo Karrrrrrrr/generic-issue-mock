@@ -116,6 +116,90 @@ func (u *PhotonPayUIUsecase) UpdateAccount(ctx context.Context, req *UIUpdateAcc
 	return item, nil
 }
 
+func (u *PhotonPayUIUsecase) ListWebhookRecords(
+	ctx context.Context,
+	req *ListRequest,
+) ([]*model.WebhookRecord, int64, error) {
+	items, err := u.webhookRecordRepo.List(ctx, req)
+	if err != nil {
+		zap.S().Errorw("list photonpay webhook records", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+
+	total, err := u.webhookRecordRepo.Count(ctx)
+	if err != nil {
+		zap.S().Errorw("count photonpay webhook records", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+
+	return items, total, nil
+}
+
+func (u *PhotonPayUIUsecase) ReplayWebhookRecord(
+	ctx context.Context,
+	id model.ID,
+) (*model.WebhookRecord, error) {
+	exists, err := u.webhookRecordRepo.Exist(ctx, id)
+	if err != nil {
+		zap.S().Errorw("check photonpay webhook record", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
+
+	original, err := u.webhookRecordRepo.Find(ctx, id)
+	if err != nil {
+		zap.S().Errorw("find photonpay webhook record", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	replay := &model.WebhookRecord{
+		WebhookConfigID: original.WebhookConfigID,
+		AccountID:       original.AccountID,
+		Channel:         enums.Channel_PhotonPay,
+		Event:           original.Event,
+		TargetURL:       original.TargetURL,
+		SourceID:        original.SourceID,
+		Payload:         original.Payload,
+		RequestHeaders:  original.RequestHeaders,
+		Status:          enums.WebhookDeliveryStatus_Pending,
+		AttemptCount:    original.AttemptCount + 1,
+	}
+	if err := u.webhookRecordRepo.Create(ctx, replay); err != nil {
+		zap.S().Errorw("create photonpay webhook replay record", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+
+	result, deliveryErr := u.webhookClient.Deliver(ctx, &PhotonPayWebhookDeliveryRequest{
+		TargetURL:      replay.TargetURL,
+		Payload:        replay.Payload,
+		RequestHeaders: replay.RequestHeaders,
+	})
+	if deliveryErr != nil {
+		replay.Status = enums.WebhookDeliveryStatus_Failed
+		replay.ErrorMessage = deliveryErr.Error()
+	} else {
+		replay.StatusCode = result.StatusCode
+		replay.ResponseBody = result.ResponseBody
+		replay.RequestHeaders = result.RequestHeaders
+		replay.ResponseHeaders = result.ResponseHeaders
+		if result.StatusCode >= 200 && result.StatusCode < 300 && photonPayWebhookAcknowledged(result.ResponseBody) {
+			deliveredAt := time.Now().UTC()
+			replay.Status = enums.WebhookDeliveryStatus_Succeeded
+			replay.DeliveredAt = &deliveredAt
+		} else {
+			replay.Status = enums.WebhookDeliveryStatus_Failed
+			replay.ErrorMessage = "unexpected PhotonPay webhook response"
+		}
+	}
+	if err := u.webhookRecordRepo.Save(ctx, replay); err != nil {
+		zap.S().Errorw("save photonpay webhook replay record", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+
+	return replay, nil
+}
+
 type UICreateWebhookRequest struct {
 	AccountID model.ID
 	Event     photon.WebhookEvent
@@ -628,6 +712,8 @@ func (u *PhotonPayUIUsecase) dispatch(ctx context.Context, event photon.WebhookE
 		} else {
 			record.StatusCode = result.StatusCode
 			record.ResponseBody = result.ResponseBody
+			record.RequestHeaders = result.RequestHeaders
+			record.ResponseHeaders = result.ResponseHeaders
 			if result.StatusCode >= 200 && result.StatusCode < 300 && photonPayWebhookAcknowledged(result.ResponseBody) {
 				deliveredAt := time.Now().UTC()
 				record.Status = enums.WebhookDeliveryStatus_Succeeded

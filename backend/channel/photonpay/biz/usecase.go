@@ -95,12 +95,18 @@ type WebhookConfigRepository interface {
 
 type WebhookRecordRepository interface {
 	Create(context.Context, *model.WebhookRecord) error
+	Exist(context.Context, model.ID) (bool, error)
+	Find(context.Context, model.ID) (*model.WebhookRecord, error)
+	Count(context.Context) (int64, error)
+	List(context.Context, *ListRequest) ([]*model.WebhookRecord, error)
 	Save(context.Context, *model.WebhookRecord) error
 }
 
 type WebhookDeliveryResult struct {
-	StatusCode   int
-	ResponseBody string
+	StatusCode      int
+	ResponseBody    string
+	RequestHeaders  []byte
+	ResponseHeaders []byte
 }
 
 type WebhookClient interface {
@@ -110,6 +116,7 @@ type WebhookClient interface {
 type PhotonPayWebhookDeliveryRequest struct {
 	TargetURL      string
 	Payload        []byte
+	RequestHeaders []byte
 	NotifyCategory string
 	NotifyType     string
 	PublishedAt    string

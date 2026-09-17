@@ -43,6 +43,24 @@ type UIWebhookData struct {
 	CreatedAt time.Time           `json:"created_at"`
 	UpdatedAt time.Time           `json:"updated_at"`
 }
+
+type UIWebhookRecordData struct {
+	ID              string     `json:"id"`
+	AccountID       string     `json:"account_id"`
+	Event           string     `json:"event"`
+	TargetURL       string     `json:"target_url"`
+	SourceID        string     `json:"source_id"`
+	Payload         string     `json:"payload"`
+	RequestHeaders  string     `json:"request_headers"`
+	ResponseBody    string     `json:"response_body"`
+	ResponseHeaders string     `json:"response_headers"`
+	StatusCode      int        `json:"status_code"`
+	Status          string     `json:"status"`
+	AttemptCount    int        `json:"attempt_count"`
+	DeliveredAt     *time.Time `json:"delivered_at"`
+	ErrorMessage    string     `json:"error_message"`
+	CreatedAt       time.Time  `json:"created_at"`
+}
 type UICreateWebhookRequest struct {
 	AccountID string              `json:"account_id" binding:"required"`
 	Event     photon.WebhookEvent `json:"event" binding:"required"`
@@ -160,6 +178,44 @@ func (s *PhotonPayUIService) UpdateAccount(ctx context.Context, req *UIUpdateAcc
 		return nil, err
 	}
 	return photonPayUIAccountData(item), nil
+}
+
+func (s *PhotonPayUIService) ListWebhookRecords(
+	ctx context.Context,
+	req *UIListRequest,
+) (*UIListResponse[*UIWebhookRecordData], error) {
+	page, size := types.NormalizePagination(req.PageNumber, req.PageSize)
+	items, total, err := s.usecase.ListWebhookRecords(ctx, &biz.ListRequest{
+		Offset: (page - 1) * size,
+		Limit:  size,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &UIListResponse[*UIWebhookRecordData]{
+		TotalItems: int(total),
+		Data:       types.BulkConvertSlice(items, photonPayUIWebhookRecordData),
+	}, nil
+}
+
+func (s *PhotonPayUIService) ReplayWebhookRecord(
+	ctx context.Context,
+	req *struct {
+		ID string `uri:"id" binding:"required"`
+	},
+) (*UIWebhookRecordData, error) {
+	id, err := photonPayID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	item, err := s.usecase.ReplayWebhookRecord(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return photonPayUIWebhookRecordData(item), nil
 }
 
 func NewPhotonPayUIService(injector *do.Injector) (*PhotonPayUIService, error) {
@@ -474,6 +530,26 @@ func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationDat
 
 func photonPayUIWebhookData(item *model.WebhookConfig) *UIWebhookData {
 	return &UIWebhookData{ID: photonPayIDString(item.ID), Event: photon.WebhookEvent(item.Event), TargetURL: item.TargetURL, Enabled: item.Enabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+}
+
+func photonPayUIWebhookRecordData(item *model.WebhookRecord) *UIWebhookRecordData {
+	return &UIWebhookRecordData{
+		ID:              photonPayIDString(item.ID),
+		AccountID:       photonPayIDString(item.AccountID),
+		Event:           item.Event,
+		TargetURL:       item.TargetURL,
+		SourceID:        item.SourceID,
+		Payload:         string(item.Payload),
+		RequestHeaders:  string(item.RequestHeaders),
+		ResponseBody:    item.ResponseBody,
+		ResponseHeaders: string(item.ResponseHeaders),
+		StatusCode:      item.StatusCode,
+		Status:          string(item.Status),
+		AttemptCount:    item.AttemptCount,
+		DeliveredAt:     item.DeliveredAt,
+		ErrorMessage:    item.ErrorMessage,
+		CreatedAt:       item.CreatedAt,
+	}
 }
 
 func photonPayUIAccountData(item *model.Account) *UIAccountData {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"io"
 	"net/http"
 	"os"
@@ -44,6 +45,15 @@ func (c *webhookClient) Deliver(ctx context.Context, req *biz.PayndaWebhookDeliv
 		httpRequest.Header.Set("nonce", nonce)
 		httpRequest.Header.Set("sign", hex.EncodeToString(hash[:]))
 	}
+	if len(req.RequestHeaders) > 0 {
+		if err := json.Unmarshal(req.RequestHeaders, &httpRequest.Header); err != nil {
+			return nil, err
+		}
+	}
+	requestHeaders, err := json.Marshal(httpRequest.Header)
+	if err != nil {
+		return nil, err
+	}
 	response, err := c.client.Do(httpRequest)
 	if err != nil {
 		return nil, err
@@ -53,7 +63,17 @@ func (c *webhookClient) Deliver(ctx context.Context, req *biz.PayndaWebhookDeliv
 	if err != nil {
 		return nil, err
 	}
-	return &biz.PayndaWebhookDeliveryResult{StatusCode: response.StatusCode, ResponseBody: string(body)}, nil
+	responseHeaders, err := json.Marshal(response.Header)
+	if err != nil {
+		return nil, err
+	}
+
+	return &biz.PayndaWebhookDeliveryResult{
+		StatusCode:      response.StatusCode,
+		ResponseBody:    string(body),
+		RequestHeaders:  requestHeaders,
+		ResponseHeaders: responseHeaders,
+	}, nil
 }
 
 var _ biz.PayndaWebhookClient = (*webhookClient)(nil)

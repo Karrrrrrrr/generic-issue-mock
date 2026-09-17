@@ -195,7 +195,9 @@ type WebhookRecord struct {
 	TargetURL       string
 	SourceID        string
 	Payload         []byte `gorm:"type:jsonb"`
+	RequestHeaders  []byte `gorm:"type:jsonb"`
 	ResponseBody    string
+	ResponseHeaders []byte `gorm:"type:jsonb"`
 	StatusCode      int
 	Status          enums.WebhookDeliveryStatus
 	AttemptCount    int

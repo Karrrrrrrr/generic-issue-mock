@@ -45,6 +45,24 @@ type PayndaUIWebhookData struct {
 	UpdatedAt time.Time           `json:"updated_at"`
 }
 
+type PayndaUIWebhookRecordData struct {
+	ID              string     `json:"id"`
+	AccountID       string     `json:"account_id"`
+	Event           string     `json:"event"`
+	TargetURL       string     `json:"target_url"`
+	SourceID        string     `json:"source_id"`
+	Payload         string     `json:"payload"`
+	RequestHeaders  string     `json:"request_headers"`
+	ResponseBody    string     `json:"response_body"`
+	ResponseHeaders string     `json:"response_headers"`
+	StatusCode      int        `json:"status_code"`
+	Status          string     `json:"status"`
+	AttemptCount    int        `json:"attempt_count"`
+	DeliveredAt     *time.Time `json:"delivered_at"`
+	ErrorMessage    string     `json:"error_message"`
+	CreatedAt       time.Time  `json:"created_at"`
+}
+
 type PayndaUIAccountData struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
@@ -110,6 +128,40 @@ func (s *PayndaUIService) UpdateAccount(
 	}
 
 	return payndaUIAccountData(item), nil
+}
+
+func (s *PayndaUIService) ListWebhookRecords(
+	ctx context.Context,
+	req *PayndaUIListRequest,
+) (*PayndaUIListResponse[*PayndaUIWebhookRecordData], error) {
+	items, total, err := s.usecase.ListWebhookRecords(ctx, payndaUIListRequest(req))
+	if err != nil {
+		return nil, err
+	}
+
+	return &PayndaUIListResponse[*PayndaUIWebhookRecordData]{
+		TotalItems: int(total),
+		Data:       types.BulkConvertSlice(items, payndaUIWebhookRecordData),
+	}, nil
+}
+
+func (s *PayndaUIService) ReplayWebhookRecord(
+	ctx context.Context,
+	req *struct {
+		ID string `uri:"id" binding:"required"`
+	},
+) (*PayndaUIWebhookRecordData, error) {
+	id, err := payndaID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	item, err := s.usecase.ReplayWebhookRecord(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return payndaUIWebhookRecordData(item), nil
 }
 
 type PayndaUICreateWebhookRequest struct {
@@ -468,6 +520,26 @@ func payndaUIAuthorizationData(item *model.Authorization) *PayndaUIAuthorization
 }
 func payndaUIWebhookData(item *model.WebhookConfig) *PayndaUIWebhookData {
 	return &PayndaUIWebhookData{ID: payndaIDString(item.ID), AccountID: payndaIDString(item.AccountID), Event: paynda.WebhookEvent(item.Event), TargetURL: item.TargetURL, Enabled: item.Enabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+}
+
+func payndaUIWebhookRecordData(item *model.WebhookRecord) *PayndaUIWebhookRecordData {
+	return &PayndaUIWebhookRecordData{
+		ID:              payndaIDString(item.ID),
+		AccountID:       payndaIDString(item.AccountID),
+		Event:           item.Event,
+		TargetURL:       item.TargetURL,
+		SourceID:        item.SourceID,
+		Payload:         string(item.Payload),
+		RequestHeaders:  string(item.RequestHeaders),
+		ResponseBody:    item.ResponseBody,
+		ResponseHeaders: string(item.ResponseHeaders),
+		StatusCode:      item.StatusCode,
+		Status:          string(item.Status),
+		AttemptCount:    item.AttemptCount,
+		DeliveredAt:     item.DeliveredAt,
+		ErrorMessage:    item.ErrorMessage,
+		CreatedAt:       item.CreatedAt,
+	}
 }
 
 func payndaUIAccountData(item *model.Account) *PayndaUIAccountData {

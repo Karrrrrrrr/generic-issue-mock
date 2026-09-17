@@ -86,6 +86,6 @@ curl -X POST http://127.0.0.1:8000/slash/transfer/virtual-account \
 
 ### Webhook
 
-已检查的 Marxo Slash SDK 只定义开卡、划拨和交易查询，未定义 Slash webhook 消费协议。待确认实际协议前，不得猜测事件名、认证头或签名。实现范围应至少覆盖 UI 已配置的交易和授权创建/更新四类事件；交易 payload 含格式化卡/交易/原交易/授权 ID、分单位金额、币种、状态、商户和时间，授权 payload 含授权结果与商户数据。
+已检查的 Marxo Slash SDK 只定义开卡、划拨和交易查询，未定义 Slash webhook 消费协议。待确认实际协议前，不得猜测事件名、认证头或签名。Slash 目前只有订阅配置，没有可发送的投递记录，因此不提供记录详情或 replay UI。实现范围应至少覆盖 UI 已配置的交易和授权创建/更新四类事件；交易 payload 含格式化卡/交易/原交易/授权 ID、分单位金额、币种、状态、商户和时间，授权 payload 含授权结果与商户数据。
 
 同样采用固定投递账本：提交业务 transaction 后查询启用 `WebhookConfig`，先建 pending `WebhookRecord`（channel、event、URL、格式化 `SourceID`、payload、attempt 1），再 POST；记录 2xx 成功、其他结果失败，并对同一 record 记录重试次数/响应/错误。协议确定后补入 URL、headers、签名、退避与完整 JSON 夹具。

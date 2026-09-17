@@ -27,6 +27,8 @@ func Register(
 	router.POST("/ui/webhooks", bindUI(uiService.CreateWebhook))
 	router.PUT("/ui/webhooks/:id", bindUI(uiService.UpdateWebhook))
 	router.DELETE("/ui/webhooks/:id", bindUI(uiService.DeleteWebhook))
+	router.GET("/ui/webhook-records", bindUI(uiService.ListWebhookRecords))
+	router.POST("/ui/webhook-records/:id/replay", bindUI(uiService.ReplayWebhookRecord))
 	router.GET("/ui/transactions", bindUI(uiService.ListTransactions))
 	router.POST("/ui/transactions/:id/clear", bindUI(uiService.ClearTransaction))
 	router.POST("/ui/transactions/:id/reverse", bindUI(uiService.ReverseTransaction))
