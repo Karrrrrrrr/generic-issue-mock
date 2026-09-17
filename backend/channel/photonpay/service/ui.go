@@ -92,12 +92,11 @@ type UIWebhookData struct {
 }
 
 type UIAuthorizationConfigData struct {
-	AccountID        string    `json:"account_id"`
-	TargetURL        string    `json:"target_url"`
-	Enabled          bool      `json:"enabled"`
-	TimeoutMillis    int       `json:"timeout_millis"`
-	FallbackBehavior string    `json:"fallback_behavior"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	AccountID     string    `json:"account_id"`
+	TargetURL     string    `json:"target_url"`
+	Enabled       bool      `json:"enabled"`
+	TimeoutMillis int       `json:"timeout_millis"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type UIGetAuthorizationConfigRequest struct {
@@ -120,11 +119,10 @@ func (s *PhotonPayUIService) GetAuthorizationConfig(
 }
 
 type UIUpdateAuthorizationConfigRequest struct {
-	AccountID        string `json:"account_id" binding:"required"`
-	TargetURL        string `json:"target_url" binding:"required,url"`
-	Enabled          bool   `json:"enabled"`
-	TimeoutMillis    int    `json:"timeout_millis" binding:"required,min=1"`
-	FallbackBehavior string `json:"fallback_behavior" binding:"required"`
+	AccountID     string `json:"account_id" binding:"required"`
+	TargetURL     string `json:"target_url" binding:"required,url"`
+	Enabled       bool   `json:"enabled"`
+	TimeoutMillis int    `json:"timeout_millis" binding:"required,min=1"`
 }
 
 func (s *PhotonPayUIService) UpdateAuthorizationConfig(
@@ -136,11 +134,10 @@ func (s *PhotonPayUIService) UpdateAuthorizationConfig(
 		return nil, err
 	}
 	item, err := s.usecase.UpdateAuthorizationConfig(ctx, &biz.UIUpdateAuthorizationConfigRequest{
-		AccountID:        accountID,
-		TargetURL:        req.TargetURL,
-		Enabled:          req.Enabled,
-		TimeoutMillis:    req.TimeoutMillis,
-		FallbackBehavior: req.FallbackBehavior,
+		AccountID:     accountID,
+		TargetURL:     req.TargetURL,
+		Enabled:       req.Enabled,
+		TimeoutMillis: req.TimeoutMillis,
 	})
 	if err != nil {
 		return nil, err
@@ -718,12 +715,11 @@ func photonPayUIVirtualAccountData(item *model.VirtualAccount) *UIVirtualAccount
 
 func photonPayUIAuthorizationConfigData(item *model.AuthorizationConfig) *UIAuthorizationConfigData {
 	return &UIAuthorizationConfigData{
-		AccountID:        photonPayIDString(item.AccountID),
-		TargetURL:        item.TargetURL,
-		Enabled:          item.Enabled,
-		TimeoutMillis:    item.TimeoutMillis,
-		FallbackBehavior: item.FallbackBehavior,
-		UpdatedAt:        item.UpdatedAt,
+		AccountID:     photonPayIDString(item.AccountID),
+		TargetURL:     item.TargetURL,
+		Enabled:       item.Enabled,
+		TimeoutMillis: item.TimeoutMillis,
+		UpdatedAt:     item.UpdatedAt,
 	}
 }
 

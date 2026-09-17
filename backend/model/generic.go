@@ -188,12 +188,11 @@ type WebhookConfig struct {
 // webhook subscriptions.
 type AuthorizationConfig struct {
 	BaseModel
-	AccountID        ID            `gorm:"column:account_id;type:bigint;not null;default:0;uniqueIndex:idx_authorization_configs_account_channel"`
-	Channel          enums.Channel `gorm:"column:channel;type:varchar;not null;default:'';uniqueIndex:idx_authorization_configs_account_channel"`
-	TargetURL        string        `gorm:"column:target_url;type:varchar;not null;default:''"`
-	Enabled          bool          `gorm:"column:enabled;type:boolean;not null;default:false"`
-	TimeoutMillis    int           `gorm:"column:timeout_millis;type:integer;not null;default:0"`
-	FallbackBehavior string        `gorm:"column:fallback_behavior;type:varchar;not null;default:''"`
+	AccountID     ID            `gorm:"column:account_id;type:bigint;not null;default:0;uniqueIndex:idx_authorization_configs_account_channel"`
+	Channel       enums.Channel `gorm:"column:channel;type:varchar;not null;default:'';uniqueIndex:idx_authorization_configs_account_channel"`
+	TargetURL     string        `gorm:"column:target_url;type:varchar;not null;default:''"`
+	Enabled       bool          `gorm:"column:enabled;type:boolean;not null;default:false"`
+	TimeoutMillis int           `gorm:"column:timeout_millis;type:integer;not null;default:0"`
 }
 
 type WebhookRecord struct {

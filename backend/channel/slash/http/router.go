@@ -14,6 +14,8 @@ func Register(router *gin.RouterGroup, service *service.SlashUIService, openAPIS
 	router.GET("/ui/accounts", bind(service.ListAccounts))
 	router.POST("/ui/accounts", bind(service.CreateAccount))
 	router.PUT("/ui/accounts/:id", bind(service.UpdateAccount))
+	router.GET("/ui/authorization-config", bind(service.GetAuthorizationConfig))
+	router.PUT("/ui/authorization-config", bind(service.UpdateAuthorizationConfig))
 	router.GET("/card", bind(openAPIService.ListCards))
 	router.POST("/card", bind(openAPIService.CreateCard))
 	router.GET("/card/:id", bind(openAPIService.GetCard))
@@ -21,8 +23,6 @@ func Register(router *gin.RouterGroup, service *service.SlashUIService, openAPIS
 	router.GET("/card-product", bind(openAPIService.ListCardProducts))
 	router.GET("/virtual-account", bind(openAPIService.ListVirtualAccounts))
 	router.POST("/transfer/virtual-account", bind(openAPIService.TransferVirtualAccount))
-	router.GET("/account/:accountId/authorization-webhook", bind(openAPIService.GetAuthorizationWebhook))
-	router.PUT("/account/:accountId/authorization-webhook", bind(openAPIService.UpdateAuthorizationWebhook))
 	router.GET("/transaction", bind(openAPIService.ListTransactions))
 	router.GET("/transaction/:id", bind(openAPIService.GetTransaction))
 

@@ -2,7 +2,7 @@
 
 ## 范围
 
-已实现虚拟账户列表/划拨、卡产品、虚拟卡开卡、持卡人、交易查询、管理端授权/清算/冲正/退款模拟和管理 UI。已实现 Marxo SDK 使用的账户级同步授权配置 `GET/PUT /account/{accountId}/authorization-webhook`。实体卡、开卡时选择虚拟账户、单次卡、卡组、消费限制和异步 webhook OpenAPI 尚未实现。
+已实现虚拟账户列表/划拨、卡产品、虚拟卡开卡、持卡人、交易查询、管理端授权/清算/冲正/退款模拟和管理 UI。同步授权配置通过管理面 `GET/PUT /slash/ui/authorization-config` 管理。实体卡、开卡时选择虚拟账户、单次卡、卡组、消费限制和异步 webhook OpenAPI 尚未实现。
 
 ## 字段映射
 
@@ -86,6 +86,6 @@ curl -X POST http://127.0.0.1:8000/slash/transfer/virtual-account \
 
 ### Webhook
 
-已检查的 Marxo Slash SDK 定义了账户级 `GET/PUT /account/{accountId}/authorization-webhook`，mock 使用账户唯一的 `AuthorizationConfig` 持久化 URL、启用状态、超时和兜底行为。异步 webhook 消费协议仍未在 Marxo 中定义；待确认前不得猜测事件名、认证头或签名。种子会为 UI 当前支持的交易和授权创建/更新四类事件各创建一条启用订阅。Slash 目前尚未发送异步订阅，因此不提供投递记录详情或 replay UI。
+Marxo 目前没有 Slash 授权配置的实际调用点，mock 使用账户唯一的 `AuthorizationConfig`，只通过管理面管理 URL、启用状态和超时。同步回调连接失败时模拟授权失败，不设置回退策略。异步 webhook 消费协议仍未在 Marxo 中定义；待确认前不得猜测事件名、认证头或签名。种子会为 UI 当前支持的交易和授权创建/更新四类事件各创建一条启用订阅。Slash 目前尚未发送异步订阅，因此不提供投递记录详情或 replay UI。
 
 同样采用固定投递账本：提交业务 transaction 后查询启用 `WebhookConfig`，先建 pending `WebhookRecord`（channel、event、URL、格式化 `SourceID`、payload、attempt 1），再 POST；记录 2xx 成功、其他结果失败，并对同一 record 记录重试次数/响应/错误。协议确定后补入 URL、headers、签名、退避与完整 JSON 夹具。

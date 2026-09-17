@@ -35,6 +35,60 @@ type AccountData struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type AuthorizationConfigData struct {
+	AccountID     string    `json:"account_id"`
+	TargetURL     string    `json:"target_url"`
+	Enabled       bool      `json:"enabled"`
+	TimeoutMillis int       `json:"timeout_millis"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+type GetAuthorizationConfigRequest struct {
+	AccountID string `form:"account_id" binding:"required"`
+}
+
+func (s *SlashUIService) GetAuthorizationConfig(
+	ctx context.Context,
+	req *GetAuthorizationConfigRequest,
+) (*AuthorizationConfigData, error) {
+	accountID, err := slashAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.GetAuthorizationConfig(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	return authorizationConfigData(item), nil
+}
+
+type UpdateAuthorizationConfigRequest struct {
+	AccountID     string `json:"account_id" binding:"required"`
+	TargetURL     string `json:"target_url" binding:"required,url"`
+	Enabled       bool   `json:"enabled"`
+	TimeoutMillis int    `json:"timeout_millis" binding:"required,min=1"`
+}
+
+func (s *SlashUIService) UpdateAuthorizationConfig(
+	ctx context.Context,
+	req *UpdateAuthorizationConfigRequest,
+) (*AuthorizationConfigData, error) {
+	accountID, err := slashAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.UpdateAuthorizationConfig(ctx, &biz.UpdateAuthorizationConfigRequest{
+		AccountID:     accountID,
+		TargetURL:     req.TargetURL,
+		Enabled:       req.Enabled,
+		TimeoutMillis: req.TimeoutMillis,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return authorizationConfigData(item), nil
+}
+
 type CreateAccountRequest struct {
 	Name string `json:"name" binding:"required"`
 }
@@ -669,6 +723,16 @@ func slashAccountData(item *model.Account) *AccountData {
 		ID:        slashIDString(item.ID),
 		Name:      item.Name,
 		CreatedAt: item.CreatedAt,
+	}
+}
+
+func authorizationConfigData(item *model.AuthorizationConfig) *AuthorizationConfigData {
+	return &AuthorizationConfigData{
+		AccountID:     slashIDString(item.AccountID),
+		TargetURL:     item.TargetURL,
+		Enabled:       item.Enabled,
+		TimeoutMillis: item.TimeoutMillis,
+		UpdatedAt:     item.UpdatedAt,
 	}
 }
 

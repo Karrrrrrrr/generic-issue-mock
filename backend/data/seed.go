@@ -180,20 +180,18 @@ func seedAuthorizationConfigs(
 ) error {
 	items := []*model.AuthorizationConfig{
 		{
-			AccountID:        accounts[enums.Channel_Slash].ID,
-			Channel:          enums.Channel_Slash,
-			TargetURL:        "http://127.0.0.1:18080/slash/authorizations",
-			Enabled:          true,
-			TimeoutMillis:    500,
-			FallbackBehavior: "decline",
+			AccountID:     accounts[enums.Channel_Slash].ID,
+			Channel:       enums.Channel_Slash,
+			TargetURL:     "http://127.0.0.1:18080/slash/authorizations",
+			Enabled:       true,
+			TimeoutMillis: 500,
 		},
 		{
-			AccountID:        accounts[enums.Channel_PhotonPay].ID,
-			Channel:          enums.Channel_PhotonPay,
-			TargetURL:        "http://127.0.0.1:18080/photonpay/authorizations",
-			Enabled:          true,
-			TimeoutMillis:    500,
-			FallbackBehavior: "decline",
+			AccountID:     accounts[enums.Channel_PhotonPay].ID,
+			Channel:       enums.Channel_PhotonPay,
+			TargetURL:     "http://127.0.0.1:18080/photonpay/authorizations",
+			Enabled:       true,
+			TimeoutMillis: 500,
 		},
 	}
 	for _, item := range items {
