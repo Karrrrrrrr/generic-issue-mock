@@ -118,6 +118,21 @@ html[data-theme="dark"] .page-heading p {
   max-width: 100%;
   min-width: 0;
 }
+.sidebar .n-menu,
+.sidebar .n-menu *,
+.sidebar .n-menu .n-menu-item-content::before,
+.sidebar .n-menu-item-content,
+.sidebar .n-menu-item-content-header,
+.sidebar .n-menu-item-content__icon,
+.sidebar .n-menu-group-header,
+.app-header,
+.app-header *,
+.page-heading,
+.page-heading *,
+.simulation-heading,
+.simulation-heading * {
+  transition: none !important;
+}
 .channel-logo {
   height: 60px;
   margin: 0 -10px 10px;
@@ -155,6 +170,7 @@ html[data-theme="dark"] .page-heading p {
   margin: 0;
   font-size: 22px;
   font-weight: 600;
+  color: #303133;
 }
 .simulation-heading p {
   margin: 6px 0 0;
@@ -171,6 +187,16 @@ html[data-theme="dark"] .page-heading p {
   margin: 0;
   font-size: 20px;
   font-weight: 650;
+  color: #303133;
+}
+.n-card-header__main {
+  color: #303133;
+  transition: none !important;
+}
+html[data-theme="dark"] .page-heading h1,
+html[data-theme="dark"] .simulation-heading h2,
+html[data-theme="dark"] .n-card-header__main {
+  color: #e0e0e0;
 }
 .page-heading p {
   margin: 5px 0 0;

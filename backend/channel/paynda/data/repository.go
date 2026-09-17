@@ -19,6 +19,36 @@ type PayndaRepository struct {
 	db *gorm.DB
 }
 
+type webhookConfigRepository struct{ repository *PayndaRepository }
+
+func NewWebhookConfigRepository(injector *do.Injector) (biz.PayndaWebhookConfigRepository, error) {
+	return &webhookConfigRepository{repository: do.MustInvoke[*PayndaRepository](injector)}, nil
+}
+func (r *webhookConfigRepository) Create(ctx context.Context, item *model.WebhookConfig) error {
+	return r.repository.DB(ctx).WebhookConfig.WithContext(ctx).Create(item)
+}
+func (r *webhookConfigRepository) ExistByID(ctx context.Context, id model.ID) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.WebhookConfig.WithContext(ctx).Where(db.WebhookConfig.ID.Eq(id), db.WebhookConfig.Channel.Eq(string(enums.Channel_Paynda))).Count()
+	return count > 0, err
+}
+func (r *webhookConfigRepository) FindByID(ctx context.Context, id model.ID) (*model.WebhookConfig, error) {
+	db := r.repository.DB(ctx)
+	return db.WebhookConfig.WithContext(ctx).Where(db.WebhookConfig.ID.Eq(id), db.WebhookConfig.Channel.Eq(string(enums.Channel_Paynda))).First()
+}
+func (r *webhookConfigRepository) List(ctx context.Context) ([]*model.WebhookConfig, error) {
+	db := r.repository.DB(ctx)
+	return db.WebhookConfig.WithContext(ctx).Where(db.WebhookConfig.Channel.Eq(string(enums.Channel_Paynda))).Order(db.WebhookConfig.ID.Desc()).Find()
+}
+func (r *webhookConfigRepository) Save(ctx context.Context, item *model.WebhookConfig) error {
+	return r.repository.DB(ctx).WebhookConfig.WithContext(ctx).Save(item)
+}
+func (r *webhookConfigRepository) Delete(ctx context.Context, id model.ID) error {
+	db := r.repository.DB(ctx)
+	_, err := db.WebhookConfig.WithContext(ctx).Where(db.WebhookConfig.ID.Eq(id), db.WebhookConfig.Channel.Eq(string(enums.Channel_Paynda))).Delete()
+	return err
+}
+
 func NewPayndaRepository(injector *do.Injector) (*PayndaRepository, error) {
 	return &PayndaRepository{
 		db: do.MustInvoke[*gorm.DB](injector),

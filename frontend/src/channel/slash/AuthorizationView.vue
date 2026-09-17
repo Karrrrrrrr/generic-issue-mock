@@ -30,18 +30,18 @@ const form = ref({
   amount: 100,
   currency: "USD",
   merchantName: "Amazon",
-  merchantMCC: "",
+  merchantMCC: "5411",
   merchantCountry: "US",
-  merchantCity: "",
+  merchantCity: "Seattle",
 });
 const refundForm = ref({
   card_id: "",
   amount: 100,
   currency: "USD",
   merchant_name: "Amazon",
-  merchant_category_code: "",
+  merchant_category_code: "5411",
   merchant_country: "US",
-  merchant_city: "",
+  merchant_city: "Seattle",
 });
 const options = computed(() =>
   cards.value

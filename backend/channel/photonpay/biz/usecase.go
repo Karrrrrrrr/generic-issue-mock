@@ -58,6 +58,15 @@ type AuthorizationRepository interface {
 	List(context.Context, *ListRequest) ([]*model.Authorization, error)
 }
 
+type WebhookConfigRepository interface {
+	Create(context.Context, *model.WebhookConfig) error
+	ExistByID(context.Context, model.ID) (bool, error)
+	FindByID(context.Context, model.ID) (*model.WebhookConfig, error)
+	List(context.Context) ([]*model.WebhookConfig, error)
+	Save(context.Context, *model.WebhookConfig) error
+	Delete(context.Context, model.ID) error
+}
+
 type PhotonPayOpenAPIUsecase struct {
 	transaction         PhotonPayTransaction
 	cardHolderRepo      CardHolderRepository

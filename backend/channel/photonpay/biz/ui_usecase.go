@@ -22,6 +22,7 @@ type PhotonPayUIUsecase struct {
 	cardProductRepo     CardProductRepository
 	authorizationRepo   AuthorizationRepository
 	cardTransactionRepo CardTransactionRepository
+	webhookRepo         WebhookConfigRepository
 }
 
 func NewPhotonPayUIUsecase(injector *do.Injector) (*PhotonPayUIUsecase, error) {
@@ -32,7 +33,71 @@ func NewPhotonPayUIUsecase(injector *do.Injector) (*PhotonPayUIUsecase, error) {
 		cardProductRepo:     do.MustInvoke[CardProductRepository](injector),
 		authorizationRepo:   do.MustInvoke[AuthorizationRepository](injector),
 		cardTransactionRepo: do.MustInvoke[CardTransactionRepository](injector),
+		webhookRepo:         do.MustInvoke[WebhookConfigRepository](injector),
 	}, nil
+}
+
+type UICreateWebhookRequest struct {
+	Event, TargetURL string
+	Enabled          bool
+}
+type UIUpdateWebhookRequest struct {
+	ID        model.ID
+	TargetURL string
+	Enabled   bool
+}
+
+func (u *PhotonPayUIUsecase) CreateWebhook(ctx context.Context, req *UICreateWebhookRequest) (*model.WebhookConfig, error) {
+	item := &model.WebhookConfig{Channel: enums.Channel_PhotonPay, Event: req.Event, TargetURL: req.TargetURL, Enabled: req.Enabled}
+	if err := u.webhookRepo.Create(ctx, item); err != nil {
+		zap.S().Errorw("create photonpay UI webhook", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return item, nil
+}
+func (u *PhotonPayUIUsecase) ListWebhooks(ctx context.Context) ([]*model.WebhookConfig, error) {
+	items, err := u.webhookRepo.List(ctx)
+	if err != nil {
+		zap.S().Errorw("list photonpay UI webhooks", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return items, nil
+}
+func (u *PhotonPayUIUsecase) UpdateWebhook(ctx context.Context, req *UIUpdateWebhookRequest) (*model.WebhookConfig, error) {
+	exists, err := u.webhookRepo.ExistByID(ctx, req.ID)
+	if err != nil {
+		zap.S().Errorw("check photonpay UI webhook", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
+	item, err := u.webhookRepo.FindByID(ctx, req.ID)
+	if err != nil {
+		zap.S().Errorw("find photonpay UI webhook", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	item.TargetURL, item.Enabled = req.TargetURL, req.Enabled
+	if err := u.webhookRepo.Save(ctx, item); err != nil {
+		zap.S().Errorw("update photonpay UI webhook", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return item, nil
+}
+func (u *PhotonPayUIUsecase) DeleteWebhook(ctx context.Context, id model.ID) error {
+	exists, err := u.webhookRepo.ExistByID(ctx, id)
+	if err != nil {
+		zap.S().Errorw("check photonpay UI webhook", "error", err)
+		return ErrDatabaseOperation
+	}
+	if !exists {
+		return ErrResourceNotFound
+	}
+	if err := u.webhookRepo.Delete(ctx, id); err != nil {
+		zap.S().Errorw("delete photonpay UI webhook", "error", err)
+		return ErrDatabaseOperation
+	}
+	return nil
 }
 
 type UICreateCardHolderRequest struct {

@@ -5,8 +5,9 @@ import { darkTheme, NConfigProvider, NDialogProvider, NMessageProvider } from "n
 const isDark = ref(false);
 
 function syncTheme() {
-  isDark.value = localStorage.getItem("generic-mock-theme") === "dark";
-  document.documentElement.dataset.theme = isDark.value ? "dark" : "light";
+  const nextTheme = localStorage.getItem("generic-mock-theme") === "dark";
+  isDark.value = nextTheme;
+  document.documentElement.dataset.theme = nextTheme ? "dark" : "light";
 }
 
 syncTheme();

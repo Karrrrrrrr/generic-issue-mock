@@ -175,10 +175,15 @@ type WebhookConfig struct {
 type WebhookRecord struct {
 	BaseModel
 	WebhookConfigID ID
+	Channel         enums.Channel
 	Event           string
+	TargetURL       string
+	SourceID        string
 	Payload         []byte `gorm:"type:jsonb"`
 	ResponseBody    string
 	StatusCode      int
+	Status          enums.WebhookDeliveryStatus
+	AttemptCount    int
 	DeliveredAt     *time.Time
 	ErrorMessage    string
 }

@@ -21,6 +21,9 @@ const items = [
     { label: "卡交易", key: "/photonpay/transactions" },
     { label: "模拟交易", key: "/photonpay/authorization" },
   ] },
+  { type: "group", label: "配置", key: "configuration", children: [
+    { label: "Webhook 管理", key: "/photonpay/webhooks" },
+  ] },
 ];
 </script>
 <template>

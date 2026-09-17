@@ -24,6 +24,67 @@ type UIListResponse[T any] struct {
 	Data       []T `json:"data"`
 }
 
+type UIWebhookData struct {
+	ID        string    `json:"id"`
+	Event     string    `json:"event"`
+	TargetURL string    `json:"target_url"`
+	Enabled   bool      `json:"enabled"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+type UICreateWebhookRequest struct {
+	Event     string `json:"event" binding:"required"`
+	TargetURL string `json:"target_url" binding:"required,url"`
+	Enabled   bool   `json:"enabled"`
+}
+type UIUpdateWebhookRequest struct {
+	ID        string `uri:"id" binding:"required"`
+	TargetURL string `json:"target_url" binding:"required,url"`
+	Enabled   bool   `json:"enabled"`
+}
+
+func (s *PhotonPayUIService) CreateWebhook(ctx context.Context, req *UICreateWebhookRequest) (*UIWebhookData, error) {
+	item, err := s.usecase.CreateWebhook(ctx, &biz.UICreateWebhookRequest{Event: req.Event, TargetURL: req.TargetURL, Enabled: req.Enabled})
+	if err != nil {
+		return nil, err
+	}
+	return photonPayUIWebhookData(item), nil
+}
+func (s *PhotonPayUIService) ListWebhooks(ctx context.Context, _ *struct{}) (*[]UIWebhookData, error) {
+	items, err := s.usecase.ListWebhooks(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]UIWebhookData, 0, len(items))
+	for _, item := range items {
+		result = append(result, *photonPayUIWebhookData(item))
+	}
+	return &result, nil
+}
+func (s *PhotonPayUIService) UpdateWebhook(ctx context.Context, req *UIUpdateWebhookRequest) (*UIWebhookData, error) {
+	id, err := photonPayID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.UpdateWebhook(ctx, &biz.UIUpdateWebhookRequest{ID: id, TargetURL: req.TargetURL, Enabled: req.Enabled})
+	if err != nil {
+		return nil, err
+	}
+	return photonPayUIWebhookData(item), nil
+}
+func (s *PhotonPayUIService) DeleteWebhook(ctx context.Context, req *struct {
+	ID string `uri:"id" binding:"required"`
+}) (*struct{}, error) {
+	id, err := photonPayID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.usecase.DeleteWebhook(ctx, id); err != nil {
+		return nil, err
+	}
+	return &struct{}{}, nil
+}
+
 type UICardHolderRequest struct {
 	FirstName string `json:"first_name" binding:"required"`
 	LastName  string `json:"last_name" binding:"required"`
@@ -342,6 +403,10 @@ func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationDat
 		AuthorizationCode:    item.AuthorizationCode,
 		AuthorizedAt:         item.OccurredAt,
 	}
+}
+
+func photonPayUIWebhookData(item *model.WebhookConfig) *UIWebhookData {
+	return &UIWebhookData{ID: photonPayIDString(item.ID), Event: item.Event, TargetURL: item.TargetURL, Enabled: item.Enabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 
 func photonPayUITransactionData(item *model.CardTransaction) *UITransactionData {

@@ -34,6 +34,67 @@ type PayndaUIListResponse[T any] struct {
 	Data       []T `json:"data"`
 }
 
+type PayndaUIWebhookData struct {
+	ID        string    `json:"id"`
+	Event     string    `json:"event"`
+	TargetURL string    `json:"target_url"`
+	Enabled   bool      `json:"enabled"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+type PayndaUICreateWebhookRequest struct {
+	Event     string `json:"event" binding:"required"`
+	TargetURL string `json:"target_url" binding:"required,url"`
+	Enabled   bool   `json:"enabled"`
+}
+type PayndaUIUpdateWebhookRequest struct {
+	ID        string `uri:"id" binding:"required"`
+	TargetURL string `json:"target_url" binding:"required,url"`
+	Enabled   bool   `json:"enabled"`
+}
+
+func (s *PayndaUIService) CreateWebhook(ctx context.Context, req *PayndaUICreateWebhookRequest) (*PayndaUIWebhookData, error) {
+	item, err := s.usecase.CreateWebhook(ctx, &biz.PayndaUICreateWebhookRequest{Event: req.Event, TargetURL: req.TargetURL, Enabled: req.Enabled})
+	if err != nil {
+		return nil, err
+	}
+	return payndaUIWebhookData(item), nil
+}
+func (s *PayndaUIService) ListWebhooks(ctx context.Context, _ *struct{}) (*[]PayndaUIWebhookData, error) {
+	items, err := s.usecase.ListWebhooks(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]PayndaUIWebhookData, 0, len(items))
+	for _, item := range items {
+		result = append(result, *payndaUIWebhookData(item))
+	}
+	return &result, nil
+}
+func (s *PayndaUIService) UpdateWebhook(ctx context.Context, req *PayndaUIUpdateWebhookRequest) (*PayndaUIWebhookData, error) {
+	id, err := payndaID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.UpdateWebhook(ctx, &biz.PayndaUIUpdateWebhookRequest{ID: id, TargetURL: req.TargetURL, Enabled: req.Enabled})
+	if err != nil {
+		return nil, err
+	}
+	return payndaUIWebhookData(item), nil
+}
+func (s *PayndaUIService) DeleteWebhook(ctx context.Context, req *struct {
+	ID string `uri:"id" binding:"required"`
+}) (*struct{}, error) {
+	id, err := payndaID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.usecase.DeleteWebhook(ctx, id); err != nil {
+		return nil, err
+	}
+	return &struct{}{}, nil
+}
+
 type PayndaUICardHolderRequest struct {
 	FirstName string `json:"first_name" binding:"required"`
 	LastName  string `json:"last_name" binding:"required"`
@@ -135,8 +196,8 @@ type PayndaUISimulateAuthorizationRequest struct {
 	CardID          string          `json:"card_id" binding:"required"`
 	Amount          decimal.Decimal `json:"transaction_amount" binding:"required"`
 	Currency        common.Currency `json:"transaction_currency" binding:"required"`
-	MerchantName    string          `json:"merchant_name"`
-	MerchantCountry string          `json:"merchant_country"`
+	MerchantName    string          `json:"merchant_name" binding:"required"`
+	MerchantCountry string          `json:"merchant_country" binding:"required"`
 	MerchantCity    string          `json:"merchant_city"` // Invalid: generic model has no merchant city field.
 	MerchantMCC     string          `json:"merchant_category_code"`
 }
@@ -299,6 +360,9 @@ func payndaUIAuthorizationData(item *model.Authorization) *PayndaUIAuthorization
 		MerchantCategoryCode: item.MerchantMCC,
 		AuthorizedAt:         item.OccurredAt,
 	}
+}
+func payndaUIWebhookData(item *model.WebhookConfig) *PayndaUIWebhookData {
+	return &PayndaUIWebhookData{ID: payndaIDString(item.ID), Event: item.Event, TargetURL: item.TargetURL, Enabled: item.Enabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 func payndaUITransactionData(item *model.CardTransaction) *PayndaUITransactionData {
 	return &PayndaUITransactionData{

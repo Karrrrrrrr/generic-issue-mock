@@ -49,6 +49,14 @@ const (
 	//TransactionStatus_PROCESSING CardTransactionStatus = "processing" // 处理中
 )
 
+type WebhookDeliveryStatus string
+
+const (
+	WebhookDeliveryStatus_Pending   WebhookDeliveryStatus = "pending"
+	WebhookDeliveryStatus_Succeeded WebhookDeliveryStatus = "succeeded"
+	WebhookDeliveryStatus_Failed    WebhookDeliveryStatus = "failed"
+)
+
 type CardTransactionType string
 
 const (
