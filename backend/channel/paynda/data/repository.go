@@ -91,6 +91,33 @@ func (r *cardHolderRepository) FindByID(ctx context.Context, id model.ID) (*mode
 	return db.CardHolder.WithContext(ctx).Where(db.CardHolder.ID.Eq(id), db.CardHolder.Channel.Eq(string(enums.Channel_Paynda))).First()
 }
 
+func (r *cardHolderRepository) ExistByAccountID(
+	ctx context.Context,
+	req *biz.PayndaResourceRequest,
+) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.CardHolder.WithContext(ctx).Where(
+		db.CardHolder.ID.Eq(req.ID),
+		db.CardHolder.AccountID.Eq(req.AccountID),
+		db.CardHolder.Channel.Eq(string(enums.Channel_Paynda)),
+	).Count()
+
+	return count > 0, err
+}
+
+func (r *cardHolderRepository) FindByAccountID(
+	ctx context.Context,
+	req *biz.PayndaResourceRequest,
+) (*model.CardHolder, error) {
+	db := r.repository.DB(ctx)
+
+	return db.CardHolder.WithContext(ctx).Where(
+		db.CardHolder.ID.Eq(req.ID),
+		db.CardHolder.AccountID.Eq(req.AccountID),
+		db.CardHolder.Channel.Eq(string(enums.Channel_Paynda)),
+	).First()
+}
+
 func (r *cardHolderRepository) List(
 	ctx context.Context,
 	req *biz.PayndaListRequest,
@@ -140,6 +167,36 @@ func (r *cardProductRepository) FindByIDForUpdate(
 	return db.CardProduct.WithContext(ctx).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where(db.CardProduct.ID.Eq(id), db.CardProduct.Channel.Eq(string(enums.Channel_Paynda))).
+		First()
+}
+
+func (r *cardProductRepository) ExistByAccountID(
+	ctx context.Context,
+	req *biz.PayndaResourceRequest,
+) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.CardProduct.WithContext(ctx).Where(
+		db.CardProduct.ID.Eq(req.ID),
+		db.CardProduct.AccountID.Eq(req.AccountID),
+		db.CardProduct.Channel.Eq(string(enums.Channel_Paynda)),
+	).Count()
+
+	return count > 0, err
+}
+
+func (r *cardProductRepository) FindByAccountIDForUpdate(
+	ctx context.Context,
+	req *biz.PayndaResourceRequest,
+) (*model.CardProduct, error) {
+	db := r.repository.DB(ctx)
+
+	return db.CardProduct.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where(
+			db.CardProduct.ID.Eq(req.ID),
+			db.CardProduct.AccountID.Eq(req.AccountID),
+			db.CardProduct.Channel.Eq(string(enums.Channel_Paynda)),
+		).
 		First()
 }
 
@@ -334,6 +391,15 @@ func (r *accountRepository) ExistByID(ctx context.Context, id model.ID) (bool, e
 	return count > 0, err
 }
 
+func (r *accountRepository) FindByID(ctx context.Context, id model.ID) (*model.Account, error) {
+	db := r.repository.DB(ctx)
+
+	return db.Account.WithContext(ctx).Where(
+		db.Account.ID.Eq(id),
+		db.Account.Channel.Eq(string(enums.Channel_Paynda)),
+	).First()
+}
+
 func (r *accountRepository) FindByChannel(ctx context.Context) (*model.Account, error) {
 	db := r.repository.DB(ctx)
 
@@ -342,12 +408,23 @@ func (r *accountRepository) FindByChannel(ctx context.Context) (*model.Account, 
 	).Order(db.Account.ID.Desc()).First()
 }
 
-func (r *accountRepository) List(ctx context.Context) ([]*model.Account, error) {
+func (r *accountRepository) Count(ctx context.Context) (int64, error) {
 	db := r.repository.DB(ctx)
 
 	return db.Account.WithContext(ctx).Where(
 		db.Account.Channel.Eq(string(enums.Channel_Paynda)),
-	).Order(db.Account.ID.Desc()).Find()
+	).Count()
+}
+
+func (r *accountRepository) List(
+	ctx context.Context,
+	req *biz.PayndaListRequest,
+) ([]*model.Account, error) {
+	db := r.repository.DB(ctx)
+
+	return db.Account.WithContext(ctx).Where(
+		db.Account.Channel.Eq(string(enums.Channel_Paynda)),
+	).Order(db.Account.ID.Desc()).Offset(req.Offset).Limit(req.Limit).Find()
 }
 
 var _ biz.PayndaAccountRepository = (*accountRepository)(nil)
@@ -388,6 +465,33 @@ func (r *cardTransactionRepository) FindByID(ctx context.Context, id model.ID) (
 	db := r.repository.DB(ctx)
 
 	return db.CardTransaction.WithContext(ctx).Where(db.CardTransaction.ID.Eq(id), db.CardTransaction.Channel.Eq(string(enums.Channel_Paynda))).First()
+}
+
+func (r *cardTransactionRepository) ExistByAccountID(
+	ctx context.Context,
+	req *biz.PayndaResourceRequest,
+) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.CardTransaction.WithContext(ctx).Where(
+		db.CardTransaction.ID.Eq(req.ID),
+		db.CardTransaction.AccountID.Eq(req.AccountID),
+		db.CardTransaction.Channel.Eq(string(enums.Channel_Paynda)),
+	).Count()
+
+	return count > 0, err
+}
+
+func (r *cardTransactionRepository) FindByAccountID(
+	ctx context.Context,
+	req *biz.PayndaResourceRequest,
+) (*model.CardTransaction, error) {
+	db := r.repository.DB(ctx)
+
+	return db.CardTransaction.WithContext(ctx).Where(
+		db.CardTransaction.ID.Eq(req.ID),
+		db.CardTransaction.AccountID.Eq(req.AccountID),
+		db.CardTransaction.Channel.Eq(string(enums.Channel_Paynda)),
+	).First()
 }
 
 func (r *cardTransactionRepository) FindByRequestID(

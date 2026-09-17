@@ -40,6 +40,33 @@ func (r *cardProductRepository) FindByPrefixForUpdate(ctx context.Context, prefi
 	).Order(db.CardProduct.ID.Desc()).First()
 }
 
+func (r *cardProductRepository) ExistByPrefixForAccount(
+	ctx context.Context,
+	req *biz.CardProductResourceRequest,
+) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.CardProduct.WithContext(ctx).Where(
+		db.CardProduct.AccountID.Eq(req.AccountID),
+		db.CardProduct.Channel.Eq(string(enums.Channel_PhotonPay)),
+		db.CardProduct.Prefix.Eq(req.Prefix),
+	).Count()
+
+	return count > 0, err
+}
+
+func (r *cardProductRepository) FindByPrefixForAccountForUpdate(
+	ctx context.Context,
+	req *biz.CardProductResourceRequest,
+) (*model.CardProduct, error) {
+	db := r.repository.DB(ctx)
+
+	return db.CardProduct.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).Where(
+		db.CardProduct.AccountID.Eq(req.AccountID),
+		db.CardProduct.Channel.Eq(string(enums.Channel_PhotonPay)),
+		db.CardProduct.Prefix.Eq(req.Prefix),
+	).Order(db.CardProduct.ID.Desc()).First()
+}
+
 func (r *cardProductRepository) List(ctx context.Context) ([]*model.CardProduct, error) {
 	db := r.repository.DB(ctx)
 

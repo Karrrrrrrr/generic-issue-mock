@@ -93,6 +93,60 @@ func (r *cardRepository) FindByLastOperationRequestID(ctx context.Context, reque
 		First()
 }
 
+func (r *cardRepository) ExistCardByRequestIDForAccount(
+	ctx context.Context,
+	req *biz.RequestResultResourceRequest,
+) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.Card.WithContext(ctx).Where(
+		db.Card.AccountID.Eq(req.AccountID),
+		db.Card.Channel.Eq(string(enums.Channel_PhotonPay)),
+		db.Card.RequestID.Eq(req.RequestID),
+	).Count()
+
+	return count > 0, err
+}
+
+func (r *cardRepository) FindCardByRequestIDForAccount(
+	ctx context.Context,
+	req *biz.RequestResultResourceRequest,
+) (*model.Card, error) {
+	db := r.repository.DB(ctx)
+
+	return db.Card.WithContext(ctx).Where(
+		db.Card.AccountID.Eq(req.AccountID),
+		db.Card.Channel.Eq(string(enums.Channel_PhotonPay)),
+		db.Card.RequestID.Eq(req.RequestID),
+	).First()
+}
+
+func (r *cardRepository) ExistCardByLastOperationRequestIDForAccount(
+	ctx context.Context,
+	req *biz.RequestResultResourceRequest,
+) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.Card.WithContext(ctx).Where(
+		db.Card.AccountID.Eq(req.AccountID),
+		db.Card.Channel.Eq(string(enums.Channel_PhotonPay)),
+		db.Card.LastOperationRequestID.Eq(req.RequestID),
+	).Count()
+
+	return count > 0, err
+}
+
+func (r *cardRepository) FindCardByLastOperationRequestIDForAccount(
+	ctx context.Context,
+	req *biz.RequestResultResourceRequest,
+) (*model.Card, error) {
+	db := r.repository.DB(ctx)
+
+	return db.Card.WithContext(ctx).Where(
+		db.Card.AccountID.Eq(req.AccountID),
+		db.Card.Channel.Eq(string(enums.Channel_PhotonPay)),
+		db.Card.LastOperationRequestID.Eq(req.RequestID),
+	).First()
+}
+
 func (r *cardRepository) ListCards(ctx context.Context, req *biz.ListRequest) ([]*model.Card, error) {
 	db := r.repository.DB(ctx)
 	query := db.Card.WithContext(ctx).Where(db.Card.Channel.Eq(string(enums.Channel_PhotonPay)))

@@ -68,18 +68,48 @@ func (s *PayndaUIService) CreateAccount(
 	return payndaUIAccountData(item.Account), nil
 }
 
-func (s *PayndaUIService) ListAccounts(ctx context.Context, _ *struct{}) (*[]PayndaUIAccountData, error) {
-	items, err := s.usecase.ListAccounts(ctx)
+func (s *PayndaUIService) ListAccounts(
+	ctx context.Context,
+	req *PayndaUIListRequest,
+) (*PayndaUIListResponse[*PayndaUIAccountData], error) {
+	page, size := types.NormalizePagination(req.PageNumber, req.PageSize)
+	items, total, err := s.usecase.ListAccounts(ctx, &biz.PayndaListRequest{
+		Offset: (page - 1) * size,
+		Limit:  size,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]PayndaUIAccountData, 0, len(items))
-	for _, item := range items {
-		result = append(result, *payndaUIAccountData(item))
+	return &PayndaUIListResponse[*PayndaUIAccountData]{
+		TotalItems: int(total),
+		Data:       types.BulkConvertSlice(items, payndaUIAccountData),
+	}, nil
+}
+
+type PayndaUIUpdateAccountRequest struct {
+	ID   string `uri:"id" binding:"required"`
+	Name string `json:"name" binding:"required"`
+}
+
+func (s *PayndaUIService) UpdateAccount(
+	ctx context.Context,
+	req *PayndaUIUpdateAccountRequest,
+) (*PayndaUIAccountData, error) {
+	id, err := payndaAccountID(req.ID)
+	if err != nil {
+		return nil, err
 	}
 
-	return &result, nil
+	item, err := s.usecase.UpdateAccount(ctx, &biz.PayndaUIUpdateAccountRequest{
+		ID:   id,
+		Name: req.Name,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return payndaUIAccountData(item), nil
 }
 
 type PayndaUICreateWebhookRequest struct {

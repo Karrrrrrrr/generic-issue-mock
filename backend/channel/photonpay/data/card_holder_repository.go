@@ -47,6 +47,33 @@ func (r *cardHolderRepository) FindCardHolderByID(ctx context.Context, id model.
 		First()
 }
 
+func (r *cardHolderRepository) ExistCardHolderByAccountID(
+	ctx context.Context,
+	req *biz.ResourceRequest,
+) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.CardHolder.WithContext(ctx).Where(
+		db.CardHolder.ID.Eq(req.ID),
+		db.CardHolder.AccountID.Eq(*req.AccountID),
+		db.CardHolder.Channel.Eq(string(enums.Channel_PhotonPay)),
+	).Count()
+
+	return count > 0, err
+}
+
+func (r *cardHolderRepository) FindCardHolderByAccountID(
+	ctx context.Context,
+	req *biz.ResourceRequest,
+) (*model.CardHolder, error) {
+	db := r.repository.DB(ctx)
+
+	return db.CardHolder.WithContext(ctx).Where(
+		db.CardHolder.ID.Eq(req.ID),
+		db.CardHolder.AccountID.Eq(*req.AccountID),
+		db.CardHolder.Channel.Eq(string(enums.Channel_PhotonPay)),
+	).First()
+}
+
 func (r *cardHolderRepository) Save(ctx context.Context, holder *model.CardHolder) error {
 	return r.repository.DB(ctx).CardHolder.WithContext(ctx).Save(holder)
 }

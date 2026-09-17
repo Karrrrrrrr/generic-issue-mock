@@ -36,6 +36,17 @@
 | Slash | 请求 `X-API-Key` | Slash 可逆 UUID | `AccountID` |
 
 浏览器账户管理是独立菜单组。选中的账户决定 UI 管理范围；渠道只在实际下游协议要求时，把该域映射为下游账户字段，例如 Paynda 的 `balanceAccountId`。不要将某个渠道的账户路径或字段强加给其他渠道。
+
+## 账户域完成度
+
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| 创建账户并创建账户钱包 | 已完成 | PhotonPay、Paynda 与 Slash 均在同一事务创建 USD 账户钱包并回写 `Account.WalletID`。 |
+| 账户 UI 列表、分页与改名 | 已完成 | PhotonPay、Paynda 与 Slash 均提供分页列表、创建与改名。 |
+| OpenAPI 账户范围 | 部分完成 | Slash 和 PhotonPay 的账户资源查询已按账户限定。Paynda 的 `balanceAccountId` 路径资源、账户钱包、持卡人、开卡及单笔交易均已按账户限定；`requestResults` 和 `merchant/wallets` 当前协议 DTO 未提供账户选择器，待 Marxo 调用点核对后处理，不能臆造请求字段。 |
+| Marxo SDK 与调用点核对 | 受阻 | 当前工作区未提供 Marxo 源码；恢复可访问后逐端点核对 DTO、路径、调用点和错误码。 |
+| 账户余额直接调整 | 待实现 | 管理端可直接变更账户钱包余额，不要求资金来源。 |
+| 账户钱包充值普通卡与虚拟账户 | 待实现 | 事务中锁定来源与目标钱包，更新余额和累计入出账，并创建资金交易。 |
 | `WebhookConfig` | 渠道 webhook 订阅配置 | 渠道、事件、目标地址、启用状态 |
 | `WebhookRecord` | 一次 webhook 投递记录 | 配置、来源资源、请求报文、响应、投递状态和次数 |
 

@@ -37,7 +37,7 @@ async function load() {
 
     rows.value = items;
     eventOptions.value = events.map((value) => ({ label: value, value }));
-    accounts.value = accountItems;
+    accounts.value = accountItems.data;
 
     if (!eventOptions.value.some((item) => item.value === form.value.event)) {
       form.value.event = eventOptions.value[0]?.value ?? "";

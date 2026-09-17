@@ -43,6 +43,33 @@ func (r *cardTransactionRepository) FindByID(ctx context.Context, id model.ID) (
 	).First()
 }
 
+func (r *cardTransactionRepository) ExistByAccountID(
+	ctx context.Context,
+	req *biz.ResourceRequest,
+) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.CardTransaction.WithContext(ctx).Where(
+		db.CardTransaction.ID.Eq(req.ID),
+		db.CardTransaction.AccountID.Eq(*req.AccountID),
+		db.CardTransaction.Channel.Eq(string(enums.Channel_PhotonPay)),
+	).Count()
+
+	return count > 0, err
+}
+
+func (r *cardTransactionRepository) FindByAccountID(
+	ctx context.Context,
+	req *biz.ResourceRequest,
+) (*model.CardTransaction, error) {
+	db := r.repository.DB(ctx)
+
+	return db.CardTransaction.WithContext(ctx).Where(
+		db.CardTransaction.ID.Eq(req.ID),
+		db.CardTransaction.AccountID.Eq(*req.AccountID),
+		db.CardTransaction.Channel.Eq(string(enums.Channel_PhotonPay)),
+	).First()
+}
+
 func (r *cardTransactionRepository) ListTransactions(ctx context.Context, req *biz.ListRequest) ([]*model.CardTransaction, error) {
 	db := r.repository.DB(ctx)
 	query := db.CardTransaction.WithContext(ctx).Where(db.CardTransaction.Channel.Eq(string(enums.Channel_PhotonPay)))

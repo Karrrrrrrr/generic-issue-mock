@@ -1,4 +1,10 @@
-import type { Card, Cardholder, ChannelAPI, ListResponse, Transaction, } from "@/channel/types";
+import type {
+  Card,
+  Cardholder,
+  ChannelAPI,
+  ListResponse,
+  Transaction,
+} from "@/channel/types";
 import { authorizationPayload, request } from "@/channel/shared";
 
 const baseURL = "/slash/ui";
@@ -10,11 +16,21 @@ export interface Account {
 }
 
 export const accountApi = {
-  async list() {
-    return (await request.get<Account[]>(`${baseURL}/accounts`)).data;
+  async list(pageNumber = 1, pageSize = 20) {
+    return (
+      await request.get<ListResponse<Account>>(`${baseURL}/accounts`, {
+        params: {
+          page_number: pageNumber,
+          page_size: pageSize,
+        },
+      })
+    ).data;
   },
   async create(payload: Pick<Account, "name">) {
     return (await request.post<Account>(`${baseURL}/accounts`, payload)).data;
+  },
+  async update(id: string, payload: Pick<Account, "name">) {
+    return (await request.put<Account>(`${baseURL}/accounts/${id}`, payload)).data;
   },
 };
 

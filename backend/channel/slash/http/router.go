@@ -13,6 +13,7 @@ import (
 func Register(router *gin.RouterGroup, service *service.SlashUIService, openAPIService *service.SlashOpenAPIService) {
 	router.GET("/ui/accounts", bind(service.ListAccounts))
 	router.POST("/ui/accounts", bind(service.CreateAccount))
+	router.PUT("/ui/accounts/:id", bind(service.UpdateAccount))
 	router.GET("/card", bind(openAPIService.ListCards))
 	router.POST("/card", bind(openAPIService.CreateCard))
 	router.GET("/card/:id", bind(openAPIService.GetCard))

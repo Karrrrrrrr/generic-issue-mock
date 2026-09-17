@@ -21,7 +21,10 @@ type SlashTransaction interface {
 type SlashAccountRepository interface {
 	Create(context.Context, *model.Account) error
 	Save(context.Context, *model.Account) error
-	List(context.Context) ([]*model.Account, error)
+	Exist(context.Context, model.ID) (bool, error)
+	Find(context.Context, model.ID) (*model.Account, error)
+	Count(context.Context) (int64, error)
+	List(context.Context, *ListAccountsRequest) ([]*model.Account, error)
 }
 
 type SlashCardHolderRepository interface {
@@ -128,7 +131,9 @@ func NewSlashUIUsecase(injector *do.Injector) (*SlashUIUsecase, error) {
 	}, nil
 }
 
-type CreateAccountRequest struct{ Name string }
+type CreateAccountRequest struct {
+	Name string
+}
 
 func (u *SlashUIUsecase) CreateAccount(ctx context.Context, req *CreateAccountRequest) (*model.Account, error) {
 	var item *model.Account
@@ -156,13 +161,60 @@ func (u *SlashUIUsecase) CreateAccount(ctx context.Context, req *CreateAccountRe
 	return item, nil
 }
 
-func (u *SlashUIUsecase) ListAccounts(ctx context.Context) ([]*model.Account, error) {
-	items, err := u.accountRepository.List(ctx)
+type ListAccountsRequest struct {
+	Offset int
+	Limit  int
+}
+
+func (u *SlashUIUsecase) ListAccounts(
+	ctx context.Context,
+	req *ListAccountsRequest,
+) ([]*model.Account, int64, error) {
+	items, err := u.accountRepository.List(ctx, req)
 	if err != nil {
 		zap.S().Errorw("list slash UI accounts", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+
+	total, err := u.accountRepository.Count(ctx)
+	if err != nil {
+		zap.S().Errorw("count slash UI accounts", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+
+	return items, total, nil
+}
+
+type UpdateAccountRequest struct {
+	ID   model.ID
+	Name string
+}
+
+func (u *SlashUIUsecase) UpdateAccount(
+	ctx context.Context,
+	req *UpdateAccountRequest,
+) (*model.Account, error) {
+	exists, err := u.accountRepository.Exist(ctx, req.ID)
+	if err != nil {
+		zap.S().Errorw("check slash UI account", "error", err)
 		return nil, ErrDatabaseOperation
 	}
-	return items, nil
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
+
+	item, err := u.accountRepository.Find(ctx, req.ID)
+	if err != nil {
+		zap.S().Errorw("find slash UI account", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	item.Name = req.Name
+	if err := u.accountRepository.Save(ctx, item); err != nil {
+		zap.S().Errorw("update slash UI account", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+
+	return item, nil
 }
 
 type ListCardHoldersRequest struct {

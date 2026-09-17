@@ -47,16 +47,53 @@ func (s *SlashUIService) CreateAccount(ctx context.Context, req *CreateAccountRe
 	return slashAccountData(item), nil
 }
 
-func (s *SlashUIService) ListAccounts(ctx context.Context, _ *struct{}) (*[]AccountData, error) {
-	items, err := s.usecase.ListAccounts(ctx)
+type ListAccountsResponse struct {
+	TotalItems int            `json:"total_items"`
+	Data       []*AccountData `json:"data"`
+}
+
+func (s *SlashUIService) ListAccounts(
+	ctx context.Context,
+	req *ListRequest,
+) (*ListAccountsResponse, error) {
+	page, size := types.NormalizePagination(req.PageNumber, req.PageSize)
+	items, total, err := s.usecase.ListAccounts(ctx, &biz.ListAccountsRequest{
+		Offset: (page - 1) * size,
+		Limit:  size,
+	})
 	if err != nil {
 		return nil, err
 	}
-	result := make([]AccountData, 0, len(items))
-	for _, item := range items {
-		result = append(result, *slashAccountData(item))
+
+	return &ListAccountsResponse{
+		TotalItems: int(total),
+		Data:       types.BulkConvertSlice(items, slashAccountData),
+	}, nil
+}
+
+type UpdateAccountRequest struct {
+	ID   string `uri:"id" binding:"required"`
+	Name string `json:"name" binding:"required"`
+}
+
+func (s *SlashUIService) UpdateAccount(
+	ctx context.Context,
+	req *UpdateAccountRequest,
+) (*AccountData, error) {
+	id, err := slashAccountID(req.ID)
+	if err != nil {
+		return nil, err
 	}
-	return &result, nil
+
+	item, err := s.usecase.UpdateAccount(ctx, &biz.UpdateAccountRequest{
+		ID:   id,
+		Name: req.Name,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return slashAccountData(item), nil
 }
 
 type WebhookData struct {

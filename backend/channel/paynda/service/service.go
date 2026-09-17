@@ -92,8 +92,7 @@ func (s *PayndaOpenAPIService) GetCardHolder(
 	ctx context.Context,
 	req *PayndaCardHolderIDRequest,
 ) (*PayndaCardholderData, error) {
-	var err error
-	_, err = payndaAccountID(req.BalanceAccountID)
+	accountID, err := payndaAccountID(req.BalanceAccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +100,10 @@ func (s *PayndaOpenAPIService) GetCardHolder(
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.GetCardHolder(ctx, id)
+	item, err := s.usecase.GetCardHolder(ctx, &biz.PayndaResourceRequest{
+		AccountID: accountID,
+		ID:        id,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -129,8 +131,7 @@ func (s *PayndaOpenAPIService) UpdateCardHolder(
 	ctx context.Context,
 	req *PayndaUpdateCardHolderRequest,
 ) (*struct{}, error) {
-	var err error
-	_, err = payndaAccountID(req.BalanceAccountID)
+	accountID, err := payndaAccountID(req.BalanceAccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -139,6 +140,7 @@ func (s *PayndaOpenAPIService) UpdateCardHolder(
 		return nil, err
 	}
 	_, err = s.usecase.UpdateCardHolder(ctx, &biz.PayndaUpdateCardHolderRequest{
+		AccountID:              accountID,
 		ID:                     id,
 		FirstName:              req.FirstName,
 		LastName:               req.LastName,
@@ -410,12 +412,11 @@ func (s *PayndaOpenAPIService) ListBalanceAccountWallets(
 	ctx context.Context,
 	req *PayndaListRequest,
 ) (*[]*PayndaBalanceAccountWalletData, error) {
-	var err error
-	_, err = payndaAccountID(req.BalanceAccountID)
+	accountID, err := payndaAccountID(req.BalanceAccountID)
 	if err != nil {
 		return nil, err
 	}
-	accountWallet, err := s.usecase.GetAccountWallet(ctx)
+	accountWallet, err := s.usecase.GetAccountWallet(ctx, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -445,23 +446,7 @@ func (s *PayndaOpenAPIService) ListMerchantWallets(
 	ctx context.Context,
 	_ *PayndaMerchantWalletsRequest,
 ) (*[]*PayndaMerchantWalletData, error) {
-	accountWallet, err := s.usecase.GetAccountWallet(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	result := []*PayndaMerchantWalletData{
-		{
-			ID:         payndaIDString(accountWallet.Wallet.ID),
-			CreateTime: accountWallet.Wallet.CreatedAt.UTC(),
-			UpdateTime: accountWallet.Wallet.UpdatedAt.UTC(),
-			Name:       accountWallet.Account.Name,
-			Currency:   accountWallet.Wallet.Currency,
-			Amount:     accountWallet.Wallet.Amount.String(),
-		},
-	}
-
-	return &result, nil
+	return nil, biz.ErrInvalidOperation
 }
 
 type PayndaBalanceAccountWalletTransferRequest struct {
@@ -486,8 +471,7 @@ func (s *PayndaOpenAPIService) TransferBalanceAccountWallet(
 	ctx context.Context,
 	req *PayndaBalanceAccountWalletTransferRequest,
 ) (*PayndaBalanceAccountWalletTransferData, error) {
-	var err error
-	_, err = payndaAccountID(req.BalanceAccountID)
+	accountID, err := payndaAccountID(req.BalanceAccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -499,7 +483,8 @@ func (s *PayndaOpenAPIService) TransferBalanceAccountWallet(
 		return nil, biz.ErrInvalidOperation
 	}
 	accountWallet, err := s.usecase.TransferAccountWallet(ctx, &biz.PayndaAccountWalletTransferRequest{
-		Amount: amount,
+		AccountID: accountID,
+		Amount:    amount,
 	})
 	if err != nil {
 		return nil, err
@@ -835,8 +820,7 @@ func (s *PayndaOpenAPIService) GetCardTransaction(
 	ctx context.Context,
 	req *PayndaCardTransactionRequest,
 ) (*PayndaTransactionData, error) {
-	var err error
-	_, err = payndaAccountID(req.BalanceAccountID)
+	accountID, err := payndaAccountID(req.BalanceAccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -844,7 +828,10 @@ func (s *PayndaOpenAPIService) GetCardTransaction(
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.GetCardTransaction(ctx, id)
+	item, err := s.usecase.GetCardTransaction(ctx, &biz.PayndaResourceRequest{
+		AccountID: accountID,
+		ID:        id,
+	})
 	if err != nil {
 		return nil, err
 	}
