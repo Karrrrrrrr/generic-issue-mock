@@ -38,6 +38,7 @@ func main() {
 		&model.Authorization{},
 		&model.CardHolder{},
 		&model.WebhookConfig{},
+		&model.AuthorizationConfig{},
 		&model.WebhookRecord{},
 	)
 	g.Execute()

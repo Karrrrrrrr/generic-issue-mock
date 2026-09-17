@@ -80,11 +80,14 @@ const (
 )
 
 func (v WebhookEvent) Valid() bool {
-	return v == WebhookEventCardTransaction
+	return v == WebhookEventCardTransaction || v == WebhookEventCardStatus
 }
 
 func WebhookEvents() []WebhookEvent {
-	return []WebhookEvent{WebhookEventCardTransaction}
+	return []WebhookEvent{
+		WebhookEventCardTransaction,
+		WebhookEventCardStatus,
+	}
 }
 
 func TransactionTypeFromGeneric(value common.CardTransactionType) TransactionType {

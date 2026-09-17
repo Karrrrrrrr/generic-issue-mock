@@ -18,35 +18,115 @@ import (
 )
 
 type PhotonPayUIUsecase struct {
-	transaction         PhotonPayTransaction
-	cardHolderRepo      CardHolderRepository
-	cardRepo            CardRepository
-	cardProductRepo     CardProductRepository
-	authorizationRepo   AuthorizationRepository
-	cardTransactionRepo CardTransactionRepository
-	webhookRepo         WebhookConfigRepository
-	webhookRecordRepo   WebhookRecordRepository
-	webhookClient       WebhookClient
-	accountRepo         AccountRepository
-	walletRepo          WalletRepository
-	virtualAccountRepo  VirtualAccountRepository
+	transaction             PhotonPayTransaction
+	cardHolderRepo          CardHolderRepository
+	cardRepo                CardRepository
+	cardProductRepo         CardProductRepository
+	authorizationRepo       AuthorizationRepository
+	cardTransactionRepo     CardTransactionRepository
+	webhookRepo             WebhookConfigRepository
+	authorizationConfigRepo AuthorizationConfigRepository
+	webhookRecordRepo       WebhookRecordRepository
+	webhookClient           WebhookClient
+	accountRepo             AccountRepository
+	walletRepo              WalletRepository
+	virtualAccountRepo      VirtualAccountRepository
 }
 
 func NewPhotonPayUIUsecase(injector *do.Injector) (*PhotonPayUIUsecase, error) {
 	return &PhotonPayUIUsecase{
-		transaction:         do.MustInvoke[PhotonPayTransaction](injector),
-		cardHolderRepo:      do.MustInvoke[CardHolderRepository](injector),
-		cardRepo:            do.MustInvoke[CardRepository](injector),
-		cardProductRepo:     do.MustInvoke[CardProductRepository](injector),
-		authorizationRepo:   do.MustInvoke[AuthorizationRepository](injector),
-		cardTransactionRepo: do.MustInvoke[CardTransactionRepository](injector),
-		webhookRepo:         do.MustInvoke[WebhookConfigRepository](injector),
-		webhookRecordRepo:   do.MustInvoke[WebhookRecordRepository](injector),
-		webhookClient:       do.MustInvoke[WebhookClient](injector),
-		accountRepo:         do.MustInvoke[AccountRepository](injector),
-		walletRepo:          do.MustInvoke[WalletRepository](injector),
-		virtualAccountRepo:  do.MustInvoke[VirtualAccountRepository](injector),
+		transaction:             do.MustInvoke[PhotonPayTransaction](injector),
+		cardHolderRepo:          do.MustInvoke[CardHolderRepository](injector),
+		cardRepo:                do.MustInvoke[CardRepository](injector),
+		cardProductRepo:         do.MustInvoke[CardProductRepository](injector),
+		authorizationRepo:       do.MustInvoke[AuthorizationRepository](injector),
+		cardTransactionRepo:     do.MustInvoke[CardTransactionRepository](injector),
+		webhookRepo:             do.MustInvoke[WebhookConfigRepository](injector),
+		authorizationConfigRepo: do.MustInvoke[AuthorizationConfigRepository](injector),
+		webhookRecordRepo:       do.MustInvoke[WebhookRecordRepository](injector),
+		webhookClient:           do.MustInvoke[WebhookClient](injector),
+		accountRepo:             do.MustInvoke[AccountRepository](injector),
+		walletRepo:              do.MustInvoke[WalletRepository](injector),
+		virtualAccountRepo:      do.MustInvoke[VirtualAccountRepository](injector),
 	}, nil
+}
+
+type UIUpdateAuthorizationConfigRequest struct {
+	AccountID        model.ID
+	TargetURL        string
+	Enabled          bool
+	TimeoutMillis    int
+	FallbackBehavior string
+}
+
+func (u *PhotonPayUIUsecase) GetAuthorizationConfig(ctx context.Context, accountID model.ID) (*model.AuthorizationConfig, error) {
+	accountExists, err := u.accountRepo.Exist(ctx, accountID)
+	if err != nil {
+		zap.S().Errorw("check photonpay authorization config account", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !accountExists {
+		return nil, ErrResourceNotFound
+	}
+	exists, err := u.authorizationConfigRepo.ExistByAccountID(ctx, accountID)
+	if err != nil {
+		zap.S().Errorw("check photonpay authorization config", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
+	item, err := u.authorizationConfigRepo.FindByAccountID(ctx, accountID)
+	if err != nil {
+		zap.S().Errorw("find photonpay authorization config", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return item, nil
+}
+
+func (u *PhotonPayUIUsecase) UpdateAuthorizationConfig(ctx context.Context, req *UIUpdateAuthorizationConfigRequest) (*model.AuthorizationConfig, error) {
+	accountExists, err := u.accountRepo.Exist(ctx, req.AccountID)
+	if err != nil {
+		zap.S().Errorw("check photonpay authorization config account", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !accountExists {
+		return nil, ErrResourceNotFound
+	}
+	exists, err := u.authorizationConfigRepo.ExistByAccountID(ctx, req.AccountID)
+	if err != nil {
+		zap.S().Errorw("check photonpay authorization config", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		item := &model.AuthorizationConfig{
+			AccountID:        req.AccountID,
+			Channel:          enums.Channel_PhotonPay,
+			TargetURL:        req.TargetURL,
+			Enabled:          req.Enabled,
+			TimeoutMillis:    req.TimeoutMillis,
+			FallbackBehavior: req.FallbackBehavior,
+		}
+		if err := u.authorizationConfigRepo.Create(ctx, item); err != nil {
+			zap.S().Errorw("create photonpay authorization config", "error", err)
+			return nil, ErrDatabaseOperation
+		}
+		return item, nil
+	}
+	item, err := u.authorizationConfigRepo.FindByAccountID(ctx, req.AccountID)
+	if err != nil {
+		zap.S().Errorw("find photonpay authorization config", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	item.TargetURL = req.TargetURL
+	item.Enabled = req.Enabled
+	item.TimeoutMillis = req.TimeoutMillis
+	item.FallbackBehavior = req.FallbackBehavior
+	if err := u.authorizationConfigRepo.Save(ctx, item); err != nil {
+		zap.S().Errorw("save photonpay authorization config", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return item, nil
 }
 
 type UICreateVirtualAccountRequest struct {
@@ -506,6 +586,7 @@ func (u *PhotonPayUIUsecase) OpenCard(ctx context.Context, req *UIOpenCardReques
 	if err != nil {
 		return nil, err
 	}
+	u.dispatchCardStatus(ctx, card)
 
 	return card, nil
 }
@@ -862,6 +943,75 @@ func (u *PhotonPayUIUsecase) ApplyTransactionStep(ctx context.Context, req *UIAp
 
 func (u *PhotonPayUIUsecase) dispatchTransaction(ctx context.Context, transaction *model.CardTransaction) {
 	u.dispatch(ctx, photon.WebhookEventFromGenericTransactionType(transaction.Type), transaction.ID, transaction)
+}
+
+func (u *PhotonPayUIUsecase) dispatchCardStatus(ctx context.Context, card *model.Card) {
+	payload, err := json.Marshal(struct {
+		CardID     string            `json:"cardId"`
+		CardStatus photon.CardStatus `json:"cardStatus"`
+	}{
+		CardID:     strconv.FormatInt(card.ID, 10),
+		CardStatus: photon.CardStatusFromGeneric(card.Status),
+	})
+	if err != nil {
+		zap.S().Errorw("marshal photonpay card status webhook payload", "error", err)
+		return
+	}
+	configs, err := u.webhookRepo.List(ctx, &WebhookListRequest{
+		AccountID: card.AccountID,
+	})
+	if err != nil {
+		zap.S().Errorw("list photonpay card status webhook configs", "error", err)
+		return
+	}
+	for _, config := range configs {
+		if !config.Enabled || config.Event != string(photon.WebhookEventCardStatusUpdate) {
+			continue
+		}
+		record := &model.WebhookRecord{
+			WebhookConfigID: config.ID,
+			AccountID:       config.AccountID,
+			Channel:         enums.Channel_PhotonPay,
+			Event:           string(photon.WebhookEventCardStatusUpdate),
+			TargetURL:       config.TargetURL,
+			SourceID:        strconv.FormatInt(card.ID, 10),
+			Payload:         payload,
+			Status:          enums.WebhookDeliveryStatus_Pending,
+			AttemptCount:    1,
+		}
+		if err := u.webhookRecordRepo.Create(ctx, record); err != nil {
+			zap.S().Errorw("create photonpay card status webhook record", "error", err)
+			continue
+		}
+		result, deliveryErr := u.webhookClient.Deliver(ctx, &PhotonPayWebhookDeliveryRequest{
+			TargetURL:      config.TargetURL,
+			Payload:        payload,
+			NotifyCategory: string(photon.WebhookNotificationCategoryIssuingCard),
+			NotifyType:     string(photon.WebhookEventCardStatusUpdate),
+			PublishedAt:    time.Now().UTC().Format(time.RFC3339),
+		})
+		if deliveryErr != nil {
+			record.Status = enums.WebhookDeliveryStatus_Failed
+			record.ErrorMessage = deliveryErr.Error()
+			zap.S().Errorw("deliver photonpay card status webhook", "error", deliveryErr, "webhook_record_id", record.ID)
+		} else {
+			record.StatusCode = result.StatusCode
+			record.ResponseBody = result.ResponseBody
+			record.RequestHeaders = result.RequestHeaders
+			record.ResponseHeaders = result.ResponseHeaders
+			if result.StatusCode >= 200 && result.StatusCode < 300 && photonPayWebhookAcknowledged(result.ResponseBody) {
+				deliveredAt := time.Now().UTC()
+				record.Status = enums.WebhookDeliveryStatus_Succeeded
+				record.DeliveredAt = &deliveredAt
+			} else {
+				record.Status = enums.WebhookDeliveryStatus_Failed
+				record.ErrorMessage = "unexpected PhotonPay webhook response"
+			}
+		}
+		if err := u.webhookRecordRepo.Save(ctx, record); err != nil {
+			zap.S().Errorw("save photonpay card status webhook record", "error", err)
+		}
+	}
 }
 
 func (u *PhotonPayUIUsecase) dispatch(ctx context.Context, event photon.WebhookEvent, sourceID model.ID, transaction *model.CardTransaction) {

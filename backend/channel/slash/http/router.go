@@ -21,6 +21,8 @@ func Register(router *gin.RouterGroup, service *service.SlashUIService, openAPIS
 	router.GET("/card-product", bind(openAPIService.ListCardProducts))
 	router.GET("/virtual-account", bind(openAPIService.ListVirtualAccounts))
 	router.POST("/transfer/virtual-account", bind(openAPIService.TransferVirtualAccount))
+	router.GET("/account/:accountId/authorization-webhook", bind(openAPIService.GetAuthorizationWebhook))
+	router.PUT("/account/:accountId/authorization-webhook", bind(openAPIService.UpdateAuthorizationWebhook))
 	router.GET("/transaction", bind(openAPIService.ListTransactions))
 	router.GET("/transaction/:id", bind(openAPIService.GetTransaction))
 

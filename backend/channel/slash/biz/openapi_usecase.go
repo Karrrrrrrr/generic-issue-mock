@@ -22,6 +22,8 @@ type SlashOpenAPIUsecase struct {
 	cardTransactionRepository SlashCardTransactionRepository
 	virtualAccountRepository  SlashVirtualAccountRepository
 	walletRepository          SlashWalletRepository
+	accountRepository         SlashAccountRepository
+	authorizationConfigRepo   SlashAuthorizationConfigRepository
 }
 
 func NewSlashOpenAPIUsecase(injector *do.Injector) (*SlashOpenAPIUsecase, error) {
@@ -33,7 +35,93 @@ func NewSlashOpenAPIUsecase(injector *do.Injector) (*SlashOpenAPIUsecase, error)
 		cardTransactionRepository: do.MustInvoke[SlashCardTransactionRepository](injector),
 		virtualAccountRepository:  do.MustInvoke[SlashVirtualAccountRepository](injector),
 		walletRepository:          do.MustInvoke[SlashWalletRepository](injector),
+		accountRepository:         do.MustInvoke[SlashAccountRepository](injector),
+		authorizationConfigRepo:   do.MustInvoke[SlashAuthorizationConfigRepository](injector),
 	}, nil
+}
+
+type OpenAPIUpdateAuthorizationConfigRequest struct {
+	AccountID        model.ID
+	TargetURL        string
+	Enabled          bool
+	TimeoutMillis    int
+	FallbackBehavior string
+}
+
+func (u *SlashOpenAPIUsecase) GetAuthorizationConfig(
+	ctx context.Context,
+	accountID model.ID,
+) (*model.AuthorizationConfig, error) {
+	accountExists, err := u.accountRepository.Exist(ctx, accountID)
+	if err != nil {
+		zap.S().Errorw("check slash authorization config account", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !accountExists {
+		return nil, ErrResourceNotFound
+	}
+	exists, err := u.authorizationConfigRepo.ExistByAccountID(ctx, accountID)
+	if err != nil {
+		zap.S().Errorw("check slash authorization config", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
+	item, err := u.authorizationConfigRepo.FindByAccountID(ctx, accountID)
+	if err != nil {
+		zap.S().Errorw("find slash authorization config", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return item, nil
+}
+
+func (u *SlashOpenAPIUsecase) UpdateAuthorizationConfig(
+	ctx context.Context,
+	req *OpenAPIUpdateAuthorizationConfigRequest,
+) (*model.AuthorizationConfig, error) {
+	accountExists, err := u.accountRepository.Exist(ctx, req.AccountID)
+	if err != nil {
+		zap.S().Errorw("check slash authorization config account", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !accountExists {
+		return nil, ErrResourceNotFound
+	}
+	exists, err := u.authorizationConfigRepo.ExistByAccountID(ctx, req.AccountID)
+	if err != nil {
+		zap.S().Errorw("check slash authorization config", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		item := &model.AuthorizationConfig{
+			AccountID:        req.AccountID,
+			Channel:          enums.Channel_Slash,
+			TargetURL:        req.TargetURL,
+			Enabled:          req.Enabled,
+			TimeoutMillis:    req.TimeoutMillis,
+			FallbackBehavior: req.FallbackBehavior,
+		}
+		if err := u.authorizationConfigRepo.Create(ctx, item); err != nil {
+			zap.S().Errorw("create slash authorization config", "error", err)
+			return nil, ErrDatabaseOperation
+		}
+		return item, nil
+	}
+	item, err := u.authorizationConfigRepo.FindByAccountID(ctx, req.AccountID)
+	if err != nil {
+		zap.S().Errorw("find slash authorization config", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	item.TargetURL = req.TargetURL
+	item.Enabled = req.Enabled
+	item.TimeoutMillis = req.TimeoutMillis
+	item.FallbackBehavior = req.FallbackBehavior
+	if err := u.authorizationConfigRepo.Save(ctx, item); err != nil {
+		zap.S().Errorw("save slash authorization config", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return item, nil
 }
 
 type OpenAPIVirtualAccountTransferRequest struct {

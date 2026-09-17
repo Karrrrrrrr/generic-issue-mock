@@ -2,7 +2,9 @@
 
 ## 范围
 
-已实现持卡人、虚拟账户卡开卡、同步 sandbox 授权/冲正/退款、交易列表、卡状态更新和管理 UI。Webhook 已支持 PhotonPay `ds-event` 投递和投递记录；自动重试与记录查询 UI 尚未实现。
+已实现持卡人、虚拟账户卡开卡、同步 sandbox 授权/冲正/退款、交易列表、卡状态更新和管理 UI。Webhook 已支持 PhotonPay `ds-event` 的授权、验卡、冲正、退款和卡状态投递及记录；账户级同步授权配置由 `AuthorizationConfig` 管理，自动重试仍待实现。
+
+PhotonPay SDK 当前没有被 Marxo 调用的授权配置 OpenAPI。mock 因此只在管理面提供 `GET/PUT /photonpay/ui/authorization-config`，请求按 `account_id` 选择配置；它持久化同步授权目标 URL、启用状态、超时和兜底行为，不伪造尚无调用点的 PhotonPay OpenAPI 路径。
 
 ## 字段映射
 

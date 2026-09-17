@@ -103,6 +103,13 @@ type SlashWebhookConfigRepository interface {
 	Delete(context.Context, model.ID) error
 }
 
+type SlashAuthorizationConfigRepository interface {
+	Create(context.Context, *model.AuthorizationConfig) error
+	ExistByAccountID(context.Context, model.ID) (bool, error)
+	FindByAccountID(context.Context, model.ID) (*model.AuthorizationConfig, error)
+	Save(context.Context, *model.AuthorizationConfig) error
+}
+
 type ListWebhooksRequest struct {
 	AccountID model.ID
 }

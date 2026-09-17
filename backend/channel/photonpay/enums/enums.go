@@ -89,7 +89,11 @@ func WebhookEventFromGenericTransactionType(value generic.CardTransactionType) W
 
 func (v WebhookEvent) Valid() bool {
 	switch v {
-	case WebhookEventAuth, WebhookEventVerification, WebhookEventVoid, WebhookEventRefund:
+	case WebhookEventAuth,
+		WebhookEventVerification,
+		WebhookEventVoid,
+		WebhookEventRefund,
+		WebhookEventCardStatusUpdate:
 		return true
 	default:
 		return false
@@ -102,6 +106,7 @@ func WebhookEvents() []WebhookEvent {
 		WebhookEventVerification,
 		WebhookEventVoid,
 		WebhookEventRefund,
+		WebhookEventCardStatusUpdate,
 	}
 }
 

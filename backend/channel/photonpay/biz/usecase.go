@@ -101,6 +101,13 @@ type WebhookConfigRepository interface {
 	Delete(context.Context, model.ID) error
 }
 
+type AuthorizationConfigRepository interface {
+	Create(context.Context, *model.AuthorizationConfig) error
+	ExistByAccountID(context.Context, model.ID) (bool, error)
+	FindByAccountID(context.Context, model.ID) (*model.AuthorizationConfig, error)
+	Save(context.Context, *model.AuthorizationConfig) error
+}
+
 type WebhookListRequest struct {
 	AccountID model.ID
 }

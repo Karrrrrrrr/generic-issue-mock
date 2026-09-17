@@ -1309,6 +1309,7 @@ func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCar
 	if err != nil {
 		return nil, err
 	}
+	u.dispatchCardStatus(ctx, card)
 	return card, nil
 }
 
@@ -1718,6 +1719,81 @@ func (u *PayndaUIUsecase) dispatch(ctx context.Context, event paynda.WebhookEven
 
 type payndaEventPayload struct {
 	CardTransactionWebhook payndaCardTransactionWebhook `json:"cardTransactionWebhook"`
+}
+
+type payndaCardStatusEventPayload struct {
+	CardStatusWebhook payndaCardStatusWebhook `json:"cardStatusWebhook"`
+}
+
+type payndaCardStatusWebhook struct {
+	CardID model.ID          `json:"cardId"`
+	Status paynda.CardStatus `json:"status"`
+}
+
+func (u *PayndaUIUsecase) dispatchCardStatus(ctx context.Context, card *model.Card) {
+	payload, err := json.Marshal(payndaCardStatusEventPayload{
+		CardStatusWebhook: payndaCardStatusWebhook{
+			CardID: card.ID,
+			Status: paynda.CardStatusFromGeneric(card.Status),
+		},
+	})
+	if err != nil {
+		zap.S().Errorw("marshal paynda card status webhook payload", "error", err)
+		return
+	}
+	configs, err := u.webhookConfigRepository.ListByAccountID(ctx, &PayndaListWebhooksRequest{
+		AccountID: card.AccountID,
+	})
+	if err != nil {
+		zap.S().Errorw("list paynda card status webhook configs", "error", err)
+		return
+	}
+	for _, config := range configs {
+		if !config.Enabled || config.Event != string(paynda.WebhookEventCardStatus) {
+			continue
+		}
+		record := &model.WebhookRecord{
+			WebhookConfigID: config.ID,
+			AccountID:       config.AccountID,
+			Channel:         enums.Channel_Paynda,
+			Event:           string(paynda.WebhookEventCardStatus),
+			TargetURL:       config.TargetURL,
+			SourceID:        strconv.FormatInt(card.ID, 10),
+			Payload:         payload,
+			Status:          enums.WebhookDeliveryStatus_Pending,
+			AttemptCount:    1,
+		}
+		if err := u.webhookRecordRepository.Create(ctx, record); err != nil {
+			zap.S().Errorw("create paynda card status webhook record", "error", err)
+			continue
+		}
+		result, deliveryErr := u.webhookClient.Deliver(ctx, &PayndaWebhookDeliveryRequest{
+			TargetURL: config.TargetURL,
+			Payload:   payload,
+			Category:  string(paynda.WebhookEventCardStatus),
+		})
+		if deliveryErr != nil {
+			record.Status = enums.WebhookDeliveryStatus_Failed
+			record.ErrorMessage = deliveryErr.Error()
+			zap.S().Errorw("deliver paynda card status webhook", "error", deliveryErr, "webhook_record_id", record.ID)
+		} else {
+			record.StatusCode = result.StatusCode
+			record.ResponseBody = result.ResponseBody
+			record.RequestHeaders = result.RequestHeaders
+			record.ResponseHeaders = result.ResponseHeaders
+			if result.StatusCode >= 200 && result.StatusCode < 300 {
+				deliveredAt := time.Now().UTC()
+				record.Status = enums.WebhookDeliveryStatus_Succeeded
+				record.DeliveredAt = &deliveredAt
+			} else {
+				record.Status = enums.WebhookDeliveryStatus_Failed
+				record.ErrorMessage = "unexpected Paynda webhook response"
+			}
+		}
+		if err := u.webhookRecordRepository.Save(ctx, record); err != nil {
+			zap.S().Errorw("save paynda card status webhook record", "error", err)
+		}
+	}
 }
 
 type payndaCardTransactionWebhook struct {

@@ -14,6 +14,8 @@ func Register(
 	router.GET("/ui/accounts", bindUI(uiService.ListAccounts))
 	router.POST("/ui/accounts", bindUI(uiService.CreateAccount))
 	router.PUT("/ui/accounts/:id", bindUI(uiService.UpdateAccount))
+	router.GET("/ui/authorization-config", bindUI(uiService.GetAuthorizationConfig))
+	router.PUT("/ui/authorization-config", bindUI(uiService.UpdateAuthorizationConfig))
 	router.GET("/ui/virtual-accounts", bindUI(uiService.ListVirtualAccounts))
 	router.POST("/ui/virtual-accounts", bindUI(uiService.CreateVirtualAccount))
 	router.GET("/ui/cardholders", bindUI(uiService.ListCardHolders))

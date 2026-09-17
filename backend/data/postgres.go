@@ -112,6 +112,7 @@ func genericModels() []any {
 		&model.Authorization{},
 		&model.CardHolder{},
 		&model.WebhookConfig{},
+		&model.AuthorizationConfig{},
 		&model.WebhookRecord{},
 	}
 }

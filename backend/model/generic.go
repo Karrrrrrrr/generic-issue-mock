@@ -183,6 +183,19 @@ type WebhookConfig struct {
 	Enabled   bool          `gorm:"column:enabled;type:boolean;not null;default:false"`
 }
 
+// AuthorizationConfig configures the synchronous authorization callback for
+// one channel account. It is intentionally separate from asynchronous event
+// webhook subscriptions.
+type AuthorizationConfig struct {
+	BaseModel
+	AccountID        ID            `gorm:"column:account_id;type:bigint;not null;default:0;uniqueIndex:idx_authorization_configs_account_channel"`
+	Channel          enums.Channel `gorm:"column:channel;type:varchar;not null;default:'';uniqueIndex:idx_authorization_configs_account_channel"`
+	TargetURL        string        `gorm:"column:target_url;type:varchar;not null;default:''"`
+	Enabled          bool          `gorm:"column:enabled;type:boolean;not null;default:false"`
+	TimeoutMillis    int           `gorm:"column:timeout_millis;type:integer;not null;default:0"`
+	FallbackBehavior string        `gorm:"column:fallback_behavior;type:varchar;not null;default:''"`
+}
+
 type WebhookRecord struct {
 	BaseModel
 	WebhookConfigID ID                          `gorm:"column:webhook_config_id;type:bigint;not null;default:0"`

@@ -43,6 +43,99 @@ type OpenAPIMetadata struct {
 	Count int `json:"count"`
 }
 
+type OpenAPIAuthorizationWebhook struct {
+	WebhookURL        string `json:"webhookUrl"`
+	SigningSecret     string `json:"signingSecret"`
+	Status            string `json:"status"`
+	TimeoutDurationMS int    `json:"timeoutDurationMs"`
+	Config            struct {
+		FallbackBehavior string `json:"fallbackBehavior"`
+	} `json:"config"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+type OpenAPIGetAuthorizationWebhookRequest struct {
+	OpenAPIAccountRequest
+	AccountID string `uri:"accountId" binding:"required"`
+}
+
+func (s *SlashOpenAPIService) GetAuthorizationWebhook(
+	ctx context.Context,
+	req *OpenAPIGetAuthorizationWebhookRequest,
+) (*OpenAPIAuthorizationWebhook, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
+	pathAccountID, err := slashAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	if pathAccountID != accountID {
+		return nil, biz.ErrResourceNotFound
+	}
+	item, err := s.usecase.GetAuthorizationConfig(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	return openAPIAuthorizationWebhook(item), nil
+}
+
+type OpenAPIUpdateAuthorizationWebhookRequest struct {
+	OpenAPIGetAuthorizationWebhookRequest
+	WebhookURL string `json:"webhookUrl" binding:"required,url"`
+	Status     string `json:"status" binding:"required"`
+	Config     struct {
+		FallbackBehavior string `json:"fallbackBehavior"`
+	} `json:"config"`
+}
+
+func (s *SlashOpenAPIService) UpdateAuthorizationWebhook(
+	ctx context.Context,
+	req *OpenAPIUpdateAuthorizationWebhookRequest,
+) (*OpenAPIAuthorizationWebhook, error) {
+	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	if err != nil {
+		return nil, err
+	}
+	pathAccountID, err := slashAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	if pathAccountID != accountID {
+		return nil, biz.ErrResourceNotFound
+	}
+	item, err := s.usecase.UpdateAuthorizationConfig(ctx, &biz.OpenAPIUpdateAuthorizationConfigRequest{
+		AccountID:        accountID,
+		TargetURL:        req.WebhookURL,
+		Enabled:          req.Status == "active",
+		TimeoutMillis:    500,
+		FallbackBehavior: req.Config.FallbackBehavior,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return openAPIAuthorizationWebhook(item), nil
+}
+
+func openAPIAuthorizationWebhook(item *model.AuthorizationConfig) *OpenAPIAuthorizationWebhook {
+	status := "inactive"
+	if item.Enabled {
+		status = "active"
+	}
+	data := &OpenAPIAuthorizationWebhook{
+		WebhookURL:        item.TargetURL,
+		SigningSecret:     "",
+		Status:            status,
+		TimeoutDurationMS: item.TimeoutMillis,
+		CreatedAt:         item.CreatedAt,
+		UpdatedAt:         item.UpdatedAt,
+	}
+	data.Config.FallbackBehavior = item.FallbackBehavior
+	return data
+}
+
 type OpenAPIVirtualAccountData struct {
 	VirtualAccount OpenAPIVirtualAccountDetails `json:"virtualAccount"`
 	Balance        OpenAPIAmount                `json:"balance"`

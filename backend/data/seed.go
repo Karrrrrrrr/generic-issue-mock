@@ -25,6 +25,9 @@ func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 	if err := seedWebhookConfigs(ctx, db, accounts); err != nil {
 		return err
 	}
+	if err := seedAuthorizationConfigs(ctx, db, accounts); err != nil {
+		return err
+	}
 	items := []*model.CardProduct{
 		{
 			AccountID: accounts[enums.Channel_Slash].ID,
@@ -107,6 +110,23 @@ func seedWebhookConfigs(
 	db *gorm.DB,
 	accounts map[enums.Channel]*model.Account,
 ) error {
+	for _, event := range slashWebhookEvents() {
+		item := &model.WebhookConfig{
+			AccountID: accounts[enums.Channel_Slash].ID,
+			Channel:   enums.Channel_Slash,
+			Event:     event,
+			TargetURL: "http://127.0.0.1:18080/slash/webhooks/" + event,
+			Enabled:   true,
+		}
+		if err := db.WithContext(ctx).Where(&model.WebhookConfig{
+			AccountID: item.AccountID,
+			Channel:   item.Channel,
+			Event:     item.Event,
+		}).FirstOrCreate(item).Error; err != nil {
+			return err
+		}
+	}
+
 	for _, event := range photon.WebhookEvents() {
 		item := &model.WebhookConfig{
 			AccountID: accounts[enums.Channel_PhotonPay].ID,
@@ -141,6 +161,49 @@ func seedWebhookConfigs(
 		}
 	}
 
+	return nil
+}
+
+func slashWebhookEvents() []string {
+	return []string{
+		"transaction.created",
+		"transaction.updated",
+		"authorization.created",
+		"authorization.updated",
+	}
+}
+
+func seedAuthorizationConfigs(
+	ctx context.Context,
+	db *gorm.DB,
+	accounts map[enums.Channel]*model.Account,
+) error {
+	items := []*model.AuthorizationConfig{
+		{
+			AccountID:        accounts[enums.Channel_Slash].ID,
+			Channel:          enums.Channel_Slash,
+			TargetURL:        "http://127.0.0.1:18080/slash/authorizations",
+			Enabled:          true,
+			TimeoutMillis:    500,
+			FallbackBehavior: "decline",
+		},
+		{
+			AccountID:        accounts[enums.Channel_PhotonPay].ID,
+			Channel:          enums.Channel_PhotonPay,
+			TargetURL:        "http://127.0.0.1:18080/photonpay/authorizations",
+			Enabled:          true,
+			TimeoutMillis:    500,
+			FallbackBehavior: "decline",
+		},
+	}
+	for _, item := range items {
+		if err := db.WithContext(ctx).Where(&model.AuthorizationConfig{
+			AccountID: item.AccountID,
+			Channel:   item.Channel,
+		}).FirstOrCreate(item).Error; err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
