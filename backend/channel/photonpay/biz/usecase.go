@@ -36,6 +36,7 @@ type WalletRepository interface {
 
 type VirtualAccountRepository interface {
 	Create(context.Context, *model.VirtualAccount) error
+	FindByAccountID(context.Context, model.ID) (*model.VirtualAccount, error)
 	List(context.Context) ([]*model.VirtualAccount, error)
 }
 
@@ -140,6 +141,7 @@ type PhotonPayOpenAPIUsecase struct {
 	cardProductRepo     CardProductRepository
 	authorizationRepo   AuthorizationRepository
 	cardTransactionRepo CardTransactionRepository
+	virtualAccountRepo  VirtualAccountRepository
 }
 
 func NewPhotonPayOpenAPIUsecase(injector *do.Injector) (*PhotonPayOpenAPIUsecase, error) {
@@ -150,6 +152,7 @@ func NewPhotonPayOpenAPIUsecase(injector *do.Injector) (*PhotonPayOpenAPIUsecase
 		cardProductRepo:     do.MustInvoke[CardProductRepository](injector),
 		authorizationRepo:   do.MustInvoke[AuthorizationRepository](injector),
 		cardTransactionRepo: do.MustInvoke[CardTransactionRepository](injector),
+		virtualAccountRepo:  do.MustInvoke[VirtualAccountRepository](injector),
 	}, nil
 }
 
@@ -317,6 +320,11 @@ func (u *PhotonPayOpenAPIUsecase) OpenCard(ctx context.Context, req *OpenCardReq
 
 			return ErrDatabaseOperation
 		}
+		virtualAccount, err := u.virtualAccountRepo.FindByAccountID(txCtx, req.AccountID)
+		if err != nil {
+			zap.S().Errorw("find photonpay account virtual account", "error", err)
+			return ErrDatabaseOperation
+		}
 
 		months := req.ExpirationMonths
 		if months == 0 {
@@ -331,6 +339,8 @@ func (u *PhotonPayOpenAPIUsecase) OpenCard(ctx context.Context, req *OpenCardReq
 			Cvv:                    randomx.Digits(3),
 			ExpireAt:               time.Now().UTC().AddDate(0, months, 0),
 			Status:                 common.CardStatus_Active,
+			VirtualAccountID:       &virtualAccount.ID,
+			WalletID:               virtualAccount.WalletID,
 			CardHolderID:           req.CardholderID,
 			FormType:               photon.CardFormFactorToGeneric(req.CardFormFactor),
 			RequestID:              req.RequestID,

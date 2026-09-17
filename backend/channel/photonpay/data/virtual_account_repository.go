@@ -24,6 +24,21 @@ func (r *virtualAccountRepository) Create(ctx context.Context, item *model.Virtu
 	return r.repository.DB(ctx).VirtualAccount.WithContext(ctx).Create(item)
 }
 
+func (r *virtualAccountRepository) FindByAccountID(
+	ctx context.Context,
+	accountID model.ID,
+) (*model.VirtualAccount, error) {
+	db := r.repository.DB(ctx)
+	return db.VirtualAccount.WithContext(ctx).
+		Preload(db.VirtualAccount.Wallet).
+		Where(
+			db.VirtualAccount.AccountID.Eq(accountID),
+			db.VirtualAccount.Channel.Eq(string(enums.Channel_PhotonPay)),
+		).
+		Order(db.VirtualAccount.ID.Asc()).
+		First()
+}
+
 func (r *virtualAccountRepository) List(ctx context.Context) ([]*model.VirtualAccount, error) {
 	db := r.repository.DB(ctx)
 	return db.VirtualAccount.WithContext(ctx).
