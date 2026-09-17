@@ -43,6 +43,44 @@ type PayndaUIWebhookData struct {
 	CreatedAt time.Time           `json:"created_at"`
 	UpdatedAt time.Time           `json:"updated_at"`
 }
+
+type PayndaUIAccountData struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	WalletID  string    `json:"wallet_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type PayndaUICreateAccountRequest struct {
+	Name string `json:"name" binding:"required"`
+}
+
+func (s *PayndaUIService) CreateAccount(
+	ctx context.Context,
+	req *PayndaUICreateAccountRequest,
+) (*PayndaUIAccountData, error) {
+	item, err := s.usecase.CreateAccount(ctx, &biz.PayndaUICreateAccountRequest{Name: req.Name})
+	if err != nil {
+		return nil, err
+	}
+
+	return payndaUIAccountData(item.Account), nil
+}
+
+func (s *PayndaUIService) ListAccounts(ctx context.Context, _ *struct{}) (*[]PayndaUIAccountData, error) {
+	items, err := s.usecase.ListAccounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]PayndaUIAccountData, 0, len(items))
+	for _, item := range items {
+		result = append(result, *payndaUIAccountData(item))
+	}
+
+	return &result, nil
+}
+
 type PayndaUICreateWebhookRequest struct {
 	AccountID string              `json:"account_id" binding:"required"`
 	Event     paynda.WebhookEvent `json:"event" binding:"required"`
@@ -384,6 +422,15 @@ func payndaUIAuthorizationData(item *model.Authorization) *PayndaUIAuthorization
 }
 func payndaUIWebhookData(item *model.WebhookConfig) *PayndaUIWebhookData {
 	return &PayndaUIWebhookData{ID: payndaIDString(item.ID), AccountID: payndaIDString(item.AccountID), Event: paynda.WebhookEvent(item.Event), TargetURL: item.TargetURL, Enabled: item.Enabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+}
+
+func payndaUIAccountData(item *model.Account) *PayndaUIAccountData {
+	return &PayndaUIAccountData{
+		ID:        payndaIDString(item.ID),
+		Name:      item.Name,
+		WalletID:  payndaIDString(item.WalletID),
+		CreatedAt: item.CreatedAt,
+	}
 }
 func payndaUITransactionData(item *model.CardTransaction) *PayndaUITransactionData {
 	return &PayndaUITransactionData{

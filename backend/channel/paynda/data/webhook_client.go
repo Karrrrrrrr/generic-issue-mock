@@ -37,7 +37,7 @@ func (c *webhookClient) Deliver(ctx context.Context, req *biz.PayndaWebhookDeliv
 	if c.appID != "" && c.appSecret != "" {
 		timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 		nonce := randomx.Digits(16)
-		signatureData := c.appID + c.appSecret + timestamp + nonce + "/api/v1/notify/xm-event"
+		signatureData := c.appID + c.appSecret + timestamp + nonce + httpRequest.URL.Path
 		hash := md5.Sum([]byte(signatureData))
 		httpRequest.Header.Set("appId", c.appID)
 		httpRequest.Header.Set("timestamp", timestamp)

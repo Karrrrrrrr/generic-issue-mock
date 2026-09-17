@@ -10,6 +10,11 @@ import { authorizationPayload, request } from "@/channel/shared";
 const baseURL = "/paynda/ui";
 
 export interface Webhook { id: string; account_id: string; event: string; target_url: string; enabled: boolean; created_at: string; updated_at: string; }
+export interface Account { id: string; name: string; wallet_id: string; created_at: string; }
+export const accountApi = {
+  async list() { return (await request.get<Account[]>(`${baseURL}/accounts`)).data; },
+  async create(payload: Pick<Account, "name">) { return (await request.post<Account>(`${baseURL}/accounts`, payload)).data; },
+};
 export const webhookApi = {
   async list() { return (await request.get<Webhook[]>(`${baseURL}/webhooks`)).data; },
   async listEvents() { return (await request.get<string[]>(`${baseURL}/webhooks/events`)).data; },

@@ -95,6 +95,7 @@ export const router = createRouter({
           path: "authorization",
           component: () => import("@/channel/paynda/AuthorizationView.vue"),
         },
+        { path: "accounts", component: () => import("@/channel/paynda/AccountsView.vue") },
         { path: "webhooks", component: () => import("@/channel/paynda/WebhooksView.vue") },
       ],
     },

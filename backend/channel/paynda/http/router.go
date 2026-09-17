@@ -78,6 +78,8 @@ func uiFailure(err error) (int, any) {
 }
 
 func Register(router *gin.RouterGroup, openapi *service.PayndaOpenAPIService, ui *service.PayndaUIService) {
+	router.GET("/ui/accounts", bindUI(ui.ListAccounts))
+	router.POST("/ui/accounts", bindUI(ui.CreateAccount))
 	router.GET("/ui/cardholders", bindUI(ui.ListCardHolders))
 	router.POST("/ui/cardholders", bindUI(ui.CreateCardHolder))
 	router.GET("/ui/cards", bindUI(ui.ListCards))

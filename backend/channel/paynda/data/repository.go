@@ -340,6 +340,14 @@ func (r *accountRepository) FindByChannel(ctx context.Context) (*model.Account, 
 	).Order(db.Account.ID.Desc()).First()
 }
 
+func (r *accountRepository) List(ctx context.Context) ([]*model.Account, error) {
+	db := r.repository.DB(ctx)
+
+	return db.Account.WithContext(ctx).Where(
+		db.Account.Channel.Eq(string(enums.Channel_Paynda)),
+	).Order(db.Account.ID.Desc()).Find()
+}
+
 var _ biz.PayndaAccountRepository = (*accountRepository)(nil)
 
 type cardTransactionRepository struct {

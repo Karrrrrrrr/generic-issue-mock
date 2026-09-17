@@ -61,6 +61,7 @@ type PayndaAccountRepository interface {
 	ExistByChannel(context.Context) (bool, error)
 	ExistByID(context.Context, model.ID) (bool, error)
 	FindByChannel(context.Context) (*model.Account, error)
+	List(context.Context) ([]*model.Account, error)
 }
 
 type PayndaCardTransactionRepository interface {
@@ -890,6 +891,55 @@ type PayndaUICreateWebhookRequest struct {
 	TargetURL string
 	Enabled   bool
 }
+
+type PayndaUICreateAccountRequest struct {
+	Name string
+}
+
+func (u *PayndaUIUsecase) CreateAccount(
+	ctx context.Context,
+	req *PayndaUICreateAccountRequest,
+) (*PayndaAccountWallet, error) {
+	var result *PayndaAccountWallet
+	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		wallet := &model.Wallet{
+			Amount:   decimal.Zero,
+			Type:     enums.WalletType_Account,
+			Currency: enums.Currency_USD,
+		}
+		if err := u.walletRepository.Create(txCtx, wallet); err != nil {
+			zap.S().Errorw("create paynda UI account wallet", "error", err)
+			return ErrDatabaseOperation
+		}
+		account := &model.Account{
+			Channel:  enums.Channel_Paynda,
+			Name:     req.Name,
+			WalletID: wallet.ID,
+		}
+		if err := u.accountRepository.Create(txCtx, account); err != nil {
+			zap.S().Errorw("create paynda UI account", "error", err)
+			return ErrDatabaseOperation
+		}
+		result = &PayndaAccountWallet{Account: account, Wallet: wallet}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (u *PayndaUIUsecase) ListAccounts(ctx context.Context) ([]*model.Account, error) {
+	items, err := u.accountRepository.List(ctx)
+	if err != nil {
+		zap.S().Errorw("list paynda UI accounts", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+
+	return items, nil
+}
+
 type PayndaUIUpdateWebhookRequest struct {
 	ID        model.ID
 	TargetURL string

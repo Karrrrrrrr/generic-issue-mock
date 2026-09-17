@@ -14,13 +14,14 @@ import {
   createDiscreteApi,
   type DataTableColumns,
 } from "naive-ui";
-import { webhookApi, type Webhook } from "./api";
+import { accountApi, webhookApi, type Account, type Webhook } from "./api";
 
 const { dialog, message } = createDiscreteApi(["dialog", "message"]);
 const loading = ref(false);
 const visible = ref(false);
 const editing = ref<Webhook | null>(null);
 const rows = ref<Webhook[]>([]);
+const accounts = ref<Account[]>([]);
 const form = ref({ account_id: "", event: "", target_url: "", enabled: true });
 const eventOptions = ref<{ label: string; value: string }[]>([]);
 
@@ -28,13 +29,15 @@ async function load() {
   loading.value = true;
 
   try {
-    const [items, events] = await Promise.all([
+    const [items, events, accountItems] = await Promise.all([
       webhookApi.list(),
       webhookApi.listEvents(),
+      accountApi.list(),
     ]);
 
     rows.value = items;
     eventOptions.value = events.map((value) => ({ label: value, value }));
+    accounts.value = accountItems;
 
     if (!eventOptions.value.some((item) => item.value === form.value.event)) {
       form.value.event = eventOptions.value[0]?.value ?? "";
@@ -171,8 +174,12 @@ onMounted(() => void load());
       style="width: min(560px, calc(100vw - 32px))"
     >
       <n-form label-placement="top">
-        <n-form-item label="资金账户 ID">
-          <n-input v-model:value="form.account_id" :disabled="Boolean(editing)" />
+        <n-form-item label="资金账户">
+          <n-select
+            v-model:value="form.account_id"
+            :options="accounts.map((account) => ({ label: `${account.name} (${account.id})`, value: account.id }))"
+            :disabled="Boolean(editing)"
+          />
         </n-form-item>
         <n-form-item label="事件">
           <n-select v-model:value="form.event" :options="eventOptions" :disabled="Boolean(editing)" />

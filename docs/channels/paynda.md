@@ -85,17 +85,17 @@ Marxo 的实际入口是 `POST ${MARXO_BASE_URL}/api/v1/notify/xm-event`。验�
 | `appId` | Marxo 配置的 Paynda app ID |
 | `timestamp` | Unix 秒时间戳；与 Marxo 当前时间相差不得超过 120 秒 |
 | `nonce` | 每次投递的新随机字符串 |
-| `sign` | 小写 MD5：`md5(appId + appSecret + timestamp + nonce + "/api/v1/notify/xm-event")` |
+| `sign` | 小写 MD5：`md5(appId + appSecret + timestamp + nonce + targetURL.path)` |
 | `X-VK-NOTIFICATION-CATEGORY` | `CARD_TRANSACTION` 或 `CARD_STATUS` |
 
-签名不包含 JSON body。验签开启时，`appId`、`appSecret`、路径、秒级时间戳和 nonce 必须按上表拼接；不要使用 `X-Signature` 或包含 body 的 HMAC。
+签名不包含 JSON body。mock 从 `targetURL` 解析实际投递请求的 path 参与签名；验签开启时，接收方必须对同一路径、`appId`、`appSecret`、秒级时间戳和 nonce 进行拼接校验。不要使用 `X-Signature` 或包含 body 的 HMAC。
 
 交易事件的 body 外层必须是 `cardTransactionWebhook`。`cardId`、`cardholderId`、`balanceAccountId`、`merchantId` 在下游 DTO 中是整数；mock 必须输出 Paynda service formatter 得到的可逆数值，不能直接泄露内部自增 ID。其余没有通用语义的收单/POS字段保留在 Paynda service DTO。
 
 ```bash
 timestamp=$(date +%s)
 nonce='mock-nonce-20260917-001'
-# sign = md5("$appId$appSecret$timestamp$nonce/api/v1/notify/xm-event")
+# sign = md5("$appId$appSecret$timestamp$nonce${targetURLPath}")
 curl -X POST "$MARXO_BASE_URL/api/v1/notify/xm-event" \
   -H 'Content-Type: application/json' \
   -H "appId: $appId" -H "timestamp: $timestamp" -H "nonce: $nonce" -H "sign: $sign" \

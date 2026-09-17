@@ -22,6 +22,7 @@ const items = [
     { label: "模拟交易", key: "/paynda/authorization" },
   ] },
   { type: "group", label: "配置", key: "configuration", children: [
+    { label: "资金账户", key: "/paynda/accounts" },
     { label: "Webhook 管理", key: "/paynda/webhooks" },
   ] },
 ];
