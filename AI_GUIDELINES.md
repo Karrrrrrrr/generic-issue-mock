@@ -72,3 +72,4 @@ When a downstream DTO has mixed ID field types, apply the row's webhook rule per
 7. Prefer readability over line count.
 8. Do not proactively compress existing multi-line code into one line while making a change.
 9. New code follows these rules even when a compressed line would be 120 characters or fewer.
+10. Before submitting Go changes, review hand-written code matched by `\{.*?,.*?,`. Treat each match as a readability warning: expand obvious multi-field literals, multi-argument calls, and combined business operations; exclude generated code and do not mechanically rewrite a legitimate single-field nested literal.

@@ -57,7 +57,12 @@ func (u *PhotonPayUIUsecase) CreateAccount(ctx context.Context, req *UICreateAcc
 			zap.S().Errorw("create photonpay UI account", "error", err)
 			return ErrDatabaseOperation
 		}
-		wallet := &model.Wallet{AccountID: item.ID, Channel: enums.Channel_PhotonPay, Type: enums.WalletType_Account, Currency: enums.Currency_USD}
+		wallet := &model.Wallet{
+			AccountID: item.ID,
+			Channel:   enums.Channel_PhotonPay,
+			Type:      enums.WalletType_Account,
+			Currency:  enums.Currency_USD,
+		}
 		if err := u.walletRepo.Create(txCtx, wallet); err != nil {
 			zap.S().Errorw("create photonpay UI account wallet", "error", err)
 			return ErrDatabaseOperation
@@ -216,7 +221,13 @@ func (u *PhotonPayUIUsecase) CreateWebhook(ctx context.Context, req *UICreateWeb
 	if !req.Event.Valid() {
 		return nil, ErrInvalidOperation
 	}
-	item := &model.WebhookConfig{AccountID: req.AccountID, Channel: enums.Channel_PhotonPay, Event: string(req.Event), TargetURL: req.TargetURL, Enabled: req.Enabled}
+	item := &model.WebhookConfig{
+		AccountID: req.AccountID,
+		Channel:   enums.Channel_PhotonPay,
+		Event:     string(req.Event),
+		TargetURL: req.TargetURL,
+		Enabled:   req.Enabled,
+	}
 	if err := u.webhookRepo.Create(ctx, item); err != nil {
 		zap.S().Errorw("create photonpay UI webhook", "error", err)
 		return nil, ErrDatabaseOperation

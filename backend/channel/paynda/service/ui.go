@@ -181,7 +181,12 @@ func (s *PayndaUIService) CreateWebhook(ctx context.Context, req *PayndaUICreate
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.CreateWebhook(ctx, &biz.PayndaUICreateWebhookRequest{AccountID: accountID, Event: req.Event, TargetURL: req.TargetURL, Enabled: req.Enabled})
+	item, err := s.usecase.CreateWebhook(ctx, &biz.PayndaUICreateWebhookRequest{
+		AccountID: accountID,
+		Event:     req.Event,
+		TargetURL: req.TargetURL,
+		Enabled:   req.Enabled,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +223,11 @@ func (s *PayndaUIService) UpdateWebhook(ctx context.Context, req *PayndaUIUpdate
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.UpdateWebhook(ctx, &biz.PayndaUIUpdateWebhookRequest{ID: id, TargetURL: req.TargetURL, Enabled: req.Enabled})
+	item, err := s.usecase.UpdateWebhook(ctx, &biz.PayndaUIUpdateWebhookRequest{
+		ID:        id,
+		TargetURL: req.TargetURL,
+		Enabled:   req.Enabled,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +307,10 @@ func (s *PayndaUIService) ListCards(ctx context.Context, req *PayndaUIListReques
 	if err != nil {
 		return nil, err
 	}
-	return &PayndaUIListResponse[*PayndaUICardData]{TotalItems: len(items), Data: types.BulkConvertSlice(items, payndaUICardData)}, nil
+	return &PayndaUIListResponse[*PayndaUICardData]{
+		TotalItems: len(items),
+		Data:       types.BulkConvertSlice(items, payndaUICardData),
+	}, nil
 }
 
 func (s *PayndaUIService) ListAuthorizations(ctx context.Context, req *PayndaUIListRequest) (*PayndaUIListResponse[*PayndaUIAuthorizationData], error) {
@@ -306,7 +318,10 @@ func (s *PayndaUIService) ListAuthorizations(ctx context.Context, req *PayndaUIL
 	if err != nil {
 		return nil, err
 	}
-	return &PayndaUIListResponse[*PayndaUIAuthorizationData]{TotalItems: len(items), Data: types.BulkConvertSlice(items, payndaUIAuthorizationData)}, nil
+	return &PayndaUIListResponse[*PayndaUIAuthorizationData]{
+		TotalItems: len(items),
+		Data:       types.BulkConvertSlice(items, payndaUIAuthorizationData),
+	}, nil
 }
 
 func (s *PayndaUIService) ListCardHolders(ctx context.Context, req *PayndaUIListRequest) (*PayndaUIListResponse[*PayndaUICardHolderData], error) {
@@ -314,7 +329,10 @@ func (s *PayndaUIService) ListCardHolders(ctx context.Context, req *PayndaUIList
 	if err != nil {
 		return nil, err
 	}
-	return &PayndaUIListResponse[*PayndaUICardHolderData]{TotalItems: len(items), Data: types.BulkConvertSlice(items, payndaUICardHolderData)}, nil
+	return &PayndaUIListResponse[*PayndaUICardHolderData]{
+		TotalItems: len(items),
+		Data:       types.BulkConvertSlice(items, payndaUICardHolderData),
+	}, nil
 }
 
 func (s *PayndaUIService) CreateCard(ctx context.Context, req *PayndaUICreateCardRequest) (*PayndaUICardData, error) {
@@ -326,7 +344,11 @@ func (s *PayndaUIService) CreateCard(ctx context.Context, req *PayndaUICreateCar
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.CreateCard(ctx, &biz.PayndaUICreateCardRequest{AccountID: accountID, CardHolderID: holderID, Currency: req.CardCurrency})
+	item, err := s.usecase.CreateCard(ctx, &biz.PayndaUICreateCardRequest{
+		AccountID:    accountID,
+		CardHolderID: holderID,
+		Currency:     req.CardCurrency,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -457,7 +479,10 @@ func (s *PayndaUIService) ListTransactions(ctx context.Context, req *PayndaUILis
 	if err != nil {
 		return nil, err
 	}
-	return &PayndaUIListResponse[*PayndaUITransactionData]{TotalItems: len(items), Data: types.BulkConvertSlice(items, payndaUITransactionData)}, nil
+	return &PayndaUIListResponse[*PayndaUITransactionData]{
+		TotalItems: len(items),
+		Data:       types.BulkConvertSlice(items, payndaUITransactionData),
+	}, nil
 }
 func (s *PayndaUIService) applyTransactionStep(
 	ctx context.Context,
@@ -468,7 +493,11 @@ func (s *PayndaUIService) applyTransactionStep(
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.ApplyTransactionStep(ctx, &biz.PayndaUIApplyTransactionStepRequest{CardTransactionID: id, Type: kind, Amount: req.Amount})
+	item, err := s.usecase.ApplyTransactionStep(ctx, &biz.PayndaUIApplyTransactionStepRequest{
+		CardTransactionID: id,
+		Type:              kind,
+		Amount:            req.Amount,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +509,11 @@ func payndaUIListRequest(req *PayndaUIListRequest) *biz.PayndaListRequest {
 	if req.AccountID != "" {
 		accountID, _ = payndaAccountID(req.AccountID)
 	}
-	return &biz.PayndaListRequest{AccountID: accountID, Offset: (page - 1) * size, Limit: size}
+	return &biz.PayndaListRequest{
+		AccountID: accountID,
+		Offset:    (page - 1) * size,
+		Limit:     size,
+	}
 }
 func payndaUICardHolderData(item *model.CardHolder) *PayndaUICardHolderData {
 	return &PayndaUICardHolderData{
@@ -519,7 +552,15 @@ func payndaUIAuthorizationData(item *model.Authorization) *PayndaUIAuthorization
 	}
 }
 func payndaUIWebhookData(item *model.WebhookConfig) *PayndaUIWebhookData {
-	return &PayndaUIWebhookData{ID: payndaIDString(item.ID), AccountID: payndaIDString(item.AccountID), Event: paynda.WebhookEvent(item.Event), TargetURL: item.TargetURL, Enabled: item.Enabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	return &PayndaUIWebhookData{
+		ID:        payndaIDString(item.ID),
+		AccountID: payndaIDString(item.AccountID),
+		Event:     paynda.WebhookEvent(item.Event),
+		TargetURL: item.TargetURL,
+		Enabled:   item.Enabled,
+		CreatedAt: item.CreatedAt,
+		UpdatedAt: item.UpdatedAt,
+	}
 }
 
 func payndaUIWebhookRecordData(item *model.WebhookRecord) *PayndaUIWebhookRecordData {

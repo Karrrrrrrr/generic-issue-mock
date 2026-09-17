@@ -10,7 +10,14 @@ import (
 )
 
 func bindUI[Req any, Resp any](fn httpx.ServiceFunc[Req, Resp]) gin.HandlerFunc {
-	return httpx.Bind(fn, func(data *Resp) any { return data }, uiFailure, uiFailure)
+	return httpx.Bind(
+		fn,
+		func(data *Resp) any {
+			return data
+		},
+		uiFailure,
+		uiFailure,
+	)
 }
 
 type uiErrorResponse struct {

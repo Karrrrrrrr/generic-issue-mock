@@ -791,7 +791,10 @@ func (u *PayndaOpenAPIUsecase) FindRequestResult(
 			zap.S().Errorw("find paynda create card request", "error", err)
 			return nil, ErrDatabaseOperation
 		}
-		return &PayndaRequestResult{Card: card, IsCardCreate: true}, nil
+		return &PayndaRequestResult{
+			Card:         card,
+			IsCardCreate: true,
+		}, nil
 	}
 
 	exists, err = u.cardRepository.ExistByLastOperationRequestID(ctx, requestID)
@@ -1113,7 +1116,13 @@ func (u *PayndaUIUsecase) CreateWebhook(ctx context.Context, req *PayndaUICreate
 	if !exists {
 		return nil, ErrResourceNotFound
 	}
-	item := &model.WebhookConfig{Channel: enums.Channel_Paynda, AccountID: req.AccountID, Event: string(req.Event), TargetURL: req.TargetURL, Enabled: req.Enabled}
+	item := &model.WebhookConfig{
+		Channel:   enums.Channel_Paynda,
+		AccountID: req.AccountID,
+		Event:     string(req.Event),
+		TargetURL: req.TargetURL,
+		Enabled:   req.Enabled,
+	}
 	if err := u.webhookConfigRepository.Create(ctx, item); err != nil {
 		zap.S().Errorw("create paynda UI webhook", "error", err)
 		return nil, ErrDatabaseOperation
@@ -1657,12 +1666,26 @@ func (u *PayndaUIUsecase) dispatch(ctx context.Context, event paynda.WebhookEven
 		if !config.Enabled || config.Event != string(event) {
 			continue
 		}
-		record := &model.WebhookRecord{WebhookConfigID: config.ID, AccountID: config.AccountID, Channel: enums.Channel_Paynda, Event: string(event), TargetURL: config.TargetURL, SourceID: strconv.FormatInt(int64(sourceID), 10), Payload: payload, Status: enums.WebhookDeliveryStatus_Pending, AttemptCount: 1}
+		record := &model.WebhookRecord{
+			WebhookConfigID: config.ID,
+			AccountID:       config.AccountID,
+			Channel:         enums.Channel_Paynda,
+			Event:           string(event),
+			TargetURL:       config.TargetURL,
+			SourceID:        strconv.FormatInt(int64(sourceID), 10),
+			Payload:         payload,
+			Status:          enums.WebhookDeliveryStatus_Pending,
+			AttemptCount:    1,
+		}
 		if err := u.webhookRecordRepository.Create(ctx, record); err != nil {
 			zap.S().Errorw("create paynda webhook record", "error", err)
 			continue
 		}
-		result, deliveryErr := u.webhookClient.Deliver(ctx, &PayndaWebhookDeliveryRequest{TargetURL: config.TargetURL, Payload: payload, Category: string(event)})
+		result, deliveryErr := u.webhookClient.Deliver(ctx, &PayndaWebhookDeliveryRequest{
+			TargetURL: config.TargetURL,
+			Payload:   payload,
+			Category:  string(event),
+		})
 		if deliveryErr != nil {
 			record.Status = enums.WebhookDeliveryStatus_Failed
 			record.ErrorMessage = deliveryErr.Error()

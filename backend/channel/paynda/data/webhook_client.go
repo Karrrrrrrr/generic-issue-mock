@@ -25,7 +25,11 @@ type webhookClient struct {
 }
 
 func NewWebhookClient(_ *do.Injector) (biz.PayndaWebhookClient, error) {
-	return &webhookClient{client: &http.Client{Timeout: 10 * time.Second}, appID: os.Getenv("PAYNDA_WEBHOOK_APP_ID"), appSecret: os.Getenv("PAYNDA_WEBHOOK_APP_SECRET")}, nil
+	return &webhookClient{
+		client:    &http.Client{Timeout: 10 * time.Second},
+		appID:     os.Getenv("PAYNDA_WEBHOOK_APP_ID"),
+		appSecret: os.Getenv("PAYNDA_WEBHOOK_APP_SECRET"),
+	}, nil
 }
 
 func (c *webhookClient) Deliver(ctx context.Context, req *biz.PayndaWebhookDeliveryRequest) (*biz.PayndaWebhookDeliveryResult, error) {

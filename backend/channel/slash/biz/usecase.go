@@ -143,7 +143,12 @@ func (u *SlashUIUsecase) CreateAccount(ctx context.Context, req *CreateAccountRe
 			zap.S().Errorw("create slash UI account", "error", err)
 			return ErrDatabaseOperation
 		}
-		wallet := &model.Wallet{AccountID: item.ID, Channel: enums.Channel_Slash, Type: enums.WalletType_Account, Currency: enums.Currency_USD}
+		wallet := &model.Wallet{
+			AccountID: item.ID,
+			Channel:   enums.Channel_Slash,
+			Type:      enums.WalletType_Account,
+			Currency:  enums.Currency_USD,
+		}
 		if err := u.walletRepository.Create(txCtx, wallet); err != nil {
 			zap.S().Errorw("create slash UI account wallet", "error", err)
 			return ErrDatabaseOperation
@@ -305,7 +310,12 @@ type CreateWebhookRequest struct {
 }
 
 func (u *SlashUIUsecase) CreateWebhook(ctx context.Context, req *CreateWebhookRequest) (*model.WebhookConfig, error) {
-	item := &model.WebhookConfig{Channel: enums.Channel_Slash, Event: req.Event, TargetURL: req.TargetURL, Enabled: req.Enabled}
+	item := &model.WebhookConfig{
+		Channel:   enums.Channel_Slash,
+		Event:     req.Event,
+		TargetURL: req.TargetURL,
+		Enabled:   req.Enabled,
+	}
 	if err := u.webhookConfigRepository.Create(ctx, item); err != nil {
 		zap.S().Errorw("create slash webhook", "error", err)
 		return nil, ErrDatabaseOperation

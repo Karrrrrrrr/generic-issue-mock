@@ -48,7 +48,14 @@ func Register(router *gin.RouterGroup, service *service.SlashUIService, openAPIS
 }
 
 func bind[Req any, Resp any](fn httpx.ServiceFunc[Req, Resp]) gin.HandlerFunc {
-	return httpx.Bind(fn, func(data *Resp) any { return data }, failure, failure)
+	return httpx.Bind(
+		fn,
+		func(data *Resp) any {
+			return data
+		},
+		failure,
+		failure,
+	)
 }
 
 type errorResponse struct {

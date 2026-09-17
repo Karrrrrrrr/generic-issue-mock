@@ -112,7 +112,11 @@ type CreateWebhookRequest struct {
 }
 
 func (s *SlashUIService) CreateWebhook(ctx context.Context, req *CreateWebhookRequest) (*WebhookData, error) {
-	item, err := s.usecase.CreateWebhook(ctx, &biz.CreateWebhookRequest{Event: req.Event, TargetURL: req.TargetURL, Enabled: req.Enabled})
+	item, err := s.usecase.CreateWebhook(ctx, &biz.CreateWebhookRequest{
+		Event:     req.Event,
+		TargetURL: req.TargetURL,
+		Enabled:   req.Enabled,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +146,11 @@ func (s *SlashUIService) UpdateWebhook(ctx context.Context, req *UpdateWebhookRe
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.UpdateWebhook(ctx, &biz.UpdateWebhookRequest{ID: id, TargetURL: req.TargetURL, Enabled: req.Enabled})
+	item, err := s.usecase.UpdateWebhook(ctx, &biz.UpdateWebhookRequest{
+		ID:        id,
+		TargetURL: req.TargetURL,
+		Enabled:   req.Enabled,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -628,7 +636,11 @@ func webhookData(item *model.WebhookConfig) *WebhookData {
 }
 
 func slashAccountData(item *model.Account) *AccountData {
-	return &AccountData{ID: slashIDString(item.ID), Name: item.Name, CreatedAt: item.CreatedAt}
+	return &AccountData{
+		ID:        slashIDString(item.ID),
+		Name:      item.Name,
+		CreatedAt: item.CreatedAt,
+	}
 }
 
 func cardData(item *model.Card) *CardData {

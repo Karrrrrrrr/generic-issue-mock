@@ -611,7 +611,11 @@ func (s *PayndaOpenAPIService) ReleaseCard(ctx context.Context, req *PayndaCardS
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.usecase.ReleaseCard(ctx, &biz.PayndaUpdateCardStatusRequest{AccountID: accountID, CardID: cardID, RequestID: req.RequestID})
+	_, err = s.usecase.ReleaseCard(ctx, &biz.PayndaUpdateCardStatusRequest{
+		AccountID: accountID,
+		CardID:    cardID,
+		RequestID: req.RequestID,
+	})
 	if err != nil {
 		return nil, err
 	}

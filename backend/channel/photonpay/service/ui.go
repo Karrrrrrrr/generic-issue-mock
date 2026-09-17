@@ -78,7 +78,12 @@ func (s *PhotonPayUIService) CreateWebhook(ctx context.Context, req *UICreateWeb
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.CreateWebhook(ctx, &biz.UICreateWebhookRequest{AccountID: accountID, Event: req.Event, TargetURL: req.TargetURL, Enabled: req.Enabled})
+	item, err := s.usecase.CreateWebhook(ctx, &biz.UICreateWebhookRequest{
+		AccountID: accountID,
+		Event:     req.Event,
+		TargetURL: req.TargetURL,
+		Enabled:   req.Enabled,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +110,11 @@ func (s *PhotonPayUIService) UpdateWebhook(ctx context.Context, req *UIUpdateWeb
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.UpdateWebhook(ctx, &biz.UIUpdateWebhookRequest{ID: id, TargetURL: req.TargetURL, Enabled: req.Enabled})
+	item, err := s.usecase.UpdateWebhook(ctx, &biz.UIUpdateWebhookRequest{
+		ID:        id,
+		TargetURL: req.TargetURL,
+		Enabled:   req.Enabled,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +169,10 @@ func (s *PhotonPayUIService) ListAccounts(ctx context.Context, req *UIListReques
 	if err != nil {
 		return nil, err
 	}
-	return &UIListResponse[*UIAccountData]{TotalItems: int(total), Data: types.BulkConvertSlice(items, photonPayUIAccountData)}, nil
+	return &UIListResponse[*UIAccountData]{
+		TotalItems: int(total),
+		Data:       types.BulkConvertSlice(items, photonPayUIAccountData),
+	}, nil
 }
 
 type UIUpdateAccountRequest struct {
@@ -313,7 +325,10 @@ func (s *PhotonPayUIService) ListAuthorizations(ctx context.Context, req *UIList
 	if err != nil {
 		return nil, err
 	}
-	return &UIListResponse[*UIAuthorizationData]{TotalItems: len(items), Data: types.BulkConvertSlice(items, photonPayUIAuthorizationData)}, nil
+	return &UIListResponse[*UIAuthorizationData]{
+		TotalItems: len(items),
+		Data:       types.BulkConvertSlice(items, photonPayUIAuthorizationData),
+	}, nil
 }
 
 type UIUpdateCardStatusRequest struct {
@@ -529,7 +544,14 @@ func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationDat
 }
 
 func photonPayUIWebhookData(item *model.WebhookConfig) *UIWebhookData {
-	return &UIWebhookData{ID: photonPayIDString(item.ID), Event: photon.WebhookEvent(item.Event), TargetURL: item.TargetURL, Enabled: item.Enabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	return &UIWebhookData{
+		ID:        photonPayIDString(item.ID),
+		Event:     photon.WebhookEvent(item.Event),
+		TargetURL: item.TargetURL,
+		Enabled:   item.Enabled,
+		CreatedAt: item.CreatedAt,
+		UpdatedAt: item.UpdatedAt,
+	}
 }
 
 func photonPayUIWebhookRecordData(item *model.WebhookRecord) *UIWebhookRecordData {
@@ -553,7 +575,11 @@ func photonPayUIWebhookRecordData(item *model.WebhookRecord) *UIWebhookRecordDat
 }
 
 func photonPayUIAccountData(item *model.Account) *UIAccountData {
-	return &UIAccountData{ID: photonPayIDString(item.ID), Name: item.Name, CreatedAt: item.CreatedAt}
+	return &UIAccountData{
+		ID:        photonPayIDString(item.ID),
+		Name:      item.Name,
+		CreatedAt: item.CreatedAt,
+	}
 }
 
 func photonPayUITransactionData(item *model.CardTransaction) *UITransactionData {

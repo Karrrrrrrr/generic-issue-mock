@@ -28,7 +28,10 @@ type webhookClient struct {
 }
 
 func NewWebhookClient(_ *do.Injector) (biz.WebhookClient, error) {
-	return &webhookClient{client: &http.Client{Timeout: 10 * time.Second}, privateKey: os.Getenv("PHOTONPAY_WEBHOOK_PRIVATE_KEY")}, nil
+	return &webhookClient{
+		client:     &http.Client{Timeout: 10 * time.Second},
+		privateKey: os.Getenv("PHOTONPAY_WEBHOOK_PRIVATE_KEY"),
+	}, nil
 }
 
 func (c *webhookClient) Deliver(ctx context.Context, req *biz.PhotonPayWebhookDeliveryRequest) (*biz.WebhookDeliveryResult, error) {

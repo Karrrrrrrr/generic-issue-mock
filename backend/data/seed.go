@@ -100,11 +100,21 @@ func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 
 func seedChannelAccounts(ctx context.Context, db *gorm.DB) (map[enums.Channel]*model.Account, error) {
 	accounts := make(map[enums.Channel]*model.Account, 3)
-	for _, channel := range []enums.Channel{enums.Channel_Slash, enums.Channel_PhotonPay, enums.Channel_Paynda} {
+	for _, channel := range []enums.Channel{
+		enums.Channel_Slash,
+		enums.Channel_PhotonPay,
+		enums.Channel_Paynda,
+	} {
 		account := &model.Account{}
-		result := db.WithContext(ctx).Where(&model.Account{Channel: channel, Name: string(channel) + " Primary"}).First(account)
+		result := db.WithContext(ctx).Where(&model.Account{
+			Channel: channel,
+			Name:    string(channel) + " Primary",
+		}).First(account)
 		if result.Error == gorm.ErrRecordNotFound {
-			account = &model.Account{Channel: channel, Name: string(channel) + " Primary"}
+			account = &model.Account{
+				Channel: channel,
+				Name:    string(channel) + " Primary",
+			}
 			if err := db.WithContext(ctx).Create(account).Error; err != nil {
 				return nil, err
 			}
@@ -150,15 +160,38 @@ func seedChannelCards(
 	products []*model.CardProduct,
 ) error {
 	seeds := []channelCardSeed{
-		{channel: enums.Channel_Slash, firstName: "Slash", lastName: "Demo", email: "slash.demo@example.test", cardScheme: enums.CardScheme_Visa},
-		{channel: enums.Channel_PhotonPay, firstName: "PhotonPay", lastName: "Demo", email: "photonpay.demo@example.test", cardScheme: enums.CardScheme_Visa},
-		{channel: enums.Channel_Paynda, firstName: "Paynda", lastName: "Demo", email: "paynda.demo@example.test", cardScheme: enums.CardScheme_MasterCard, withWallet: true},
+		{
+			channel:    enums.Channel_Slash,
+			firstName:  "Slash",
+			lastName:   "Demo",
+			email:      "slash.demo@example.test",
+			cardScheme: enums.CardScheme_Visa,
+		},
+		{
+			channel:    enums.Channel_PhotonPay,
+			firstName:  "PhotonPay",
+			lastName:   "Demo",
+			email:      "photonpay.demo@example.test",
+			cardScheme: enums.CardScheme_Visa,
+		},
+		{
+			channel:    enums.Channel_Paynda,
+			firstName:  "Paynda",
+			lastName:   "Demo",
+			email:      "paynda.demo@example.test",
+			cardScheme: enums.CardScheme_MasterCard,
+			withWallet: true,
+		},
 	}
 
 	for index, seed := range seeds {
 		account := accounts[seed.channel]
 		var holder model.CardHolder
-		if err := db.WithContext(ctx).Where(&model.CardHolder{AccountID: account.ID, Channel: seed.channel, Email: seed.email}).FirstOrCreate(&holder, &model.CardHolder{
+		if err := db.WithContext(ctx).Where(&model.CardHolder{
+			AccountID: account.ID,
+			Channel:   seed.channel,
+			Email:     seed.email,
+		}).FirstOrCreate(&holder, &model.CardHolder{
 			AccountID:    account.ID,
 			Channel:      seed.channel,
 			FirstName:    seed.firstName,
@@ -173,7 +206,11 @@ func seedChannelCards(
 
 		product := products[index]
 		var persistedProduct model.CardProduct
-		if err := db.WithContext(ctx).Where(&model.CardProduct{AccountID: account.ID, Channel: product.Channel, Prefix: product.Prefix}).First(&persistedProduct).Error; err != nil {
+		if err := db.WithContext(ctx).Where(&model.CardProduct{
+			AccountID: account.ID,
+			Channel:   product.Channel,
+			Prefix:    product.Prefix,
+		}).First(&persistedProduct).Error; err != nil {
 			return err
 		}
 		if persistedProduct.NextCardNumber < 1 {
@@ -188,7 +225,11 @@ func seedChannelCards(
 			return gorm.ErrInvalidData
 		}
 		var existingCard model.Card
-		result := db.WithContext(ctx).Where(&model.Card{AccountID: account.ID, Channel: seed.channel, CardNumber: cardNumber}).First(&existingCard)
+		result := db.WithContext(ctx).Where(&model.Card{
+			AccountID:  account.ID,
+			Channel:    seed.channel,
+			CardNumber: cardNumber,
+		}).First(&existingCard)
 		if result.Error == nil {
 			continue
 		}
@@ -216,7 +257,13 @@ func seedChannelCards(
 			CardType:               enums.CardType_Single,
 		}
 		if seed.withWallet {
-			wallet := &model.Wallet{AccountID: account.ID, Channel: seed.channel, Amount: decimal.NewFromInt(1_000), Type: enums.WalletType_Card, Currency: enums.Currency_USD}
+			wallet := &model.Wallet{
+				AccountID: account.ID,
+				Channel:   seed.channel,
+				Amount:    decimal.NewFromInt(1_000),
+				Type:      enums.WalletType_Card,
+				Currency:  enums.Currency_USD,
+			}
 			if err := db.WithContext(ctx).Create(wallet).Error; err != nil {
 				return err
 			}

@@ -76,12 +76,21 @@ func (s *SlashOpenAPIService) ListVirtualAccounts(ctx context.Context, req *Open
 	data := make([]*OpenAPIVirtualAccountData, 0, len(items))
 	for _, item := range items {
 		data = append(data, &OpenAPIVirtualAccountData{
-			VirtualAccount: OpenAPIVirtualAccountDetails{ID: slashIDString(item.ID), Name: item.Name, AccountType: "primary"},
-			Balance:        OpenAPIAmount{AmountCents: item.Wallet.Amount.Mul(decimal.NewFromInt(100)).IntPart()},
-			Spend:          OpenAPIAmount{AmountCents: item.Wallet.Out.Mul(decimal.NewFromInt(100)).IntPart()},
+			VirtualAccount: OpenAPIVirtualAccountDetails{
+				ID:          slashIDString(item.ID),
+				Name:        item.Name,
+				AccountType: "primary",
+			},
+			Balance: OpenAPIAmount{AmountCents: item.Wallet.Amount.Mul(decimal.NewFromInt(100)).IntPart()},
+			Spend:   OpenAPIAmount{AmountCents: item.Wallet.Out.Mul(decimal.NewFromInt(100)).IntPart()},
 		})
 	}
-	return &OpenAPIListVirtualAccountsData{Items: data, Metadata: OpenAPIMetadata{Count: len(data)}}, nil
+	return &OpenAPIListVirtualAccountsData{
+		Items: data,
+		Metadata: OpenAPIMetadata{
+			Count: len(data),
+		},
+	}, nil
 }
 
 type OpenAPIVirtualAccountTransferRequest struct {
@@ -108,7 +117,12 @@ func (s *SlashOpenAPIService) TransferVirtualAccount(ctx context.Context, req *O
 	if err != nil {
 		return nil, err
 	}
-	err = s.usecase.TransferVirtualAccount(ctx, &biz.OpenAPIVirtualAccountTransferRequest{AccountID: accountID, Source: source, Destination: destination, AmountCents: req.AmountCents})
+	err = s.usecase.TransferVirtualAccount(ctx, &biz.OpenAPIVirtualAccountTransferRequest{
+		AccountID:   accountID,
+		Source:      source,
+		Destination: destination,
+		AmountCents: req.AmountCents,
+	})
 	if err != nil {
 		return nil, err
 	}
