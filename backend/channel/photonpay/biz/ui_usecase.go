@@ -619,7 +619,6 @@ func (u *PhotonPayUIUsecase) SimulateAuthorization(ctx context.Context, req *UIS
 			return ErrInvalidOperation
 		}
 
-		now := time.Now().UTC()
 		authorization := &model.Authorization{
 			AccountID:         card.AccountID,
 			Channel:           enums.Channel_PhotonPay,
@@ -631,7 +630,6 @@ func (u *PhotonPayUIUsecase) SimulateAuthorization(ctx context.Context, req *UIS
 			MerchantMCC:       req.MerchantMCC,
 			AuthorizationCode: randomx.Digits(6),
 			Status:            enums.TransactionStatus_AUTHORIZED,
-			OccurredAt:        now,
 		}
 		if err := u.authorizationRepo.Create(txCtx, authorization); err != nil {
 			zap.S().Errorw("create photonpay UI authorization", "error", err)
@@ -653,7 +651,6 @@ func (u *PhotonPayUIUsecase) SimulateAuthorization(ctx context.Context, req *UIS
 			MerchantCountry:   req.MerchantCountry,
 			MerchantMCC:       req.MerchantMCC,
 			AuthorizationCode: authorization.AuthorizationCode,
-			OccurredAt:        now,
 		}
 		if err := u.cardTransactionRepo.Create(txCtx, transaction); err != nil {
 			zap.S().Errorw("create photonpay UI authorization transaction", "error", err)
@@ -703,7 +700,6 @@ func (u *PhotonPayUIUsecase) SimulateRefund(ctx context.Context, req *UISimulate
 			MerchantCountry:   req.MerchantCountry,
 			MerchantMCC:       req.MerchantMCC,
 			AuthorizationCode: randomx.Digits(6),
-			OccurredAt:        time.Now().UTC(),
 		}
 		if err := u.cardTransactionRepo.Create(txCtx, transaction); err != nil {
 			zap.S().Errorw("create photonpay UI simulated refund", "error", err)
@@ -760,7 +756,6 @@ func (u *PhotonPayUIUsecase) ApplyTransactionStep(ctx context.Context, req *UIAp
 			MerchantCountry:         origin.MerchantCountry,
 			MerchantMCC:             origin.MerchantMCC,
 			AuthorizationCode:       origin.AuthorizationCode,
-			OccurredAt:              time.Now().UTC(),
 		}
 		if err := u.cardTransactionRepo.Create(txCtx, next); err != nil {
 			zap.S().Errorw("create photonpay UI card transaction step", "error", err)
@@ -817,7 +812,7 @@ func (u *PhotonPayUIUsecase) dispatch(ctx context.Context, event photon.WebhookE
 			Payload:        payload,
 			NotifyCategory: string(photonPayWebhookCategory(transaction)),
 			NotifyType:     string(event),
-			PublishedAt:    transaction.OccurredAt.UTC().Format(time.RFC3339),
+			PublishedAt:    transaction.CreatedAt.UTC().Format(time.RFC3339),
 		})
 		if deliveryErr != nil {
 			record.Status = enums.WebhookDeliveryStatus_Failed
@@ -909,12 +904,12 @@ func (u *PhotonPayUIUsecase) photonPayWebhookPayload(ctx context.Context, transa
 		MerchantLocation:           transaction.MerchantCountry,
 		TransactionStatus:          string(photon.TransactionStatusFromGeneric(transaction.Status)),
 		TransactionCountry:         transaction.MerchantCountry,
-		TransactionHappenedAt:      transaction.OccurredAt.UTC().Format(time.RFC3339),
+		TransactionHappenedAt:      transaction.CreatedAt.UTC().Format(time.RFC3339),
 	}
 	if transaction.OriginCardTransactionID != 0 {
 		payload.OriginTransactionID = strconv.FormatInt(transaction.OriginCardTransactionID, 10)
 	}
-	if transaction.SettledAt != nil {
+	if transaction.Type == enums.CardTransactionType_CLEAR {
 		payload.SettleAmount = transaction.TxAmount.String()
 		payload.SettleCurrency = string(transaction.TxCurrency)
 	}

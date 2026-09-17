@@ -602,7 +602,6 @@ func (u *PayndaOpenAPIUsecase) TransferCardBalance(
 			TxAmount:   req.Amount,
 			TxCurrency: wallet.Currency,
 			RequestID:  req.RequestID,
-			OccurredAt: time.Now().UTC(),
 			RawPayload: []byte(oldAmount.String()),
 		}
 		if err := u.cardTransactionRepository.Create(txCtx, transaction); err != nil {
@@ -1439,7 +1438,6 @@ func (u *PayndaUIUsecase) SimulateAuthorization(
 			return ErrInvalidOperation
 		}
 
-		now := time.Now().UTC()
 		authorization := &model.Authorization{
 			AccountID:         card.AccountID,
 			Channel:           enums.Channel_Paynda,
@@ -1451,7 +1449,6 @@ func (u *PayndaUIUsecase) SimulateAuthorization(
 			MerchantMCC:       req.MerchantMCC,
 			AuthorizationCode: randomx.Digits(6),
 			Status:            enums.TransactionStatus_AUTHORIZED,
-			OccurredAt:        now,
 		}
 		if err := u.authorizationRepository.Create(txCtx, authorization); err != nil {
 			zap.S().Errorw("create paynda UI authorization", "error", err)
@@ -1471,7 +1468,6 @@ func (u *PayndaUIUsecase) SimulateAuthorization(
 			MerchantCountry:   req.MerchantCountry,
 			MerchantMCC:       req.MerchantMCC,
 			AuthorizationCode: authorization.AuthorizationCode,
-			OccurredAt:        now,
 		}
 		if err := u.cardTransactionRepository.Create(txCtx, transaction); err != nil {
 			zap.S().Errorw("create paynda UI transaction", "error", err)
@@ -1528,7 +1524,6 @@ func (u *PayndaUIUsecase) SimulateRefund(ctx context.Context, req *PayndaSimulat
 			MerchantCountry:   req.MerchantCountry,
 			MerchantMCC:       req.MerchantMCC,
 			AuthorizationCode: randomx.Digits(6),
-			OccurredAt:        time.Now().UTC(),
 		}
 		if err := u.cardTransactionRepository.Create(txCtx, transaction); err != nil {
 			zap.S().Errorw("create paynda UI simulated refund", "error", err)
@@ -1638,7 +1633,6 @@ func (u *PayndaUIUsecase) ApplyTransactionStep(ctx context.Context, req *PayndaU
 			MerchantCountry:         origin.MerchantCountry,
 			MerchantMCC:             origin.MerchantMCC,
 			AuthorizationCode:       origin.AuthorizationCode,
-			OccurredAt:              time.Now().UTC(),
 		}
 		if err := u.cardTransactionRepository.Create(txCtx, next); err != nil {
 			zap.S().Errorw("create paynda UI transaction step", "error", err)
@@ -1796,7 +1790,7 @@ func (u *PayndaUIUsecase) payndaWebhookPayload(ctx context.Context, transaction 
 			zap.S().Errorw("find paynda webhook transaction authorization", "error", err)
 			return nil, ErrDatabaseOperation
 		}
-		authorizationTime = authorization.OccurredAt.UTC().Format(time.RFC3339)
+		authorizationTime = authorization.CreatedAt.UTC().Format(time.RFC3339)
 	}
 	transactionID := strconv.FormatInt(transaction.ID, 10)
 	payload := payndaEventPayload{CardTransactionWebhook: payndaCardTransactionWebhook{
@@ -1816,7 +1810,7 @@ func (u *PayndaUIUsecase) payndaWebhookPayload(ctx context.Context, transaction 
 		OriginalCurrencyCode:                string(transaction.TxCurrency),
 		TransactionAmountInOriginalCurrency: transaction.TxAmount.String(),
 		ReversalFlag:                        strconv.FormatBool(transaction.Type == enums.CardTransactionType_VOID),
-		TransactionTime:                     transaction.OccurredAt.UTC().Format(time.RFC3339),
+		TransactionTime:                     transaction.CreatedAt.UTC().Format(time.RFC3339),
 		AuthorizationTime:                   authorizationTime,
 		MerchantMCC:                         transaction.MerchantMCC,
 		MerchantName:                        transaction.MerchantName,

@@ -37,20 +37,30 @@ func (r *cardTransactionRepository) ExistByID(ctx context.Context, id model.ID) 
 
 func (r *cardTransactionRepository) FindByID(ctx context.Context, id model.ID) (*model.CardTransaction, error) {
 	db := r.repository.DB(ctx)
-	return db.CardTransaction.WithContext(ctx).Where(
-		db.CardTransaction.ID.Eq(id),
-		db.CardTransaction.Channel.Eq(string(enums.Channel_Slash)),
-	).First()
+	return db.CardTransaction.WithContext(ctx).
+		Preload(db.CardTransaction.Authorization).
+		Where(
+			db.CardTransaction.ID.Eq(id),
+			db.CardTransaction.Channel.Eq(string(enums.Channel_Slash)),
+		).First()
 }
 
 func (r *cardTransactionRepository) Count(ctx context.Context, req *biz.ListCardTransactionsRequest) (int64, error) {
 	db := r.repository.DB(ctx)
-	return db.CardTransaction.WithContext(ctx).Where(cardTransactionPredicates(db, req)...).Count()
+	return db.CardTransaction.WithContext(ctx).
+		Where(cardTransactionPredicates(db, req)...).
+		Count()
 }
 
 func (r *cardTransactionRepository) List(ctx context.Context, req *biz.ListCardTransactionsRequest) ([]*model.CardTransaction, error) {
 	db := r.repository.DB(ctx)
-	return db.CardTransaction.WithContext(ctx).Where(cardTransactionPredicates(db, req)...).Order(db.CardTransaction.ID.Desc()).Offset(req.Offset).Limit(req.Limit).Find()
+	return db.CardTransaction.WithContext(ctx).
+		Preload(db.CardTransaction.Authorization).
+		Where(cardTransactionPredicates(db, req)...).
+		Order(db.CardTransaction.ID.Desc()).
+		Offset(req.Offset).
+		Limit(req.Limit).
+		Find()
 }
 
 func (r *cardTransactionRepository) ExistByAccountID(ctx context.Context, req *biz.ResourceRequest) (bool, error) {
@@ -65,11 +75,13 @@ func (r *cardTransactionRepository) ExistByAccountID(ctx context.Context, req *b
 
 func (r *cardTransactionRepository) FindByAccountID(ctx context.Context, req *biz.ResourceRequest) (*model.CardTransaction, error) {
 	db := r.repository.DB(ctx)
-	return db.CardTransaction.WithContext(ctx).Where(
-		db.CardTransaction.ID.Eq(req.ID),
-		db.CardTransaction.AccountID.Eq(*req.AccountID),
-		db.CardTransaction.Channel.Eq(string(enums.Channel_Slash)),
-	).First()
+	return db.CardTransaction.WithContext(ctx).
+		Preload(db.CardTransaction.Authorization).
+		Where(
+			db.CardTransaction.ID.Eq(req.ID),
+			db.CardTransaction.AccountID.Eq(*req.AccountID),
+			db.CardTransaction.Channel.Eq(string(enums.Channel_Slash)),
+		).First()
 }
 
 func cardTransactionPredicates(db *query.Query, req *biz.ListCardTransactionsRequest) []gen.Condition {

@@ -561,7 +561,7 @@ func payndaUIAuthorizationData(item *model.Authorization) *PayndaUIAuthorization
 		Currency:             item.Currency,
 		MerchantName:         item.MerchantName,
 		MerchantCategoryCode: item.MerchantMCC,
-		AuthorizedAt:         item.OccurredAt,
+		AuthorizedAt:         item.CreatedAt,
 	}
 }
 func payndaUIWebhookData(item *model.WebhookConfig) *PayndaUIWebhookData {
@@ -615,6 +615,6 @@ func payndaUITransactionData(item *model.CardTransaction) *PayndaUITransactionDa
 		Currency:             item.TxCurrency,
 		MerchantName:         item.MerchantName,
 		MerchantCategoryCode: item.MerchantMCC,
-		TransactedAt:         item.OccurredAt,
+		TransactedAt:         item.CreatedAt,
 	}
 }

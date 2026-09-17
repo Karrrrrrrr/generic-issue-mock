@@ -404,9 +404,14 @@ func openAPICard(item *model.Card) *OpenAPICard {
 }
 
 func openAPITransaction(item *model.CardTransaction) *OpenAPITransaction {
+	authorizedAt := time.Time{}
+	if item.Authorization != nil {
+		authorizedAt = item.Authorization.CreatedAt.UTC()
+	}
+
 	return &OpenAPITransaction{
 		ID:                      slashIDString(item.ID),
-		Date:                    item.OccurredAt.UTC(),
+		Date:                    item.CreatedAt.UTC(),
 		Description:             item.MerchantName,
 		MerchantDescription:     item.MerchantName,
 		AmountCents:             int(item.TxAmount.Mul(decimal.NewFromInt(100)).IntPart()),
@@ -414,7 +419,7 @@ func openAPITransaction(item *model.CardTransaction) *OpenAPITransaction {
 		DetailedStatus:          slash.TransactionStatusFromGeneric(item.Status),
 		AccountID:               slashIDString(item.AccountID),
 		CardID:                  slashIDString(item.CardID),
-		AuthorizedAt:            item.OccurredAt.UTC(),
+		AuthorizedAt:            authorizedAt,
 		ProviderAuthorizationID: slashIDString(item.AuthorizationID),
 	}
 }

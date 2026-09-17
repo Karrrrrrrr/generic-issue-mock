@@ -692,7 +692,7 @@ func authorizationData(item *model.Authorization) *AuthorizationData {
 		MerchantName:         item.MerchantName,
 		MerchantCategoryCode: item.MerchantMCC,
 		AuthorizationCode:    item.AuthorizationCode,
-		AuthorizedAt:         item.OccurredAt,
+		AuthorizedAt:         item.CreatedAt,
 		CreatedAt:            item.CreatedAt,
 	}
 }
@@ -710,7 +710,7 @@ func transactionData(item *model.CardTransaction) *TransactionData {
 		MerchantCountry:      item.MerchantCountry,
 		MerchantCategoryCode: item.MerchantMCC,
 		AuthorizationCode:    item.AuthorizationCode,
-		TransactedAt:         item.OccurredAt,
+		TransactedAt:         item.CreatedAt,
 		CreatedAt:            item.CreatedAt,
 	}
 }

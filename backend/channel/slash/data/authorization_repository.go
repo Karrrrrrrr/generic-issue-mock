@@ -45,12 +45,19 @@ func (r *authorizationRepository) FindByID(ctx context.Context, id model.ID) (*m
 
 func (r *authorizationRepository) Count(ctx context.Context, req *biz.ListAuthorizationsRequest) (int64, error) {
 	db := r.repository.DB(ctx)
-	return db.Authorization.WithContext(ctx).Where(authorizationPredicates(db, req)...).Count()
+	return db.Authorization.WithContext(ctx).
+		Where(authorizationPredicates(db, req)...).
+		Count()
 }
 
 func (r *authorizationRepository) List(ctx context.Context, req *biz.ListAuthorizationsRequest) ([]*model.Authorization, error) {
 	db := r.repository.DB(ctx)
-	return db.Authorization.WithContext(ctx).Where(authorizationPredicates(db, req)...).Order(db.Authorization.ID.Desc()).Offset(req.Offset).Limit(req.Limit).Find()
+	return db.Authorization.WithContext(ctx).
+		Where(authorizationPredicates(db, req)...).
+		Order(db.Authorization.ID.Desc()).
+		Offset(req.Offset).
+		Limit(req.Limit).
+		Find()
 }
 
 func (r *authorizationRepository) Save(ctx context.Context, item *model.Authorization) error {

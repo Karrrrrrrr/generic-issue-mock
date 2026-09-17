@@ -594,7 +594,6 @@ func (u *SlashUIUsecase) SimulateAuthorization(ctx context.Context, req *Simulat
 		if wallet.Amount.LessThan(req.Amount) {
 			return ErrInvalidOperation
 		}
-		now := time.Now().UTC()
 		authorization := &model.Authorization{
 			Channel:           enums.Channel_Slash,
 			CardID:            card.ID,
@@ -605,7 +604,6 @@ func (u *SlashUIUsecase) SimulateAuthorization(ctx context.Context, req *Simulat
 			MerchantMCC:       req.MerchantMCC,
 			AuthorizationCode: randomx.Digits(6),
 			Status:            enums.TransactionStatus_AUTHORIZED,
-			OccurredAt:        now,
 		}
 		if err := u.authorizationRepository.Create(txCtx, authorization); err != nil {
 			zap.S().Errorw("create slash authorization", "error", err)
@@ -624,7 +622,6 @@ func (u *SlashUIUsecase) SimulateAuthorization(ctx context.Context, req *Simulat
 			MerchantCountry:   req.MerchantCountry,
 			MerchantMCC:       req.MerchantMCC,
 			AuthorizationCode: authorization.AuthorizationCode,
-			OccurredAt:        now,
 		}
 		if err := u.cardTransactionRepository.Create(txCtx, transaction); err != nil {
 			zap.S().Errorw("create slash authorization transaction", "error", err)
@@ -671,7 +668,6 @@ func (u *SlashUIUsecase) SimulateRefund(ctx context.Context, req *SimulateRefund
 			MerchantCountry:   req.MerchantCountry,
 			MerchantMCC:       req.MerchantMCC,
 			AuthorizationCode: randomx.Digits(6),
-			OccurredAt:        time.Now().UTC(),
 		}
 		if err := u.cardTransactionRepository.Create(txCtx, transaction); err != nil {
 			zap.S().Errorw("create slash simulated refund", "error", err)
@@ -779,7 +775,6 @@ func (u *SlashUIUsecase) ApplyTransactionStep(ctx context.Context, req *ApplyTra
 			MerchantCountry:         origin.MerchantCountry,
 			MerchantMCC:             origin.MerchantMCC,
 			AuthorizationCode:       origin.AuthorizationCode,
-			OccurredAt:              time.Now().UTC(),
 		}
 		if err := u.cardTransactionRepository.Create(txCtx, next); err != nil {
 			zap.S().Errorw("create slash card transaction step", "error", err)

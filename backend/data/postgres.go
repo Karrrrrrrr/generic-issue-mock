@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"generic-mock/model"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -74,20 +75,6 @@ func migrate(db *gorm.DB) error {
 	if err := db.AutoMigrate(genericModels()...); err != nil {
 		return err
 	}
-
-	return removeLegacyDisplayIDColumns(db)
-}
-
-func removeLegacyDisplayIDColumns(db *gorm.DB) error {
-	for _, item := range genericModels() {
-		if !db.Migrator().HasColumn(item, "display_id") {
-			continue
-		}
-		if err := db.Migrator().DropColumn(item, "display_id"); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 

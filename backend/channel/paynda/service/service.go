@@ -1004,10 +1004,10 @@ func payndaCardBalanceTransferData(item *model.CardTransaction) *PayndaCardBalan
 }
 
 func payndaTransactionData(item *biz.PayndaCardTransactionDetail) *PayndaTransactionData {
-	transactionTime := item.Transaction.OccurredAt.Format(time.DateTime)
+	transactionTime := item.Transaction.CreatedAt.Format(time.DateTime)
 	authorizationTime := ""
 	if item.Authorization != nil {
-		authorizationTime = item.Authorization.OccurredAt.Format(time.DateTime)
+		authorizationTime = item.Authorization.CreatedAt.Format(time.DateTime)
 	}
 	return &PayndaTransactionData{
 		ID:                payndaIDString(item.Transaction.ID),

@@ -48,7 +48,9 @@ func (r *cardRepository) FindByID(ctx context.Context, id model.ID) (*model.Card
 
 func (r *cardRepository) Count(ctx context.Context, req *biz.ListCardsRequest) (int64, error) {
 	db := r.repository.DB(ctx)
-	return db.Card.WithContext(ctx).Where(cardPredicates(db, req)...).Count()
+	return db.Card.WithContext(ctx).
+		Where(cardPredicates(db, req)...).
+		Count()
 }
 
 func (r *cardRepository) List(ctx context.Context, req *biz.ListCardsRequest) ([]*model.Card, error) {

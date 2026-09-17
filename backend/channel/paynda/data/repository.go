@@ -29,7 +29,12 @@ func (r *webhookConfigRepository) Create(ctx context.Context, item *model.Webhoo
 }
 func (r *webhookConfigRepository) ExistByID(ctx context.Context, id model.ID) (bool, error) {
 	db := r.repository.DB(ctx)
-	count, err := db.WebhookConfig.WithContext(ctx).Where(db.WebhookConfig.ID.Eq(id), db.WebhookConfig.Channel.Eq(string(enums.Channel_Paynda))).Count()
+	count, err := db.WebhookConfig.WithContext(ctx).
+		Where(
+			db.WebhookConfig.ID.Eq(id),
+			db.WebhookConfig.Channel.Eq(string(enums.Channel_Paynda)),
+		).
+		Count()
 	return count > 0, err
 }
 func (r *webhookConfigRepository) FindByID(ctx context.Context, id model.ID) (*model.WebhookConfig, error) {
@@ -80,7 +85,12 @@ func (r *cardHolderRepository) Create(ctx context.Context, item *model.CardHolde
 
 func (r *cardHolderRepository) ExistByID(ctx context.Context, id model.ID) (bool, error) {
 	db := r.repository.DB(ctx)
-	count, err := db.CardHolder.WithContext(ctx).Where(db.CardHolder.ID.Eq(id), db.CardHolder.Channel.Eq(string(enums.Channel_Paynda))).Count()
+	count, err := db.CardHolder.WithContext(ctx).
+		Where(
+			db.CardHolder.ID.Eq(id),
+			db.CardHolder.Channel.Eq(string(enums.Channel_Paynda)),
+		).
+		Count()
 
 	return count > 0, err
 }
@@ -153,7 +163,12 @@ func NewCardProductRepository(injector *do.Injector) (biz.PayndaCardProductRepos
 
 func (r *cardProductRepository) ExistByID(ctx context.Context, id model.ID) (bool, error) {
 	db := r.repository.DB(ctx)
-	count, err := db.CardProduct.WithContext(ctx).Where(db.CardProduct.ID.Eq(id), db.CardProduct.Channel.Eq(string(enums.Channel_Paynda))).Count()
+	count, err := db.CardProduct.WithContext(ctx).
+		Where(
+			db.CardProduct.ID.Eq(id),
+			db.CardProduct.Channel.Eq(string(enums.Channel_Paynda)),
+		).
+		Count()
 
 	return count > 0, err
 }
@@ -248,7 +263,12 @@ func (r *cardRepository) ExistByID(ctx context.Context, req *biz.PayndaResourceR
 
 func (r *cardRepository) ExistByRequestID(ctx context.Context, requestID string) (bool, error) {
 	db := r.repository.DB(ctx)
-	count, err := db.Card.WithContext(ctx).Where(db.Card.RequestID.Eq(requestID), db.Card.Channel.Eq(string(enums.Channel_Paynda))).Count()
+	count, err := db.Card.WithContext(ctx).
+		Where(
+			db.Card.RequestID.Eq(requestID),
+			db.Card.Channel.Eq(string(enums.Channel_Paynda)),
+		).
+		Count()
 
 	return count > 0, err
 }
@@ -258,7 +278,12 @@ func (r *cardRepository) ExistByLastOperationRequestID(
 	requestID string,
 ) (bool, error) {
 	db := r.repository.DB(ctx)
-	count, err := db.Card.WithContext(ctx).Where(db.Card.LastOperationRequestID.Eq(requestID), db.Card.Channel.Eq(string(enums.Channel_Paynda))).Count()
+	count, err := db.Card.WithContext(ctx).
+		Where(
+			db.Card.LastOperationRequestID.Eq(requestID),
+			db.Card.Channel.Eq(string(enums.Channel_Paynda)),
+		).
+		Count()
 
 	return count > 0, err
 }
@@ -392,7 +417,12 @@ func (r *accountRepository) ExistByChannel(ctx context.Context) (bool, error) {
 
 func (r *accountRepository) ExistByID(ctx context.Context, id model.ID) (bool, error) {
 	db := r.repository.DB(ctx)
-	count, err := db.Account.WithContext(ctx).Where(db.Account.ID.Eq(id), db.Account.Channel.Eq(string(enums.Channel_Paynda))).Count()
+	count, err := db.Account.WithContext(ctx).
+		Where(
+			db.Account.ID.Eq(id),
+			db.Account.Channel.Eq(string(enums.Channel_Paynda)),
+		).
+		Count()
 	return count > 0, err
 }
 
@@ -454,14 +484,24 @@ func (r *cardTransactionRepository) Save(ctx context.Context, item *model.CardTr
 
 func (r *cardTransactionRepository) ExistByID(ctx context.Context, id model.ID) (bool, error) {
 	db := r.repository.DB(ctx)
-	count, err := db.CardTransaction.WithContext(ctx).Where(db.CardTransaction.ID.Eq(id), db.CardTransaction.Channel.Eq(string(enums.Channel_Paynda))).Count()
+	count, err := db.CardTransaction.WithContext(ctx).
+		Where(
+			db.CardTransaction.ID.Eq(id),
+			db.CardTransaction.Channel.Eq(string(enums.Channel_Paynda)),
+		).
+		Count()
 
 	return count > 0, err
 }
 
 func (r *cardTransactionRepository) ExistByRequestID(ctx context.Context, requestID string) (bool, error) {
 	db := r.repository.DB(ctx)
-	count, err := db.CardTransaction.WithContext(ctx).Where(db.CardTransaction.RequestID.Eq(requestID), db.CardTransaction.Channel.Eq(string(enums.Channel_Paynda))).Count()
+	count, err := db.CardTransaction.WithContext(ctx).
+		Where(
+			db.CardTransaction.RequestID.Eq(requestID),
+			db.CardTransaction.Channel.Eq(string(enums.Channel_Paynda)),
+		).
+		Count()
 
 	return count > 0, err
 }
@@ -536,10 +576,10 @@ func payndaTransactionPredicates(
 		predicates = append(predicates, db.CardTransaction.CardID.Eq(req.CardID))
 	}
 	if req.OccurredAtGTE != nil {
-		predicates = append(predicates, db.CardTransaction.OccurredAt.Gte(*req.OccurredAtGTE))
+		predicates = append(predicates, db.CardTransaction.CreatedAt.Gte(*req.OccurredAtGTE))
 	}
 	if req.OccurredAtLTE != nil {
-		predicates = append(predicates, db.CardTransaction.OccurredAt.Lte(*req.OccurredAtLTE))
+		predicates = append(predicates, db.CardTransaction.CreatedAt.Lte(*req.OccurredAtLTE))
 	}
 	if len(req.Types) > 0 {
 		types := make([]string, 0, len(req.Types))
@@ -592,7 +632,13 @@ func (r *authorizationRepository) ListByIDs(
 ) ([]*model.Authorization, error) {
 	db := r.repository.DB(ctx)
 
-	return db.Authorization.WithContext(ctx).Where(db.Authorization.ID.In(req.IDs...), db.Authorization.Channel.Eq(string(enums.Channel_Paynda))).Order(db.Authorization.ID.Desc()).Find()
+	return db.Authorization.WithContext(ctx).
+		Where(
+			db.Authorization.ID.In(req.IDs...),
+			db.Authorization.Channel.Eq(string(enums.Channel_Paynda)),
+		).
+		Order(db.Authorization.ID.Desc()).
+		Find()
 }
 
 var _ biz.PayndaAuthorizationRepository = (*authorizationRepository)(nil)

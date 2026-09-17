@@ -586,7 +586,6 @@ func (u *PhotonPayOpenAPIUsecase) SandboxTransaction(ctx context.Context, req *S
 				MerchantMCC:       req.MerchantMCC,
 				AuthorizationCode: randomx.Digits(6),
 				Status:            common.TransactionStatus_AUTHORIZED,
-				OccurredAt:        time.Now().UTC(),
 			}
 			if err := u.authorizationRepo.Create(txCtx, authorization); err != nil {
 				zap.S().Errorw("create photonpay authorization", "error", err)
@@ -614,7 +613,6 @@ func (u *PhotonPayOpenAPIUsecase) SandboxTransaction(ctx context.Context, req *S
 			MerchantName:            req.MerchantName,
 			MerchantCountry:         req.MerchantCountry,
 			MerchantMCC:             req.MerchantMCC,
-			OccurredAt:              time.Now().UTC(),
 		}
 		if err := u.cardTransactionRepo.Create(txCtx, transaction); err != nil {
 			zap.S().Errorw("create photonpay sandbox transaction", "error", err)

@@ -573,7 +573,7 @@ func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationDat
 		MerchantName:         item.MerchantName,
 		MerchantCategoryCode: item.MerchantMCC,
 		AuthorizationCode:    item.AuthorizationCode,
-		AuthorizedAt:         item.OccurredAt,
+		AuthorizedAt:         item.CreatedAt,
 	}
 }
 
@@ -627,6 +627,6 @@ func photonPayUITransactionData(item *model.CardTransaction) *UITransactionData 
 		Currency:             string(item.TxCurrency),
 		MerchantName:         item.MerchantName,
 		MerchantCategoryCode: item.MerchantMCC,
-		TransactedAt:         item.OccurredAt,
+		TransactedAt:         item.CreatedAt,
 	}
 }

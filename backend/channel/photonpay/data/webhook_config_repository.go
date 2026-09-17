@@ -20,7 +20,12 @@ func (r *webhookConfigRepository) Create(ctx context.Context, item *model.Webhoo
 }
 func (r *webhookConfigRepository) ExistByID(ctx context.Context, id model.ID) (bool, error) {
 	db := r.repository.DB(ctx)
-	count, err := db.WebhookConfig.WithContext(ctx).Where(db.WebhookConfig.ID.Eq(id), db.WebhookConfig.Channel.Eq(string(enums.Channel_PhotonPay))).Count()
+	count, err := db.WebhookConfig.WithContext(ctx).
+		Where(
+			db.WebhookConfig.ID.Eq(id),
+			db.WebhookConfig.Channel.Eq(string(enums.Channel_PhotonPay)),
+		).
+		Count()
 	return count > 0, err
 }
 func (r *webhookConfigRepository) FindByID(ctx context.Context, id model.ID) (*model.WebhookConfig, error) {

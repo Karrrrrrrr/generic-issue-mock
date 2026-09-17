@@ -54,6 +54,15 @@ When a downstream DTO has mixed ID field types, apply the row's webhook rule per
 - Preserve unused SDK fields only in service DTOs, label them `Invalid:`, and do not persist or implement their behavior.
 - A service DTO uses `time.Time` or `*time.Time` when the downstream JSON time is RFC3339, letting the HTTP codec perform the standard conversion. Use `string` only when the downstream contract requires a non-RFC3339 layout or a non-time textual value; keep that format conversion at the service boundary.
 
+### GORM Model Schema
+
+- Every persisted scalar field in `model` has an explicit GORM `column` and PostgreSQL `type` tag. Associations have no physical column tag; declare their `foreignKey` and `references` explicitly instead.
+- Strings and string-backed enums use `type:varchar;not null;default:''`. Numeric IDs and counters use their explicit integer type with `not null;default:0`; decimal values use `type:numeric;not null;default:0`; booleans use `type:boolean;not null;default:false`; JSON values use `type:jsonb;not null;default:'{}'`.
+- `time.Time` and `*time.Time` model fields use `type:timestamptz`. Required values are `not null`; optional pointer values use `default:null`.
+- Model associations used by GORM Gen `Preload` are read-only: add `gorm:"...;->"` so aggregate saves never persist preloaded related objects.
+- A card transaction represents one concrete transaction stage. Its `CreatedAt` is that stage's event time; do not add `OccurredAt` or `SettledAt` to `CardTransaction`. For a transaction DTO's authorization timestamp, preload its `Authorization` and use `Authorization.CreatedAt`, never the transaction's creation time.
+- This mock may reset its local business tables when a model schema changes. Do not add compatibility field mappings or retain deprecated columns solely to preserve local mock data unless the user explicitly requires a migration.
+
 ## Workflow
 
 - Read existing build and generation instructions before running commands. Use the repository generator for schema/query changes.
@@ -73,3 +82,4 @@ When a downstream DTO has mixed ID field types, apply the row's webhook rule per
 8. Do not proactively compress existing multi-line code into one line while making a change.
 9. New code follows these rules even when a compressed line would be 120 characters or fewer.
 10. Before submitting Go changes, review hand-written code matched by `\{.*?,.*?,`. Treat each match as a readability warning: expand obvious multi-field literals, multi-argument calls, and combined business operations; exclude generated code and do not mechanically rewrite a legitimate single-field nested literal.
+11. Before submitting repository queries, review hand-written code matched by `Where.*?,.*?.(Find|Count|Create)\(\)`. Split a `Where` call with multiple conditions and its terminal `Find`, `Count`, or `Create` call across lines; exclude generated GORM Gen code.
