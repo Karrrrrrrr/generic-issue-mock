@@ -430,7 +430,7 @@ func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest)
 			Cvv:                    randomx.Digits(3),
 			ExpireAt:               time.Now().UTC().AddDate(2, 0, 0),
 			Status:                 enums.CardStatus_Active,
-			WalletID:               &wallet.ID,
+			WalletID:               wallet.ID,
 			CardHolderID:           req.CardHolderID,
 			FormType:               enums.CardFormType_Virtual,
 			CardCurrency:           req.Currency,
@@ -581,12 +581,12 @@ func (u *SlashUIUsecase) SimulateAuthorization(ctx context.Context, req *Simulat
 				zap.S().Errorw("find slash UI authorization virtual account", "error", err)
 				return ErrDatabaseOperation
 			}
-			walletID = &virtualAccount.WalletID
+			walletID = virtualAccount.WalletID
 		}
-		if walletID == nil {
+		if walletID == 0 {
 			return ErrResourceNotFound
 		}
-		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, *walletID)
+		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, walletID)
 		if err != nil {
 			zap.S().Errorw("lock slash UI authorization wallet", "error", err)
 			return ErrDatabaseOperation

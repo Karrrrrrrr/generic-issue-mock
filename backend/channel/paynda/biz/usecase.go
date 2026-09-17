@@ -382,7 +382,7 @@ func (u *PayndaOpenAPIUsecase) CreateCard(ctx context.Context, req *PayndaCreate
 			Cvv:                    randomx.Digits(3),
 			ExpireAt:               req.ExpireAt,
 			Status:                 enums.CardStatus_Active,
-			WalletID:               &wallet.ID,
+			WalletID:               wallet.ID,
 			CardHolderID:           req.CardHolderID,
 			FormType:               enums.CardFormType_Virtual,
 			RequestID:              req.RequestID,
@@ -449,11 +449,11 @@ func (u *PayndaOpenAPIUsecase) GetCardBalance(ctx context.Context, req *PayndaRe
 	if err != nil {
 		return nil, err
 	}
-	if card.WalletID == nil {
+	if card.WalletID == 0 {
 		return nil, ErrResourceNotFound
 	}
 
-	walletRequest := &PayndaResourceRequest{AccountID: req.AccountID, ID: *card.WalletID}
+	walletRequest := &PayndaResourceRequest{AccountID: req.AccountID, ID: card.WalletID}
 	exists, err := u.walletRepository.ExistByID(ctx, walletRequest)
 	if err != nil {
 		zap.S().Errorw("check paynda card wallet", "error", err)
@@ -565,11 +565,11 @@ func (u *PayndaOpenAPIUsecase) TransferCardBalance(
 		if err != nil {
 			return err
 		}
-		if card.WalletID == nil {
+		if card.WalletID == 0 {
 			return ErrResourceNotFound
 		}
 
-		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, &PayndaResourceRequest{AccountID: req.AccountID, ID: *card.WalletID})
+		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, &PayndaResourceRequest{AccountID: req.AccountID, ID: card.WalletID})
 		if err != nil {
 			zap.S().Errorw("lock paynda card wallet", "error", err)
 			return ErrDatabaseOperation
@@ -1294,7 +1294,7 @@ func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCar
 			Cvv:           randomx.Digits(3),
 			ExpireAt:      time.Now().UTC().AddDate(2, 0, 0),
 			Status:        enums.CardStatus_Active,
-			WalletID:      &wallet.ID,
+			WalletID:      wallet.ID,
 			CardHolderID:  req.CardHolderID,
 			FormType:      enums.CardFormType_Virtual,
 			CardCurrency:  req.Currency,
@@ -1424,12 +1424,12 @@ func (u *PayndaUIUsecase) SimulateAuthorization(
 		if card.Status != enums.CardStatus_Active {
 			return ErrInvalidOperation
 		}
-		if card.WalletID == nil {
+		if card.WalletID == 0 {
 			return ErrResourceNotFound
 		}
 		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, &PayndaResourceRequest{
 			AccountID: card.AccountID,
-			ID:        *card.WalletID,
+			ID:        card.WalletID,
 		})
 		if err != nil {
 			zap.S().Errorw("lock paynda UI authorization wallet", "error", err)
@@ -1581,10 +1581,10 @@ func (u *PayndaUIUsecase) ApplyTransactionStep(ctx context.Context, req *PayndaU
 			zap.S().Errorw("find paynda UI transaction card", "error", err)
 			return ErrDatabaseOperation
 		}
-		if card.WalletID == nil {
+		if card.WalletID == 0 {
 			return ErrResourceNotFound
 		}
-		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, &PayndaResourceRequest{AccountID: card.AccountID, ID: *card.WalletID})
+		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, &PayndaResourceRequest{AccountID: card.AccountID, ID: card.WalletID})
 		if err != nil {
 			zap.S().Errorw("lock paynda UI card wallet", "error", err)
 			return ErrDatabaseOperation
@@ -1774,10 +1774,10 @@ func (u *PayndaUIUsecase) payndaWebhookPayload(ctx context.Context, transaction 
 		zap.S().Errorw("find paynda webhook card holder", "error", err)
 		return nil, ErrDatabaseOperation
 	}
-	if card.WalletID == nil {
+	if card.WalletID == 0 {
 		return nil, ErrResourceNotFound
 	}
-	wallet, err := u.walletRepository.FindByID(ctx, &PayndaResourceRequest{AccountID: card.AccountID, ID: *card.WalletID})
+	wallet, err := u.walletRepository.FindByID(ctx, &PayndaResourceRequest{AccountID: card.AccountID, ID: card.WalletID})
 	if err != nil {
 		zap.S().Errorw("find paynda webhook wallet", "error", err)
 		return nil, ErrDatabaseOperation

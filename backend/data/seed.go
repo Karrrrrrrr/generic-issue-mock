@@ -312,7 +312,7 @@ func seedChannelCards(
 		if err := db.WithContext(ctx).Create(wallet).Error; err != nil {
 			return err
 		}
-		card.WalletID = &wallet.ID
+		card.WalletID = wallet.ID
 		if err := db.WithContext(ctx).Create(card).Error; err != nil {
 			return err
 		}

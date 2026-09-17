@@ -397,7 +397,7 @@ func (u *PhotonPayUIUsecase) OpenCard(ctx context.Context, req *UIOpenCardReques
 			Cvv:                    randomx.Digits(3),
 			ExpireAt:               time.Now().UTC().AddDate(0, 24, 0),
 			Status:                 enums.CardStatus_Active,
-			WalletID:               &wallet.ID,
+			WalletID:               wallet.ID,
 			CardHolderID:           req.CardHolderID,
 			FormType:               enums.CardFormType_Virtual,
 			RequestID:              req.RequestID,
@@ -440,7 +440,7 @@ func (u *PhotonPayUIUsecase) FundCard(ctx context.Context, req *UIFundCardReques
 		if err != nil {
 			return err
 		}
-		if card.WalletID == nil {
+		if card.WalletID == 0 {
 			return ErrResourceNotFound
 		}
 
@@ -462,7 +462,7 @@ func (u *PhotonPayUIUsecase) FundCard(ctx context.Context, req *UIFundCardReques
 		}
 		target, err := u.walletRepo.FindByIDForUpdate(txCtx, &ResourceRequest{
 			AccountID: &accountID,
-			ID:        *card.WalletID,
+			ID:        card.WalletID,
 		})
 		if err != nil {
 			zap.S().Errorw("lock photonpay UI card wallet", "error", err)
@@ -602,13 +602,13 @@ func (u *PhotonPayUIUsecase) SimulateAuthorization(ctx context.Context, req *UIS
 		if card.Status != enums.CardStatus_Active {
 			return ErrInvalidOperation
 		}
-		if card.WalletID == nil {
+		if card.WalletID == 0 {
 			return ErrResourceNotFound
 		}
 		accountID := card.AccountID
 		wallet, err := u.walletRepo.FindByIDForUpdate(txCtx, &ResourceRequest{
 			AccountID: &accountID,
-			ID:        *card.WalletID,
+			ID:        card.WalletID,
 		})
 		if err != nil {
 			zap.S().Errorw("lock photonpay UI authorization wallet", "error", err)

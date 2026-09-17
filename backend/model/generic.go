@@ -28,7 +28,7 @@ type Card struct {
 	ExpireAt               time.Time
 	Status                 enums.CardStatus
 	VirtualAccountID       *ID // nil 表示普通卡，非 nil 表示虚拟账户卡，共享余额。
-	WalletID               *ID // 虚拟账户卡指向虚拟账户的钱包 ID，减少一次查询。
+	WalletID               ID  // 虚拟账户卡指向虚拟账户的钱包 ID，减少一次查询。
 	CardHolderID           ID  // 持卡人 ID，允许为空。
 	FormType               enums.CardFormType
 	RequestID              string `gorm:"uniqueIndex"`
