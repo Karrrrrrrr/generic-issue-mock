@@ -46,10 +46,10 @@ type ListRequest struct {
 }
 
 type AccountData struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Balance   string    `json:"balance"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	Balance   decimal.Decimal `json:"balance"`
+	CreatedAt time.Time       `json:"created_at"`
 }
 
 type AuthorizationConfigData struct {
@@ -777,7 +777,7 @@ func slashAccountData(item *model.Account) *AccountData {
 	return &AccountData{
 		ID:        slashIDString(item.ID),
 		Name:      item.Name,
-		Balance:   balance.String(),
+		Balance:   balance,
 		CreatedAt: item.CreatedAt,
 	}
 }

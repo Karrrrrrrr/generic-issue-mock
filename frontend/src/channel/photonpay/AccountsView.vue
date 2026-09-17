@@ -17,6 +17,7 @@ import { type Account, accountApi } from "./api";
 const { message } = createDiscreteApi(["message"]);
 const loading = ref(false);
 const visible = ref(false);
+const editingID = ref<string>();
 const name = ref("");
 const rows = ref<Account[]>([]);
 const page = ref(1);
@@ -36,10 +37,28 @@ async function load() {
   }
 }
 
-async function create() {
-  if (!name.value) return;
+function openCreate() {
+  editingID.value = undefined;
+  name.value = "";
+  visible.value = true;
+}
+
+function openEdit(account: Account) {
+  editingID.value = account.id;
+  name.value = account.name;
+  visible.value = true;
+}
+
+async function submit() {
+  if (!name.value) {
+    return;
+  }
   try {
-    await accountApi.create({ name: name.value });
+    if (editingID.value) {
+      await accountApi.update(editingID.value, { name: name.value });
+    } else {
+      await accountApi.create({ name: name.value });
+    }
     visible.value = false;
     name.value = "";
     await load();
@@ -72,6 +91,11 @@ const columns: DataTableColumns<Account> = [
     key: "created_at",
     render: (row) => h("span", new Date(row.created_at).toLocaleString()),
   },
+  {
+    title: "操作",
+    key: "actions",
+    render: (row) => h(NButton, { onClick: () => openEdit(row) }, { default: () => "改名" }),
+  },
 ];
 onMounted(() => void load());
 </script>
@@ -79,12 +103,12 @@ onMounted(() => void load());
   <section>
     <div class="page-heading">
       <div><h1>账户</h1></div>
-      <n-button type="primary" @click="visible = true">新增账户</n-button>
+      <n-button type="primary" @click="openCreate">新增账户</n-button>
     </div>
     <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false"/>
     <n-pagination v-model:page="page" :page-size="pageSize" :item-count="total" :page-sizes="[10, 20, 50]"
                   show-size-picker @update:page="load" @update:page-size="changePageSize"/>
-    <n-modal v-model:show="visible" preset="card" title="新增账户" style="width: min(440px, calc(100vw - 32px))">
+    <n-modal v-model:show="visible" preset="card" :title="editingID ? '账户改名' : '新增账户'" style="width: min(440px, calc(100vw - 32px))">
       <n-form label-placement="top">
         <n-form-item label="名称">
           <n-input v-model:value="name"/>
@@ -93,7 +117,7 @@ onMounted(() => void load());
       <template #action>
         <n-space justify="end">
           <n-button @click="visible = false">取消</n-button>
-          <n-button type="primary" @click="create">创建</n-button>
+          <n-button type="primary" @click="submit">保存</n-button>
         </n-space>
       </template>
     </n-modal>

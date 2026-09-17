@@ -25,10 +25,10 @@ type UIListResponse[T any] struct {
 }
 
 type UIAccountData struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Balance   string    `json:"balance"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	Balance   decimal.Decimal `json:"balance"`
+	CreatedAt time.Time       `json:"created_at"`
 }
 
 type UIVirtualAccountData struct {
@@ -752,7 +752,7 @@ func photonPayUIAccountData(item *model.Account) *UIAccountData {
 	return &UIAccountData{
 		ID:        photonPayIDString(item.ID),
 		Name:      item.Name,
-		Balance:   balance.String(),
+		Balance:   balance,
 		CreatedAt: item.CreatedAt,
 	}
 }

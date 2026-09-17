@@ -44,11 +44,10 @@ const refundForm = ref({
   merchant_city: "Seattle",
 });
 const options = computed(() =>
-    cards.value
-        .filter((card) => card.card_status === "active")
-        .map((card) => ({
+    cards.value.map((card) => ({
           label: `${card.card_number}  ${card.card_currency}`,
           value: card.id,
+          disabled: card.card_status !== "active",
         })),
 );
 
