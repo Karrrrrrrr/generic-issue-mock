@@ -38,12 +38,7 @@ export interface Webhook {
   updated_at: string;
 }
 
-export type WebhookEvent =
-  | "aggregated_transaction.create"
-  | "aggregated_transaction.update"
-  | "card_creation.event"
-  | "card.update"
-  | "card.delete";
+export type WebhookEvent = string;
 
 export const webhookApi = {
   async events() {

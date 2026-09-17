@@ -15,13 +15,29 @@ import (
 )
 
 type SlashUIService struct {
-	usecase *biz.SlashUIUsecase
+	usecase        *biz.SlashUIUsecase
+	webhookUsecase *biz.SlashWebhookUsecase
 }
 
 func NewSlashUIService(injector *do.Injector) (*SlashUIService, error) {
 	return &SlashUIService{
-		usecase: do.MustInvoke[*biz.SlashUIUsecase](injector),
+		usecase:        do.MustInvoke[*biz.SlashUIUsecase](injector),
+		webhookUsecase: do.MustInvoke[*biz.SlashWebhookUsecase](injector),
 	}, nil
+}
+
+func slashWebhookDispatchRequest(
+	accountID model.ID,
+	event slash.WebhookEvent,
+	resourceID model.ID,
+) *biz.DispatchWebhookRequest {
+	resourceIDString := slashIDString(resourceID)
+	return &biz.DispatchWebhookRequest{
+		AccountID: accountID,
+		Event:     event,
+		EntityID:  resourceIDString,
+		EventID:   resourceIDString,
+	}
 }
 
 type ListRequest struct {
@@ -404,6 +420,11 @@ func (s *SlashUIService) CreateCard(ctx context.Context, req *CreateCardRequest)
 	if err != nil {
 		return nil, err
 	}
+	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(
+		item.AccountID,
+		slash.WebhookEventCardCreate,
+		item.ID,
+	))
 	return cardData(item), nil
 }
 
@@ -465,6 +486,15 @@ func (s *SlashUIService) UpdateCardStatus(ctx context.Context, req *UpdateCardRe
 	if err != nil {
 		return nil, err
 	}
+	event := slash.WebhookEventCardUpdate
+	if req.CardStatus == slash.CardStatus_Closed {
+		event = slash.WebhookEventCardDelete
+	}
+	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(
+		item.AccountID,
+		event,
+		item.ID,
+	))
 	return cardData(item), nil
 }
 
@@ -511,6 +541,11 @@ func (s *SlashUIService) SimulateRefund(ctx context.Context, req *SimulateRefund
 	if err != nil {
 		return nil, err
 	}
+	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(
+		item.AccountID,
+		slash.WebhookEventTransactionCreate,
+		item.ID,
+	))
 	return transactionData(item), nil
 }
 
@@ -530,6 +565,11 @@ func (s *SlashUIService) SimulateAuthorization(ctx context.Context, req *Simulat
 	if err != nil {
 		return nil, err
 	}
+	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(
+		result.CardTransaction.AccountID,
+		slash.WebhookEventTransactionCreate,
+		result.CardTransaction.ID,
+	))
 	return &SimulateAuthorizationData{
 		Approved:      true,
 		Status:        slash.TransactionStatusFromGeneric(result.Authorization.Status),
@@ -695,6 +735,11 @@ func (s *SlashUIService) applyTransactionStep(ctx context.Context, req *ApplyTra
 	if err != nil {
 		return nil, err
 	}
+	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(
+		item.AccountID,
+		slash.WebhookEventTransactionCreate,
+		item.ID,
+	))
 	return transactionData(item), nil
 }
 

@@ -116,7 +116,7 @@ func seedWebhookConfigs(
 			AccountID: accounts[enums.Channel_Slash].ID,
 			Channel:   enums.Channel_Slash,
 			Event:     string(event),
-			TargetURL: "http://127.0.0.1:18080/slash/webhooks/" + string(event),
+			TargetURL: "http://127.0.0.1:18080/api/v1/notify/xz-event",
 			Enabled:   true,
 		}
 		if err := db.WithContext(ctx).Where(&model.WebhookConfig{

@@ -2,7 +2,7 @@
 
 ## 范围
 
-已实现虚拟账户列表/划拨、卡产品、虚拟卡开卡、持卡人、交易查询、管理端授权/清算/冲正/退款模拟和管理 UI。同步授权配置通过管理面 `GET/PUT /slash/ui/authorization-config` 管理。实体卡、开卡时选择虚拟账户、单次卡、卡组、消费限制和异步 webhook OpenAPI 尚未实现。
+已实现虚拟账户列表/划拨、卡产品、虚拟卡开卡、持卡人、交易查询、管理端授权/清算/冲正/退款模拟和异步 webhook 投递。同步授权配置通过管理面 `GET/PUT /slash/ui/authorization-config` 管理。实体卡、开卡时选择虚拟账户、单次卡、卡组、消费限制和异步 webhook 的 OpenAPI 管理接口尚未实现。
 
 ## 字段映射
 
@@ -86,6 +86,18 @@ curl -X POST http://127.0.0.1:8000/slash/transfer/virtual-account \
 
 ### Webhook
 
-Marxo 目前没有 Slash 授权配置的实际调用点，mock 使用账户唯一的 `AuthorizationConfig`，只通过管理面管理 URL、启用状态和超时。同步回调连接失败时模拟授权失败，不设置回退策略。种子为 `aggregated_transaction.create`、`aggregated_transaction.update`、`card_creation.event`、`card.update` 和 `card.delete` 各创建一条配置；`aggregated_transaction.update` 保留为可管理的渠道事件，但不对接第三方修正既有交易的处理步骤，因为 mock 的交易不可变。认证头、签名和完整投递报文仍待从 Marxo 入口契约确认。Slash 目前尚未发送异步订阅，因此不提供投递记录详情或 replay UI。
+Marxo 目前没有 Slash 授权配置的实际调用点，mock 使用账户唯一的 `AuthorizationConfig`，只通过管理面管理 URL、启用状态和超时。同步回调连接失败时模拟授权失败，不设置回退策略。种子为 `aggregated_transaction.create`、`aggregated_transaction.update`、`card_creation.event`、`card.update` 和 `card.delete` 各创建一条配置，目标为 Marxo 的 `POST /api/v1/notify/xz-event`。
 
-同样采用固定投递账本：提交业务 transaction 后查询启用 `WebhookConfig`，先建 pending `WebhookRecord`（channel、event、URL、格式化 `SourceID`、payload、attempt 1），再 POST；记录 2xx 成功、其他结果失败，并对同一 record 记录重试次数/响应/错误。协议确定后补入 URL、headers、签名、退避与完整 JSON 夹具。
+提交业务 transaction 后，mock 仅查询同一账户下启用且事件匹配的 `WebhookConfig`，先建立 pending `WebhookRecord`，再投递 JSON：
+
+```json
+{
+  "entityId": "Slash UUID",
+  "event": "card.update",
+  "eventId": "Slash UUID"
+}
+```
+
+`entityId` 和 `eventId` 都由本次卡或交易的内部 `ID` 转成 Slash UUID；每个配置独立投递并记录请求头、响应头、响应体、状态码和错误。2xx 标为成功，网络错误和非 2xx 标为失败。卡创建发送 `card_creation.event`，普通状态更新发送 `card.update`，关闭卡发送 `card.delete`；授权、模拟退款、清算、冲正和退款步骤各创建一条交易并发送 `aggregated_transaction.create`。`aggregated_transaction.update` 保留为可管理、可初始化的渠道事件，但不用于修正既有交易，因为 mock 的交易不可变。
+
+投递记录列表、详情和 replay 管理页尚未实现。

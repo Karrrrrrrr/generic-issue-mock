@@ -16,12 +16,14 @@ import (
 )
 
 type SlashOpenAPIService struct {
-	usecase *biz.SlashOpenAPIUsecase
+	usecase        *biz.SlashOpenAPIUsecase
+	webhookUsecase *biz.SlashWebhookUsecase
 }
 
 func NewSlashOpenAPIService(injector *do.Injector) (*SlashOpenAPIService, error) {
 	return &SlashOpenAPIService{
-		usecase: do.MustInvoke[*biz.SlashOpenAPIUsecase](injector),
+		usecase:        do.MustInvoke[*biz.SlashOpenAPIUsecase](injector),
+		webhookUsecase: do.MustInvoke[*biz.SlashWebhookUsecase](injector),
 	}, nil
 }
 
@@ -218,6 +220,11 @@ func (s *SlashOpenAPIService) CreateCard(ctx context.Context, req *OpenAPICreate
 	if err != nil {
 		return nil, err
 	}
+	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(
+		item.AccountID,
+		slash.WebhookEventCardCreate,
+		item.ID,
+	))
 
 	return openAPICard(item), nil
 }
@@ -270,6 +277,15 @@ func (s *SlashOpenAPIService) UpdateCard(ctx context.Context, req *OpenAPIUpdate
 	if err != nil {
 		return nil, err
 	}
+	event := slash.WebhookEventCardUpdate
+	if req.Status == slash.CardStatus_Closed {
+		event = slash.WebhookEventCardDelete
+	}
+	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(
+		item.AccountID,
+		event,
+		item.ID,
+	))
 
 	return openAPICard(item), nil
 }

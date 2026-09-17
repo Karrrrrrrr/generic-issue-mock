@@ -707,6 +707,7 @@ func (u *SlashUIUsecase) SimulateAuthorization(ctx context.Context, req *Simulat
 			return ErrInvalidOperation
 		}
 		authorization := &model.Authorization{
+			AccountID:         card.AccountID,
 			Channel:           enums.Channel_Slash,
 			CardID:            card.ID,
 			Currency:          req.Currency,
@@ -722,6 +723,7 @@ func (u *SlashUIUsecase) SimulateAuthorization(ctx context.Context, req *Simulat
 			return ErrDatabaseOperation
 		}
 		transaction := &model.CardTransaction{
+			AccountID:         card.AccountID,
 			Channel:           enums.Channel_Slash,
 			AuthorizationID:   authorization.ID,
 			CardID:            card.ID,
@@ -769,6 +771,7 @@ func (u *SlashUIUsecase) SimulateRefund(ctx context.Context, req *SimulateRefund
 		}
 
 		transaction = &model.CardTransaction{
+			AccountID:         card.AccountID,
 			Channel:           enums.Channel_Slash,
 			CardID:            card.ID,
 			Status:            enums.TransactionStatus_SUCCEED,
@@ -874,6 +877,7 @@ func (u *SlashUIUsecase) ApplyTransactionStep(ctx context.Context, req *ApplyTra
 			status = enums.TransactionStatus_VOID
 		}
 		next = &model.CardTransaction{
+			AccountID:               origin.AccountID,
 			Channel:                 enums.Channel_Slash,
 			OriginCardTransactionID: origin.ID,
 			AuthorizationID:         origin.AuthorizationID,
