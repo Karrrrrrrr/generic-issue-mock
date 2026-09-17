@@ -58,4 +58,17 @@ When a downstream DTO has mixed ID field types, apply the row's webhook rule per
 
 - Read existing build and generation instructions before running commands. Use the repository generator for schema/query changes.
 - Run `gofmt` and only the requested compilation check. Go commands must set `GOCACHE=/home/kar/.cache/go-build` and `GOTMPDIR=/home/kar/.cache/go-tmp`.
+- Frontend code follows the repository's formatted multi-line style: keep imports, declarations, functions, object fields, and template elements legible on separate lines. Do not introduce compressed single-line components, handlers, or API definitions. After frontend changes, run `npm run build` from `frontend` when dependencies are available.
 - Review the changed code after implementation for layer violations, raw predicates, magic protocol values, and unnecessary generic-model fields.
+
+### Code Layout
+
+1. Do not compress code merely to reduce line count.
+2. A struct literal with multiple fields uses a multi-line layout, with one field per line.
+3. Split a function call with many arguments, or one that would become long, across multiple lines.
+4. Split a multi-variable assignment across multiple lines when its right side contains multiple fields or expressions.
+5. Do not put multiple business operations on one line.
+6. Passing `gofmt` is not a reason to retain a compressed one-line layout.
+7. Prefer readability over line count.
+8. Do not proactively compress existing multi-line code into one line while making a change.
+9. New code follows these rules even when a compressed line would be 120 characters or fewer.
