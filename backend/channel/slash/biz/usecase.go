@@ -20,6 +20,7 @@ type SlashTransaction interface {
 
 type SlashAccountRepository interface {
 	Create(context.Context, *model.Account) error
+	Save(context.Context, *model.Account) error
 	List(context.Context) ([]*model.Account, error)
 }
 
@@ -84,6 +85,7 @@ type SlashVirtualAccountRepository interface {
 }
 
 type SlashWalletRepository interface {
+	Create(context.Context, *model.Wallet) error
 	FindByIDForUpdate(context.Context, model.ID) (*model.Wallet, error)
 	Save(context.Context, *model.Wallet) error
 	FindByAccountIDForUpdate(context.Context, *ResourceRequest) (*model.Wallet, error)
@@ -108,6 +110,7 @@ type SlashUIUsecase struct {
 	webhookConfigRepository   SlashWebhookConfigRepository
 	virtualAccountRepository  SlashVirtualAccountRepository
 	accountRepository         SlashAccountRepository
+	walletRepository          SlashWalletRepository
 }
 
 func NewSlashUIUsecase(injector *do.Injector) (*SlashUIUsecase, error) {
@@ -121,16 +124,34 @@ func NewSlashUIUsecase(injector *do.Injector) (*SlashUIUsecase, error) {
 		webhookConfigRepository:   do.MustInvoke[SlashWebhookConfigRepository](injector),
 		virtualAccountRepository:  do.MustInvoke[SlashVirtualAccountRepository](injector),
 		accountRepository:         do.MustInvoke[SlashAccountRepository](injector),
+		walletRepository:          do.MustInvoke[SlashWalletRepository](injector),
 	}, nil
 }
 
 type CreateAccountRequest struct{ Name string }
 
 func (u *SlashUIUsecase) CreateAccount(ctx context.Context, req *CreateAccountRequest) (*model.Account, error) {
-	item := &model.Account{Channel: enums.Channel_Slash, Name: req.Name}
-	if err := u.accountRepository.Create(ctx, item); err != nil {
-		zap.S().Errorw("create slash UI account", "error", err)
-		return nil, ErrDatabaseOperation
+	var item *model.Account
+	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		item = &model.Account{Channel: enums.Channel_Slash, Name: req.Name}
+		if err := u.accountRepository.Create(txCtx, item); err != nil {
+			zap.S().Errorw("create slash UI account", "error", err)
+			return ErrDatabaseOperation
+		}
+		wallet := &model.Wallet{AccountID: item.ID, Channel: enums.Channel_Slash, Type: enums.WalletType_Account, Currency: enums.Currency_USD}
+		if err := u.walletRepository.Create(txCtx, wallet); err != nil {
+			zap.S().Errorw("create slash UI account wallet", "error", err)
+			return ErrDatabaseOperation
+		}
+		item.WalletID = wallet.ID
+		if err := u.accountRepository.Save(txCtx, item); err != nil {
+			zap.S().Errorw("attach slash UI account wallet", "error", err)
+			return ErrDatabaseOperation
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return item, nil
 }

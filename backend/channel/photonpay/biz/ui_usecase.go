@@ -28,6 +28,7 @@ type PhotonPayUIUsecase struct {
 	webhookRecordRepo   WebhookRecordRepository
 	webhookClient       WebhookClient
 	accountRepo         AccountRepository
+	walletRepo          WalletRepository
 }
 
 func NewPhotonPayUIUsecase(injector *do.Injector) (*PhotonPayUIUsecase, error) {
@@ -42,16 +43,34 @@ func NewPhotonPayUIUsecase(injector *do.Injector) (*PhotonPayUIUsecase, error) {
 		webhookRecordRepo:   do.MustInvoke[WebhookRecordRepository](injector),
 		webhookClient:       do.MustInvoke[WebhookClient](injector),
 		accountRepo:         do.MustInvoke[AccountRepository](injector),
+		walletRepo:          do.MustInvoke[WalletRepository](injector),
 	}, nil
 }
 
 type UICreateAccountRequest struct{ Name string }
 
 func (u *PhotonPayUIUsecase) CreateAccount(ctx context.Context, req *UICreateAccountRequest) (*model.Account, error) {
-	item := &model.Account{Channel: enums.Channel_PhotonPay, Name: req.Name}
-	if err := u.accountRepo.Create(ctx, item); err != nil {
-		zap.S().Errorw("create photonpay UI account", "error", err)
-		return nil, ErrDatabaseOperation
+	var item *model.Account
+	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		item = &model.Account{Channel: enums.Channel_PhotonPay, Name: req.Name}
+		if err := u.accountRepo.Create(txCtx, item); err != nil {
+			zap.S().Errorw("create photonpay UI account", "error", err)
+			return ErrDatabaseOperation
+		}
+		wallet := &model.Wallet{AccountID: item.ID, Channel: enums.Channel_PhotonPay, Type: enums.WalletType_Account, Currency: enums.Currency_USD}
+		if err := u.walletRepo.Create(txCtx, wallet); err != nil {
+			zap.S().Errorw("create photonpay UI account wallet", "error", err)
+			return ErrDatabaseOperation
+		}
+		item.WalletID = wallet.ID
+		if err := u.accountRepo.Save(txCtx, item); err != nil {
+			zap.S().Errorw("attach photonpay UI account wallet", "error", err)
+			return ErrDatabaseOperation
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return item, nil
 }

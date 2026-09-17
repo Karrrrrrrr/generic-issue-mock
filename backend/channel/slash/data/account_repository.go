@@ -20,6 +20,10 @@ func (r *accountRepository) Create(ctx context.Context, item *model.Account) err
 	return r.repository.DB(ctx).Account.WithContext(ctx).Create(item)
 }
 
+func (r *accountRepository) Save(ctx context.Context, item *model.Account) error {
+	return r.repository.DB(ctx).Account.WithContext(ctx).Save(item)
+}
+
 func (r *accountRepository) List(ctx context.Context) ([]*model.Account, error) {
 	db := r.repository.DB(ctx)
 	return db.Account.WithContext(ctx).Where(

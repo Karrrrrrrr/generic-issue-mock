@@ -28,6 +28,10 @@ type AccountRepository interface {
 	Save(context.Context, *model.Account) error
 }
 
+type WalletRepository interface {
+	Create(context.Context, *model.Wallet) error
+}
+
 type CardHolderRepository interface {
 	Create(context.Context, *model.CardHolder) error
 	ExistCardHolderByID(context.Context, model.ID) (bool, error)

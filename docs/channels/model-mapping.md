@@ -48,6 +48,13 @@
 | 所有非 `Account` 业务表的 `AccountID` / `Channel` | 资源所属账户域和渠道；仓储操作与唯一索引必须包含两列 |
 | `Card.CardProductID` / `Card.CardBin` | 产品主键及开卡时从产品派生的 BIN 前缀 |
 | `Card.WalletID` | 卡余额钱包；共享卡可指向虚拟账户钱包 |
+
+## 资金流待实现
+
+- 创建账户必须在同一事务创建 `WalletType_Account` 的 USD 钱包，并将其 ID 回写到 `Account.WalletID`。
+- 账户余额调整是管理端的直接余额变更，可凭空增加或减少余额，不要求资金来源。
+- 普通卡和虚拟账户充值均从所属账户的钱包转出，并在同一事务锁定来源与目标钱包；来源余额不足时拒绝操作。
+- 充值不是直接修改目标余额：应同时更新两个钱包的 `Amount`、`In`/`Out`，并按已实现渠道的规则创建资金变动交易。
 | `Card.VirtualAccountID` | 非空表示共享余额卡；为空表示独立卡 |
 | `Card.RequestID` | 开卡请求的商户幂等键 |
 | `Card.LastOperation*` | 最近一次开卡/冻结/更新/销卡操作的幂等键、类型和结果 |

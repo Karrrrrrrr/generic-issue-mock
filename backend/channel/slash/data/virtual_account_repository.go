@@ -63,6 +63,9 @@ type walletRepository struct{ repository *SlashRepository }
 func NewWalletRepository(injector *do.Injector) (biz.SlashWalletRepository, error) {
 	return &walletRepository{repository: do.MustInvoke[*SlashRepository](injector)}, nil
 }
+func (r *walletRepository) Create(ctx context.Context, item *model.Wallet) error {
+	return r.repository.DB(ctx).Wallet.WithContext(ctx).Create(item)
+}
 func (r *walletRepository) FindByIDForUpdate(ctx context.Context, id model.ID) (*model.Wallet, error) {
 	db := r.repository.DB(ctx)
 	return db.Wallet.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).Where(db.Wallet.ID.Eq(id)).First()

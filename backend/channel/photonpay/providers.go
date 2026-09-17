@@ -17,6 +17,7 @@ func RegisterProviders(injector *do.Injector) {
 	do.Provide(injector, data.NewAuthorizationRepository)
 	do.Provide(injector, data.NewCardTransactionRepository)
 	do.Provide(injector, data.NewAccountRepository)
+	do.Provide(injector, data.NewWalletRepository)
 	do.Provide(injector, data.NewWebhookConfigRepository)
 	do.Provide(injector, data.NewWebhookRecordRepository)
 	do.Provide(injector, data.NewWebhookClient)
