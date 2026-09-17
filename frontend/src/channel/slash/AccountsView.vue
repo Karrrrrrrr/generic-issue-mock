@@ -91,15 +91,15 @@ const columns: DataTableColumns<Account> = [
     title: "操作",
     key: "actions",
     render: (row) =>
-      h(
-        NButton,
-        {
-          onClick: () => openEdit(row),
-        },
-        {
-          default: () => "改名",
-        },
-      ),
+        h(
+            NButton,
+            {
+              onClick: () => openEdit(row),
+            },
+            {
+              default: () => "改名",
+            },
+        ),
   },
 ];
 
@@ -115,29 +115,29 @@ onMounted(() => void load());
       <n-button type="primary" @click="openCreate">新增账户</n-button>
     </div>
     <n-data-table
-      :columns="columns"
-      :data="rows"
-      :loading="loading"
-      :bordered="false"
+        :columns="columns"
+        :data="rows"
+        :loading="loading"
+        :bordered="false"
     />
     <n-pagination
-      v-model:page="page"
-      :page-size="pageSize"
-      :item-count="total"
-      :page-sizes="[10, 20, 50]"
-      show-size-picker
-      @update:page="load"
-      @update:page-size="changePageSize"
+        v-model:page="page"
+        :page-size="pageSize"
+        :item-count="total"
+        :page-sizes="[10, 20, 50]"
+        show-size-picker
+        @update:page="load"
+        @update:page-size="changePageSize"
     />
     <n-modal
-      v-model:show="visible"
-      preset="card"
-      :title="editingID ? '账户改名' : '新增账户'"
-      style="width: min(440px, calc(100vw - 32px))"
+        v-model:show="visible"
+        preset="card"
+        :title="editingID ? '账户改名' : '新增账户'"
+        style="width: min(440px, calc(100vw - 32px))"
     >
       <n-form label-placement="top">
         <n-form-item label="名称">
-          <n-input v-model:value="name" />
+          <n-input v-model:value="name"/>
         </n-form-item>
       </n-form>
       <template #action>

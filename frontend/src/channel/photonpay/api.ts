@@ -1,10 +1,4 @@
-import type {
-  Card,
-  Cardholder,
-  ChannelAPI,
-  ListResponse,
-  Transaction,
-} from "@/channel/types";
+import type { Card, Cardholder, ChannelAPI, ListResponse, Transaction, } from "@/channel/types";
 import { authorizationPayload, request } from "@/channel/shared";
 
 const baseURL = "/photonpay/ui";
@@ -18,12 +12,12 @@ export interface Account {
 export const accountApi = {
   async list(pageNumber = 1, pageSize = 20) {
     return (
-      await request.get<ListResponse<Account>>(`${baseURL}/accounts`, {
-        params: {
-          page_number: pageNumber,
-          page_size: pageSize,
-        },
-      })
+        await request.get<ListResponse<Account>>(`${baseURL}/accounts`, {
+          params: {
+            page_number: pageNumber,
+            page_size: pageSize,
+          },
+        })
     ).data;
   },
   async create(payload: Pick<Account, "name">) {
@@ -82,12 +76,12 @@ export const webhookApi = {
 export const webhookRecordApi = {
   async list(pageNumber = 1, pageSize = 20) {
     return (
-      await request.get<ListResponse<WebhookRecord>>(`${baseURL}/webhook-records`, {
-        params: {
-          page_number: pageNumber,
-          page_size: pageSize,
-        },
-      })
+        await request.get<ListResponse<WebhookRecord>>(`${baseURL}/webhook-records`, {
+          params: {
+            page_number: pageNumber,
+            page_size: pageSize,
+          },
+        })
     ).data;
   },
   async replay(id: string) {

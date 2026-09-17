@@ -4,5 +4,5 @@ import { webhookRecordApi } from "./api";
 </script>
 
 <template>
-  <webhook-records-view :api="webhookRecordApi" />
+  <webhook-records-view :api="webhookRecordApi"/>
 </template>

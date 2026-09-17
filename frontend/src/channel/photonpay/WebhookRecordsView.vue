@@ -93,16 +93,16 @@ const columns: DataTableColumns<WebhookRecord> = [
     title: "状态",
     key: "status",
     render: (row) =>
-      h(
-        NTag,
-        {
-          type: statusType(row.status),
-          size: "small",
-        },
-        {
-          default: () => row.status,
-        },
-      ),
+        h(
+            NTag,
+            {
+              type: statusType(row.status),
+              size: "small",
+            },
+            {
+              default: () => row.status,
+            },
+        ),
   },
   {
     title: "HTTP",
@@ -123,24 +123,24 @@ const columns: DataTableColumns<WebhookRecord> = [
     title: "操作",
     key: "actions",
     render: (row) =>
-      h(
-        NSpace,
-        { size: 6 },
-        {
-          default: () => [
-            h(
-              NButton,
-              { size: "small", onClick: () => openDetail(row) },
-              { default: () => "详情" },
-            ),
-            h(
-              NButton,
-              { size: "small", type: "primary", onClick: () => replay(row) },
-              { default: () => "重放" },
-            ),
-          ],
-        },
-      ),
+        h(
+            NSpace,
+            { size: 6 },
+            {
+              default: () => [
+                h(
+                    NButton,
+                    { size: "small", onClick: () => openDetail(row) },
+                    { default: () => "详情" },
+                ),
+                h(
+                    NButton,
+                    { size: "small", type: "primary", onClick: () => replay(row) },
+                    { default: () => "重放" },
+                ),
+              ],
+            },
+        ),
   },
 ];
 
@@ -155,25 +155,25 @@ onMounted(() => void load());
       </div>
     </div>
     <n-data-table
-      :columns="columns"
-      :data="rows"
-      :loading="loading"
-      :bordered="false"
+        :columns="columns"
+        :data="rows"
+        :loading="loading"
+        :bordered="false"
     />
     <n-pagination
-      v-model:page="page"
-      :page-size="pageSize"
-      :item-count="total"
-      :page-sizes="[10, 20, 50]"
-      show-size-picker
-      @update:page="load"
-      @update:page-size="changePageSize"
+        v-model:page="page"
+        :page-size="pageSize"
+        :item-count="total"
+        :page-sizes="[10, 20, 50]"
+        show-size-picker
+        @update:page="load"
+        @update:page-size="changePageSize"
     />
     <n-modal
-      v-model:show="detailVisible"
-      preset="card"
-      title="投递详情"
-      style="width: min(900px, calc(100vw - 32px))"
+        v-model:show="detailVisible"
+        preset="card"
+        title="投递详情"
+        style="width: min(900px, calc(100vw - 32px))"
     >
       <n-descriptions v-if="selected" :column="2" label-placement="left">
         <n-descriptions-item label="事件">{{ selected.event }}</n-descriptions-item>
@@ -183,13 +183,13 @@ onMounted(() => void load());
       </n-descriptions>
       <n-space vertical :size="16">
         <div>报文</div>
-        <n-input :value="selected?.payload" type="textarea" readonly :autosize="{ minRows: 6, maxRows: 12 }" />
+        <n-input :value="selected?.payload" type="textarea" readonly :autosize="{ minRows: 6, maxRows: 12 }"/>
         <div>请求头</div>
-        <n-input :value="selected?.request_headers" type="textarea" readonly :autosize="{ minRows: 4, maxRows: 8 }" />
+        <n-input :value="selected?.request_headers" type="textarea" readonly :autosize="{ minRows: 4, maxRows: 8 }"/>
         <div>响应体</div>
-        <n-input :value="selected?.response_body" type="textarea" readonly :autosize="{ minRows: 4, maxRows: 8 }" />
+        <n-input :value="selected?.response_body" type="textarea" readonly :autosize="{ minRows: 4, maxRows: 8 }"/>
         <div>响应头</div>
-        <n-input :value="selected?.response_headers" type="textarea" readonly :autosize="{ minRows: 4, maxRows: 8 }" />
+        <n-input :value="selected?.response_headers" type="textarea" readonly :autosize="{ minRows: 4, maxRows: 8 }"/>
       </n-space>
     </n-modal>
   </section>
