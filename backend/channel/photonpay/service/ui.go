@@ -275,15 +275,17 @@ type UICreateCardRequest struct {
 }
 
 type UICardData struct {
-	ID           string            `json:"id"`
-	CardHolderID string            `json:"cardholder_id"`
-	CardNumber   string            `json:"card_number"`
-	CardBin      string            `json:"card_bin"`
-	CardCurrency string            `json:"card_currency"`
-	CardStatus   photon.CardStatus `json:"card_status"`
-	Cvv          string            `json:"cvv"`
-	ExpiresAt    time.Time         `json:"expires_at"`
-	CreatedAt    time.Time         `json:"created_at"`
+	ID            string            `json:"id"`
+	CardHolderID  string            `json:"cardholder_id"`
+	CardNumber    string            `json:"card_number"`
+	CardBin       string            `json:"card_bin"`
+	CardCurrency  string            `json:"card_currency"`
+	CardStatus    photon.CardStatus `json:"card_status"`
+	Cvv           string            `json:"cvv"`
+	ExpiresAt     time.Time         `json:"expires_at"`
+	CreatedAt     time.Time         `json:"created_at"`
+	FundingSource string            `json:"funding_source"`
+	Balance       string            `json:"balance"`
 }
 
 func (s *PhotonPayUIService) CreateCard(ctx context.Context, req *UICreateCardRequest) (*UICardData, error) {
@@ -334,6 +336,27 @@ func (s *PhotonPayUIService) ListAuthorizations(ctx context.Context, req *UIList
 type UIUpdateCardStatusRequest struct {
 	ID         string            `uri:"id" binding:"required"`
 	CardStatus photon.CardStatus `json:"card_status" binding:"required"`
+}
+
+type UIFundCardRequest struct {
+	ID     string  `uri:"id" binding:"required"`
+	Amount float64 `json:"amount" binding:"required,gt=0"`
+}
+
+func (s *PhotonPayUIService) FundCard(ctx context.Context, req *UIFundCardRequest) (*UICardData, error) {
+	id, err := photonPayID(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.FundCard(ctx, &biz.UIFundCardRequest{
+		CardID: id,
+		Amount: decimal.NewFromFloat(req.Amount),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return photonPayUICardData(item), nil
 }
 
 func (s *PhotonPayUIService) UpdateCardStatus(ctx context.Context, req *UIUpdateCardStatusRequest) (*UICardData, error) {
@@ -516,16 +539,27 @@ func photonPayUICardHolderData(item *model.CardHolder) *UICardHolderData {
 }
 
 func photonPayUICardData(item *model.Card) *UICardData {
+	balance := decimal.Zero
+	fundingSource := "卡资金"
+	if item.VirtualAccount != nil && item.VirtualAccount.Wallet != nil {
+		balance = item.VirtualAccount.Wallet.Amount
+		fundingSource = "虚拟账户共享资金"
+	} else if item.Wallet != nil {
+		balance = item.Wallet.Amount
+	}
+
 	return &UICardData{
-		ID:           photonPayIDString(item.ID),
-		CardHolderID: photonPayIDString(item.CardHolderID),
-		CardNumber:   item.CardNumber,
-		CardBin:      item.CardBin,
-		CardCurrency: string(item.CardCurrency),
-		CardStatus:   photon.CardStatusFromGeneric(item.Status),
-		Cvv:          item.Cvv,
-		ExpiresAt:    item.ExpireAt,
-		CreatedAt:    item.CreatedAt,
+		ID:            photonPayIDString(item.ID),
+		CardHolderID:  photonPayIDString(item.CardHolderID),
+		CardNumber:    item.CardNumber,
+		CardBin:       item.CardBin,
+		CardCurrency:  string(item.CardCurrency),
+		CardStatus:    photon.CardStatusFromGeneric(item.Status),
+		Cvv:           item.Cvv,
+		ExpiresAt:     item.ExpireAt,
+		CreatedAt:     item.CreatedAt,
+		FundingSource: fundingSource,
+		Balance:       balance.String(),
 	}
 }
 

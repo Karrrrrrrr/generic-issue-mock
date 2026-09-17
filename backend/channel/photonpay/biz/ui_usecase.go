@@ -375,6 +375,18 @@ func (u *PhotonPayUIUsecase) OpenCard(ctx context.Context, req *UIOpenCardReques
 
 			return ErrDatabaseOperation
 		}
+		wallet := &model.Wallet{
+			AccountID: req.AccountID,
+			Channel:   enums.Channel_PhotonPay,
+			Amount:    decimal.Zero,
+			Type:      enums.WalletType_Card,
+			Currency:  req.Currency,
+		}
+		if err := u.walletRepo.Create(txCtx, wallet); err != nil {
+			zap.S().Errorw("create photonpay UI card wallet", "error", err)
+
+			return ErrDatabaseOperation
+		}
 
 		card = &model.Card{
 			AccountID:              req.AccountID,
@@ -385,6 +397,7 @@ func (u *PhotonPayUIUsecase) OpenCard(ctx context.Context, req *UIOpenCardReques
 			Cvv:                    randomx.Digits(3),
 			ExpireAt:               time.Now().UTC().AddDate(0, 24, 0),
 			Status:                 enums.CardStatus_Active,
+			WalletID:               &wallet.ID,
 			CardHolderID:           req.CardHolderID,
 			FormType:               enums.CardFormType_Virtual,
 			RequestID:              req.RequestID,
@@ -400,6 +413,80 @@ func (u *PhotonPayUIUsecase) OpenCard(ctx context.Context, req *UIOpenCardReques
 
 			return ErrDatabaseOperation
 		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return card, nil
+}
+
+type UIFundCardRequest struct {
+	CardID model.ID
+	Amount decimal.Decimal
+}
+
+func (u *PhotonPayUIUsecase) FundCard(ctx context.Context, req *UIFundCardRequest) (*model.Card, error) {
+	if !req.Amount.IsPositive() {
+		return nil, ErrInvalidOperation
+	}
+
+	var card *model.Card
+	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		var err error
+		card, err = u.getCard(txCtx, req.CardID)
+		if err != nil {
+			return err
+		}
+		if card.WalletID == nil {
+			return ErrResourceNotFound
+		}
+
+		account, err := u.accountRepo.Find(txCtx, card.AccountID)
+		if err != nil {
+			zap.S().Errorw("find photonpay UI card account", "error", err)
+
+			return ErrDatabaseOperation
+		}
+		accountID := card.AccountID
+		source, err := u.walletRepo.FindByIDForUpdate(txCtx, &ResourceRequest{
+			AccountID: &accountID,
+			ID:        account.WalletID,
+		})
+		if err != nil {
+			zap.S().Errorw("lock photonpay UI account wallet", "error", err)
+
+			return ErrDatabaseOperation
+		}
+		target, err := u.walletRepo.FindByIDForUpdate(txCtx, &ResourceRequest{
+			AccountID: &accountID,
+			ID:        *card.WalletID,
+		})
+		if err != nil {
+			zap.S().Errorw("lock photonpay UI card wallet", "error", err)
+
+			return ErrDatabaseOperation
+		}
+		if source.Amount.LessThan(req.Amount) {
+			return ErrInvalidOperation
+		}
+		source.Amount = source.Amount.Sub(req.Amount)
+		source.Out = source.Out.Add(req.Amount)
+		target.Amount = target.Amount.Add(req.Amount)
+		target.In = target.In.Add(req.Amount)
+		if err := u.walletRepo.Save(txCtx, source); err != nil {
+			zap.S().Errorw("save photonpay UI account wallet", "error", err)
+
+			return ErrDatabaseOperation
+		}
+		if err := u.walletRepo.Save(txCtx, target); err != nil {
+			zap.S().Errorw("save photonpay UI card wallet", "error", err)
+
+			return ErrDatabaseOperation
+		}
+		card.Wallet = target
 
 		return nil
 	})
@@ -513,6 +600,22 @@ func (u *PhotonPayUIUsecase) SimulateAuthorization(ctx context.Context, req *UIS
 			return err
 		}
 		if card.Status != enums.CardStatus_Active {
+			return ErrInvalidOperation
+		}
+		if card.WalletID == nil {
+			return ErrResourceNotFound
+		}
+		accountID := card.AccountID
+		wallet, err := u.walletRepo.FindByIDForUpdate(txCtx, &ResourceRequest{
+			AccountID: &accountID,
+			ID:        *card.WalletID,
+		})
+		if err != nil {
+			zap.S().Errorw("lock photonpay UI authorization wallet", "error", err)
+
+			return ErrDatabaseOperation
+		}
+		if wallet.Amount.LessThan(req.Amount) {
 			return ErrInvalidOperation
 		}
 

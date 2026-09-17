@@ -18,6 +18,8 @@ export interface Card {
   cvv: string;
   expires_at: string;
   created_at: string;
+  funding_source: string;
+  balance: string;
 }
 
 export interface Transaction {

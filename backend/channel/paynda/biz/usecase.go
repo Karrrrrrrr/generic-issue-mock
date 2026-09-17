@@ -1424,6 +1424,20 @@ func (u *PayndaUIUsecase) SimulateAuthorization(
 		if card.Status != enums.CardStatus_Active {
 			return ErrInvalidOperation
 		}
+		if card.WalletID == nil {
+			return ErrResourceNotFound
+		}
+		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, &PayndaResourceRequest{
+			AccountID: card.AccountID,
+			ID:        *card.WalletID,
+		})
+		if err != nil {
+			zap.S().Errorw("lock paynda UI authorization wallet", "error", err)
+			return ErrDatabaseOperation
+		}
+		if wallet.Amount.LessThan(req.Amount) {
+			return ErrInvalidOperation
+		}
 
 		now := time.Now().UTC()
 		authorization := &model.Authorization{

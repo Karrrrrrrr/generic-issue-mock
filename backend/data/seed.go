@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	paynda "generic-mock/channel/paynda/enums"
 	photon "generic-mock/channel/photonpay/enums"
 	"generic-mock/enums"
 	"generic-mock/model"
@@ -19,6 +20,9 @@ const payndaDefaultCardProductPrefix = "523456"
 func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 	accounts, err := seedChannelAccounts(ctx, db)
 	if err != nil {
+		return err
+	}
+	if err := seedWebhookConfigs(ctx, db, accounts); err != nil {
 		return err
 	}
 	items := []*model.CardProduct{
@@ -93,6 +97,48 @@ func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 		}
 	} else if result.Error != nil {
 		return result.Error
+	}
+
+	return nil
+}
+
+func seedWebhookConfigs(
+	ctx context.Context,
+	db *gorm.DB,
+	accounts map[enums.Channel]*model.Account,
+) error {
+	for _, event := range photon.WebhookEvents() {
+		item := &model.WebhookConfig{
+			AccountID: accounts[enums.Channel_PhotonPay].ID,
+			Channel:   enums.Channel_PhotonPay,
+			Event:     string(event),
+			TargetURL: "http://127.0.0.1:18080/photonpay/webhooks/" + string(event),
+			Enabled:   true,
+		}
+		if err := db.WithContext(ctx).Where(&model.WebhookConfig{
+			AccountID: item.AccountID,
+			Channel:   item.Channel,
+			Event:     item.Event,
+		}).FirstOrCreate(item).Error; err != nil {
+			return err
+		}
+	}
+
+	for _, event := range paynda.WebhookEvents() {
+		item := &model.WebhookConfig{
+			AccountID: accounts[enums.Channel_Paynda].ID,
+			Channel:   enums.Channel_Paynda,
+			Event:     string(event),
+			TargetURL: "http://127.0.0.1:18080/paynda/webhooks/" + string(event),
+			Enabled:   true,
+		}
+		if err := db.WithContext(ctx).Where(&model.WebhookConfig{
+			AccountID: item.AccountID,
+			Channel:   item.Channel,
+			Event:     item.Event,
+		}).FirstOrCreate(item).Error; err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -256,19 +302,17 @@ func seedChannelCards(
 			CardScheme:             seed.cardScheme,
 			CardType:               enums.CardType_Single,
 		}
-		if seed.withWallet {
-			wallet := &model.Wallet{
-				AccountID: account.ID,
-				Channel:   seed.channel,
-				Amount:    decimal.NewFromInt(1_000),
-				Type:      enums.WalletType_Card,
-				Currency:  enums.Currency_USD,
-			}
-			if err := db.WithContext(ctx).Create(wallet).Error; err != nil {
-				return err
-			}
-			card.WalletID = &wallet.ID
+		wallet := &model.Wallet{
+			AccountID: account.ID,
+			Channel:   seed.channel,
+			Amount:    decimal.NewFromInt(1_000),
+			Type:      enums.WalletType_Card,
+			Currency:  enums.Currency_USD,
 		}
+		if err := db.WithContext(ctx).Create(wallet).Error; err != nil {
+			return err
+		}
+		card.WalletID = &wallet.ID
 		if err := db.WithContext(ctx).Create(card).Error; err != nil {
 			return err
 		}

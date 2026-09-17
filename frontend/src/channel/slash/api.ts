@@ -62,6 +62,7 @@ export interface VirtualAccount {
   id: string;
   name: string;
   currency: string;
+  funding_source: string;
   balance: string;
   spend: string;
   created_at: string;

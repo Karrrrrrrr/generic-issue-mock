@@ -30,6 +30,8 @@ type AccountRepository interface {
 
 type WalletRepository interface {
 	Create(context.Context, *model.Wallet) error
+	FindByIDForUpdate(context.Context, *ResourceRequest) (*model.Wallet, error)
+	Save(context.Context, *model.Wallet) error
 }
 
 type CardHolderRepository interface {

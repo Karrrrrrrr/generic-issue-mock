@@ -389,6 +389,11 @@ func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest)
 		if err := u.requireCardHolder(txCtx, req.CardHolderID); err != nil {
 			return err
 		}
+		holder, err := u.cardHolderRepository.FindByID(txCtx, req.CardHolderID)
+		if err != nil {
+			zap.S().Errorw("find slash card holder", "error", err)
+			return ErrDatabaseOperation
+		}
 
 		product, err := u.getCardProductForUpdate(txCtx, req.CardProductID)
 		if err != nil {
@@ -404,8 +409,20 @@ func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest)
 			zap.S().Errorw("advance slash card product sequence", "error", err)
 			return ErrDatabaseOperation
 		}
+		wallet := &model.Wallet{
+			AccountID: holder.AccountID,
+			Channel:   enums.Channel_Slash,
+			Amount:    decimal.Zero,
+			Type:      enums.WalletType_Card,
+			Currency:  req.Currency,
+		}
+		if err := u.walletRepository.Create(txCtx, wallet); err != nil {
+			zap.S().Errorw("create slash card wallet", "error", err)
+			return ErrDatabaseOperation
+		}
 
 		card = &model.Card{
+			AccountID:              holder.AccountID,
 			Channel:                enums.Channel_Slash,
 			CardProductID:          product.ID,
 			CardBin:                product.Prefix,
@@ -413,6 +430,7 @@ func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest)
 			Cvv:                    randomx.Digits(3),
 			ExpireAt:               time.Now().UTC().AddDate(2, 0, 0),
 			Status:                 enums.CardStatus_Active,
+			WalletID:               &wallet.ID,
 			CardHolderID:           req.CardHolderID,
 			FormType:               enums.CardFormType_Virtual,
 			CardCurrency:           req.Currency,
@@ -554,6 +572,26 @@ func (u *SlashUIUsecase) SimulateAuthorization(ctx context.Context, req *Simulat
 			return err
 		}
 		if card.Status != enums.CardStatus_Active {
+			return ErrInvalidOperation
+		}
+		walletID := card.WalletID
+		if card.VirtualAccountID != nil {
+			virtualAccount, err := u.virtualAccountRepository.FindByID(txCtx, *card.VirtualAccountID)
+			if err != nil {
+				zap.S().Errorw("find slash UI authorization virtual account", "error", err)
+				return ErrDatabaseOperation
+			}
+			walletID = &virtualAccount.WalletID
+		}
+		if walletID == nil {
+			return ErrResourceNotFound
+		}
+		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, *walletID)
+		if err != nil {
+			zap.S().Errorw("lock slash UI authorization wallet", "error", err)
+			return ErrDatabaseOperation
+		}
+		if wallet.Amount.LessThan(req.Amount) {
 			return ErrInvalidOperation
 		}
 		now := time.Now().UTC()

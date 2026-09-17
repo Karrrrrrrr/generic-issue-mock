@@ -269,15 +269,17 @@ type PayndaUICreateCardRequest struct {
 	CardCurrency common.Currency `json:"card_currency" binding:"required"`
 }
 type PayndaUICardData struct {
-	ID           string            `json:"id"`
-	CardHolderID string            `json:"cardholder_id"`
-	CardNumber   string            `json:"card_number"`
-	CardBin      string            `json:"card_bin"`
-	CardCurrency common.Currency   `json:"card_currency"`
-	CardStatus   paynda.CardStatus `json:"card_status"`
-	Cvv          string            `json:"cvv"`
-	ExpiresAt    time.Time         `json:"expires_at"`
-	CreatedAt    time.Time         `json:"created_at"`
+	ID            string            `json:"id"`
+	CardHolderID  string            `json:"cardholder_id"`
+	CardNumber    string            `json:"card_number"`
+	CardBin       string            `json:"card_bin"`
+	CardCurrency  common.Currency   `json:"card_currency"`
+	CardStatus    paynda.CardStatus `json:"card_status"`
+	Cvv           string            `json:"cvv"`
+	ExpiresAt     time.Time         `json:"expires_at"`
+	CreatedAt     time.Time         `json:"created_at"`
+	FundingSource string            `json:"funding_source"`
+	Balance       string            `json:"balance"`
 }
 type PayndaUIUpdateCardStatusRequest struct {
 	ID         string            `uri:"id" binding:"required"`
@@ -527,16 +529,27 @@ func payndaUICardHolderData(item *model.CardHolder) *PayndaUICardHolderData {
 	}
 }
 func payndaUICardData(item *model.Card) *PayndaUICardData {
+	balance := decimal.Zero
+	fundingSource := "卡资金"
+	if item.VirtualAccount != nil && item.VirtualAccount.Wallet != nil {
+		balance = item.VirtualAccount.Wallet.Amount
+		fundingSource = "虚拟账户共享资金"
+	} else if item.Wallet != nil {
+		balance = item.Wallet.Amount
+	}
+
 	return &PayndaUICardData{
-		ID:           payndaIDString(item.ID),
-		CardHolderID: payndaIDString(item.CardHolderID),
-		CardNumber:   item.CardNumber,
-		CardBin:      item.CardBin,
-		CardCurrency: item.CardCurrency,
-		CardStatus:   paynda.CardStatusFromGeneric(item.Status),
-		Cvv:          item.Cvv,
-		ExpiresAt:    item.ExpireAt,
-		CreatedAt:    item.CreatedAt,
+		ID:            payndaIDString(item.ID),
+		CardHolderID:  payndaIDString(item.CardHolderID),
+		CardNumber:    item.CardNumber,
+		CardBin:       item.CardBin,
+		CardCurrency:  item.CardCurrency,
+		CardStatus:    paynda.CardStatusFromGeneric(item.Status),
+		Cvv:           item.Cvv,
+		ExpiresAt:     item.ExpireAt,
+		CreatedAt:     item.CreatedAt,
+		FundingSource: fundingSource,
+		Balance:       balance.String(),
 	}
 }
 func payndaUIAuthorizationData(item *model.Authorization) *PayndaUIAuthorizationData {

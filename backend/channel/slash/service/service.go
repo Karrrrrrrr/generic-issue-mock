@@ -203,12 +203,13 @@ func (s *SlashUIService) ListCardProducts(ctx context.Context, _ *ListCardProduc
 }
 
 type VirtualAccountData struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Currency  string    `json:"currency"`
-	Balance   string    `json:"balance"`
-	Spend     string    `json:"spend"`
-	CreatedAt time.Time `json:"created_at"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Currency      string    `json:"currency"`
+	FundingSource string    `json:"funding_source"`
+	Balance       string    `json:"balance"`
+	Spend         string    `json:"spend"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 func (s *SlashUIService) ListVirtualAccounts(ctx context.Context, _ *struct{}) (*[]VirtualAccountData, error) {
@@ -219,8 +220,13 @@ func (s *SlashUIService) ListVirtualAccounts(ctx context.Context, _ *struct{}) (
 	result := make([]VirtualAccountData, 0, len(items))
 	for _, item := range items {
 		result = append(result, VirtualAccountData{
-			ID: slashIDString(item.ID), Name: item.Name, Currency: string(item.Wallet.Currency),
-			Balance: item.Wallet.Amount.String(), Spend: item.Wallet.Out.String(), CreatedAt: item.CreatedAt,
+			ID:            slashIDString(item.ID),
+			Name:          item.Name,
+			Currency:      string(item.Wallet.Currency),
+			FundingSource: "账户资金",
+			Balance:       item.Wallet.Amount.String(),
+			Spend:         item.Wallet.Out.String(),
+			CreatedAt:     item.CreatedAt,
 		})
 	}
 	return &result, nil
@@ -298,6 +304,8 @@ type CardData struct {
 	Cvv           string            `json:"cvv"`
 	CreatedAt     time.Time         `json:"created_at"`
 	UpdatedAt     time.Time         `json:"updated_at"`
+	FundingSource string            `json:"funding_source"`
+	Balance       string            `json:"balance"`
 }
 
 func (s *SlashUIService) CreateCard(ctx context.Context, req *CreateCardRequest) (*CardData, error) {
@@ -644,6 +652,15 @@ func slashAccountData(item *model.Account) *AccountData {
 }
 
 func cardData(item *model.Card) *CardData {
+	balance := decimal.Zero
+	fundingSource := "卡资金"
+	if item.VirtualAccount != nil && item.VirtualAccount.Wallet != nil {
+		balance = item.VirtualAccount.Wallet.Amount
+		fundingSource = "虚拟账户共享资金"
+	} else if item.Wallet != nil {
+		balance = item.Wallet.Amount
+	}
+
 	return &CardData{
 		ID:            slashIDString(item.ID),
 		CardHolderID:  slashIDString(item.CardHolderID),
@@ -660,6 +677,8 @@ func cardData(item *model.Card) *CardData {
 		Cvv:           item.Cvv,
 		CreatedAt:     item.CreatedAt,
 		UpdatedAt:     item.UpdatedAt,
+		FundingSource: fundingSource,
+		Balance:       balance.String(),
 	}
 }
 

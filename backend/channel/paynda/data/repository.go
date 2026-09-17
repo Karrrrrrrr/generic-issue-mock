@@ -269,7 +269,10 @@ func (r *cardRepository) FindByID(ctx context.Context, req *biz.PayndaResourceRe
 	if req.AccountID != 0 {
 		query = query.Where(db.Card.AccountID.Eq(req.AccountID))
 	}
-	return query.First()
+	return query.
+		Preload(db.Card.Wallet).
+		Preload(db.Card.VirtualAccount.Wallet).
+		First()
 }
 
 func (r *cardRepository) FindByRequestID(ctx context.Context, requestID string) (*model.Card, error) {
@@ -295,6 +298,8 @@ func (r *cardRepository) List(ctx context.Context, req *biz.PayndaListRequest) (
 		query = query.Where(db.Card.AccountID.Eq(req.AccountID))
 	}
 	return query.
+		Preload(db.Card.Wallet).
+		Preload(db.Card.VirtualAccount.Wallet).
 		Order(db.Card.ID.Desc()).
 		Offset(req.Offset).
 		Limit(req.Limit).

@@ -40,6 +40,8 @@ func (r *cardRepository) FindCardByID(ctx context.Context, id model.ID) (*model.
 	db := r.repository.DB(ctx)
 
 	return db.Card.WithContext(ctx).
+		Preload(db.Card.Wallet).
+		Preload(db.Card.VirtualAccount.Wallet).
 		Where(
 			db.Card.ID.Eq(id),
 			db.Card.Channel.Eq(string(enums.Channel_PhotonPay)),
@@ -154,6 +156,8 @@ func (r *cardRepository) ListCards(ctx context.Context, req *biz.ListRequest) ([
 		query = query.Where(db.Card.AccountID.Eq(req.AccountID))
 	}
 	return query.
+		Preload(db.Card.Wallet).
+		Preload(db.Card.VirtualAccount.Wallet).
 		Order(db.Card.ID.Desc()).
 		Offset(req.Offset).
 		Limit(req.Limit).

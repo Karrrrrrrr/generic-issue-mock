@@ -37,10 +37,13 @@ func (r *cardRepository) ExistByID(ctx context.Context, id model.ID) (bool, erro
 
 func (r *cardRepository) FindByID(ctx context.Context, id model.ID) (*model.Card, error) {
 	db := r.repository.DB(ctx)
-	return db.Card.WithContext(ctx).Where(
-		db.Card.ID.Eq(id),
-		db.Card.Channel.Eq(string(enums.Channel_Slash)),
-	).First()
+	return db.Card.WithContext(ctx).
+		Preload(db.Card.Wallet).
+		Preload(db.Card.VirtualAccount.Wallet).
+		Where(
+			db.Card.ID.Eq(id),
+			db.Card.Channel.Eq(string(enums.Channel_Slash)),
+		).First()
 }
 
 func (r *cardRepository) Count(ctx context.Context, req *biz.ListCardsRequest) (int64, error) {
@@ -50,7 +53,14 @@ func (r *cardRepository) Count(ctx context.Context, req *biz.ListCardsRequest) (
 
 func (r *cardRepository) List(ctx context.Context, req *biz.ListCardsRequest) ([]*model.Card, error) {
 	db := r.repository.DB(ctx)
-	return db.Card.WithContext(ctx).Where(cardPredicates(db, req)...).Order(db.Card.ID.Desc()).Offset(req.Offset).Limit(req.Limit).Find()
+	return db.Card.WithContext(ctx).
+		Preload(db.Card.Wallet).
+		Preload(db.Card.VirtualAccount.Wallet).
+		Where(cardPredicates(db, req)...).
+		Order(db.Card.ID.Desc()).
+		Offset(req.Offset).
+		Limit(req.Limit).
+		Find()
 }
 
 func (r *cardRepository) Save(ctx context.Context, item *model.Card) error {
@@ -79,7 +89,10 @@ func (r *cardRepository) FindByAccountID(ctx context.Context, req *biz.ResourceR
 	if req.AccountID != nil {
 		query = query.Where(db.Card.AccountID.Eq(*req.AccountID))
 	}
-	return query.First()
+	return query.
+		Preload(db.Card.Wallet).
+		Preload(db.Card.VirtualAccount.Wallet).
+		First()
 }
 
 func cardPredicates(db *query.Query, req *biz.ListCardsRequest) []gen.Condition {
