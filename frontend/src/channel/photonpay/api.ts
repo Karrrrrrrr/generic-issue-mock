@@ -29,6 +29,10 @@ export const accountApi = {
   },
 };
 
+export async function fundCard(id: string, amount: number) {
+  return (await request.post<Card>(`${baseURL}/cards/${id}/fund`, { amount })).data;
+}
+
 export interface Webhook {
   id: string;
   account_id: string;

@@ -20,6 +20,11 @@ func Bind[Req any, Resp any](
 ) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var request Req
+		if err := ctx.ShouldBindUri(&request); err != nil {
+			status, response := bindingErrorEncoder(err)
+			ctx.JSON(status, response)
+			return
+		}
 		if err := ctx.ShouldBind(&request); err != nil {
 			status, response := bindingErrorEncoder(err)
 			ctx.JSON(status, response)
