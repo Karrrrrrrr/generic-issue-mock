@@ -62,7 +62,7 @@ type AccountSingleData struct {
 	AccountType     photon.AccountType `json:"accountType"`
 	Currency        common.Currency    `json:"currency"`
 	RealTimeBalance float64            `json:"realTimeBalance"`
-	ReturnedAt      string             `json:"returnedAt"`
+	ReturnedAt      time.Time          `json:"returnedAt"`
 }
 
 func (s *PhotonPayOpenAPIService) AccountSingle(_ context.Context, req *AccountSingleRequest) (*AccountSingleData, error) {
@@ -80,7 +80,7 @@ func (s *PhotonPayOpenAPIService) AccountSingle(_ context.Context, req *AccountS
 		AccountType:     accountType,
 		Currency:        currency,
 		RealTimeBalance: biz.DefaultBalance().InexactFloat64(),
-		ReturnedAt:      time.Now().UTC().Format(time.RFC3339),
+		ReturnedAt:      time.Now().UTC(),
 	}, nil
 }
 
@@ -179,7 +179,7 @@ type ListCardHolderRequest struct {
 }
 type CardHolderListItem struct {
 	CardholderID           string                        `json:"cardholderId"`
-	CreatedAt              string                        `json:"createdAt"`
+	CreatedAt              time.Time                     `json:"createdAt"`
 	FirstName              string                        `json:"firstName"`
 	LastName               string                        `json:"lastName"`
 	Email                  string                        `json:"email"`
@@ -202,7 +202,7 @@ func (s *PhotonPayOpenAPIService) ListCardHolders(ctx context.Context, req *List
 	for _, holder := range holders {
 		items = append(items, CardHolderListItem{
 			CardholderID:           photonPayIDString(holder.ID),
-			CreatedAt:              holder.CreatedAt.UTC().Format(time.RFC3339),
+			CreatedAt:              holder.CreatedAt.UTC(),
 			FirstName:              holder.FirstName,
 			LastName:               holder.LastName,
 			Email:                  holder.Email,
@@ -283,7 +283,7 @@ type CardData struct {
 	CardFormFactor photon.CardFormFactor `json:"cardFormFactor"`
 	CardType       photon.CardType       `json:"cardType"`
 	CardholderID   string                `json:"cardholderId"`
-	CreatedAt      string                `json:"createdAt"`
+	CreatedAt      time.Time             `json:"createdAt"`
 	MaskCardNo     string                `json:"maskCardNo"`
 }
 type OpenCardData struct {
@@ -595,7 +595,7 @@ func cardData(card *model.Card) *CardData {
 		CardFormFactor: photon.CardFormFactorFromGeneric(card.FormType),
 		CardType:       photon.CardTypeFromGeneric(card.CardType),
 		CardholderID:   photonPayIDString(card.CardHolderID),
-		CreatedAt:      card.CreatedAt.UTC().Format(time.RFC3339),
+		CreatedAt:      card.CreatedAt.UTC(),
 		MaskCardNo:     maskCardNumber(card.CardNumber),
 	}
 }

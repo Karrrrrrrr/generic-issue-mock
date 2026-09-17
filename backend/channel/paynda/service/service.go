@@ -40,20 +40,20 @@ type PayndaCardHolderRequest struct {
 	UnlimitedBalance    bool   `json:"unlimitedBalance"` // Invalid: generic mock does not model channel wallet limits.
 }
 type PayndaCardholderData struct {
-	ID                  string `json:"id"`
-	CreateTime          string `json:"createTime"`
-	UpdateTime          string `json:"updateTime"`
-	BalanceAccountID    string `json:"balanceAccountId"`
-	FirstName           string `json:"firstName"`
-	LastName            string `json:"lastName"`
-	MobilePrefix        string `json:"mobilePrefix"`
-	Mobile              string `json:"mobile"`
-	Email               string `json:"email"`
-	BillingAddressLine1 string `json:"billingAddressLine1"`
-	BillingCity         string `json:"billingCity"`
-	BillingCountryCode  string `json:"billingCountryCode"`
-	BillingPostalCode   string `json:"billingPostalCode"`
-	BillingState        string `json:"billingState"`
+	ID                  string    `json:"id"`
+	CreateTime          time.Time `json:"createTime"`
+	UpdateTime          time.Time `json:"updateTime"`
+	BalanceAccountID    string    `json:"balanceAccountId"`
+	FirstName           string    `json:"firstName"`
+	LastName            string    `json:"lastName"`
+	MobilePrefix        string    `json:"mobilePrefix"`
+	Mobile              string    `json:"mobile"`
+	Email               string    `json:"email"`
+	BillingAddressLine1 string    `json:"billingAddressLine1"`
+	BillingCity         string    `json:"billingCity"`
+	BillingCountryCode  string    `json:"billingCountryCode"`
+	BillingPostalCode   string    `json:"billingPostalCode"`
+	BillingState        string    `json:"billingState"`
 }
 
 func (s *PayndaOpenAPIService) CreateCardHolder(ctx context.Context, req *PayndaCardHolderRequest) (*PayndaCardholderData, error) {
@@ -344,13 +344,13 @@ func (s *PayndaOpenAPIService) GetCardBalance(
 }
 
 type PayndaBalanceAccountWalletData struct {
-	ID               string `json:"id"`
-	CreateTime       string `json:"createTime"`
-	UpdateTime       string `json:"updateTime"`
-	BalanceAccountID string `json:"balanceAccountId"`
-	Currency         string `json:"currency"`
-	Amount           string `json:"amount"`
-	FrozenAmount     string `json:"frozenAmount"`
+	ID               string          `json:"id"`
+	CreateTime       time.Time       `json:"createTime"`
+	UpdateTime       time.Time       `json:"updateTime"`
+	BalanceAccountID string          `json:"balanceAccountId"`
+	Currency         common.Currency `json:"currency"`
+	Amount           string          `json:"amount"`
+	FrozenAmount     string          `json:"frozenAmount"`
 }
 
 func (s *PayndaOpenAPIService) ListBalanceAccountWallets(
@@ -370,12 +370,12 @@ func (s *PayndaOpenAPIService) ListBalanceAccountWallets(
 }
 
 type PayndaMerchantWalletData struct {
-	ID         string `json:"id"`
-	CreateTime string `json:"createTime"`
-	UpdateTime string `json:"updateTime"`
-	Name       string `json:"name"`
-	Currency   string `json:"currency"`
-	Amount     string `json:"amount"`
+	ID         string          `json:"id"`
+	CreateTime time.Time       `json:"createTime"`
+	UpdateTime time.Time       `json:"updateTime"`
+	Name       string          `json:"name"`
+	Currency   common.Currency `json:"currency"`
+	Amount     string          `json:"amount"`
 }
 
 type PayndaMerchantWalletsRequest struct {
@@ -395,10 +395,10 @@ func (s *PayndaOpenAPIService) ListMerchantWallets(
 	result := []*PayndaMerchantWalletData{
 		{
 			ID:         payndaIDString(accountWallet.Wallet.ID),
-			CreateTime: accountWallet.Wallet.CreatedAt.Format(time.RFC3339),
-			UpdateTime: accountWallet.Wallet.UpdatedAt.Format(time.RFC3339),
+			CreateTime: accountWallet.Wallet.CreatedAt.UTC(),
+			UpdateTime: accountWallet.Wallet.UpdatedAt.UTC(),
 			Name:       accountWallet.Account.Name,
-			Currency:   string(accountWallet.Wallet.Currency),
+			Currency:   accountWallet.Wallet.Currency,
 			Amount:     accountWallet.Wallet.Amount.String(),
 		},
 	}
@@ -407,28 +407,28 @@ func (s *PayndaOpenAPIService) ListMerchantWallets(
 }
 
 type PayndaBalanceAccountWalletTransferRequest struct {
-	RequestID        string `header:"requestId" binding:"required"`
-	BalanceAccountID string `json:"balanceAccountId"` // Invalid: the path-independent mock account is resolved internally.
-	Type             string `json:"type" binding:"required"`
-	Currency         string `json:"currency" binding:"required"`
-	Amount           string `json:"amount" binding:"required"`
+	RequestID        string              `header:"requestId" binding:"required"`
+	BalanceAccountID string              `json:"balanceAccountId"` // Invalid: the path-independent mock account is resolved internally.
+	Type             paynda.TransferType `json:"type" binding:"required"`
+	Currency         common.Currency     `json:"currency" binding:"required"`
+	Amount           string              `json:"amount" binding:"required"`
 }
 
 type PayndaBalanceAccountWalletTransferData struct {
-	ID               string `json:"id"`
-	CreateTime       string `json:"createTime"`
-	UpdateTime       string `json:"updateTime"`
-	BalanceAccountID string `json:"balanceAccountId"`
-	Type             string `json:"type"`
-	Currency         string `json:"currency"`
-	Amount           string `json:"amount"`
+	ID               string              `json:"id"`
+	CreateTime       time.Time           `json:"createTime"`
+	UpdateTime       time.Time           `json:"updateTime"`
+	BalanceAccountID string              `json:"balanceAccountId"`
+	Type             paynda.TransferType `json:"type"`
+	Currency         common.Currency     `json:"currency"`
+	Amount           string              `json:"amount"`
 }
 
 func (s *PayndaOpenAPIService) TransferBalanceAccountWallet(
 	ctx context.Context,
 	req *PayndaBalanceAccountWalletTransferRequest,
 ) (*PayndaBalanceAccountWalletTransferData, error) {
-	if req.Type != string(paynda.TransferType_In) || req.Currency != string(common.Currency_USD) {
+	if req.Type != paynda.TransferType_In || req.Currency != common.Currency_USD {
 		return nil, biz.ErrInvalidOperation
 	}
 	amount, err := decimal.NewFromString(req.Amount)
@@ -444,8 +444,8 @@ func (s *PayndaOpenAPIService) TransferBalanceAccountWallet(
 
 	return &PayndaBalanceAccountWalletTransferData{
 		ID:               payndaIDString(accountWallet.Wallet.ID),
-		CreateTime:       accountWallet.Wallet.CreatedAt.Format(time.RFC3339),
-		UpdateTime:       accountWallet.Wallet.UpdatedAt.Format(time.RFC3339),
+		CreateTime:       accountWallet.Wallet.CreatedAt.UTC(),
+		UpdateTime:       accountWallet.Wallet.UpdatedAt.UTC(),
 		BalanceAccountID: payndaIDString(accountWallet.Account.ID),
 		Type:             req.Type,
 		Currency:         req.Currency,
@@ -457,11 +457,11 @@ type PayndaRequestResultRequest struct {
 	RequestID string `form:"requestId" binding:"required"`
 }
 type PayndaRequestResultData struct {
-	ID         string `json:"id"`
-	CreateTime string `json:"createTime"`
-	UpdateTime string `json:"updateTime"`
-	RequestID  string `json:"requestId"`
-	Result     string `json:"result"`
+	ID         string    `json:"id"`
+	CreateTime time.Time `json:"createTime"`
+	UpdateTime time.Time `json:"updateTime"`
+	RequestID  string    `json:"requestId"`
+	Result     string    `json:"result"`
 }
 
 func (s *PayndaOpenAPIService) RequestResult(ctx context.Context, req *PayndaRequestResultRequest) (*PayndaRequestResultData, error) {
@@ -503,8 +503,8 @@ func (s *PayndaOpenAPIService) RequestResult(ctx context.Context, req *PayndaReq
 	}
 	return &PayndaRequestResultData{
 		ID:         id,
-		CreateTime: createdAt.Format(time.RFC3339),
-		UpdateTime: updatedAt.Format(time.RFC3339),
+		CreateTime: createdAt.UTC(),
+		UpdateTime: updatedAt.UTC(),
 		RequestID:  req.RequestID,
 		Result:     string(raw),
 	}, nil
@@ -555,19 +555,19 @@ func (s *PayndaOpenAPIService) ReleaseCard(ctx context.Context, req *PayndaCardS
 }
 
 type PayndaCardBalanceTransferRequest struct {
-	BalanceAccountID string `uri:"balanceAccountId"`
-	RequestID        string `header:"requestId" binding:"required"`
-	CardID           string `json:"cardId" binding:"required"`
-	Amount           string `json:"amount" binding:"required"`
-	Type             string `json:"type" binding:"required"`
+	BalanceAccountID string              `uri:"balanceAccountId"`
+	RequestID        string              `header:"requestId" binding:"required"`
+	CardID           string              `json:"cardId" binding:"required"`
+	Amount           string              `json:"amount" binding:"required"`
+	Type             paynda.TransferType `json:"type" binding:"required"`
 }
 
 type PayndaCardBalanceTransferData struct {
-	CardID    string `json:"cardId"`
-	NewAmount string `json:"newAmount"`
-	OldAmount string `json:"oldAmount"`
-	Amount    string `json:"amount"`
-	Type      string `json:"type"`
+	CardID    string              `json:"cardId"`
+	NewAmount string              `json:"newAmount"`
+	OldAmount string              `json:"oldAmount"`
+	Amount    string              `json:"amount"`
+	Type      paynda.TransferType `json:"type"`
 }
 
 func (s *PayndaOpenAPIService) TransferCardBalance(
@@ -582,15 +582,14 @@ func (s *PayndaOpenAPIService) TransferCardBalance(
 	if err != nil || !amount.IsPositive() {
 		return nil, biz.ErrInvalidOperation
 	}
-	transferType, ok := paynda.TransferTypeFromString(req.Type)
-	if !ok {
+	if req.Type != paynda.TransferType_In && req.Type != paynda.TransferType_Out {
 		return nil, biz.ErrInvalidOperation
 	}
 	transaction, err := s.usecase.TransferCardBalance(ctx, &biz.PayndaTransferRequest{
 		CardID:    cardID,
 		RequestID: req.RequestID,
 		Amount:    amount,
-		Type:      transferType,
+		Type:      req.Type,
 	})
 	if err != nil {
 		return nil, err
@@ -600,12 +599,12 @@ func (s *PayndaOpenAPIService) TransferCardBalance(
 }
 
 type PayndaCardBalanceUpdateHistoryData struct {
-	ID         string `json:"id"`
-	CreateTime string `json:"createTime"`
-	UpdateTime string `json:"updateTime"`
-	CardID     string `json:"cardId"`
-	NewAmount  string `json:"newAmount"`
-	OldAmount  string `json:"oldAmount"`
+	ID         string    `json:"id"`
+	CreateTime time.Time `json:"createTime"`
+	UpdateTime time.Time `json:"updateTime"`
+	CardID     string    `json:"cardId"`
+	NewAmount  string    `json:"newAmount"`
+	OldAmount  string    `json:"oldAmount"`
 }
 
 func (s *PayndaOpenAPIService) ListCardBalanceUpdates(
@@ -635,8 +634,8 @@ func (s *PayndaOpenAPIService) ListCardBalanceUpdates(
 		}
 		records = append(records, &PayndaCardBalanceUpdateHistoryData{
 			ID:         payndaIDString(item.ID),
-			CreateTime: item.CreatedAt.Format(time.RFC3339),
-			UpdateTime: item.UpdatedAt.Format(time.RFC3339),
+			CreateTime: item.CreatedAt.UTC(),
+			UpdateTime: item.UpdatedAt.UTC(),
 			CardID:     payndaIDString(item.CardID),
 			NewAmount:  newAmount.String(),
 			OldAmount:  oldAmount.String(),
@@ -658,15 +657,15 @@ type PayndaTransactionsRequest struct {
 
 type PayndaTransactionData struct {
 	ID                string                 `json:"id"`
-	CreateTime        string                 `json:"createTime"`
-	UpdateTime        string                 `json:"updateTime"`
+	CreateTime        time.Time              `json:"createTime"`
+	UpdateTime        time.Time              `json:"updateTime"`
 	CardID            string                 `json:"cardId"`
 	MaskCardNo        string                 `json:"maskCardNo"`
 	Type              paynda.TransactionType `json:"type"`
 	ApprovalCode      string                 `json:"approvalCode"`
 	PreAuthAmount     string                 `json:"preAuthAmount"`
 	PostedAmount      string                 `json:"postedAmount"`
-	Currency          string                 `json:"currency"`
+	Currency          common.Currency        `json:"currency"`
 	TransactionTime   string                 `json:"transactionTime"`
 	AuthorizationTime string                 `json:"authorizationTime"`
 	MerchantMcc       string                 `json:"merchantMcc"`
@@ -763,8 +762,8 @@ type PayndaCardDetail struct {
 }
 type PayndaCardData struct {
 	ID               string            `json:"id"`
-	CreateTime       string            `json:"createTime"`
-	UpdateTime       string            `json:"updateTime"`
+	CreateTime       time.Time         `json:"createTime"`
+	UpdateTime       time.Time         `json:"updateTime"`
 	BalanceAccountID string            `json:"balanceAccountId"`
 	CardholderID     string            `json:"cardholderId"`
 	Status           paynda.CardStatus `json:"status"`
@@ -777,29 +776,29 @@ type PayndaCardData struct {
 	Amount           string            `json:"amount"`
 }
 type PayndaCardSensitiveData struct {
-	ID             string `json:"id"`
-	CreateTime     string `json:"createTime"`
-	UpdateTime     string `json:"updateTime"`
-	CardID         string `json:"cardId"`
-	CVV            string `json:"cvv"`
-	ExpirationDate string `json:"expirationDate"`
-	CardNo         string `json:"cardNo"`
+	ID             string    `json:"id"`
+	CreateTime     time.Time `json:"createTime"`
+	UpdateTime     time.Time `json:"updateTime"`
+	CardID         string    `json:"cardId"`
+	CVV            string    `json:"cvv"`
+	ExpirationDate string    `json:"expirationDate"`
+	CardNo         string    `json:"cardNo"`
 }
 type PayndaCardBalanceData struct {
-	ID              string `json:"id"`
-	CreateTime      string `json:"createTime"`
-	UpdateTime      string `json:"updateTime"`
-	AmountUsed      string `json:"amountUsed"`
-	AmountFrozen    string `json:"amountFrozen"`
-	AvailableAmount string `json:"availableAmount"`
-	Amount          string `json:"amount"`
+	ID              string    `json:"id"`
+	CreateTime      time.Time `json:"createTime"`
+	UpdateTime      time.Time `json:"updateTime"`
+	AmountUsed      string    `json:"amountUsed"`
+	AmountFrozen    string    `json:"amountFrozen"`
+	AvailableAmount string    `json:"availableAmount"`
+	Amount          string    `json:"amount"`
 }
 
 func payndaCardholderData(item *model.CardHolder, balanceAccountID string) *PayndaCardholderData {
 	return &PayndaCardholderData{
 		ID:                  payndaIDString(item.ID),
-		CreateTime:          item.CreatedAt.Format(time.RFC3339),
-		UpdateTime:          item.UpdatedAt.Format(time.RFC3339),
+		CreateTime:          item.CreatedAt.UTC(),
+		UpdateTime:          item.UpdatedAt.UTC(),
 		BalanceAccountID:    balanceAccountID,
 		FirstName:           item.FirstName,
 		LastName:            item.LastName,
@@ -820,8 +819,8 @@ func payndaCardDetail(item *model.Card, balanceAccountID string) *PayndaCardDeta
 		CardSensitive: payndaCardSensitiveData(item),
 		CardBalance: &PayndaCardBalanceData{
 			ID:              payndaIDString(item.ID),
-			CreateTime:      item.CreatedAt.Format(time.RFC3339),
-			UpdateTime:      item.UpdatedAt.Format(time.RFC3339),
+			CreateTime:      item.CreatedAt.UTC(),
+			UpdateTime:      item.UpdatedAt.UTC(),
 			AvailableAmount: decimal.Zero.String(),
 			Amount:          decimal.Zero.String(),
 			AmountUsed:      decimal.Zero.String(),
@@ -833,8 +832,8 @@ func payndaCardDetail(item *model.Card, balanceAccountID string) *PayndaCardDeta
 func payndaCardData(item *model.Card, balanceAccountID string) *PayndaCardData {
 	return &PayndaCardData{
 		ID:               payndaIDString(item.ID),
-		CreateTime:       item.CreatedAt.Format(time.RFC3339),
-		UpdateTime:       item.UpdatedAt.Format(time.RFC3339),
+		CreateTime:       item.CreatedAt.UTC(),
+		UpdateTime:       item.UpdatedAt.UTC(),
 		BalanceAccountID: balanceAccountID,
 		CardholderID:     payndaIDString(item.CardHolderID),
 		Status:           paynda.CardStatusFromGeneric(item.Status),
@@ -851,8 +850,8 @@ func payndaCardData(item *model.Card, balanceAccountID string) *PayndaCardData {
 func payndaCardSensitiveData(item *model.Card) *PayndaCardSensitiveData {
 	return &PayndaCardSensitiveData{
 		ID:             payndaIDString(item.ID),
-		CreateTime:     item.CreatedAt.Format(time.RFC3339),
-		UpdateTime:     item.UpdatedAt.Format(time.RFC3339),
+		CreateTime:     item.CreatedAt.UTC(),
+		UpdateTime:     item.UpdatedAt.UTC(),
 		CardID:         payndaIDString(item.ID),
 		CVV:            item.Cvv,
 		ExpirationDate: item.ExpireAt.Format("01/06"),
@@ -863,8 +862,8 @@ func payndaCardSensitiveData(item *model.Card) *PayndaCardSensitiveData {
 func payndaCardBalanceData(item *model.Wallet) *PayndaCardBalanceData {
 	return &PayndaCardBalanceData{
 		ID:              payndaIDString(item.ID),
-		CreateTime:      item.CreatedAt.Format(time.RFC3339),
-		UpdateTime:      item.UpdatedAt.Format(time.RFC3339),
+		CreateTime:      item.CreatedAt.UTC(),
+		UpdateTime:      item.UpdatedAt.UTC(),
 		AmountUsed:      decimal.Zero.String(),
 		AmountFrozen:    item.PendingOut.String(),
 		AvailableAmount: item.Amount.String(),
@@ -878,10 +877,10 @@ func payndaBalanceAccountWalletData(
 ) *PayndaBalanceAccountWalletData {
 	return &PayndaBalanceAccountWalletData{
 		ID:               payndaIDString(item.Wallet.ID),
-		CreateTime:       item.Wallet.CreatedAt.Format(time.RFC3339),
-		UpdateTime:       item.Wallet.UpdatedAt.Format(time.RFC3339),
+		CreateTime:       item.Wallet.CreatedAt.UTC(),
+		UpdateTime:       item.Wallet.UpdatedAt.UTC(),
 		BalanceAccountID: balanceAccountID,
-		Currency:         string(item.Wallet.Currency),
+		Currency:         item.Wallet.Currency,
 		Amount:           item.Wallet.Amount.String(),
 		FrozenAmount:     item.Wallet.PendingOut.String(),
 	}
@@ -906,7 +905,7 @@ func payndaCardBalanceTransferData(item *model.CardTransaction) *PayndaCardBalan
 		NewAmount: newAmount.String(),
 		OldAmount: oldAmount.String(),
 		Amount:    item.TxAmount.String(),
-		Type:      string(transferType),
+		Type:      transferType,
 	}
 }
 
@@ -914,14 +913,14 @@ func payndaTransactionData(item *model.CardTransaction) *PayndaTransactionData {
 	transactionTime := item.OccurredAt.Format(time.DateTime)
 	return &PayndaTransactionData{
 		ID:                payndaIDString(item.ID),
-		CreateTime:        item.CreatedAt.Format(time.RFC3339),
-		UpdateTime:        item.UpdatedAt.Format(time.RFC3339),
+		CreateTime:        item.CreatedAt.UTC(),
+		UpdateTime:        item.UpdatedAt.UTC(),
 		CardID:            payndaIDString(item.CardID),
 		Type:              paynda.TransactionTypeFromGeneric(item.Type),
 		ApprovalCode:      item.AuthorizationCode,
 		PreAuthAmount:     item.TxAmount.String(),
 		PostedAmount:      item.TxAmount.String(),
-		Currency:          string(item.Currency),
+		Currency:          item.Currency,
 		TransactionTime:   transactionTime,
 		AuthorizationTime: transactionTime,
 		MerchantMcc:       item.MerchantMCC,

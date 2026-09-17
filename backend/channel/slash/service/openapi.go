@@ -252,7 +252,7 @@ func (s *SlashOpenAPIService) ListCardProducts(ctx context.Context, _ *OpenAPILi
 
 type OpenAPITransaction struct {
 	ID                      string                  `json:"id"`
-	Date                    string                  `json:"date"`
+	Date                    time.Time               `json:"date"`
 	Description             string                  `json:"description"`
 	MerchantDescription     string                  `json:"merchantDescription"`
 	AmountCents             int                     `json:"amountCents"`
@@ -261,7 +261,7 @@ type OpenAPITransaction struct {
 	AccountID               string                  `json:"accountId"`
 	VirtualAccountID        string                  `json:"virtualAccountId"`
 	CardID                  string                  `json:"cardId"`
-	AuthorizedAt            string                  `json:"authorizedAt"`
+	AuthorizedAt            time.Time               `json:"authorizedAt"`
 	ProviderAuthorizationID string                  `json:"providerAuthorizationId"`
 }
 
@@ -336,14 +336,14 @@ func openAPICard(item *model.Card) *OpenAPICard {
 func openAPITransaction(item *model.CardTransaction) *OpenAPITransaction {
 	return &OpenAPITransaction{
 		ID:                      slashIDString(item.ID),
-		Date:                    item.OccurredAt.UTC().Format(time.RFC3339),
+		Date:                    item.OccurredAt.UTC(),
 		Description:             item.MerchantName,
 		MerchantDescription:     item.MerchantName,
 		AmountCents:             int(item.TxAmount.Mul(decimal.NewFromInt(100)).IntPart()),
 		Status:                  slash.TransactionStatusFromGeneric(item.Status),
 		DetailedStatus:          slash.TransactionStatusFromGeneric(item.Status),
 		CardID:                  slashIDString(item.CardID),
-		AuthorizedAt:            item.OccurredAt.UTC().Format(time.RFC3339),
+		AuthorizedAt:            item.OccurredAt.UTC(),
 		ProviderAuthorizationID: slashIDString(item.AuthorizationID),
 	}
 }
