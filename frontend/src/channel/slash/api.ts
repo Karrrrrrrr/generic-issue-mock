@@ -6,6 +6,7 @@ const baseURL = "/slash/ui";
 export interface Account {
   id: string;
   name: string;
+  balance: string;
   created_at: string;
 }
 

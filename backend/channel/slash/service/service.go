@@ -48,6 +48,7 @@ type ListRequest struct {
 type AccountData struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
+	Balance   string    `json:"balance"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -769,9 +770,14 @@ func webhookData(item *model.WebhookConfig) *WebhookData {
 }
 
 func slashAccountData(item *model.Account) *AccountData {
+	balance := decimal.Zero
+	if item.Wallet != nil {
+		balance = item.Wallet.Amount
+	}
 	return &AccountData{
 		ID:        slashIDString(item.ID),
 		Name:      item.Name,
+		Balance:   balance.String(),
 		CreatedAt: item.CreatedAt,
 	}
 }

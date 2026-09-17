@@ -57,9 +57,13 @@ func (r *accountRepository) List(
 ) ([]*model.Account, error) {
 	db := r.repository.DB(ctx)
 
-	return db.Account.WithContext(ctx).Where(
-		db.Account.Channel.Eq(string(enums.Channel_Slash)),
-	).Order(db.Account.ID.Desc()).Offset(req.Offset).Limit(req.Limit).Find()
+	return db.Account.WithContext(ctx).
+		Where(db.Account.Channel.Eq(string(enums.Channel_Slash))).
+		Preload(db.Account.Wallet).
+		Order(db.Account.ID.Desc()).
+		Offset(req.Offset).
+		Limit(req.Limit).
+		Find()
 }
 
 var _ biz.SlashAccountRepository = (*accountRepository)(nil)

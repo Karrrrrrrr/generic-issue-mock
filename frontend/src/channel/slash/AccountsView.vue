@@ -83,6 +83,10 @@ const columns: DataTableColumns<Account> = [
     key: "id",
   },
   {
+    title: "余额",
+    key: "balance",
+  },
+  {
     title: "创建时间",
     key: "created_at",
     render: (row) => h("span", new Date(row.created_at).toLocaleString()),

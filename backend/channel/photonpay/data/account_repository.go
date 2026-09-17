@@ -41,7 +41,13 @@ func (r *accountRepository) Count(ctx context.Context) (int64, error) {
 
 func (r *accountRepository) List(ctx context.Context, req *biz.ListRequest) ([]*model.Account, error) {
 	db := r.repository.DB(ctx)
-	return db.Account.WithContext(ctx).Where(db.Account.Channel.Eq(string(enums.Channel_PhotonPay))).Order(db.Account.ID.Desc()).Offset(req.Offset).Limit(req.Limit).Find()
+	return db.Account.WithContext(ctx).
+		Where(db.Account.Channel.Eq(string(enums.Channel_PhotonPay))).
+		Preload(db.Account.Wallet).
+		Order(db.Account.ID.Desc()).
+		Offset(req.Offset).
+		Limit(req.Limit).
+		Find()
 }
 
 func (r *accountRepository) Save(ctx context.Context, item *model.Account) error {

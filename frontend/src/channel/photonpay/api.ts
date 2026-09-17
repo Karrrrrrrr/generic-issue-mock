@@ -6,6 +6,7 @@ const baseURL = "/photonpay/ui";
 export interface Account {
   id: string;
   name: string;
+  balance: string;
   created_at: string;
 }
 

@@ -54,10 +54,25 @@ function changePageSize(value: number) {
   void load();
 }
 
-const columns: DataTableColumns<Account> = [{ title: "名称", key: "name" }, {
-  title: "账户 ID",
-  key: "id"
-}, { title: "创建时间", key: "created_at", render: (row) => h("span", new Date(row.created_at).toLocaleString()) }];
+const columns: DataTableColumns<Account> = [
+  {
+    title: "名称",
+    key: "name",
+  },
+  {
+    title: "账户 ID",
+    key: "id",
+  },
+  {
+    title: "余额",
+    key: "balance",
+  },
+  {
+    title: "创建时间",
+    key: "created_at",
+    render: (row) => h("span", new Date(row.created_at).toLocaleString()),
+  },
+];
 onMounted(() => void load());
 </script>
 <template>

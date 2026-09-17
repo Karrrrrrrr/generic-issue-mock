@@ -27,6 +27,7 @@ type UIListResponse[T any] struct {
 type UIAccountData struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
+	Balance   string    `json:"balance"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -744,9 +745,14 @@ func photonPayUIWebhookRecordData(item *model.WebhookRecord) *UIWebhookRecordDat
 }
 
 func photonPayUIAccountData(item *model.Account) *UIAccountData {
+	balance := decimal.Zero
+	if item.Wallet != nil {
+		balance = item.Wallet.Amount
+	}
 	return &UIAccountData{
 		ID:        photonPayIDString(item.ID),
 		Name:      item.Name,
+		Balance:   balance.String(),
 		CreatedAt: item.CreatedAt,
 	}
 }
