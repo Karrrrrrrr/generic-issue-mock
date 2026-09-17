@@ -27,9 +27,8 @@ func NewPhotonPayOpenAPIService(injector *do.Injector) (*PhotonPayOpenAPIService
 }
 
 type AccessTokenRequest struct {
-	GrantType    string `form:"grant_type" json:"grant_type" binding:"required"`
-	ClientID     string `form:"client_id" json:"client_id" binding:"required"`
-	ClientSecret string `form:"client_secret" json:"client_secret" binding:"required"`
+	AppID  string `form:"app_id" json:"app_id" binding:"required"`
+	Secret string `form:"secret" json:"secret"`
 }
 
 type AccessTokenData struct {
@@ -39,12 +38,20 @@ type AccessTokenData struct {
 	Token            string `json:"token"`
 }
 
-func (s *PhotonPayOpenAPIService) AccessToken(_ context.Context, _ *AccessTokenRequest) (*AccessTokenData, error) {
+func (s *PhotonPayOpenAPIService) AccessToken(_ context.Context, req *AccessTokenRequest) (*AccessTokenData, error) {
+	if req.Secret != "" {
+		return nil, biz.ErrInvalidOperation
+	}
+	accountID, err := photonPayAccountID(req.AppID)
+	if err != nil {
+		return nil, err
+	}
+	token := photonPayIDString(accountID)
 	return &AccessTokenData{
 		ExpiresIn:        3600,
 		RefreshExpiresIn: 7200,
-		RefreshToken:     "photonpay-mock-refresh-token",
-		Token:            "photonpay-mock-token",
+		RefreshToken:     token,
+		Token:            token,
 	}, nil
 }
 

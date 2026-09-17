@@ -57,7 +57,14 @@ type PayndaCardholderData struct {
 }
 
 func (s *PayndaOpenAPIService) CreateCardHolder(ctx context.Context, req *PayndaCardHolderRequest) (*PayndaCardholderData, error) {
+	var accountID model.ID
+	var err error
+	accountID, err = payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	item, err := s.usecase.CreateCardHolder(ctx, &biz.PayndaCreateCardHolderRequest{
+		AccountID:              accountID,
 		FirstName:              req.FirstName,
 		LastName:               req.LastName,
 		MobilePrefix:           req.MobilePrefix,
@@ -85,6 +92,11 @@ func (s *PayndaOpenAPIService) GetCardHolder(
 	ctx context.Context,
 	req *PayndaCardHolderIDRequest,
 ) (*PayndaCardholderData, error) {
+	var err error
+	_, err = payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	id, err := payndaID(req.CardholderID)
 	if err != nil {
 		return nil, err
@@ -117,6 +129,11 @@ func (s *PayndaOpenAPIService) UpdateCardHolder(
 	ctx context.Context,
 	req *PayndaUpdateCardHolderRequest,
 ) (*struct{}, error) {
+	var err error
+	_, err = payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	id, err := payndaID(req.CardholderID)
 	if err != nil {
 		return nil, err
@@ -159,10 +176,16 @@ func (s *PayndaOpenAPIService) ListCardHolders(
 	ctx context.Context,
 	req *PayndaListRequest,
 ) (*PayndaCardholdersData, error) {
+	var err error
+	accountID, err := payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	offset, limit, current := payndaPagination(req.Current, req.PageSize)
 	items, err := s.usecase.ListCardHolders(ctx, &biz.PayndaListRequest{
-		Offset: offset,
-		Limit:  limit,
+		AccountID: accountID,
+		Offset:    offset,
+		Limit:     limit,
 	})
 	if err != nil {
 		return nil, err
@@ -199,7 +222,12 @@ type PayndaCardBinsData struct {
 	Records []*PayndaCardBinData `json:"records"`
 }
 
-func (s *PayndaOpenAPIService) ListCardBins(ctx context.Context, _ *PayndaCardBinsRequest) (*PayndaCardBinsData, error) {
+func (s *PayndaOpenAPIService) ListCardBins(ctx context.Context, req *PayndaCardBinsRequest) (*PayndaCardBinsData, error) {
+	var err error
+	_, err = payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	items, err := s.usecase.ListCardProducts(ctx)
 	if err != nil {
 		return nil, err
@@ -235,7 +263,7 @@ type PayndaCreateCardRequest struct {
 }
 
 func (s *PayndaOpenAPIService) CreateCard(ctx context.Context, req *PayndaCreateCardRequest) (*PayndaCardDetail, error) {
-	accountID, err := payndaID(req.BalanceAccountID)
+	accountID, err := payndaAccountID(req.BalanceAccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -275,6 +303,11 @@ type PayndaCardRequest struct {
 }
 
 func (s *PayndaOpenAPIService) GetCard(ctx context.Context, req *PayndaCardRequest) (*PayndaCardData, error) {
+	var err error
+	_, err = payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	id, err := payndaID(req.CardID)
 	if err != nil {
 		return nil, err
@@ -296,10 +329,16 @@ type PayndaCardsData struct {
 }
 
 func (s *PayndaOpenAPIService) ListCards(ctx context.Context, req *PayndaListRequest) (*PayndaCardsData, error) {
+	var err error
+	accountID, err := payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	offset, limit, current := payndaPagination(req.Current, req.PageSize)
 	items, err := s.usecase.ListCards(ctx, &biz.PayndaListRequest{
-		Offset: offset,
-		Limit:  limit,
+		AccountID: accountID,
+		Offset:    offset,
+		Limit:     limit,
 	})
 	if err != nil {
 		return nil, err
@@ -320,6 +359,11 @@ func (s *PayndaOpenAPIService) ListCards(ctx context.Context, req *PayndaListReq
 }
 
 func (s *PayndaOpenAPIService) GetCardSensitive(ctx context.Context, req *PayndaCardRequest) (*PayndaCardSensitiveData, error) {
+	var err error
+	_, err = payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	id, err := payndaID(req.CardID)
 	if err != nil {
 		return nil, err
@@ -336,6 +380,11 @@ func (s *PayndaOpenAPIService) GetCardBalance(
 	ctx context.Context,
 	req *PayndaCardRequest,
 ) (*PayndaCardBalanceData, error) {
+	var err error
+	_, err = payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	id, err := payndaID(req.CardID)
 	if err != nil {
 		return nil, err
@@ -362,6 +411,11 @@ func (s *PayndaOpenAPIService) ListBalanceAccountWallets(
 	ctx context.Context,
 	req *PayndaListRequest,
 ) (*[]*PayndaBalanceAccountWalletData, error) {
+	var err error
+	_, err = payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	accountWallet, err := s.usecase.GetAccountWallet(ctx)
 	if err != nil {
 		return nil, err
@@ -433,6 +487,11 @@ func (s *PayndaOpenAPIService) TransferBalanceAccountWallet(
 	ctx context.Context,
 	req *PayndaBalanceAccountWalletTransferRequest,
 ) (*PayndaBalanceAccountWalletTransferData, error) {
+	var err error
+	_, err = payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	if req.Type != paynda.TransferType_In || req.Currency != common.Currency_USD {
 		return nil, biz.ErrInvalidOperation
 	}
@@ -522,6 +581,11 @@ type PayndaCardStatusRequest struct {
 }
 
 func (s *PayndaOpenAPIService) FreezeCard(ctx context.Context, req *PayndaCardStatusRequest) (*struct{}, error) {
+	var err error
+	_, err = payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := payndaID(req.CardID)
 	if err != nil {
 		return nil, err
@@ -534,6 +598,11 @@ func (s *PayndaOpenAPIService) FreezeCard(ctx context.Context, req *PayndaCardSt
 	return &struct{}{}, err
 }
 func (s *PayndaOpenAPIService) UnfreezeCard(ctx context.Context, req *PayndaCardStatusRequest) (*struct{}, error) {
+	var err error
+	_, err = payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := payndaID(req.CardID)
 	if err != nil {
 		return nil, err
@@ -547,6 +616,11 @@ func (s *PayndaOpenAPIService) UnfreezeCard(ctx context.Context, req *PayndaCard
 }
 
 func (s *PayndaOpenAPIService) ReleaseCard(ctx context.Context, req *PayndaCardStatusRequest) (*struct{}, error) {
+	var err error
+	_, err = payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := payndaID(req.CardID)
 	if err != nil {
 		return nil, err
@@ -579,6 +653,11 @@ func (s *PayndaOpenAPIService) TransferCardBalance(
 	ctx context.Context,
 	req *PayndaCardBalanceTransferRequest,
 ) (*PayndaCardBalanceTransferData, error) {
+	var err error
+	_, err = payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := payndaID(req.CardID)
 	if err != nil {
 		return nil, err
@@ -616,10 +695,16 @@ func (s *PayndaOpenAPIService) ListCardBalanceUpdates(
 	ctx context.Context,
 	req *PayndaListRequest,
 ) (*[]*PayndaCardBalanceUpdateHistoryData, error) {
+	var err error
+	accountID, err := payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	offset, limit, _ := payndaPagination(req.Current, req.PageSize)
 	items, err := s.usecase.ListCardBalanceUpdates(ctx, &biz.PayndaListRequest{
-		Offset: offset,
-		Limit:  limit,
+		AccountID: accountID,
+		Offset:    offset,
+		Limit:     limit,
 	})
 	if err != nil {
 		return nil, err
@@ -690,6 +775,11 @@ func (s *PayndaOpenAPIService) ListCardTransactions(
 	ctx context.Context,
 	req *PayndaTransactionsRequest,
 ) (*PayndaTransactionsData, error) {
+	var err error
+	accountID, err := payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	offset, limit, current := payndaPagination(req.Current, req.PageSize)
 	start, err := payndaTransactionTime(req.TransactionTimeStart)
 	if err != nil {
@@ -708,8 +798,9 @@ func (s *PayndaOpenAPIService) ListCardTransactions(
 	}
 	items, err := s.usecase.ListCardTransactions(ctx, &biz.PayndaListTransactionsRequest{
 		PayndaListRequest: biz.PayndaListRequest{
-			Offset: offset,
-			Limit:  limit,
+			AccountID: accountID,
+			Offset:    offset,
+			Limit:     limit,
 		},
 		CardID:        cardID,
 		OccurredAtGTE: start,
@@ -742,6 +833,11 @@ func (s *PayndaOpenAPIService) GetCardTransaction(
 	ctx context.Context,
 	req *PayndaCardTransactionRequest,
 ) (*PayndaTransactionData, error) {
+	var err error
+	_, err = payndaAccountID(req.BalanceAccountID)
+	if err != nil {
+		return nil, err
+	}
 	id, err := payndaID(req.TransactionID)
 	if err != nil {
 		return nil, err

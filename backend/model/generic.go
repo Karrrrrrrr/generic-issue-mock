@@ -52,8 +52,9 @@ type Card struct {
 
 type CardProduct struct {
 	BaseModel
-	Channel        enums.Channel `gorm:"uniqueIndex:idx_card_products_channel_prefix"`
-	Prefix         string        `gorm:"uniqueIndex:idx_card_products_channel_prefix"`
+	AccountID      ID            `gorm:"uniqueIndex:idx_card_products_account_channel_prefix"`
+	Channel        enums.Channel `gorm:"uniqueIndex:idx_card_products_account_channel_prefix"`
+	Prefix         string        `gorm:"uniqueIndex:idx_card_products_account_channel_prefix"`
 	NextCardNumber int64
 	IsDefault      bool
 
@@ -62,16 +63,22 @@ type CardProduct struct {
 
 type VirtualCard struct {
 	BaseModel
-	CardID ID
+	AccountID ID
+	Channel   enums.Channel
+	CardID    ID
 }
 
 type PhysicalCard struct {
 	BaseModel
-	CardID ID
+	AccountID ID
+	Channel   enums.Channel
+	CardID    ID
 }
 
 type Wallet struct {
 	BaseModel
+	AccountID  ID
+	Channel    enums.Channel
 	Amount     decimal.Decimal
 	PendingIn  decimal.Decimal
 	PendingOut decimal.Decimal
@@ -83,9 +90,11 @@ type Wallet struct {
 
 type VirtualAccount struct {
 	BaseModel
-	WalletID ID
-	Wallet   *Wallet
-	Name     string
+	AccountID ID
+	Channel   enums.Channel
+	WalletID  ID
+	Wallet    *Wallet
+	Name      string
 }
 
 type Account struct {
@@ -98,6 +107,7 @@ type Account struct {
 
 type CardTransaction struct {
 	BaseModel
+	AccountID               ID
 	Channel                 enums.Channel
 	OriginCardTransactionID ID
 	AuthorizationID         ID
@@ -123,7 +133,8 @@ type CardTransaction struct {
 
 type Authorization struct {
 	BaseModel
-	Channel enums.Channel
+	AccountID ID
+	Channel   enums.Channel
 
 	CardID                ID
 	OriginAuthorizationID ID
@@ -142,6 +153,7 @@ type Authorization struct {
 
 type CardHolder struct {
 	BaseModel
+	AccountID              ID
 	Channel                enums.Channel
 	FirstName              string
 	LastName               string
@@ -177,6 +189,7 @@ type WebhookConfig struct {
 type WebhookRecord struct {
 	BaseModel
 	WebhookConfigID ID
+	AccountID       ID
 	Channel         enums.Channel
 	Event           string
 	TargetURL       string

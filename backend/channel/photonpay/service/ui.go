@@ -26,6 +26,7 @@ type UIListResponse[T any] struct {
 
 type UIWebhookData struct {
 	ID        string              `json:"id"`
+	AccountID string              `json:"account_id"`
 	Event     photon.WebhookEvent `json:"event"`
 	TargetURL string              `json:"target_url"`
 	Enabled   bool                `json:"enabled"`
@@ -33,6 +34,7 @@ type UIWebhookData struct {
 	UpdatedAt time.Time           `json:"updated_at"`
 }
 type UICreateWebhookRequest struct {
+	AccountID string              `json:"account_id" binding:"required"`
 	Event     photon.WebhookEvent `json:"event" binding:"required"`
 	TargetURL string              `json:"target_url" binding:"required,url"`
 	Enabled   bool                `json:"enabled"`
@@ -44,7 +46,11 @@ type UIUpdateWebhookRequest struct {
 }
 
 func (s *PhotonPayUIService) CreateWebhook(ctx context.Context, req *UICreateWebhookRequest) (*UIWebhookData, error) {
-	item, err := s.usecase.CreateWebhook(ctx, &biz.UICreateWebhookRequest{Event: req.Event, TargetURL: req.TargetURL, Enabled: req.Enabled})
+	accountID, err := photonPayAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.usecase.CreateWebhook(ctx, &biz.UICreateWebhookRequest{AccountID: accountID, Event: req.Event, TargetURL: req.TargetURL, Enabled: req.Enabled})
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +97,7 @@ func (s *PhotonPayUIService) DeleteWebhook(ctx context.Context, req *struct {
 }
 
 type UICardHolderRequest struct {
+	AccountID string `json:"account_id" binding:"required"`
 	FirstName string `json:"first_name" binding:"required"`
 	LastName  string `json:"last_name" binding:"required"`
 	Email     string `json:"email" binding:"required"`
@@ -118,7 +125,12 @@ func NewPhotonPayUIService(injector *do.Injector) (*PhotonPayUIService, error) {
 }
 
 func (s *PhotonPayUIService) CreateCardHolder(ctx context.Context, req *UICardHolderRequest) (*UICardHolderData, error) {
+	accountID, err := photonPayAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
 	holder, err := s.usecase.CreateCardHolder(ctx, &biz.UICreateCardHolderRequest{
+		AccountID: accountID,
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
 		Email:     req.Email,
@@ -144,6 +156,7 @@ func (s *PhotonPayUIService) ListCardHolders(ctx context.Context, req *UIListReq
 }
 
 type UICreateCardRequest struct {
+	AccountID    string `json:"account_id" binding:"required"`
 	CardHolderID string `json:"cardholder_id" binding:"required"`
 	CardCurrency string `json:"card_currency" binding:"required"`
 	RequestID    string `json:"request_id" binding:"required"`
@@ -162,11 +175,16 @@ type UICardData struct {
 }
 
 func (s *PhotonPayUIService) CreateCard(ctx context.Context, req *UICreateCardRequest) (*UICardData, error) {
+	accountID, err := photonPayAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
 	cardHolderID, err := photonPayID(req.CardHolderID)
 	if err != nil {
 		return nil, err
 	}
 	card, err := s.usecase.OpenCard(ctx, &biz.UIOpenCardRequest{
+		AccountID:    accountID,
 		CardHolderID: cardHolderID,
 		Currency:     common.Currency(req.CardCurrency),
 		RequestID:    req.RequestID,

@@ -36,3 +36,7 @@ func slashOptionalID(value string) (model.ID, error) {
 	}
 	return slashID(value)
 }
+
+func slashAccountID(value string) (model.ID, error) {
+	return slashID(value)
+}

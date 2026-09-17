@@ -44,6 +44,7 @@ func NewPhotonPayUIUsecase(injector *do.Injector) (*PhotonPayUIUsecase, error) {
 }
 
 type UICreateWebhookRequest struct {
+	AccountID model.ID
 	Event     photon.WebhookEvent
 	TargetURL string
 	Enabled   bool
@@ -58,7 +59,7 @@ func (u *PhotonPayUIUsecase) CreateWebhook(ctx context.Context, req *UICreateWeb
 	if !req.Event.Valid() {
 		return nil, ErrInvalidOperation
 	}
-	item := &model.WebhookConfig{Channel: enums.Channel_PhotonPay, Event: string(req.Event), TargetURL: req.TargetURL, Enabled: req.Enabled}
+	item := &model.WebhookConfig{AccountID: req.AccountID, Channel: enums.Channel_PhotonPay, Event: string(req.Event), TargetURL: req.TargetURL, Enabled: req.Enabled}
 	if err := u.webhookRepo.Create(ctx, item); err != nil {
 		zap.S().Errorw("create photonpay UI webhook", "error", err)
 		return nil, ErrDatabaseOperation
@@ -117,6 +118,7 @@ func (u *PhotonPayUIUsecase) DeleteWebhook(ctx context.Context, id model.ID) err
 }
 
 type UICreateCardHolderRequest struct {
+	AccountID model.ID
 	FirstName string
 	LastName  string
 	Email     string
@@ -126,6 +128,7 @@ type UICreateCardHolderRequest struct {
 func (u *PhotonPayUIUsecase) CreateCardHolder(ctx context.Context, req *UICreateCardHolderRequest) (*model.CardHolder, error) {
 	dateOfBirth := time.Date(1990, time.January, 1, 0, 0, 0, 0, time.UTC)
 	holder := &model.CardHolder{
+		AccountID:              req.AccountID,
 		Channel:                enums.Channel_PhotonPay,
 		FirstName:              req.FirstName,
 		LastName:               req.LastName,
@@ -158,6 +161,7 @@ func (u *PhotonPayUIUsecase) ListCardHolders(ctx context.Context, req *ListReque
 }
 
 type UIOpenCardRequest struct {
+	AccountID    model.ID
 	CardHolderID model.ID
 	Currency     enums.Currency
 	RequestID    string
@@ -205,6 +209,7 @@ func (u *PhotonPayUIUsecase) OpenCard(ctx context.Context, req *UIOpenCardReques
 		}
 
 		card = &model.Card{
+			AccountID:              req.AccountID,
 			Channel:                enums.Channel_PhotonPay,
 			CardProductID:          product.ID,
 			CardBin:                product.Prefix,
@@ -345,6 +350,7 @@ func (u *PhotonPayUIUsecase) SimulateAuthorization(ctx context.Context, req *UIS
 
 		now := time.Now().UTC()
 		authorization := &model.Authorization{
+			AccountID:         card.AccountID,
 			Channel:           enums.Channel_PhotonPay,
 			CardID:            card.ID,
 			Currency:          req.Currency,
@@ -363,6 +369,7 @@ func (u *PhotonPayUIUsecase) SimulateAuthorization(ctx context.Context, req *UIS
 		}
 
 		transaction := &model.CardTransaction{
+			AccountID:         card.AccountID,
 			Channel:           enums.Channel_PhotonPay,
 			AuthorizationID:   authorization.ID,
 			CardID:            card.ID,
@@ -413,6 +420,7 @@ func (u *PhotonPayUIUsecase) SimulateRefund(ctx context.Context, req *UISimulate
 			return ErrInvalidOperation
 		}
 		transaction = &model.CardTransaction{
+			AccountID:         card.AccountID,
 			Channel:           enums.Channel_PhotonPay,
 			CardID:            card.ID,
 			Status:            enums.TransactionStatus_SUCCEED,
@@ -467,6 +475,7 @@ func (u *PhotonPayUIUsecase) ApplyTransactionStep(ctx context.Context, req *UIAp
 		}
 
 		next = &model.CardTransaction{
+			AccountID:               origin.AccountID,
 			Channel:                 enums.Channel_PhotonPay,
 			OriginCardTransactionID: origin.ID,
 			AuthorizationID:         origin.AuthorizationID,
@@ -519,6 +528,7 @@ func (u *PhotonPayUIUsecase) dispatch(ctx context.Context, event photon.WebhookE
 		}
 		record := &model.WebhookRecord{
 			WebhookConfigID: config.ID,
+			AccountID:       config.AccountID,
 			Channel:         enums.Channel_PhotonPay,
 			Event:           string(event),
 			TargetURL:       config.TargetURL,

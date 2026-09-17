@@ -18,3 +18,7 @@ func photonPayID(value string) (model.ID, error) {
 	}
 	return model.ID(id), nil
 }
+
+func photonPayAccountID(value string) (model.ID, error) {
+	return photonPayID(value)
+}

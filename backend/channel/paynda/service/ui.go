@@ -25,8 +25,9 @@ func NewPayndaUIService(injector *do.Injector) (*PayndaUIService, error) {
 }
 
 type PayndaUIListRequest struct {
-	PageNumber int `form:"page_number"`
-	PageSize   int `form:"page_size"`
+	AccountID  string `form:"account_id"`
+	PageNumber int    `form:"page_number"`
+	PageSize   int    `form:"page_size"`
 }
 
 type PayndaUIListResponse[T any] struct {
@@ -155,6 +156,7 @@ func (s *PayndaUIService) DeleteWebhook(ctx context.Context, req *struct {
 }
 
 type PayndaUICardHolderRequest struct {
+	AccountID string `json:"account_id" binding:"required"`
 	FirstName string `json:"first_name" binding:"required"`
 	LastName  string `json:"last_name" binding:"required"`
 	Email     string `json:"email" binding:"required"`
@@ -171,6 +173,7 @@ type PayndaUICardHolderData struct {
 	CreatedAt time.Time               `json:"created_at"`
 }
 type PayndaUICreateCardRequest struct {
+	AccountID    string          `json:"account_id" binding:"required"`
 	CardHolderID string          `json:"cardholder_id" binding:"required"`
 	CardCurrency common.Currency `json:"card_currency" binding:"required"`
 }
@@ -191,7 +194,12 @@ type PayndaUIUpdateCardStatusRequest struct {
 }
 
 func (s *PayndaUIService) CreateCardHolder(ctx context.Context, req *PayndaUICardHolderRequest) (*PayndaUICardHolderData, error) {
+	accountID, err := payndaAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
 	item, err := s.usecase.CreateCardHolder(ctx, &biz.PayndaUICreateCardHolderRequest{
+		AccountID: accountID,
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
 		Email:     req.Email,
@@ -228,11 +236,15 @@ func (s *PayndaUIService) ListCardHolders(ctx context.Context, req *PayndaUIList
 }
 
 func (s *PayndaUIService) CreateCard(ctx context.Context, req *PayndaUICreateCardRequest) (*PayndaUICardData, error) {
+	accountID, err := payndaAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
 	holderID, err := payndaID(req.CardHolderID)
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.CreateCard(ctx, &biz.PayndaUICreateCardRequest{CardHolderID: holderID, Currency: req.CardCurrency})
+	item, err := s.usecase.CreateCard(ctx, &biz.PayndaUICreateCardRequest{AccountID: accountID, CardHolderID: holderID, Currency: req.CardCurrency})
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +394,11 @@ func (s *PayndaUIService) applyTransactionStep(
 }
 func payndaUIListRequest(req *PayndaUIListRequest) *biz.PayndaListRequest {
 	page, size := types.NormalizePagination(req.PageNumber, req.PageSize)
-	return &biz.PayndaListRequest{Offset: (page - 1) * size, Limit: size}
+	accountID := model.ID(0)
+	if req.AccountID != "" {
+		accountID, _ = payndaAccountID(req.AccountID)
+	}
+	return &biz.PayndaListRequest{AccountID: accountID, Offset: (page - 1) * size, Limit: size}
 }
 func payndaUICardHolderData(item *model.CardHolder) *PayndaUICardHolderData {
 	return &PayndaUICardHolderData{

@@ -18,3 +18,7 @@ func payndaID(value string) (model.ID, error) {
 	}
 	return model.ID(id), nil
 }
+
+func payndaAccountID(value string) (model.ID, error) {
+	return payndaID(value)
+}

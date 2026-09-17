@@ -58,6 +58,7 @@ type PayndaWalletRepository interface {
 
 type PayndaAccountRepository interface {
 	Create(context.Context, *model.Account) error
+	Save(context.Context, *model.Account) error
 	ExistByChannel(context.Context) (bool, error)
 	ExistByID(context.Context, model.ID) (bool, error)
 	FindByChannel(context.Context) (*model.Account, error)
@@ -121,8 +122,9 @@ type PayndaWebhookDeliveryRequest struct {
 }
 
 type PayndaListRequest struct {
-	Offset int
-	Limit  int
+	AccountID model.ID
+	Offset    int
+	Limit     int
 }
 
 type PayndaListTransactionsRequest struct {
@@ -158,6 +160,7 @@ func NewPayndaOpenAPIUsecase(injector *do.Injector) (*PayndaOpenAPIUsecase, erro
 }
 
 type PayndaCreateCardHolderRequest struct {
+	AccountID              model.ID
 	FirstName              string
 	LastName               string
 	MobilePrefix           string
@@ -175,6 +178,7 @@ func (u *PayndaOpenAPIUsecase) CreateCardHolder(
 	req *PayndaCreateCardHolderRequest,
 ) (*model.CardHolder, error) {
 	holder := &model.CardHolder{
+		AccountID:              req.AccountID,
 		Channel:                enums.Channel_Paynda,
 		FirstName:              req.FirstName,
 		LastName:               req.LastName,
@@ -322,9 +326,11 @@ func (u *PayndaOpenAPIUsecase) CreateCard(ctx context.Context, req *PayndaCreate
 		}
 
 		wallet := &model.Wallet{
-			Amount:   decimal.Zero,
-			Type:     enums.WalletType_Card,
-			Currency: req.Currency,
+			AccountID: req.AccountID,
+			Channel:   enums.Channel_Paynda,
+			Amount:    decimal.Zero,
+			Type:      enums.WalletType_Card,
+			Currency:  req.Currency,
 		}
 		if err := u.walletRepository.Create(txCtx, wallet); err != nil {
 			zap.S().Errorw("create paynda card wallet", "error", err)
@@ -902,22 +908,28 @@ func (u *PayndaUIUsecase) CreateAccount(
 ) (*PayndaAccountWallet, error) {
 	var result *PayndaAccountWallet
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		account := &model.Account{
+			Channel: enums.Channel_Paynda,
+			Name:    req.Name,
+		}
+		if err := u.accountRepository.Create(txCtx, account); err != nil {
+			zap.S().Errorw("create paynda UI account", "error", err)
+			return ErrDatabaseOperation
+		}
 		wallet := &model.Wallet{
-			Amount:   decimal.Zero,
-			Type:     enums.WalletType_Account,
-			Currency: enums.Currency_USD,
+			AccountID: account.ID,
+			Channel:   enums.Channel_Paynda,
+			Amount:    decimal.Zero,
+			Type:      enums.WalletType_Account,
+			Currency:  enums.Currency_USD,
 		}
 		if err := u.walletRepository.Create(txCtx, wallet); err != nil {
 			zap.S().Errorw("create paynda UI account wallet", "error", err)
 			return ErrDatabaseOperation
 		}
-		account := &model.Account{
-			Channel:  enums.Channel_Paynda,
-			Name:     req.Name,
-			WalletID: wallet.ID,
-		}
-		if err := u.accountRepository.Create(txCtx, account); err != nil {
-			zap.S().Errorw("create paynda UI account", "error", err)
+		account.WalletID = wallet.ID
+		if err := u.accountRepository.Save(txCtx, account); err != nil {
+			zap.S().Errorw("attach paynda UI account wallet", "error", err)
 			return ErrDatabaseOperation
 		}
 		result = &PayndaAccountWallet{Account: account, Wallet: wallet}
@@ -1017,6 +1029,7 @@ func (u *PayndaUIUsecase) DeleteWebhook(ctx context.Context, id model.ID) error 
 }
 
 type PayndaUICreateCardHolderRequest struct {
+	AccountID model.ID
 	FirstName string
 	LastName  string
 	Email     string
@@ -1024,7 +1037,16 @@ type PayndaUICreateCardHolderRequest struct {
 }
 
 func (u *PayndaUIUsecase) CreateCardHolder(ctx context.Context, req *PayndaUICreateCardHolderRequest) (*model.CardHolder, error) {
+	exists, err := u.accountRepository.ExistByID(ctx, req.AccountID)
+	if err != nil {
+		zap.S().Errorw("check paynda UI card holder account", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
 	holder := &model.CardHolder{
+		AccountID:    req.AccountID,
 		Channel:      enums.Channel_Paynda,
 		FirstName:    req.FirstName,
 		LastName:     req.LastName,
@@ -1042,6 +1064,7 @@ func (u *PayndaUIUsecase) CreateCardHolder(ctx context.Context, req *PayndaUICre
 }
 
 type PayndaUICreateCardRequest struct {
+	AccountID    model.ID
 	CardHolderID model.ID
 	Currency     enums.Currency
 }
@@ -1049,7 +1072,15 @@ type PayndaUICreateCardRequest struct {
 func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCardRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		exists, err := u.cardHolderRepository.ExistByID(txCtx, req.CardHolderID)
+		exists, err := u.accountRepository.ExistByID(txCtx, req.AccountID)
+		if err != nil {
+			zap.S().Errorw("check paynda UI card account", "error", err)
+			return ErrDatabaseOperation
+		}
+		if !exists {
+			return ErrResourceNotFound
+		}
+		exists, err = u.cardHolderRepository.ExistByID(txCtx, req.CardHolderID)
 		if err != nil {
 			zap.S().Errorw("check paynda UI card holder", "error", err)
 			return ErrDatabaseOperation
@@ -1092,15 +1123,18 @@ func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCar
 			return ErrDatabaseOperation
 		}
 		wallet := &model.Wallet{
-			Amount:   decimal.Zero,
-			Type:     enums.WalletType_Card,
-			Currency: req.Currency,
+			AccountID: req.AccountID,
+			Channel:   enums.Channel_Paynda,
+			Amount:    decimal.Zero,
+			Type:      enums.WalletType_Card,
+			Currency:  req.Currency,
 		}
 		if err := u.walletRepository.Create(txCtx, wallet); err != nil {
 			zap.S().Errorw("create paynda UI card wallet", "error", err)
 			return ErrDatabaseOperation
 		}
 		card = &model.Card{
+			AccountID:     req.AccountID,
 			Channel:       enums.Channel_Paynda,
 			CardProductID: product.ID,
 			CardBin:       product.Prefix,
@@ -1241,6 +1275,7 @@ func (u *PayndaUIUsecase) SimulateAuthorization(
 
 		now := time.Now().UTC()
 		authorization := &model.Authorization{
+			AccountID:         card.AccountID,
 			Channel:           enums.Channel_Paynda,
 			CardID:            card.ID,
 			Currency:          req.Currency,
@@ -1257,6 +1292,7 @@ func (u *PayndaUIUsecase) SimulateAuthorization(
 			return ErrDatabaseOperation
 		}
 		transaction := &model.CardTransaction{
+			AccountID:         card.AccountID,
 			Channel:           enums.Channel_Paynda,
 			AuthorizationID:   authorization.ID,
 			CardID:            card.ID,
@@ -1314,6 +1350,7 @@ func (u *PayndaUIUsecase) SimulateRefund(ctx context.Context, req *PayndaSimulat
 			return ErrInvalidOperation
 		}
 		transaction = &model.CardTransaction{
+			AccountID:         card.AccountID,
 			Channel:           enums.Channel_Paynda,
 			CardID:            card.ID,
 			Status:            enums.TransactionStatus_SUCCEED,
@@ -1421,6 +1458,7 @@ func (u *PayndaUIUsecase) ApplyTransactionStep(ctx context.Context, req *PayndaU
 			return ErrDatabaseOperation
 		}
 		next = &model.CardTransaction{
+			AccountID:               origin.AccountID,
 			Channel:                 enums.Channel_Paynda,
 			OriginCardTransactionID: origin.ID,
 			AuthorizationID:         origin.AuthorizationID,
@@ -1476,7 +1514,7 @@ func (u *PayndaUIUsecase) dispatch(ctx context.Context, event paynda.WebhookEven
 		if !config.Enabled || config.Event != string(event) {
 			continue
 		}
-		record := &model.WebhookRecord{WebhookConfigID: config.ID, Channel: enums.Channel_Paynda, Event: string(event), TargetURL: config.TargetURL, SourceID: strconv.FormatInt(int64(sourceID), 10), Payload: payload, Status: enums.WebhookDeliveryStatus_Pending, AttemptCount: 1}
+		record := &model.WebhookRecord{WebhookConfigID: config.ID, AccountID: config.AccountID, Channel: enums.Channel_Paynda, Event: string(event), TargetURL: config.TargetURL, SourceID: strconv.FormatInt(int64(sourceID), 10), Payload: payload, Status: enums.WebhookDeliveryStatus_Pending, AttemptCount: 1}
 		if err := u.webhookRecordRepository.Create(ctx, record); err != nil {
 			zap.S().Errorw("create paynda webhook record", "error", err)
 			continue

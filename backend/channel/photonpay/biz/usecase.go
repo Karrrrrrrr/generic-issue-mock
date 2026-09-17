@@ -110,6 +110,7 @@ func NewPhotonPayOpenAPIUsecase(injector *do.Injector) (*PhotonPayOpenAPIUsecase
 }
 
 type CreateCardHolderRequest struct {
+	AccountID              model.ID
 	FirstName              string
 	LastName               string
 	Email                  string
@@ -131,6 +132,7 @@ type CreateCardHolderRequest struct {
 
 func (u *PhotonPayOpenAPIUsecase) CreateCardHolder(ctx context.Context, req *CreateCardHolderRequest) (*model.CardHolder, error) {
 	holder := &model.CardHolder{
+		AccountID:              req.AccountID,
 		Channel:                common.Channel_PhotonPay,
 		FirstName:              req.FirstName,
 		LastName:               req.LastName,
@@ -224,6 +226,7 @@ func (u *PhotonPayOpenAPIUsecase) ListCardHolders(ctx context.Context, req *List
 }
 
 type OpenCardRequest struct {
+	AccountID        model.ID
 	CardBin          string
 	Currency         common.Currency
 	CardScheme       common.CardScheme
@@ -260,6 +263,7 @@ func (u *PhotonPayOpenAPIUsecase) OpenCard(ctx context.Context, req *OpenCardReq
 			months = 24
 		}
 		card = &model.Card{
+			AccountID:              req.AccountID,
 			Channel:                common.Channel_PhotonPay,
 			CardProductID:          product.ID,
 			CardBin:                product.Prefix,
@@ -479,6 +483,11 @@ func (u *PhotonPayOpenAPIUsecase) SandboxTransaction(ctx context.Context, req *S
 		if err := u.requireCard(txCtx, req.CardID); err != nil {
 			return err
 		}
+		card, err := u.cardRepo.FindCardByID(txCtx, req.CardID)
+		if err != nil {
+			zap.S().Errorw("find photonpay sandbox card", "error", err)
+			return ErrDatabaseOperation
+		}
 
 		transactionType := photon.SandboxTransactionTypeToGeneric(req.Type)
 		var originTransaction *model.CardTransaction
@@ -504,6 +513,7 @@ func (u *PhotonPayOpenAPIUsecase) SandboxTransaction(ctx context.Context, req *S
 		var authorizationID model.ID
 		if transactionType == common.CardTransactionType_AUTH {
 			authorization := &model.Authorization{
+				AccountID:         card.AccountID,
 				Channel:           common.Channel_PhotonPay,
 				CardID:            req.CardID,
 				Currency:          req.Currency,
@@ -527,6 +537,7 @@ func (u *PhotonPayOpenAPIUsecase) SandboxTransaction(ctx context.Context, req *S
 		}
 
 		transaction := &model.CardTransaction{
+			AccountID:               card.AccountID,
 			Channel:                 common.Channel_PhotonPay,
 			OriginCardTransactionID: req.OriginTransactionID,
 			AuthorizationID:         authorizationID,
