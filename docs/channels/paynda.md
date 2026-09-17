@@ -9,6 +9,7 @@
 | Paynda 字段 | 通用表字段 | 处理 |
 | --- | --- | --- |
 | `cardholder.id`、`cardholderId` | `CardHolder.ID`、`Card.CardHolderID` | 十进制字符串格式化/解析 |
+| 路径/请求中的 `balanceAccountId` | `Account.ID` | Paynda 十进制账户 ID；中间件解析并确定当前账户域 |
 | 姓名、邮箱、手机和 `billingAddressLine1`/城市/国家/邮编/州 | `CardHolder.FirstName`、`LastName`、`Email`、`Mobile*`、`Residential*` | 账单地址映射到渠道中立的居住/账单地址字段 |
 | `card.id`、`cardId` | `Card.ID` | 十进制字符串格式化/解析 |
 | `cardBinId` | `Card.CardProductID` | 解析产品 ID；开卡时从 `CardProduct.Prefix` 派生 `Card.CardBin` |
@@ -32,12 +33,16 @@
 
 SDK 位于 Marxo 的 `pkg/dealer/payndapay/payndapay.go`；交易查询的实际调用位于 card service 的 Paynda data repository。
 
+## 账户解析
+
+`balanceAccountId` 是 Paynda 当前账户域，而非可忽略的路径占位符。中间件使用 Paynda 十进制 ID helper 解析它，校验 `Account.Channel=paynda`，并将 `(AccountID, Channel)` 放入请求上下文；该域用于过滤全部账户资源。路径外的 `balanceAccountId`（例如账户钱包转账 body）也必须用同一解析规则校验，不能选择默认账户。
+
 ## Mock 报文示例
 
 Paynda mock 自有资源 ID 是十进制字符串。请求 ID 使用 `requestId` header 传递；先查询 card BIN 和创建持卡人取得相关 ID。
 
 ```bash
-curl -X POST http://127.0.0.1:8000/paynda/openapi/balanceAccounts/mock-account/cards \
+curl -X POST http://127.0.0.1:8000/paynda/openapi/balanceAccounts/1001/cards \
   -H 'Content-Type: application/json' \
   -H 'requestId: open-card-20260917-002' \
   -d '{
@@ -54,14 +59,14 @@ curl -X POST http://127.0.0.1:8000/paynda/openapi/balanceAccounts/mock-account/c
 成功响应使用 `{code,message,data,success}` 信封，`data.id` 是卡 ID。Marxo 清算流程通过交易列表或单笔交易读取状态：
 
 ```bash
-curl 'http://127.0.0.1:8000/paynda/openapi/balanceAccounts/mock-account/transactions?cardId=401&current=1&pageSize=50'
-curl 'http://127.0.0.1:8000/paynda/openapi/balanceAccounts/mock-account/transactions/501'
+curl 'http://127.0.0.1:8000/paynda/openapi/balanceAccounts/1001/transactions?cardId=401&current=1&pageSize=50'
+curl 'http://127.0.0.1:8000/paynda/openapi/balanceAccounts/1001/transactions/501'
 ```
 
 余额入金/出金是清算相关资金操作，`type` 只能使用 `IN` 或 `OUT`：
 
 ```bash
-curl -X POST http://127.0.0.1:8000/paynda/openapi/balanceAccounts/mock-account/cardBalanceTransfers \
+curl -X POST http://127.0.0.1:8000/paynda/openapi/balanceAccounts/1001/cardBalanceTransfers \
   -H 'Content-Type: application/json' \
   -H 'requestId: balance-20260917-001' \
   -d '{"cardId":"401","amount":"20.00","type":"IN"}'

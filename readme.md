@@ -8,9 +8,9 @@
 
 | 渠道 | 菜单功能 | 状态 | 文档 |
 | --- | --- | --- | --- |
-| PhotonPay | 持卡人、卡片、授权管理、卡交易、模拟交易、Webhook 管理 | 已实现 | [PhotonPay](docs/channels/photonpay.md) |
-| Paynda | 持卡人、卡片、授权管理、卡交易、模拟交易、Webhook 管理 | 已实现 | [Paynda](docs/channels/paynda.md) |
-| Slash | 卡产品、虚拟账户、持卡人、卡片、授权管理、卡交易、模拟交易、Webhook 管理 | 部分实现 | [Slash](docs/channels/slash.md) |
+| PhotonPay | 账户、持卡人、卡片、授权管理、卡交易、模拟交易、Webhook 管理 | 已实现 | [PhotonPay](docs/channels/photonpay.md) |
+| Paynda | 账户、持卡人、卡片、授权管理、卡交易、模拟交易、Webhook 管理 | 已实现 | [Paynda](docs/channels/paynda.md) |
+| Slash | 账户、虚拟账户、卡产品、持卡人、卡片、授权管理、卡交易、模拟交易、Webhook 管理 | 部分实现 | [Slash](docs/channels/slash.md) |
 | Payful | 尚无菜单 | 未实现 | [Payful](docs/channels/payful.md) |
 | UQPay | 尚无菜单 | 未实现 | [UQPay](docs/channels/uqpay.md) |
 
@@ -45,3 +45,4 @@ bun dev
 2. 实现或调整 OpenAPI 前，先核对 `/home/kar/workspace/ptm/marxo` 的 SDK 和实际调用点。
 3. OpenAPI、浏览器 UI、业务 usecase 分层独立；仓储使用 GORM Gen，列表显式按 ID 倒序。
 4. 模型变化后运行 generator，再执行 `gofmt` 和 `GOCACHE=/home/kar/.cache/go-build GOTMPDIR=/home/kar/.cache/go-tmp go build ./...`；除非明确要求，不运行单元测试。
+5. `Account` 是保留 `Channel` 的渠道账户域，和 `VirtualAccount` 不同；除 `Account` 外所有业务表以 `(AccountID, Channel)` 隔离。详细规则见[通用模型映射](docs/channels/model-mapping.md)。

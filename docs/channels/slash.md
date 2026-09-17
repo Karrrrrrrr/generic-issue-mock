@@ -9,6 +9,7 @@
 | Slash 字段 | 通用表字段 | 处理 |
 | --- | --- | --- |
 | `id`、`:id` | `Card.ID` 或 `CardTransaction.ID` | 通过 Slash UUID formatter 输出；入参反解析为内部 ID |
+| `ApiKey` | `Account.ID` | Slash UUID formatter 解析的渠道账户 ID；中间件写入当前账户域 |
 | `cardProductId` | `Card.CardProductID` | Slash UUID 解析后关联 `CardProduct`；其 `Prefix` 写入 `Card.CardBin` |
 | `pan`、`cvv`、`last4`、`expiryMonth`/`expiryYear` | `Card.CardNumber`、`Card.Cvv`、`Card.ExpireAt` | `last4` 从卡号派生，不单独存储 |
 | `status`、`isPhysical` | `Card.Status`、`Card.FormType` | 枚举和布尔值转换；当前只创建虚拟卡 |
@@ -17,7 +18,11 @@
 | `providerAuthorizationId` | `CardTransaction.AuthorizationID` | 关联授权内部 ID后以 UUID 输出 |
 | `amountCents`、`status`、`authorizedAt`、商户描述 | `CardTransaction.TxAmount`、`Status`、`OccurredAt`、`MerchantName` | 金额从分转换，状态经 Slash 枚举转换 |
 
-`accountId`、开卡 `virtualAccountId`、`name`、`isSingleUse`、`spendingConstraint`、`cardGroupId`、更新 `userData` 和 cursor 分页目前都没有已实现的中立持久化行为，service DTO 标记为 `Invalid:`。开卡时仅保留 `userData.requestId` 作为 `Card.RequestID`。
+`accountId`、开卡 `virtualAccountId`、`name`、`isSingleUse`、`spendingConstraint`、`cardGroupId`、更新 `userData` 和 cursor 分页目前都没有已实现的中立持久化行为，service DTO 标记为 `Invalid:`。`ApiKey` 不是 `Invalid:`：它选择当前 Slash 账户域。开卡时仅保留 `userData.requestId` 作为 `Card.RequestID`。
+
+## 账户解析
+
+Slash 的 `ApiKey` 是当前账户 ID，使用 Slash UUID formatter 解析为 `Account.ID`。账户中间件校验其 `Channel=slash` 后，将 `(AccountID, Channel)` 写入请求上下文；所有卡、持卡人、授权、交易、钱包和虚拟账户查询都以该域过滤。`VirtualAccount` 是该域内的独立余额资源，不能取代 `Account`，也不能作为 `ApiKey`。
 
 ## Marxo 调用基准
 
@@ -37,6 +42,7 @@ Slash mock 自有资源 ID 是可逆的 UUID 形字符串。Marxo SDK 用 `X-Ide
 ```bash
 curl -X POST http://127.0.0.1:8000/slash/card \
   -H 'Content-Type: application/json' \
+  -H 'ApiKey: 00000000-0000-0000-0000-000000000001' \
   -H 'X-Idempotency-Key: open-card-20260917-003' \
   -d '{
     "accountId":"mock-account",
@@ -76,7 +82,7 @@ curl -X POST http://127.0.0.1:8000/slash/transfer/virtual-account \
 }
 ```
 
-虚拟账户选择完成后，解析 `virtualAccountId` 到 `VirtualAccount.ID` 并写入 `Card.VirtualAccountID`/`WalletID`；`accountId`、`userData.cardId` 和消费限制尚无中立字段，维持 `Invalid:`。实体卡、单次卡和卡组必须先确认现有通用表是否能表达，再决定是否扩展；不能为了原样保存 Slash 请求而添加渠道字段。
+虚拟账户选择完成后，解析 `virtualAccountId` 到 `VirtualAccount.ID` 并写入 `Card.VirtualAccountID`/`WalletID`；`accountId`、`userData.cardId` 和消费限制尚无中立字段，维持 `Invalid:`。账户域由 `ApiKey` 确定，不从 body 的 `accountId` 推断。实体卡、单次卡和卡组必须先确认现有通用表是否能表达，再决定是否扩展；不能为了原样保存 Slash 请求而添加渠道字段。
 
 ### Webhook
 

@@ -11,12 +11,23 @@
 | 通用表 | 作用 | 主要关联 |
 | --- | --- | --- |
 | `CardProduct` | 可开卡 BIN/产品配置 | `Card.CardProductID` |
+| `Account` | 渠道账户域；浏览器管理资源的隔离边界 | 所有业务表的 `AccountID` |
 | `CardHolder` | 可复用持卡人资料 | `Card.CardHolderID` |
 | `Wallet` | 余额、待入账/待出账和累计入出账 | `Card.WalletID`、`VirtualAccount.WalletID`、`Account.WalletID` |
 | `VirtualAccount` | 可共享余额的账户 | `Card.VirtualAccountID` |
 | `Card` | 卡片及其渠道无关状态 | BIN、卡号、CVV、到期日、状态、持卡人、钱包、请求 ID |
 | `Authorization` | 授权事件 | 卡、金额、商户、授权码、状态、发生时间 |
 | `CardTransaction` | 授权、清算、冲正、退款、资金划拨 | 卡、授权、原交易、金额、币种、商户、状态、清算时间 |
+
+## 账户域
+
+`Account` 与 `VirtualAccount` 是不同概念。`Account` 是渠道账户域，保留 `Channel`；Slash 的 `VirtualAccount` 只是该账户域内可共享余额的资源，不能替代 `Account`。
+
+除 `Account` 自身外，每张持久化业务表都必须保存 `AccountID` 与 `Channel`。`AccountID` 引用 `Account.ID`，同一行的 `Channel` 必须与账户的渠道一致。创建卡、持卡人、钱包、授权、交易、Webhook 配置和投递记录等子资源时，在同一事务中从所属聚合继承这两个字段。
+
+所有仓储的 `Exist`、`Find`、`List`、`Save`、`Delete` 都必须以 `(account_id, channel)` 过滤；每个账户拥有资源的唯一索引也必须包含这两个字段及自然键。渠道外部 ID 始终只由本表 `ID` 经 formatter 编码，不能将账户域或渠道拼入 ID。
+
+浏览器账户管理是独立菜单组。选中的账户决定 UI 管理范围；渠道只在实际下游协议要求时，把该域映射为下游账户字段，例如 Paynda 的 `balanceAccountId`。不要将某个渠道的账户路径或字段强加给其他渠道。
 | `WebhookConfig` | 渠道 webhook 订阅配置 | 渠道、事件、目标地址、启用状态 |
 | `WebhookRecord` | 一次 webhook 投递记录 | 配置、来源资源、请求报文、响应、投递状态和次数 |
 
@@ -25,6 +36,8 @@
 | 通用字段 | 语义 |
 | --- | --- |
 | `BaseModel.ID` | 内部主键；对外必须经渠道 formatter 输出 |
+| `Account.ID` / `Account.Channel` | 渠道账户域主键和渠道范围；`Account` 不再额外引用 `AccountID` |
+| 所有非 `Account` 业务表的 `AccountID` / `Channel` | 资源所属账户域和渠道；仓储操作与唯一索引必须包含两列 |
 | `Card.CardProductID` / `Card.CardBin` | 产品主键及开卡时从产品派生的 BIN 前缀 |
 | `Card.WalletID` | 卡余额钱包；共享卡可指向虚拟账户钱包 |
 | `Card.VirtualAccountID` | 非空表示共享余额卡；为空表示独立卡 |

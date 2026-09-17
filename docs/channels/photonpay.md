@@ -12,6 +12,7 @@
 | `cardBin` | `Card.CardBin` 与 `Card.CardProductID` | 通过产品前缀匹配产品；卡保存所选产品和派生 BIN |
 | `cardNo`、`cvv`、`expirationDate` | `Card.CardNumber`、`Card.Cvv`、`Card.ExpireAt` | 直接转换；到期日转换为 `time.Time` |
 | `cardholderId` | `Card.CardHolderID` | PhotonPay 十进制 ID 解析后关联 `CardHolder` |
+| `app_id` / `access_token` | `Account.ID` | `app_id` 是 PhotonPay 十进制账户 ID；空 `secret` 时 token 接口返回相同格式的 `access_token`，后续请求据此确定账户域 |
 | `cardCurrency`、`cardScheme`、`cardType`、`cardFormFactor`、`cardStatus` | `Card.CardCurrency`、`Card.CardScheme`、`Card.CardType`、`Card.FormType`、`Card.Status` | 通过 PhotonPay 枚举转换函数处理 |
 | `requestId` | `Card.RequestID`、`Card.LastOperationRequestID` | 开卡幂等键及最近操作键 |
 | `transactionId` | `CardTransaction.ID` | 十进制字符串格式化输出 |
@@ -19,7 +20,18 @@
 | `txnAmount`、`txnCurrency`、`mcc`、商户字段 | `CardTransaction.TxAmount`、`TxCurrency`、`MerchantMCC`、`MerchantName`、`MerchantCountry` | sandbox 交易时写入 |
 | `transaction status/type` | `CardTransaction.Status`、`CardTransaction.Type` | 经 PhotonPay 枚举转换；清算设置 `SettledAt` |
 
-`memberId`、`matrixAccount`、卡面、限额、充值金额、收件人、商户城市/邮编、CVV 校验和到期日校验没有通用持久化含义，均为 `Invalid:` 协议字段。
+`memberId`、`matrixAccount`、卡面、限额、充值金额、收件人、商户城市/邮编、CVV 校验和到期日校验没有通用持久化含义，均为 `Invalid:` 协议字段。`app_id` 不是 `Invalid:`：它选择当前 PhotonPay 账户域。
+
+## 账户解析
+
+所有 PhotonPay 资源按 `(AccountID, Channel=photonpay)` 隔离。先调用 token 接口：`app_id` 由 PhotonPay `service/id.go` 解析为 `Account.ID`，`secret` 必须为空；成功时 `access_token` 返回同一账户 ID 的十进制格式。后续 OpenAPI 请求使用该 token 解析当前账户并过滤全部账户资源。不得使用固定 token、固定账户或通过卡片推导账户。
+
+```bash
+curl -X POST http://127.0.0.1:8000/photonpay/oauth2/token/accessToken \
+  -H 'Content-Type: application/json' \
+  -d '{"app_id":"1001","secret":""}'
+# {"access_token":"1001", ...}
+```
 
 ## Marxo 调用基准
 
