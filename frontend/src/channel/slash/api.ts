@@ -31,14 +31,24 @@ export const accountApi = {
 export interface Webhook {
   id: string;
   account_id: string;
-  event: string;
+  event: WebhookEvent;
   target_url: string;
   enabled: boolean;
   created_at: string;
   updated_at: string;
 }
 
+export type WebhookEvent =
+  | "aggregated_transaction.create"
+  | "aggregated_transaction.update"
+  | "card_creation.event"
+  | "card.update"
+  | "card.delete";
+
 export const webhookApi = {
+  async events() {
+    return (await request.get<WebhookEvent[]>(`${baseURL}/webhooks/events`)).data;
+  },
   async list(accountID?: string) {
     return (
       await request.get<Webhook[]>(`${baseURL}/webhooks`, {

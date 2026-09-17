@@ -18,6 +18,7 @@ import {
   type Account,
   accountApi,
   type Webhook,
+  type WebhookEvent,
   webhookApi,
 } from "@/channel/slash/api";
 
@@ -28,28 +29,25 @@ const accounts = ref<Account[]>([]);
 const filterAccountID = ref<string | null>(null);
 const creating = ref(false);
 const editing = ref<Webhook | null>(null);
+const eventOptions = ref<WebhookEvent[]>([]);
 const form = ref({
   account_id: "",
-  event: "transaction.created",
+  event: "" as WebhookEvent | "",
   target_url: "",
   enabled: true,
 });
-const eventOptions = [
-  "transaction.created",
-  "transaction.updated",
-  "authorization.created",
-  "authorization.updated",
-].map((value) => ({ label: value, value }));
 
 async function load() {
   loading.value = true;
   try {
-    const [items, accountItems] = await Promise.all([
+    const [items, accountItems, events] = await Promise.all([
       webhookApi.list(filterAccountID.value || undefined),
       accountApi.list(),
+      webhookApi.events(),
     ]);
     rows.value = items;
     accounts.value = accountItems.data;
+    eventOptions.value = events;
   } catch (error) {
     message.error(error instanceof Error ? error.message : "无法加载 Webhook 配置");
   } finally {
@@ -61,7 +59,7 @@ function openCreate() {
   editing.value = null;
   form.value = {
     account_id: "",
-    event: "transaction.created",
+    event: "",
     target_url: "",
     enabled: true,
   };
@@ -85,8 +83,8 @@ function openEdit(item: Webhook) {
 }
 
 async function save() {
-  if (!form.value.account_id || !form.value.target_url) {
-    message.warning("请选择账户并填写 Webhook URL");
+  if (!form.value.account_id || !form.value.event || !form.value.target_url) {
+    message.warning("请选择账户、事件并填写 Webhook URL");
     return;
   }
   try {
@@ -96,7 +94,12 @@ async function save() {
         enabled: form.value.enabled,
       });
     } else {
-      await webhookApi.create(form.value);
+      await webhookApi.create({
+        account_id: form.value.account_id,
+        event: form.value.event as WebhookEvent,
+        target_url: form.value.target_url,
+        enabled: form.value.enabled,
+      });
     }
     creating.value = false;
     await load();
@@ -193,7 +196,11 @@ onMounted(() => void load());
           />
         </n-form-item>
         <n-form-item label="事件">
-          <n-select v-model:value="form.event" :options="eventOptions" :disabled="Boolean(editing)"/>
+        <n-select
+            v-model:value="form.event"
+            :options="eventOptions.map((value) => ({ label: value, value }))"
+            :disabled="Boolean(editing)"
+        />
         </n-form-item>
         <n-form-item label="Webhook URL">
           <n-input v-model:value="form.target_url" placeholder="https://example.com/webhooks/slash"/>

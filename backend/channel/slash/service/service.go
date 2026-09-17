@@ -151,20 +151,25 @@ func (s *SlashUIService) UpdateAccount(
 }
 
 type WebhookData struct {
-	ID        string    `json:"id"`
-	AccountID string    `json:"account_id"`
-	Event     string    `json:"event"`
-	TargetURL string    `json:"target_url"`
-	Enabled   bool      `json:"enabled"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        string             `json:"id"`
+	AccountID string             `json:"account_id"`
+	Event     slash.WebhookEvent `json:"event"`
+	TargetURL string             `json:"target_url"`
+	Enabled   bool               `json:"enabled"`
+	CreatedAt time.Time          `json:"created_at"`
+	UpdatedAt time.Time          `json:"updated_at"`
 }
 
 type CreateWebhookRequest struct {
-	AccountID string `json:"account_id" binding:"required"`
-	Event     string `json:"event" binding:"required"`
-	TargetURL string `json:"target_url" binding:"required,url"`
-	Enabled   bool   `json:"enabled"`
+	AccountID string             `json:"account_id" binding:"required"`
+	Event     slash.WebhookEvent `json:"event" binding:"required"`
+	TargetURL string             `json:"target_url" binding:"required,url"`
+	Enabled   bool               `json:"enabled"`
+}
+
+func (s *SlashUIService) ListWebhookEvents(context.Context, *struct{}) (*[]slash.WebhookEvent, error) {
+	events := slash.WebhookEvents()
+	return &events, nil
 }
 
 func (s *SlashUIService) CreateWebhook(ctx context.Context, req *CreateWebhookRequest) (*WebhookData, error) {
@@ -710,7 +715,7 @@ func webhookData(item *model.WebhookConfig) *WebhookData {
 	return &WebhookData{
 		ID:        slashIDString(item.ID),
 		AccountID: slashIDString(item.AccountID),
-		Event:     item.Event,
+		Event:     slash.WebhookEvent(item.Event),
 		TargetURL: item.TargetURL,
 		Enabled:   item.Enabled,
 		CreatedAt: item.CreatedAt,

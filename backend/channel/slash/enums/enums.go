@@ -43,6 +43,39 @@ type CardHolderStatus string
 
 const CardHolderStatus_Normal CardHolderStatus = "normal"
 
+type WebhookEvent string
+
+const (
+	WebhookEventTransactionCreate WebhookEvent = "aggregated_transaction.create"
+	WebhookEventTransactionUpdate WebhookEvent = "aggregated_transaction.update"
+	WebhookEventCardCreate        WebhookEvent = "card_creation.event"
+	WebhookEventCardUpdate        WebhookEvent = "card.update"
+	WebhookEventCardDelete        WebhookEvent = "card.delete"
+)
+
+func (v WebhookEvent) Valid() bool {
+	switch v {
+	case WebhookEventTransactionCreate,
+		WebhookEventTransactionUpdate,
+		WebhookEventCardCreate,
+		WebhookEventCardUpdate,
+		WebhookEventCardDelete:
+		return true
+	default:
+		return false
+	}
+}
+
+func WebhookEvents() []WebhookEvent {
+	return []WebhookEvent{
+		WebhookEventTransactionCreate,
+		WebhookEventTransactionUpdate,
+		WebhookEventCardCreate,
+		WebhookEventCardUpdate,
+		WebhookEventCardDelete,
+	}
+}
+
 func CardStatusFromGeneric(value generic.CardStatus) CardStatus {
 	switch value {
 	case generic.CardStatus_Frozen:

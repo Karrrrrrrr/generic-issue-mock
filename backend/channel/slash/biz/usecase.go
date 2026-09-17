@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	slash "generic-mock/channel/slash/enums"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/cardnumber"
@@ -399,12 +400,15 @@ func (u *SlashUIUsecase) ListCardHolders(ctx context.Context, req *ListCardHolde
 
 type CreateWebhookRequest struct {
 	AccountID model.ID
-	Event     string
+	Event     slash.WebhookEvent
 	TargetURL string
 	Enabled   bool
 }
 
 func (u *SlashUIUsecase) CreateWebhook(ctx context.Context, req *CreateWebhookRequest) (*model.WebhookConfig, error) {
+	if !req.Event.Valid() {
+		return nil, ErrInvalidOperation
+	}
 	exists, err := u.accountRepository.Exist(ctx, req.AccountID)
 	if err != nil {
 		zap.S().Errorw("check slash webhook account", "error", err)
@@ -417,7 +421,7 @@ func (u *SlashUIUsecase) CreateWebhook(ctx context.Context, req *CreateWebhookRe
 	item := &model.WebhookConfig{
 		AccountID: req.AccountID,
 		Channel:   enums.Channel_Slash,
-		Event:     req.Event,
+		Event:     string(req.Event),
 		TargetURL: req.TargetURL,
 		Enabled:   req.Enabled,
 	}

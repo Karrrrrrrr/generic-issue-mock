@@ -6,6 +6,7 @@ import (
 
 	paynda "generic-mock/channel/paynda/enums"
 	photon "generic-mock/channel/photonpay/enums"
+	slash "generic-mock/channel/slash/enums"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/cardnumber"
@@ -110,12 +111,12 @@ func seedWebhookConfigs(
 	db *gorm.DB,
 	accounts map[enums.Channel]*model.Account,
 ) error {
-	for _, event := range slashWebhookEvents() {
+	for _, event := range slash.WebhookEvents() {
 		item := &model.WebhookConfig{
 			AccountID: accounts[enums.Channel_Slash].ID,
 			Channel:   enums.Channel_Slash,
-			Event:     event,
-			TargetURL: "http://127.0.0.1:18080/slash/webhooks/" + event,
+			Event:     string(event),
+			TargetURL: "http://127.0.0.1:18080/slash/webhooks/" + string(event),
 			Enabled:   true,
 		}
 		if err := db.WithContext(ctx).Where(&model.WebhookConfig{
@@ -162,15 +163,6 @@ func seedWebhookConfigs(
 	}
 
 	return nil
-}
-
-func slashWebhookEvents() []string {
-	return []string{
-		"transaction.created",
-		"transaction.updated",
-		"authorization.created",
-		"authorization.updated",
-	}
 }
 
 func seedAuthorizationConfigs(
