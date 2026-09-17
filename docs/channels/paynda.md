@@ -77,8 +77,47 @@ curl 'http://127.0.0.1:8000/paynda/openapi/requestResults?requestId=open-card-20
 
 ### Webhook
 
-Marxo 已使用 Paynda 的开卡、请求结果和交易查询 SDK，但已检查的 SDK 中没有 Paynda 入站 webhook DTO 或事件枚举。因此不得编造 `X-Signature`、回调 URL 或厂商事件名。待确认下游协议后，至少需覆盖管理 UI 已允许订阅的 `transaction.created`、`transaction.updated`、`authorization.created`、`authorization.updated`。
+Marxo 的实际入口是 `POST ${MARXO_BASE_URL}/api/v1/notify/xm-event`。验签 headers 和事件分类均已在 Marxo middleware 中固定：
 
-建议的渠道 service payload 边界如下：交易事件包含格式化 `cardId`、`transactionId`、可选 `originTransactionId`、`type`、`status`、`amount`、`currency`、`authorizationCode`、商户字段和发生/清算时间；授权事件包含格式化 `cardId`、`authorizationId`、状态、金额/币种、MCC、商户及时间。字段由 `CardTransaction`/`Authorization` 转换，不能从 Paynda 字符串枚举直接泄露通用枚举。
+| HTTP header | 要求 |
+| --- | --- |
+| `Content-Type` | `application/json` |
+| `appId` | Marxo 配置的 Paynda app ID |
+| `timestamp` | Unix 秒时间戳；与 Marxo 当前时间相差不得超过 120 秒 |
+| `nonce` | 每次投递的新随机字符串 |
+| `sign` | 小写 MD5：`md5(appId + appSecret + timestamp + nonce + "/api/v1/notify/xm-event")` |
+| `X-VK-NOTIFICATION-CATEGORY` | `CARD_TRANSACTION` 或 `CARD_STATUS` |
 
-投递流程必须是：业务 transaction 提交后，按渠道/事件读取启用的 `WebhookConfig`；每个目标先插入一个 `WebhookRecord`（channel、event、target URL、格式化 source ID、完整 JSON、attempt 1、pending），再发 HTTP POST；只有 2xx 标记成功并保存状态码、响应和时间；失败保存错误和响应并更新同一 record 重试。实现者需要把最终确认的 Paynda URL、header、签名算法、重试上限和真实示例报文补到本节。
+签名不包含 JSON body。验签开启时，`appId`、`appSecret`、路径、秒级时间戳和 nonce 必须按上表拼接；不要使用 `X-Signature` 或包含 body 的 HMAC。
+
+交易事件的 body 外层必须是 `cardTransactionWebhook`。`cardId`、`cardholderId`、`balanceAccountId`、`merchantId` 在下游 DTO 中是整数；mock 必须输出 Paynda service formatter 得到的可逆数值，不能直接泄露内部自增 ID。其余没有通用语义的收单/POS字段保留在 Paynda service DTO。
+
+```bash
+timestamp=$(date +%s)
+nonce='mock-nonce-20260917-001'
+# sign = md5("$appId$appSecret$timestamp$nonce/api/v1/notify/xm-event")
+curl -X POST "$MARXO_BASE_URL/api/v1/notify/xm-event" \
+  -H 'Content-Type: application/json' \
+  -H "appId: $appId" -H "timestamp: $timestamp" -H "nonce: $nonce" -H "sign: $sign" \
+  -H 'X-VK-NOTIFICATION-CATEGORY: CARD_TRANSACTION' \
+  -d '{
+    "cardTransactionWebhook": {
+      "id":"ptx-501","createTime":"2026-09-17T10:01:00Z","updateTime":"2026-09-17T10:02:00Z",
+      "merchantId":9001,"balanceAccountId":7001,"cardholderId":101,"cardId":401,
+      "maskCardNo":"486699******0001","type":"AUTH","approvalCode":"A12345",
+      "preAuthAmount":"12.50","postedAmount":"12.50","currency":"USD",
+      "originalCurrencyCode":"USD","transactionAmountInOriginalCurrency":"12.50","reversalFlag":"false",
+      "transactionTime":"2026-09-17T10:01:00Z","authorizationTime":"2026-09-17T10:01:00Z",
+      "acquirerId":"acquirer-1","merchantMcc":"5812","merchantName":"Mock Cafe",
+      "merchantAddressAddressLine1":"1 Main St","merchantAddressCity":"New York",
+      "merchantAddressState":"NY","merchantAddressCountry":"US","merchantAddressZip":"10001",
+      "posAcceptorId":"terminal-1","posAcceptLocation":"New York","posEntryDescription":"chip",
+      "transactionId":"txn-501","supplierTransactionId":"supplier-501",
+      "supplierTransactionLinkId":"auth-501","declineMessage":"","walletId":"wallet-701"
+    }
+  }'
+```
+
+卡状态 body 则是 `{"cardStatusWebhook":{"id":"pcs-401","createTime":"...","updateTime":"...","merchantId":9001,"balanceAccountId":7001,"cardholderId":101,"cardId":401,"maskCardNo":"486699******0001","status":"ACTIVE"}}`，header 分类为 `CARD_STATUS`。Marxo 当前只对 `ACTIVE` 和 `FROZEN` 收敛卡状态；其它状态可以记录但不会触发状态更新。
+
+该入口返回空成功响应，投递成功以 HTTP 2xx 为准。提交业务 transaction 后，先建立 `WebhookRecord`（`Channel=paynda`、分类事件、target、格式化 `SourceID`、完整 JSON、attempt 1、pending），再 POST；记录 HTTP 状态、响应、时间或失败原因，并在重试时更新同一 record。交易 body 的 `id`/`transactionId` 应稳定复用，避免 Marxo 将重投视作新清算消息。

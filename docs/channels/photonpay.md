@@ -103,6 +103,42 @@ curl -X POST http://127.0.0.1:8000/photonpay/vcc/open/v2/sandBoxTransaction \
 
 ### Webhook
 
-已检查的 Marxo PhotonPay SDK 没有入站 webhook DTO/消费者，不能伪造 PhotonPay 特有字段或签名。待下游协议确认后，以 `transaction.created`、`transaction.updated`、`authorization.created`、`authorization.updated` 这四个已在管理 UI 配置的事件为边界实现：payload 必须含格式化的卡/交易/授权 ID、事件时间、状态、金额和币种；授权事件再含商户/MCC 与授权码。
+Marxo 的实际入口是 `POST ${MARXO_BASE_URL}/api/v1/notify/ds-event`。这是 PhotonPay 交易、清算、持卡人状态和卡状态事件的下游契约，不是 generic-mock 的管理 UI webhook 配置接口。
 
-每次业务状态提交后，查询启用且事件匹配的 `WebhookConfig`，先创建 `WebhookRecord`（`Channel=photonpay`、`Event`、`TargetURL`、格式化 `SourceID`、payload、`AttemptCount=1`、pending），再在 transaction 外 POST。2xx 写成功、HTTP 状态/响应体/时间；非 2xx 或网络错误写失败和错误信息。重试更新同一记录；协议确定后在本节补上真实 header、签名和完整 JSON 示例。
+| HTTP header | 值 | 用途 |
+| --- | --- | --- |
+| `Content-Type` | `application/json` | body 必须按发送字节签名。 |
+| `X-PD-SIGN` | 原始 JSON body 的 `MD5withRSA` 签名，再 Base64 | Marxo 使用配置的 PhotonPay 公钥验签。验签开关开启时缺失或不合法会被拒绝。 |
+| `X-PD-NOTIFICATION-CATAGORY` | `issuing`、`issuing_settlement` 或 `issuing_card` | 决定 body 的消费分支。值必须小写；注意下游常量拼写是 `CATAGORY`。 |
+| `X-PD-NOTIFICATION-TYPE` | `auth`、`verification`、`void`、`refund`、`cardholder_status_update`、`card_status_update` 等 | 交易分支目前由前四种触发；卡/持卡人状态各使用对应类型。 |
+| `X-PD-PUBLISHED-AT` | 渠道事件唯一时间/键 | OTP 事件以它作为下游幂等关联键；所有事件建议携带。 |
+
+交易或清算事件使用 `issuing` 或 `issuing_settlement`，并在 header 中给出 `auth`、`verification`、`void` 或 `refund`。下面是可直接用于集成测试的最小完整交易报文；所有卡、交易和原交易 ID 必须经 PhotonPay `service/id.go` 格式化，不能直接序列化数据库 ID。
+
+```bash
+# signature = Base64(RSA_sign_MD5(exact_body_bytes, photonpay_private_key))
+curl -X POST "$MARXO_BASE_URL/api/v1/notify/ds-event" \
+  -H 'Content-Type: application/json' \
+  -H "X-PD-SIGN: $signature" \
+  -H 'X-PD-NOTIFICATION-CATAGORY: issuing_settlement' \
+  -H 'X-PD-NOTIFICATION-TYPE: auth' \
+  -H 'X-PD-PUBLISHED-AT: 2026-09-17T10:01:00Z' \
+  -d '{
+    "memberId":"mock-member","matrixAccount":"mock-account",
+    "createdAt":"2026-09-17T10:01:00Z","updatedAt":"2026-09-17T10:01:00Z",
+    "cardId":"201","cardType":"share","transactionId":"501","originTransactionId":"",
+    "requestId":"txn-20260917-001","transactionType":"auth","status":"succeed","code":"0","msg":"success",
+    "mcc":"5812","authCode":"A12345","transactionAmount":"12.50","transactionCurrency":"USD",
+    "txnPrincipalChangeAccount":"card","txnPrincipalChangeAmount":"12.50","txnPrincipalChangeCurrency":"USD",
+    "feeDeductionAccount":"card","feeDeductionAmount":"0.00","feeDeductionCurrency":"USD",
+    "feeDetailJson":{"transactionFeeAmount":"0.00"},
+    "arrivalAccount":"merchant","arrivalAmount":"12.50","merchantNameLocation":"Mock Cafe",
+    "merchantLocation":"New York","cardBalance":"87.50","availableTransactionLimit":"87.50",
+    "merchantName":"Mock Cafe","transactionStatus":"settled","transactionCountry":"US",
+    "transactionHappenedAt":"2026-09-17T10:01:00Z","settleAmount":"12.50","settleCurrency":"USD"
+  }'
+```
+
+退款/冲正必须带格式化 `originTransactionId`。`feeReturn*` 和 `feeReturnDetailJson` 仅在有退费时提供；`memberId`、`matrixAccount`、资金变动账户和手续费明细仍是 PhotonPay 专属 DTO 字段，不能扩展进通用模型。卡状态事件的 body 至少为 `{"cardId":"201","cardStatus":"frozen"}`，headers 为 `issuing_card` / `card_status_update`；持卡人状态事件提供 `cardholderId`、`status`、`cardholderReviewStatus`、`reason`。
+
+Marxo 不使用通用成功信封，必须收到裸响应 `{"roger":true}`；连续八次不规范响应会使 PhotonPay 停止全部事件通知。因此 mock 的投递判定需要同时检查 HTTP 2xx 和该 JSON body 的 `roger=true`。提交业务 transaction 后先创建 `WebhookRecord`（`Channel=photonpay`、事件、目标、格式化 `SourceID`、原始 body、attempt 1、pending），再发送；将状态码、响应 body、投递时间或错误写回同一 record，重试不得重新生成业务交易。
