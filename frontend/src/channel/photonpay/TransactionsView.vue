@@ -1,20 +1,16 @@
 <script setup lang="ts">
 import { h, onMounted, ref } from "vue";
-import {
-  NButton,
-  NCard,
-  NDataTable,
-  NSpace,
-  NTag,
-  createDiscreteApi,
-} from "naive-ui";
+import { createDiscreteApi, NButton, NCard, NDataTable, NSpace, NTag, } from "naive-ui";
 import { api } from "./api";
 import type { Transaction } from "@/channel/types";
+
 const { message } = createDiscreteApi(["message"]);
 const rows = ref<Transaction[]>([]);
+
 async function load() {
   rows.value = (await api.listTransactions()).data;
 }
+
 async function apply(id: string, action: "clear" | "reverse" | "refund") {
   try {
     await api.applyTransactionStep(id, action);
@@ -23,30 +19,32 @@ async function apply(id: string, action: "clear" | "reverse" | "refund") {
     message.error(e instanceof Error ? e.message : "操作失败");
   }
 }
+
 function actions(r: Transaction) {
   if (r.transaction_type === "auth" && r.status === "authorized")
     return [
       h(
-        NButton,
-        { size: "small", onClick: () => apply(r.id, "clear") },
-        { default: () => "清算" },
+          NButton,
+          { size: "small", onClick: () => apply(r.id, "clear") },
+          { default: () => "清算" },
       ),
       h(
-        NButton,
-        { size: "small", onClick: () => apply(r.id, "reverse") },
-        { default: () => "撤销" },
+          NButton,
+          { size: "small", onClick: () => apply(r.id, "reverse") },
+          { default: () => "撤销" },
       ),
     ];
   if (r.transaction_type === "clear" && r.status === "succeed")
     return [
       h(
-        NButton,
-        { size: "small", onClick: () => apply(r.id, "refund") },
-        { default: () => "退款" },
+          NButton,
+          { size: "small", onClick: () => apply(r.id, "refund") },
+          { default: () => "退款" },
       ),
     ];
   return [h(NTag, { size: "small" }, { default: () => "已处理" })];
 }
+
 const columns = [
   {
     title: "金额",
@@ -73,6 +71,6 @@ onMounted(() => void load());
     <n-button @click="load">刷新</n-button>
   </div>
   <n-card :bordered="false">
-    <n-data-table :columns="columns" :data="rows" />
+    <n-data-table :columns="columns" :data="rows"/>
   </n-card>
 </template>

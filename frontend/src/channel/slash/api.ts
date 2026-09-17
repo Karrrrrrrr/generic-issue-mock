@@ -1,18 +1,21 @@
-import type {
-  ChannelAPI,
-  Card,
-  Cardholder,
-  ListResponse,
-  Transaction,
-} from "@/channel/types";
+import type { Card, Cardholder, ChannelAPI, ListResponse, Transaction, } from "@/channel/types";
 import { authorizationPayload, request } from "@/channel/shared";
 
 const baseURL = "/slash/ui";
 
-export interface Account { id: string; name: string; created_at: string; }
+export interface Account {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
 export const accountApi = {
-  async list() { return (await request.get<Account[]>(`${baseURL}/accounts`)).data; },
-  async create(payload: Pick<Account, "name">) { return (await request.post<Account>(`${baseURL}/accounts`, payload)).data; },
+  async list() {
+    return (await request.get<Account[]>(`${baseURL}/accounts`)).data;
+  },
+  async create(payload: Pick<Account, "name">) {
+    return (await request.post<Account>(`${baseURL}/accounts`, payload)).data;
+  },
 };
 
 export interface Webhook {
@@ -39,12 +42,28 @@ export const webhookApi = {
   },
 };
 
-export interface CardProduct { id: string; prefix: string; is_default: boolean; }
-export interface VirtualAccount { id: string; name: string; currency: string; balance: string; spend: string; created_at: string; }
+export interface CardProduct {
+  id: string;
+  prefix: string;
+  is_default: boolean;
+}
+
+export interface VirtualAccount {
+  id: string;
+  name: string;
+  currency: string;
+  balance: string;
+  spend: string;
+  created_at: string;
+}
 
 export const managementApi = {
-  async cardProducts() { return (await request.get<{ items: CardProduct[] }>(`${baseURL}/card-products`)).data.items; },
-  async virtualAccounts() { return (await request.get<VirtualAccount[]>(`${baseURL}/virtual-accounts`)).data; },
+  async cardProducts() {
+    return (await request.get<{ items: CardProduct[] }>(`${baseURL}/card-products`)).data.items;
+  },
+  async virtualAccounts() {
+    return (await request.get<VirtualAccount[]>(`${baseURL}/virtual-accounts`)).data;
+  },
 };
 
 export async function applyTransactionAmount(id: string, action: "clear" | "reverse" | "refund", amount: number) {
@@ -68,17 +87,17 @@ export const refundApi = {
 export const api: ChannelAPI = {
   async listCardholders() {
     return (
-      await request.get<ListResponse<Cardholder>>(`${baseURL}/cardholders`)
+        await request.get<ListResponse<Cardholder>>(`${baseURL}/cardholders`)
     ).data;
   },
   async createCardholder(payload) {
     return (
-      await request.post<Cardholder>(`${baseURL}/cardholders`, {
-        first_name: payload.firstName,
-        last_name: payload.lastName,
-        email: payload.email,
-        phone_number: payload.mobile,
-      })
+        await request.post<Cardholder>(`${baseURL}/cardholders`, {
+          first_name: payload.firstName,
+          last_name: payload.lastName,
+          email: payload.email,
+          phone_number: payload.mobile,
+        })
     ).data;
   },
   async listCards() {
@@ -86,28 +105,28 @@ export const api: ChannelAPI = {
   },
   async createCard(cardholderID, currency) {
     return (
-      await request.post<Card>(`${baseURL}/cards`, {
-        cardholder_id: cardholderID,
-        card_currency: currency,
-      })
+        await request.post<Card>(`${baseURL}/cards`, {
+          cardholder_id: cardholderID,
+          card_currency: currency,
+        })
     ).data;
   },
   async updateCardStatus(id, status) {
     return (
-      await request.put<Card>(`${baseURL}/cards/${id}/status`, {
-        card_status: status,
-      })
+        await request.put<Card>(`${baseURL}/cards/${id}/status`, {
+          card_status: status,
+        })
     ).data;
   },
   async listTransactions() {
     return (
-      await request.get<ListResponse<Transaction>>(`${baseURL}/transactions`)
+        await request.get<ListResponse<Transaction>>(`${baseURL}/transactions`)
     ).data;
   },
   async simulateAuthorization(payload) {
     await request.post(
-      `${baseURL}/simulate/authorizations`,
-      authorizationPayload(payload),
+        `${baseURL}/simulate/authorizations`,
+        authorizationPayload(payload),
     );
   },
   async applyTransactionStep(id, action, amount) {

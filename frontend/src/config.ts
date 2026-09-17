@@ -3,9 +3,9 @@ export type Channel = "slash" | "photonpay" | "paynda";
 const channelFromPath = window.location.pathname.split("/").filter(Boolean)[0];
 
 export const channel: Channel =
-  channelFromPath === "photonpay" || channelFromPath === "paynda"
-    ? channelFromPath
-    : "slash";
+    channelFromPath === "photonpay" || channelFromPath === "paynda"
+        ? channelFromPath
+        : "slash";
 
 export const channelConfig = {
   slash: {

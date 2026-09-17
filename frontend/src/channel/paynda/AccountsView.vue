@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import { h, onMounted, ref } from "vue";
-import { NButton, NDataTable, NForm, NFormItem, NInput, NModal, NSpace, createDiscreteApi, type DataTableColumns } from "naive-ui";
-import { accountApi, type Account } from "./api";
+import {
+  createDiscreteApi,
+  type DataTableColumns,
+  NButton,
+  NDataTable,
+  NForm,
+  NFormItem,
+  NInput,
+  NModal,
+  NSpace
+} from "naive-ui";
+import { type Account, accountApi } from "./api";
 
 const { message } = createDiscreteApi(["message"]);
 const loading = ref(false);
@@ -48,10 +58,19 @@ onMounted(() => void load());
       <div><h1>资金账户</h1></div>
       <n-button type="primary" @click="visible = true">新增账户</n-button>
     </div>
-    <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" />
+    <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false"/>
     <n-modal v-model:show="visible" preset="card" title="新增资金账户" style="width: min(440px, calc(100vw - 32px))">
-      <n-form label-placement="top"><n-form-item label="名称"><n-input v-model:value="name" /></n-form-item></n-form>
-      <template #action><n-space justify="end"><n-button @click="visible = false">取消</n-button><n-button type="primary" @click="create">创建</n-button></n-space></template>
+      <n-form label-placement="top">
+        <n-form-item label="名称">
+          <n-input v-model:value="name"/>
+        </n-form-item>
+      </n-form>
+      <template #action>
+        <n-space justify="end">
+          <n-button @click="visible = false">取消</n-button>
+          <n-button type="primary" @click="create">创建</n-button>
+        </n-space>
+      </template>
     </n-modal>
   </section>
 </template>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { h, onMounted, ref } from "vue";
 import {
+  createDiscreteApi,
+  type DataTableColumns,
   NButton,
   NDataTable,
   NForm,
@@ -11,10 +13,8 @@ import {
   NSpace,
   NSwitch,
   NTag,
-  createDiscreteApi,
-  type DataTableColumns,
 } from "naive-ui";
-import { webhookApi, type Webhook } from "./api";
+import { type Webhook, webhookApi } from "./api";
 
 const { dialog, message } = createDiscreteApi(["dialog", "message"]);
 const loading = ref(false);
@@ -120,9 +120,9 @@ const columns: DataTableColumns<Webhook> = [
     key: "enabled",
     width: 100,
     render: (row) => h(
-      NTag,
-      { type: row.enabled ? "success" : "default", size: "small" },
-      { default: () => row.enabled ? "启用" : "停用" },
+        NTag,
+        { type: row.enabled ? "success" : "default", size: "small" },
+        { default: () => row.enabled ? "启用" : "停用" },
     ),
   },
   {
@@ -130,14 +130,14 @@ const columns: DataTableColumns<Webhook> = [
     key: "actions",
     width: 150,
     render: (row) => h(
-      NSpace,
-      { size: 6 },
-      {
-        default: () => [
-          h(NButton, { size: "small", onClick: () => edit(row) }, { default: () => "编辑" }),
-          h(NButton, { size: "small", type: "error", onClick: () => remove(row) }, { default: () => "删除" }),
-        ],
-      },
+        NSpace,
+        { size: 6 },
+        {
+          default: () => [
+            h(NButton, { size: "small", onClick: () => edit(row) }, { default: () => "编辑" }),
+            h(NButton, { size: "small", type: "error", onClick: () => remove(row) }, { default: () => "删除" }),
+          ],
+        },
     ),
   },
 ];
@@ -155,23 +155,23 @@ onMounted(() => void load());
       <n-button type="primary" @click="create">新增 Webhook</n-button>
     </div>
 
-    <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" />
+    <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false"/>
 
     <n-modal
-      v-model:show="visible"
-      preset="card"
-      :title="editing ? '编辑 Webhook' : '新增 Webhook'"
-      style="width: min(560px, calc(100vw - 32px))"
+        v-model:show="visible"
+        preset="card"
+        :title="editing ? '编辑 Webhook' : '新增 Webhook'"
+        style="width: min(560px, calc(100vw - 32px))"
     >
       <n-form label-placement="top">
         <n-form-item label="事件">
-          <n-select v-model:value="form.event" :options="eventOptions" :disabled="Boolean(editing)" />
+          <n-select v-model:value="form.event" :options="eventOptions" :disabled="Boolean(editing)"/>
         </n-form-item>
         <n-form-item label="Webhook URL">
-          <n-input v-model:value="form.target_url" placeholder="https://example.com/webhooks/photonpay" />
+          <n-input v-model:value="form.target_url" placeholder="https://example.com/webhooks/photonpay"/>
         </n-form-item>
         <n-form-item label="启用">
-          <n-switch v-model:value="form.enabled" />
+          <n-switch v-model:value="form.enabled"/>
         </n-form-item>
       </n-form>
 

@@ -40,16 +40,22 @@ export interface ListResponse<T> {
 
 export interface ChannelAPI {
   listCardholders(): Promise<ListResponse<Cardholder>>;
+
   createCardholder(payload: {
     firstName: string;
     lastName: string;
     email: string;
     mobile: string;
   }): Promise<Cardholder>;
+
   listCards(): Promise<ListResponse<Card>>;
+
   createCard(cardholderID: string, currency: string): Promise<Card>;
+
   updateCardStatus(id: string, status: string): Promise<Card>;
+
   listTransactions(): Promise<ListResponse<Transaction>>;
+
   simulateAuthorization(payload: {
     cardID: string;
     amount: number;
@@ -59,9 +65,10 @@ export interface ChannelAPI {
     merchantCountry: string;
     merchantCity: string;
   }): Promise<void>;
+
   applyTransactionStep(
-    id: string,
-    action: "clear" | "reverse" | "refund",
-    amount?: number,
+      id: string,
+      action: "clear" | "reverse" | "refund",
+      amount?: number,
   ): Promise<void>;
 }

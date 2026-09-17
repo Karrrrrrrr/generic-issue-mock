@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { h, onMounted, ref } from "vue";
-import { NButton, NCard, NDataTable, NTag, createDiscreteApi } from "naive-ui";
+import { createDiscreteApi, NButton, NCard, NDataTable, NTag } from "naive-ui";
 import { request } from "@/channel/shared";
 
 type Authorization = {
@@ -21,11 +21,22 @@ const rows = ref<Authorization[]>([]);
 const columns = [
   { title: "授权 ID", key: "id" },
   { title: "卡片 ID", key: "card_id" },
-  { title: "金额", key: "authorized_amount", render: (row: Authorization) => `${row.currency} ${row.authorized_amount}` },
+  {
+    title: "金额",
+    key: "authorized_amount",
+    render: (row: Authorization) => `${row.currency} ${row.authorized_amount}`
+  },
   { title: "商户", key: "merchant_name" },
   { title: "MCC", key: "merchant_category_code" },
   { title: "授权码", key: "authorization_code" },
-  { title: "状态", key: "status", render: (row: Authorization) => h(NTag, { type: row.status === "authorized" ? "success" : "warning", size: "small" }, { default: () => row.status }) },
+  {
+    title: "状态",
+    key: "status",
+    render: (row: Authorization) => h(NTag, {
+      type: row.status === "authorized" ? "success" : "warning",
+      size: "small"
+    }, { default: () => row.status })
+  },
   { title: "授权时间", key: "authorized_at" },
 ];
 
@@ -45,8 +56,11 @@ onMounted(() => void load());
 
 <template>
   <div class="page-heading">
-    <div><h1>授权管理</h1><p>查看 PhotonPay 已模拟的授权记录。</p></div>
+    <div><h1>授权管理</h1>
+      <p>查看 PhotonPay 已模拟的授权记录。</p></div>
     <n-button :loading="loading" @click="load">刷新</n-button>
   </div>
-  <n-card :bordered="false"><n-data-table :loading="loading" :columns="columns" :data="rows" /></n-card>
+  <n-card :bordered="false">
+    <n-data-table :loading="loading" :columns="columns" :data="rows"/>
+  </n-card>
 </template>

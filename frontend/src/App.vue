@@ -51,7 +51,9 @@ const themeOverrides = computed(() => ({
 <template>
   <n-config-provider :theme="isDark ? darkTheme : undefined" :theme-overrides="themeOverrides">
     <n-message-provider>
-      <n-dialog-provider><router-view /></n-dialog-provider>
+      <n-dialog-provider>
+        <router-view/>
+      </n-dialog-provider>
     </n-message-provider>
   </n-config-provider>
 </template>

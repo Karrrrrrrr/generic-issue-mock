@@ -37,7 +37,7 @@ $$;
 `
 
 func NewPostgresDB(dsn string) (*gorm.DB, error) {
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{DisableForeignKeyConstraintWhenMigrating: true})
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func NewPostgresDB(dsn string) (*gorm.DB, error) {
 }
 
 func ResetPostgresDB(ctx context.Context, dsn string) (*gorm.DB, error) {
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{DisableForeignKeyConstraintWhenMigrating: true})
 	if err != nil {
 		return nil, err
 	}
