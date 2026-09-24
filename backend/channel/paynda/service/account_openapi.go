@@ -2,10 +2,11 @@ package service
 
 import (
 	"context"
-	"time"
 
 	"generic-mock/channel/paynda/biz"
+	"generic-mock/channel/paynda/pkg/idconv"
 	"generic-mock/model"
+	timeTypes "generic-mock/pkg/types/time"
 )
 
 type OpenAPIBalanceAccountRequest struct {
@@ -15,11 +16,11 @@ type OpenAPIBalanceAccountRequest struct {
 }
 
 type OpenAPIBalanceAccountData struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	MerchantID string `json:"merchantId"`
-	CreateTime string `json:"createTime"`
-	UpdateTime string `json:"updateTime"`
+	ID         string             `json:"id"`
+	Name       string             `json:"name"`
+	MerchantID string             `json:"merchantId"`
+	CreateTime timeTypes.DateTime `json:"createTime"`
+	UpdateTime timeTypes.DateTime `json:"updateTime"`
 }
 
 type OpenAPIBalanceAccountsData struct {
@@ -31,11 +32,11 @@ type OpenAPIBalanceAccountsData struct {
 
 func balanceAccountData(item *model.Account) *OpenAPIBalanceAccountData {
 	return &OpenAPIBalanceAccountData{
-		ID:         payndaIDString(item.ID),
-		MerchantID: payndaIDString(item.ID),
+		ID:         idconv.ToString(item.ID),
+		MerchantID: idconv.ToString(item.ID),
 		Name:       item.Name,
-		CreateTime: item.CreatedAt.UTC().Format(time.DateTime),
-		UpdateTime: item.UpdatedAt.UTC().Format(time.DateTime),
+		CreateTime: timeTypes.DateTime(item.CreatedAt.UTC()),
+		UpdateTime: timeTypes.DateTime(item.UpdatedAt.UTC()),
 	}
 }
 
@@ -44,7 +45,7 @@ func (service *PayndaOpenAPIService) GetBalanceAccount(ctx context.Context, req 
 	if req.BalanceAccountID != nil {
 		selector = *req.BalanceAccountID
 	}
-	id, err := payndaAccountID(selector)
+	id, err := idconv.FromAccountString(selector)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +73,7 @@ func (service *PayndaOpenAPIService) CreateBalanceAccount(ctx context.Context, r
 	if req.Name == nil || *req.Name == "" {
 		return nil, biz.ErrInvalidOperation
 	}
-	if _, err := payndaAccountID(req.AppID); err != nil {
+	if _, err := idconv.FromAccountString(req.AppID); err != nil {
 		return nil, err
 	}
 	item, err := service.usecase.CreateAccount(ctx, &biz.OpenAPICreateAccountRequest{Name: *req.Name})
@@ -86,7 +87,7 @@ func (service *PayndaOpenAPIService) UpdateBalanceAccount(ctx context.Context, r
 	if req.Name == nil || req.BalanceAccountID == nil {
 		return nil, biz.ErrInvalidOperation
 	}
-	id, err := payndaAccountID(*req.BalanceAccountID)
+	id, err := idconv.FromAccountString(*req.BalanceAccountID)
 	if err != nil {
 		return nil, err
 	}

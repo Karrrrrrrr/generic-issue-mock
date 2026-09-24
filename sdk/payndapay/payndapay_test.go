@@ -1,6 +1,7 @@
 package payndapay
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -183,6 +184,25 @@ func TestSDKProtocol(testContext *testing.T) {
 		{
 			Name:     "GetCardTransactions",
 			Required: []string{"records.0.id", "records.0.transactionTime"},
+		},
+		{
+			Name: "GetCardTransactions",
+			Fields: map[string]any{
+				"TransactionTimeStart": "2020-01-01 00:00:00",
+				"TransactionTimeEnd":   "2099-01-01 00:00:00",
+			},
+			Required: []string{"records.0.id", "records.0.transactionTime"},
+		},
+		{
+			Name: "GetCardTransactions",
+			Fields: map[string]any{
+				"TransactionTimeStart": "2000-01-01 00:00:00",
+				"TransactionTimeEnd":   "2000-01-02 00:00:00",
+			},
+			Expect: map[string]any{
+				"total":   json.Number("0"),
+				"records": []any{},
+			},
 		},
 		{
 			Name:     "QueryCardTransaction",

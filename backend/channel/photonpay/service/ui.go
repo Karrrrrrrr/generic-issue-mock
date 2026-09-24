@@ -6,6 +6,7 @@ import (
 
 	"generic-mock/channel/photonpay/biz"
 	photon "generic-mock/channel/photonpay/enums"
+	"generic-mock/channel/photonpay/pkg/idconv"
 	common "generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -52,7 +53,7 @@ func (s *PhotonPayUIService) CreateVirtualAccount(
 	ctx context.Context,
 	req *UICreateVirtualAccountRequest,
 ) (*UIVirtualAccountData, error) {
-	accountID, err := photonPayAccountID(req.AccountID)
+	accountID, err := idconv.FromAccountString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +114,7 @@ func (s *PhotonPayUIService) GetAuthorizationConfig(
 	ctx context.Context,
 	req *UIGetAuthorizationConfigRequest,
 ) (*UIAuthorizationConfigData, error) {
-	accountID, err := photonPayAccountID(req.AccountID)
+	accountID, err := idconv.FromAccountString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +136,7 @@ func (s *PhotonPayUIService) UpdateAuthorizationConfig(
 	ctx context.Context,
 	req *UIUpdateAuthorizationConfigRequest,
 ) (*UIAuthorizationConfigData, error) {
-	accountID, err := photonPayAccountID(req.AccountID)
+	accountID, err := idconv.FromAccountString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +183,7 @@ type UIUpdateWebhookRequest struct {
 }
 
 func (s *PhotonPayUIService) CreateWebhook(ctx context.Context, req *UICreateWebhookRequest) (*UIWebhookData, error) {
-	accountID, err := photonPayAccountID(req.AccountID)
+	accountID, err := idconv.FromAccountString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +201,7 @@ func (s *PhotonPayUIService) CreateWebhook(ctx context.Context, req *UICreateWeb
 func (s *PhotonPayUIService) ListWebhooks(ctx context.Context, req *struct {
 	AccountID *string `form:"account_id"`
 }) (*[]UIWebhookData, error) {
-	accountID, err := photonPayOptionalID(req.AccountID)
+	accountID, err := idconv.FromOptionalString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +223,7 @@ func (s *PhotonPayUIService) ListWebhookEvents(context.Context, *struct{}) (*[]p
 	return &events, nil
 }
 func (s *PhotonPayUIService) UpdateWebhook(ctx context.Context, req *UIUpdateWebhookRequest) (*UIWebhookData, error) {
-	id, err := photonPayID(req.ID)
+	id, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +240,7 @@ func (s *PhotonPayUIService) UpdateWebhook(ctx context.Context, req *UIUpdateWeb
 func (s *PhotonPayUIService) DeleteWebhook(ctx context.Context, req *struct {
 	ID string `uri:"id" binding:"required"`
 }) (*struct{}, error) {
-	id, err := photonPayID(req.ID)
+	id, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +303,7 @@ type UIUpdateAccountRequest struct {
 }
 
 func (s *PhotonPayUIService) UpdateAccount(ctx context.Context, req *UIUpdateAccountRequest) (*UIAccountData, error) {
-	id, err := photonPayAccountID(req.ID)
+	id, err := idconv.FromAccountString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +342,7 @@ func (s *PhotonPayUIService) ReplayWebhookRecord(
 		ID string `uri:"id" binding:"required"`
 	},
 ) (*UIWebhookRecordData, error) {
-	id, err := photonPayID(req.ID)
+	id, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -361,7 +362,7 @@ func NewPhotonPayUIService(injector *do.Injector) (*PhotonPayUIService, error) {
 }
 
 func (s *PhotonPayUIService) CreateCardHolder(ctx context.Context, req *UICardHolderRequest) (*UICardHolderData, error) {
-	accountID, err := photonPayAccountID(req.AccountID)
+	accountID, err := idconv.FromAccountString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -420,11 +421,11 @@ type UICardData struct {
 }
 
 func (s *PhotonPayUIService) CreateCard(ctx context.Context, req *UICreateCardRequest) (*UICardData, error) {
-	accountID, err := photonPayAccountID(req.AccountID)
+	accountID, err := idconv.FromAccountString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
-	cardHolderID, err := photonPayID(req.CardHolderID)
+	cardHolderID, err := idconv.FromString(req.CardHolderID)
 	if err != nil {
 		return nil, err
 	}
@@ -483,7 +484,7 @@ type UIFundCardRequest struct {
 }
 
 func (s *PhotonPayUIService) FundCard(ctx context.Context, req *UIFundCardRequest) (*UICardData, error) {
-	id, err := photonPayID(req.ID)
+	id, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -499,7 +500,7 @@ func (s *PhotonPayUIService) FundCard(ctx context.Context, req *UIFundCardReques
 }
 
 func (s *PhotonPayUIService) UpdateCardStatus(ctx context.Context, req *UIUpdateCardStatusRequest) (*UICardData, error) {
-	cardID, err := photonPayID(req.ID)
+	cardID, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -572,11 +573,11 @@ type UISimulateRefundRequest struct {
 }
 
 func (s *PhotonPayUIService) SimulateRefund(ctx context.Context, req *UISimulateRefundRequest) (*UITransactionData, error) {
-	authorizationID, err := photonpayRefundAuthorizationID(req.AuthorizationID)
+	authorizationID, err := idconv.FromRefundAuthorizationString(req.AuthorizationID)
 	if err != nil {
 		return nil, err
 	}
-	cardID, err := photonPayID(req.CardID)
+	cardID, err := idconv.FromString(req.CardID)
 	if err != nil {
 		return nil, err
 	}
@@ -596,7 +597,7 @@ func (s *PhotonPayUIService) SimulateRefund(ctx context.Context, req *UISimulate
 }
 
 func (s *PhotonPayUIService) SimulateAuthorization(ctx context.Context, req *UISimulateAuthorizationRequest) (*UISimulateAuthorizationData, error) {
-	cardID, err := photonPayID(req.CardID)
+	cardID, err := idconv.FromString(req.CardID)
 	if err != nil {
 		return nil, err
 	}
@@ -638,7 +639,7 @@ func (s *PhotonPayUIService) RefundTransaction(ctx context.Context, req *UIApply
 }
 
 func (s *PhotonPayUIService) applyTransactionStep(ctx context.Context, req *UIApplyTransactionStepRequest, transactionType common.CardTransactionType) (*UITransactionData, error) {
-	transactionID, err := photonPayID(req.ID)
+	transactionID, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -672,7 +673,7 @@ func (s *PhotonPayUIService) ListTransactions(ctx context.Context, req *UIListRe
 
 func photonPayUIListRequest(req *UIListRequest) (*biz.ListRequest, error) {
 	page, size := types.NormalizePagination(types.Value(req.PageNumber), types.Value(req.PageSize))
-	accountID, err := photonPayOptionalID(req.AccountID)
+	accountID, err := idconv.FromOptionalString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -685,9 +686,9 @@ func photonPayUIListRequest(req *UIListRequest) (*biz.ListRequest, error) {
 
 func photonPayUICardHolderData(item *model.CardHolder) *UICardHolderData {
 	return &UICardHolderData{
-		AccountID:   photonPayIDString(item.AccountID),
+		AccountID:   idconv.ToString(item.AccountID),
 		AccountName: uiAccountName(item.Account),
-		ID:          photonPayIDString(item.ID),
+		ID:          idconv.ToString(item.ID),
 		FirstName:   item.FirstName,
 		LastName:    item.LastName,
 		Email:       item.Email,
@@ -708,11 +709,11 @@ func photonPayUICardData(item *model.Card) *UICardData {
 	}
 
 	return &UICardData{
-		AccountID:     photonPayIDString(item.AccountID),
+		AccountID:     idconv.ToString(item.AccountID),
 		AccountName:   uiAccountName(item.Account),
-		WalletID:      photonPayIDString(item.WalletID),
-		ID:            photonPayIDString(item.ID),
-		CardHolderID:  photonPayIDString(item.CardHolderID),
+		WalletID:      idconv.ToString(item.WalletID),
+		ID:            idconv.ToString(item.ID),
+		CardHolderID:  idconv.ToString(item.CardHolderID),
 		CardNumber:    item.CardNumber,
 		CardBin:       item.CardBin,
 		CardCurrency:  string(item.CardCurrency),
@@ -727,10 +728,10 @@ func photonPayUICardData(item *model.Card) *UICardData {
 
 func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationData {
 	return &UIAuthorizationData{
-		AccountID:            photonPayIDString(item.AccountID),
+		AccountID:            idconv.ToString(item.AccountID),
 		AccountName:          uiAccountName(item.Account),
-		ID:                   photonPayIDString(item.ID),
-		CardID:               photonPayIDString(item.CardID),
+		ID:                   idconv.ToString(item.ID),
+		CardID:               idconv.ToString(item.CardID),
 		Status:               photon.AuthorizationStatusFromGeneric(item.Status),
 		AuthorizedAmount:     item.Amount.String(),
 		Currency:             string(item.Currency),
@@ -743,8 +744,8 @@ func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationDat
 
 func photonPayUIWebhookData(item *model.WebhookConfig) *UIWebhookData {
 	return &UIWebhookData{
-		ID:          photonPayIDString(item.ID),
-		AccountID:   photonPayIDString(item.AccountID),
+		ID:          idconv.ToString(item.ID),
+		AccountID:   idconv.ToString(item.AccountID),
 		AccountName: uiAccountName(item.Account),
 		Event:       photon.WebhookEvent(item.Event),
 		TargetURL:   item.TargetURL,
@@ -756,9 +757,9 @@ func photonPayUIWebhookData(item *model.WebhookConfig) *UIWebhookData {
 
 func photonPayUIVirtualAccountData(item *model.VirtualAccount) *UIVirtualAccountData {
 	return &UIVirtualAccountData{
-		AccountID:   photonPayIDString(item.AccountID),
+		AccountID:   idconv.ToString(item.AccountID),
 		AccountName: uiAccountName(item.Account),
-		ID:          photonPayIDString(item.ID),
+		ID:          idconv.ToString(item.ID),
 		Name:        item.Name,
 		Currency:    string(item.Wallet.Currency),
 		Balance:     item.Wallet.Amount.String(),
@@ -768,7 +769,7 @@ func photonPayUIVirtualAccountData(item *model.VirtualAccount) *UIVirtualAccount
 
 func photonPayUIAuthorizationConfigData(item *model.AuthorizationConfig) *UIAuthorizationConfigData {
 	return &UIAuthorizationConfigData{
-		AccountID:     photonPayIDString(item.AccountID),
+		AccountID:     idconv.ToString(item.AccountID),
 		AccountName:   uiAccountName(item.Account),
 		TargetURL:     item.TargetURL,
 		Enabled:       item.Enabled,
@@ -779,8 +780,8 @@ func photonPayUIAuthorizationConfigData(item *model.AuthorizationConfig) *UIAuth
 
 func photonPayUIWebhookRecordData(item *model.WebhookRecord) *UIWebhookRecordData {
 	return &UIWebhookRecordData{
-		ID:              photonPayIDString(item.ID),
-		AccountID:       photonPayIDString(item.AccountID),
+		ID:              idconv.ToString(item.ID),
+		AccountID:       idconv.ToString(item.AccountID),
 		AccountName:     uiAccountName(item.Account),
 		Event:           item.Event,
 		TargetURL:       item.TargetURL,
@@ -804,8 +805,8 @@ func photonPayUIAccountData(item *model.Account) *UIAccountData {
 		balance = item.Wallet.Amount
 	}
 	return &UIAccountData{
-		WalletID:  photonPayIDString(item.WalletID),
-		ID:        photonPayIDString(item.ID),
+		WalletID:  idconv.ToString(item.WalletID),
+		ID:        idconv.ToString(item.ID),
 		Name:      item.Name,
 		Balance:   balance,
 		CreatedAt: item.CreatedAt,
@@ -814,11 +815,11 @@ func photonPayUIAccountData(item *model.Account) *UIAccountData {
 
 func photonPayUITransactionData(item *model.CardTransaction) *UITransactionData {
 	return &UITransactionData{
-		AccountID:            photonPayIDString(item.AccountID),
+		AccountID:            idconv.ToString(item.AccountID),
 		AccountName:          uiAccountName(item.Account),
-		ID:                   photonPayIDString(item.ID),
-		CardID:               photonPayIDString(item.CardID),
-		AuthorizationID:      photonPayIDString(item.AuthorizationID),
+		ID:                   idconv.ToString(item.ID),
+		CardID:               idconv.ToString(item.CardID),
+		AuthorizationID:      idconv.ToString(item.AuthorizationID),
 		TransactionType:      photon.TransactionTypeFromGeneric(item.Type),
 		Status:               photon.TransactionStatusFromGeneric(item.Status),
 		Amount:               item.TxAmount.String(),
@@ -846,7 +847,7 @@ type FundsData struct {
 }
 
 func (s *PhotonPayUIService) ListFunds(ctx context.Context, req *ManagementListRequest) (*[]FundsData, error) {
-	accountID, err := photonPayOptionalID(req.AccountID)
+	accountID, err := idconv.FromOptionalString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -866,9 +867,9 @@ func (s *PhotonPayUIService) ListFunds(ctx context.Context, req *ManagementListR
 			kind = photon.WalletKindCard
 		}
 		result = append(result, FundsData{
-			AccountID:   photonPayIDString(item.AccountID),
+			AccountID:   idconv.ToString(item.AccountID),
 			AccountName: uiAccountName(item.Account),
-			ID:          photonPayIDString(item.ID),
+			ID:          idconv.ToString(item.ID),
 			Currency:    item.Currency,
 			Kind:        kind,
 			Amount:      item.Amount.String(),
@@ -885,19 +886,19 @@ type MoveFundsRequest struct {
 }
 
 func (s *PhotonPayUIService) MoveFunds(ctx context.Context, req *MoveFundsRequest) (*struct{}, error) {
-	accountID, err := photonPayAccountID(req.AccountID)
+	accountID, err := idconv.FromAccountString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
 	var sourceID, targetID int64
 	if req.SourceID != "" {
-		sourceID, err = photonPayID(req.SourceID)
+		sourceID, err = idconv.FromString(req.SourceID)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if req.TargetID != "" {
-		targetID, err = photonPayID(req.TargetID)
+		targetID, err = idconv.FromString(req.TargetID)
 		if err != nil {
 			return nil, err
 		}
@@ -922,7 +923,7 @@ type ManagedVirtualAccountData struct {
 }
 
 func (s *PhotonPayUIService) ListManagedVirtualAccounts(ctx context.Context, req *ManagementListRequest) (*[]ManagedVirtualAccountData, error) {
-	accountID, err := photonPayOptionalID(req.AccountID)
+	accountID, err := idconv.FromOptionalString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -933,11 +934,11 @@ func (s *PhotonPayUIService) ListManagedVirtualAccounts(ctx context.Context, req
 	result := make([]ManagedVirtualAccountData, 0, len(items))
 	for _, item := range items {
 		result = append(result, ManagedVirtualAccountData{
-			AccountID:   photonPayIDString(item.AccountID),
+			AccountID:   idconv.ToString(item.AccountID),
 			AccountName: uiAccountName(item.Account),
-			ID:          photonPayIDString(item.ID),
+			ID:          idconv.ToString(item.ID),
 			Name:        item.Name,
-			WalletID:    photonPayIDString(item.WalletID),
+			WalletID:    idconv.ToString(item.WalletID),
 		})
 	}
 	return &result, nil
@@ -950,7 +951,7 @@ type CreateManagedVirtualAccountRequest struct {
 }
 
 func (s *PhotonPayUIService) CreateManagedVirtualAccount(ctx context.Context, req *CreateManagedVirtualAccountRequest) (*ManagedVirtualAccountData, error) {
-	accountID, err := photonPayAccountID(req.AccountID)
+	accountID, err := idconv.FromAccountString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -963,11 +964,11 @@ func (s *PhotonPayUIService) CreateManagedVirtualAccount(ctx context.Context, re
 		return nil, err
 	}
 	return &ManagedVirtualAccountData{
-		AccountID:   photonPayIDString(item.AccountID),
+		AccountID:   idconv.ToString(item.AccountID),
 		AccountName: uiAccountName(item.Account),
-		ID:          photonPayIDString(item.ID),
+		ID:          idconv.ToString(item.ID),
 		Name:        item.Name,
-		WalletID:    photonPayIDString(item.WalletID),
+		WalletID:    idconv.ToString(item.WalletID),
 	}, nil
 }
 
@@ -985,7 +986,7 @@ type AuthorizationBalanceData struct {
 }
 
 func (s *PhotonPayUIService) ListAuthorizationBalances(ctx context.Context, req *ManagementListRequest) (*[]AuthorizationBalanceData, error) {
-	accountID, err := photonPayOptionalID(req.AccountID)
+	accountID, err := idconv.FromOptionalString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -997,10 +998,10 @@ func (s *PhotonPayUIService) ListAuthorizationBalances(ctx context.Context, req 
 	for _, item := range items {
 		auth := item.Authorization
 		result = append(result, AuthorizationBalanceData{
-			AccountID:    photonPayIDString(auth.AccountID),
+			AccountID:    idconv.ToString(auth.AccountID),
 			AccountName:  uiAccountName(auth.Account),
-			ID:           photonPayIDString(auth.ID),
-			CardID:       photonPayIDString(auth.CardID),
+			ID:           idconv.ToString(auth.ID),
+			CardID:       idconv.ToString(auth.CardID),
 			Currency:     auth.Currency,
 			Amount:       auth.Amount.String(),
 			Settled:      item.Settled.String(),
@@ -1022,11 +1023,11 @@ type ClearAuthorizationData struct {
 }
 
 func (s *PhotonPayUIService) ClearAuthorization(ctx context.Context, req *ClearAuthorizationRequest) (*ClearAuthorizationData, error) {
-	accountID, err := photonPayAccountID(req.AccountID)
+	accountID, err := idconv.FromAccountString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
-	authID, err := photonPayID(req.ID)
+	authID, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -1039,7 +1040,7 @@ func (s *PhotonPayUIService) ClearAuthorization(ctx context.Context, req *ClearA
 		return nil, err
 	}
 
-	return &ClearAuthorizationData{ID: photonPayIDString(item.ID)}, nil
+	return &ClearAuthorizationData{ID: idconv.ToString(item.ID)}, nil
 }
 
 func uiAccountName(account *model.Account) string {

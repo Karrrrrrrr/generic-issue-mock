@@ -6,6 +6,7 @@ import (
 
 	"generic-mock/channel/paynda/biz"
 	paynda "generic-mock/channel/paynda/enums"
+	"generic-mock/channel/paynda/pkg/idconv"
 	common "generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -117,7 +118,7 @@ func (s *PayndaUIService) UpdateAccount(
 	ctx context.Context,
 	req *PayndaUIUpdateAccountRequest,
 ) (*PayndaUIAccountData, error) {
-	id, err := payndaAccountID(req.ID)
+	id, err := idconv.FromAccountString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +159,7 @@ func (s *PayndaUIService) ReplayWebhookRecord(
 		ID string `uri:"id" binding:"required"`
 	},
 ) (*PayndaUIWebhookRecordData, error) {
-	id, err := payndaID(req.ID)
+	id, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +185,7 @@ type PayndaUIUpdateWebhookRequest struct {
 }
 
 func (s *PayndaUIService) CreateWebhook(ctx context.Context, req *PayndaUICreateWebhookRequest) (*PayndaUIWebhookData, error) {
-	accountID, err := payndaID(req.AccountID)
+	accountID, err := idconv.FromString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +203,7 @@ func (s *PayndaUIService) CreateWebhook(ctx context.Context, req *PayndaUICreate
 func (s *PayndaUIService) ListWebhooks(ctx context.Context, req *struct {
 	AccountID *string `form:"account_id"`
 }) (*[]PayndaUIWebhookData, error) {
-	accountID, err := payndaOptionalID(req.AccountID)
+	accountID, err := idconv.FromOptionalString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +223,7 @@ func (s *PayndaUIService) ListWebhookEvents(context.Context, *struct{}) (*[]payn
 	return &events, nil
 }
 func (s *PayndaUIService) UpdateWebhook(ctx context.Context, req *PayndaUIUpdateWebhookRequest) (*PayndaUIWebhookData, error) {
-	id, err := payndaID(req.ID)
+	id, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +240,7 @@ func (s *PayndaUIService) UpdateWebhook(ctx context.Context, req *PayndaUIUpdate
 func (s *PayndaUIService) DeleteWebhook(ctx context.Context, req *struct {
 	ID string `uri:"id" binding:"required"`
 }) (*struct{}, error) {
-	id, err := payndaID(req.ID)
+	id, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +296,7 @@ type PayndaUIUpdateCardStatusRequest struct {
 }
 
 func (s *PayndaUIService) CreateCardHolder(ctx context.Context, req *PayndaUICardHolderRequest) (*PayndaUICardHolderData, error) {
-	accountID, err := payndaAccountID(req.AccountID)
+	accountID, err := idconv.FromAccountString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -358,11 +359,11 @@ func (s *PayndaUIService) ListCardHolders(ctx context.Context, req *PayndaUIList
 }
 
 func (s *PayndaUIService) CreateCard(ctx context.Context, req *PayndaUICreateCardRequest) (*PayndaUICardData, error) {
-	accountID, err := payndaAccountID(req.AccountID)
+	accountID, err := idconv.FromAccountString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
-	holderID, err := payndaID(req.CardHolderID)
+	holderID, err := idconv.FromString(req.CardHolderID)
 	if err != nil {
 		return nil, err
 	}
@@ -378,7 +379,7 @@ func (s *PayndaUIService) CreateCard(ctx context.Context, req *PayndaUICreateCar
 }
 
 func (s *PayndaUIService) UpdateCardStatus(ctx context.Context, req *PayndaUIUpdateCardStatusRequest) (*PayndaUICardData, error) {
-	id, err := payndaID(req.ID)
+	id, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -419,11 +420,11 @@ type PayndaUISimulateRefundRequest struct {
 }
 
 func (s *PayndaUIService) SimulateRefund(ctx context.Context, req *PayndaUISimulateRefundRequest) (*PayndaUITransactionData, error) {
-	authorizationID, err := payndaRefundAuthorizationID(req.AuthorizationID)
+	authorizationID, err := idconv.FromRefundAuthorizationString(req.AuthorizationID)
 	if err != nil {
 		return nil, err
 	}
-	cardID, err := payndaID(req.CardID)
+	cardID, err := idconv.FromString(req.CardID)
 	if err != nil {
 		return nil, err
 	}
@@ -473,7 +474,7 @@ func (s *PayndaUIService) SimulateAuthorization(
 	ctx context.Context,
 	req *PayndaUISimulateAuthorizationRequest,
 ) (*PayndaUISimulateAuthorizationData, error) {
-	cardID, err := payndaID(req.CardID)
+	cardID, err := idconv.FromString(req.CardID)
 	if err != nil {
 		return nil, err
 	}
@@ -528,7 +529,7 @@ func (s *PayndaUIService) applyTransactionStep(
 	req *PayndaUIApplyTransactionStepRequest,
 	kind common.CardTransactionType,
 ) (*PayndaUITransactionData, error) {
-	id, err := payndaID(req.ID)
+	id, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -544,7 +545,7 @@ func (s *PayndaUIService) applyTransactionStep(
 }
 func payndaUIListRequest(req *PayndaUIListRequest) (*biz.PayndaListRequest, error) {
 	page, size := types.NormalizePagination(types.Value(req.PageNumber), types.Value(req.PageSize))
-	accountID, err := payndaOptionalID(req.AccountID)
+	accountID, err := idconv.FromOptionalString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -556,9 +557,9 @@ func payndaUIListRequest(req *PayndaUIListRequest) (*biz.PayndaListRequest, erro
 }
 func payndaUICardHolderData(item *model.CardHolder) *PayndaUICardHolderData {
 	return &PayndaUICardHolderData{
-		AccountID:   payndaIDString(item.AccountID),
+		AccountID:   idconv.ToString(item.AccountID),
 		AccountName: uiAccountName(item.Account),
-		ID:          payndaIDString(item.ID),
+		ID:          idconv.ToString(item.ID),
 		FirstName:   item.FirstName,
 		LastName:    item.LastName,
 		Email:       item.Email,
@@ -575,11 +576,11 @@ func payndaUICardData(item *model.Card) *PayndaUICardData {
 	}
 
 	return &PayndaUICardData{
-		AccountID:     payndaIDString(item.AccountID),
+		AccountID:     idconv.ToString(item.AccountID),
 		AccountName:   uiAccountName(item.Account),
-		WalletID:      payndaIDString(item.WalletID),
-		ID:            payndaIDString(item.ID),
-		CardHolderID:  payndaIDString(item.CardHolderID),
+		WalletID:      idconv.ToString(item.WalletID),
+		ID:            idconv.ToString(item.ID),
+		CardHolderID:  idconv.ToString(item.CardHolderID),
 		CardNumber:    item.CardNumber,
 		CardBin:       item.CardBin,
 		CardCurrency:  item.CardCurrency,
@@ -593,10 +594,10 @@ func payndaUICardData(item *model.Card) *PayndaUICardData {
 }
 func payndaUIAuthorizationData(item *model.Authorization) *PayndaUIAuthorizationData {
 	return &PayndaUIAuthorizationData{
-		AccountID:            payndaIDString(item.AccountID),
+		AccountID:            idconv.ToString(item.AccountID),
 		AccountName:          uiAccountName(item.Account),
-		ID:                   payndaIDString(item.ID),
-		CardID:               payndaIDString(item.CardID),
+		ID:                   idconv.ToString(item.ID),
+		CardID:               idconv.ToString(item.CardID),
 		Status:               paynda.TransactionStatusFromGeneric(item.Status),
 		AuthorizedAmount:     item.Amount.String(),
 		Currency:             item.Currency,
@@ -607,8 +608,8 @@ func payndaUIAuthorizationData(item *model.Authorization) *PayndaUIAuthorization
 }
 func payndaUIWebhookData(item *model.WebhookConfig) *PayndaUIWebhookData {
 	return &PayndaUIWebhookData{
-		ID:          payndaIDString(item.ID),
-		AccountID:   payndaIDString(item.AccountID),
+		ID:          idconv.ToString(item.ID),
+		AccountID:   idconv.ToString(item.AccountID),
 		AccountName: uiAccountName(item.Account),
 		Event:       paynda.WebhookEvent(item.Event),
 		TargetURL:   item.TargetURL,
@@ -620,8 +621,8 @@ func payndaUIWebhookData(item *model.WebhookConfig) *PayndaUIWebhookData {
 
 func payndaUIWebhookRecordData(item *model.WebhookRecord) *PayndaUIWebhookRecordData {
 	return &PayndaUIWebhookRecordData{
-		ID:              payndaIDString(item.ID),
-		AccountID:       payndaIDString(item.AccountID),
+		ID:              idconv.ToString(item.ID),
+		AccountID:       idconv.ToString(item.AccountID),
 		AccountName:     uiAccountName(item.Account),
 		Event:           item.Event,
 		TargetURL:       item.TargetURL,
@@ -646,19 +647,19 @@ func payndaUIAccountData(item *model.Account) *PayndaUIAccountData {
 	}
 	return &PayndaUIAccountData{
 		Balance:   balance,
-		ID:        payndaIDString(item.ID),
+		ID:        idconv.ToString(item.ID),
 		Name:      item.Name,
-		WalletID:  payndaIDString(item.WalletID),
+		WalletID:  idconv.ToString(item.WalletID),
 		CreatedAt: item.CreatedAt,
 	}
 }
 func payndaUITransactionData(item *model.CardTransaction) *PayndaUITransactionData {
 	return &PayndaUITransactionData{
-		AccountID:            payndaIDString(item.AccountID),
+		AccountID:            idconv.ToString(item.AccountID),
 		AccountName:          uiAccountName(item.Account),
-		ID:                   payndaIDString(item.ID),
-		CardID:               payndaIDString(item.CardID),
-		AuthorizationID:      payndaIDString(item.AuthorizationID),
+		ID:                   idconv.ToString(item.ID),
+		CardID:               idconv.ToString(item.CardID),
+		AuthorizationID:      idconv.ToString(item.AuthorizationID),
 		TransactionType:      paynda.TransactionTypeFromGeneric(item.Type),
 		Status:               paynda.TransactionStatusFromGeneric(item.Status),
 		Amount:               item.TxAmount.String(),
@@ -686,7 +687,7 @@ type FundsData struct {
 }
 
 func (s *PayndaUIService) ListFunds(ctx context.Context, req *ManagementListRequest) (*[]FundsData, error) {
-	accountID, err := payndaOptionalID(req.AccountID)
+	accountID, err := idconv.FromOptionalString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -706,9 +707,9 @@ func (s *PayndaUIService) ListFunds(ctx context.Context, req *ManagementListRequ
 			continue
 		}
 		result = append(result, FundsData{
-			AccountID:   payndaIDString(item.AccountID),
+			AccountID:   idconv.ToString(item.AccountID),
 			AccountName: uiAccountName(item.Account),
-			ID:          payndaIDString(item.ID),
+			ID:          idconv.ToString(item.ID),
 			Currency:    item.Currency,
 			Kind:        kind,
 			Amount:      item.Amount.String(),
@@ -725,19 +726,19 @@ type MoveFundsRequest struct {
 }
 
 func (s *PayndaUIService) MoveFunds(ctx context.Context, req *MoveFundsRequest) (*struct{}, error) {
-	accountID, err := payndaAccountID(req.AccountID)
+	accountID, err := idconv.FromAccountString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
 	var sourceID, targetID int64
 	if req.SourceID != "" {
-		sourceID, err = payndaID(req.SourceID)
+		sourceID, err = idconv.FromString(req.SourceID)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if req.TargetID != "" {
-		targetID, err = payndaID(req.TargetID)
+		targetID, err = idconv.FromString(req.TargetID)
 		if err != nil {
 			return nil, err
 		}
@@ -767,7 +768,7 @@ type AuthorizationBalanceData struct {
 }
 
 func (s *PayndaUIService) ListAuthorizationBalances(ctx context.Context, req *ManagementListRequest) (*[]AuthorizationBalanceData, error) {
-	accountID, err := payndaOptionalID(req.AccountID)
+	accountID, err := idconv.FromOptionalString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -779,10 +780,10 @@ func (s *PayndaUIService) ListAuthorizationBalances(ctx context.Context, req *Ma
 	for _, item := range items {
 		auth := item.Authorization
 		result = append(result, AuthorizationBalanceData{
-			AccountID:    payndaIDString(auth.AccountID),
+			AccountID:    idconv.ToString(auth.AccountID),
 			AccountName:  uiAccountName(auth.Account),
-			ID:           payndaIDString(auth.ID),
-			CardID:       payndaIDString(auth.CardID),
+			ID:           idconv.ToString(auth.ID),
+			CardID:       idconv.ToString(auth.CardID),
 			Currency:     auth.Currency,
 			Amount:       auth.Amount.String(),
 			Settled:      item.Settled.String(),
@@ -804,11 +805,11 @@ type ClearAuthorizationData struct {
 }
 
 func (s *PayndaUIService) ClearAuthorization(ctx context.Context, req *ClearAuthorizationRequest) (*ClearAuthorizationData, error) {
-	accountID, err := payndaAccountID(req.AccountID)
+	accountID, err := idconv.FromAccountString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
-	authID, err := payndaID(req.ID)
+	authID, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -821,7 +822,7 @@ func (s *PayndaUIService) ClearAuthorization(ctx context.Context, req *ClearAuth
 		return nil, err
 	}
 
-	return &ClearAuthorizationData{ID: payndaIDString(item.ID)}, nil
+	return &ClearAuthorizationData{ID: idconv.ToString(item.ID)}, nil
 }
 
 func uiAccountName(account *model.Account) string {

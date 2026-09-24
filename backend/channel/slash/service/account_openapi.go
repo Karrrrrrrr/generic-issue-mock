@@ -6,6 +6,7 @@ import (
 
 	"generic-mock/channel/slash/biz"
 	slash "generic-mock/channel/slash/enums"
+	"generic-mock/channel/slash/pkg/idconv"
 	"generic-mock/model"
 
 	"github.com/shopspring/decimal"
@@ -45,12 +46,12 @@ type OpenAPIAccountBalancesData struct {
 }
 
 func (service *SlashOpenAPIService) protocolAccount(ctx context.Context, req *OpenAPIAccountPathRequest) (*model.Account, error) {
-	accountID, err := service.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountUUID(req.APIKey)
 	if err != nil {
 		return nil, err
 	}
 	if req.ID != nil {
-		id, err := slashID(*req.ID)
+		id, err := idconv.FromUUID(*req.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -67,13 +68,13 @@ func (service *SlashOpenAPIService) GetAccount(ctx context.Context, req *OpenAPI
 		return nil, err
 	}
 	return &OpenAPIAccountData{
-		ID:            slashIDString(item.ID),
+		ID:            idconv.ToUUID(item.ID),
 		Name:          item.Name,
-		AccountNumber: slashIDString(item.ID),
+		AccountNumber: idconv.ToUUID(item.ID),
 		Status:        slash.AccountStatusOpen,
 		Type:          slash.AccountTypeDebit,
 		CreatedAt:     item.CreatedAt,
-		Balances:      []string{slashIDString(item.WalletID)},
+		Balances:      []string{idconv.ToUUID(item.WalletID)},
 	}, nil
 }
 
@@ -95,7 +96,7 @@ func (service *SlashOpenAPIService) ListAccountBalances(ctx context.Context, req
 	}
 	amount := OpenAPIAmount{AmountCents: item.Wallet.Amount.Mul(decimal.NewFromInt(100)).IntPart()}
 	return &OpenAPIAccountBalancesData{Balances: []OpenAPIBalanceData{{
-		AccountID: slashIDString(item.ID),
+		AccountID: idconv.ToUUID(item.ID),
 		Type:      slash.BalanceTypeCash,
 		Available: amount,
 		Posted:    amount,

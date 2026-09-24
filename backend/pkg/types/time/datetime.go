@@ -7,6 +7,18 @@ import (
 
 type DateTime time.Time
 
+func (value *DateTime) UnmarshalParam(text string) error {
+	if value == nil {
+		return fmt.Errorf("cannot unmarshal query parameter to *DateTime")
+	}
+	parsed, err := time.Parse(time.DateTime, text)
+	if err != nil {
+		return err
+	}
+	*value = DateTime(parsed)
+	return nil
+}
+
 func (t DateTime) MarshalJSON() ([]byte, error) {
 	s := time.Time(t).Format(time.DateTime)
 	return []byte(fmt.Sprintf(`"%s"`, s)), nil

@@ -2,7 +2,7 @@
 
 ## 设计原则
 
-`backend/model/generic.go` 的表结构面向所有渠道，因此字段名不会复刻任何一家下游 API。渠道 service 负责把渠道字段转换为这些通用字段，并用各自 `service/id.go` 将内部 `int64 ID` 转为外部资源 ID。
+`backend/model/generic.go` 的表结构面向所有渠道，因此字段名不会复刻任何一家下游 API。渠道 service 负责把渠道字段转换为这些通用字段，并用各自的 ID 转换函数（统一位于 `channel/<channel>/pkg/idconv`，公开函数以 `To...` / `From...` 表达转换方向）将内部 `int64 ID` 转为外部资源 ID。
 
 禁止在通用模型中增加 `ThirdPartyID`、`display_id` 或第二套资源 token。渠道没有对应通用含义的 API 字段留在 service DTO，并标记为 `Invalid:`，不持久化。
 
@@ -27,7 +27,7 @@
 
 账户级仓储的 `Exist`、`Find`、`List`、`Save`、`Delete` 都必须以 `(account_id, channel)` 过滤；每个账户拥有资源的唯一索引也必须包含这两个字段及自然键。渠道外部 ID 始终只由本表 `ID` 经 formatter 编码，不能将账户域或渠道拼入 ID。
 
-账户范围是显式参数，不是 `context.Context` 状态。service 使用渠道 `service/id.go` 解析账户选择器后，在 usecase/repository 请求结构中传递 `AccountID`。账户级单资源请求结构包含必填的 `AccountID` 和资源 `ID`，对应查询必须包含 `id`、`account_id`、`channel`；列表的可选账户过滤使用 `AccountID *model.ID`，仅 `nil` 表示未提供，非 `nil` 时验证 ID 并追加过滤，不得用 `!= 0` 判断是否传入。显式传入无效 ID 应报错，不能退化为跨账户查询。UI 是总后台，因此列表可以不传账户以查看全部数据，但创建和指定账户的变更必须提供有效账户 ID。
+账户范围是显式参数，不是 `context.Context` 状态。service 使用渠道 ID 转换函数 解析账户选择器后，在 usecase/repository 请求结构中传递 `AccountID`。账户级单资源请求结构包含必填的 `AccountID` 和资源 `ID`，对应查询必须包含 `id`、`account_id`、`channel`；列表的可选账户过滤使用 `AccountID *model.ID`，仅 `nil` 表示未提供，非 `nil` 时验证 ID 并追加过滤，不得用 `!= 0` 判断是否传入。显式传入无效 ID 应报错，不能退化为跨账户查询。UI 是总后台，因此列表可以不传账户以查看全部数据，但创建和指定账户的变更必须提供有效账户 ID。
 
 仓储请求结构在 biz 中按具体资源和操作单独定义，不复用 service/usecase 请求，也不使用 `ManagementScope`、`ResourceRequest` 或渠道级 `ListRequest` 这类含义模糊的通用请求。可以在各自的请求结构中嵌入语义明确的公共字段结构，但不得用类型别名代替独立请求类型。所有可选参数一律使用指针，以 `nil` 区分未提供与显式零值。
 

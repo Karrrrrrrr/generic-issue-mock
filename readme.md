@@ -51,7 +51,7 @@ bun dev
 
 ## 约束
 
-1. 通用模型使用自增 `int64 ID`；渠道 DTO 用本渠道 `service/id.go` 格式化和反解析 mock 自有资源 ID。
+1. 通用模型使用自增 `int64 ID`；渠道 DTO 用本渠道 ID 转换函数（统一位于 `channel/<channel>/pkg/idconv`，公开函数以 `To...` / `From...` 表达转换方向）格式化和反解析 mock 自有资源 ID。
 2. 实现或调整 OpenAPI 前，先核对 `./marxo` 的 SDK 和实际调用点。
 3. OpenAPI、浏览器 UI、业务 usecase 分层独立；仓储使用 GORM Gen，列表显式按 ID 倒序。
 4. 模型变化后运行 generator，再执行 `gofmt` 和 `GOCACHE=/home/kar/.cache/go-build GOTMPDIR=/home/kar/.cache/go-tmp go build ./...`；除非明确要求，不运行单元测试。

@@ -5,6 +5,7 @@ import (
 
 	"generic-mock/channel/paynda/biz"
 	paynda "generic-mock/channel/paynda/enums"
+	"generic-mock/channel/paynda/pkg/idconv"
 )
 
 type OpenAPICardControlRequest struct {
@@ -73,11 +74,11 @@ type OpenAPICardholderWalletData struct {
 }
 
 func (service *PayndaOpenAPIService) CardholderWallet(ctx context.Context, req *OpenAPICardholderWalletRequest) (*OpenAPICardholderWalletData, error) {
-	accountID, err := payndaAccountID(req.BalanceAccountID)
+	accountID, err := idconv.FromAccountString(req.BalanceAccountID)
 	if err != nil {
 		return nil, err
 	}
-	holderID, err := payndaID(req.CardholderID)
+	holderID, err := idconv.FromString(req.CardholderID)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +94,7 @@ func (service *PayndaOpenAPIService) CardholderWallet(ctx context.Context, req *
 	}
 	return &OpenAPICardholderWalletData{
 		PayndaBalanceAccountWalletData: *payndaBalanceAccountWalletData(item, req.BalanceAccountID),
-		CardholderID:                   payndaIDString(holderID),
+		CardholderID:                   idconv.ToString(holderID),
 	}, nil
 }
 

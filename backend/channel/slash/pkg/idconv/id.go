@@ -1,4 +1,4 @@
-package service
+package idconv
 
 import (
 	"encoding/binary"
@@ -10,13 +10,20 @@ import (
 	"github.com/google/uuid"
 )
 
-func slashIDString(id model.ID) string {
+func ToUUID(id model.ID) string {
 	value := uuid.UUID{}
 	binary.BigEndian.PutUint64(value[8:], uint64(id))
 	return value.String()
 }
 
-func slashID(value string) (model.ID, error) {
+func ToOptionalUUID(id *model.ID) string {
+	if id == nil {
+		return ""
+	}
+	return ToUUID(*id)
+}
+
+func FromUUID(value string) (model.ID, error) {
 	parsed, err := uuid.Parse(value)
 	if err != nil || parsed.String() != value || parsed[0] != 0 || parsed[1] != 0 || parsed[2] != 0 || parsed[3] != 0 ||
 		parsed[4] != 0 || parsed[5] != 0 || parsed[6] != 0 || parsed[7] != 0 {
@@ -30,31 +37,31 @@ func slashID(value string) (model.ID, error) {
 	return model.ID(id), nil
 }
 
-func slashOptionalID(value *string) (*model.ID, error) {
+func FromOptionalUUID(value *string) (*model.ID, error) {
 	if value == nil {
 		return nil, nil
 	}
-	id, err := slashID(*value)
+	id, err := FromUUID(*value)
 	if err != nil {
 		return nil, err
 	}
 	return &id, nil
 }
 
-func slashAccountID(value string) (model.ID, error) {
-	return slashID(value)
+func FromAccountUUID(value string) (model.ID, error) {
+	return FromUUID(value)
 }
 
-// slashRefundAuthorizationID permits the channel-formatted zero ID for an independent refund.
-func slashRefundAuthorizationID(value *string) (*model.ID, error) {
+// FromRefundAuthorizationUUID permits the channel-formatted zero ID for an independent refund.
+func FromRefundAuthorizationUUID(value *string) (*model.ID, error) {
 	if value == nil {
 		return nil, nil
 	}
 	var id model.ID
-	if *value == slashIDString(0) {
+	if *value == ToUUID(0) {
 		return &id, nil
 	}
-	id, err := slashID(*value)
+	id, err := FromUUID(*value)
 	if err != nil {
 		return nil, err
 	}

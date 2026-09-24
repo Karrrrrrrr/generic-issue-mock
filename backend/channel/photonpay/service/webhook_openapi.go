@@ -4,6 +4,7 @@ import (
 	"context"
 
 	photon "generic-mock/channel/photonpay/enums"
+	"generic-mock/channel/photonpay/pkg/idconv"
 )
 
 type OpenAPIWebhookNotificationRequest struct {
@@ -36,7 +37,7 @@ type OpenAPIWebhookNotifications struct {
 }
 
 func (service *PhotonPayOpenAPIService) WebhookNotifications(ctx context.Context, req *OpenAPIWebhookNotificationRequest) (*OpenAPIWebhookNotifications, error) {
-	if _, err := service.accountID(&req.OpenAPIAccountRequest); err != nil {
+	if _, err := idconv.FromAccountString(req.Token); err != nil {
 		return nil, err
 	}
 	return &OpenAPIWebhookNotifications{

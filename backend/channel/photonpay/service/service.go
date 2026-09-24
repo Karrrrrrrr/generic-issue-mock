@@ -9,10 +9,12 @@ import (
 
 	"generic-mock/channel/photonpay/biz"
 	photon "generic-mock/channel/photonpay/enums"
+	"generic-mock/channel/photonpay/pkg/idconv"
 	common "generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/timeparse"
 	"generic-mock/pkg/types"
+	timeTypes "generic-mock/pkg/types/time"
 
 	kratosErrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/samber/do"
@@ -25,10 +27,6 @@ type PhotonPayOpenAPIService struct {
 
 type OpenAPIAccountRequest struct {
 	Token string `header:"X-PD-TOKEN" binding:"required"`
-}
-
-func (s *PhotonPayOpenAPIService) accountID(req *OpenAPIAccountRequest) (model.ID, error) {
-	return photonPayAccountID(req.Token)
 }
 
 func NewPhotonPayOpenAPIService(injector *do.Injector) (*PhotonPayOpenAPIService, error) {
@@ -66,11 +64,11 @@ func (s *PhotonPayOpenAPIService) AccessToken(_ context.Context, req *AccessToke
 			return nil, biz.ErrInvalidOperation
 		}
 	}
-	accountID, err := photonPayAccountID(selector)
+	accountID, err := idconv.FromAccountString(selector)
 	if err != nil {
 		return nil, err
 	}
-	token := photonPayIDString(accountID)
+	token := idconv.ToString(accountID)
 	return &AccessTokenData{
 		ExpiresIn:        3600,
 		RefreshExpiresIn: 7200,
@@ -89,12 +87,12 @@ type AccountSingleRequest struct {
 }
 
 type AccountSingleData struct {
-	MemberID        string             `json:"memberId"`
-	AccountNo       string             `json:"accountNo"`
-	AccountType     photon.AccountType `json:"accountType"`
-	Currency        common.Currency    `json:"currency"`
-	RealTimeBalance float64            `json:"realTimeBalance"`
-	ReturnedAt      string             `json:"returnedAt"`
+	MemberID        string                `json:"memberId"`
+	AccountNo       string                `json:"accountNo"`
+	AccountType     photon.AccountType    `json:"accountType"`
+	Currency        common.Currency       `json:"currency"`
+	RealTimeBalance float64               `json:"realTimeBalance"`
+	ReturnedAt      timeTypes.ISODateTime `json:"returnedAt"`
 }
 
 func (s *PhotonPayOpenAPIService) AccountSingle(_ context.Context, req *AccountSingleRequest) (*AccountSingleData, error) {
@@ -112,7 +110,7 @@ func (s *PhotonPayOpenAPIService) AccountSingle(_ context.Context, req *AccountS
 		AccountType:     accountType,
 		Currency:        currency,
 		RealTimeBalance: biz.DefaultBalance().InexactFloat64(),
-		ReturnedAt:      time.Now().UTC().Format("2006-01-02T15:04:05"),
+		ReturnedAt:      timeTypes.ISODateTime(time.Now().UTC()),
 	}, nil
 }
 
@@ -150,7 +148,7 @@ type CardHolderData struct {
 }
 
 func (s *PhotonPayOpenAPIService) CreateCardHolder(ctx context.Context, req *CreateCardHolderRequest) (*CardHolderData, error) {
-	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -195,11 +193,11 @@ type EditCardHolderRequest struct {
 }
 
 func (s *PhotonPayOpenAPIService) EditCardHolder(ctx context.Context, req *EditCardHolderRequest) (*CardHolderData, error) {
-	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
-	cardholderID, err := photonPayID(req.CardholderID)
+	cardholderID, err := idconv.FromString(req.CardholderID)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +222,7 @@ type ListCardHolderRequest struct {
 }
 type CardHolderListItem struct {
 	CardholderID           string                        `json:"cardholderId"`
-	CreatedAt              string                        `json:"createdAt"`
+	CreatedAt              timeTypes.ISODateTime         `json:"createdAt"`
 	FirstName              string                        `json:"firstName"`
 	LastName               string                        `json:"lastName"`
 	Email                  string                        `json:"email"`
@@ -235,7 +233,7 @@ type CardHolderListItem struct {
 }
 
 func (s *PhotonPayOpenAPIService) ListCardHolders(ctx context.Context, req *ListCardHolderRequest) (*[]CardHolderListItem, error) {
-	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -251,8 +249,8 @@ func (s *PhotonPayOpenAPIService) ListCardHolders(ctx context.Context, req *List
 	items := make([]CardHolderListItem, 0, len(holders))
 	for _, holder := range holders {
 		items = append(items, CardHolderListItem{
-			CardholderID:           photonPayIDString(holder.ID),
-			CreatedAt:              holder.CreatedAt.UTC().Format("2006-01-02T15:04:05"),
+			CardholderID:           idconv.ToString(holder.ID),
+			CreatedAt:              timeTypes.ISODateTime(holder.CreatedAt.UTC()),
 			FirstName:              holder.FirstName,
 			LastName:               holder.LastName,
 			Email:                  holder.Email,
@@ -336,7 +334,7 @@ type CardData struct {
 	CardFormFactor photon.CardFormFactor `json:"cardFormFactor"`
 	CardType       photon.CardType       `json:"cardType"`
 	CardholderID   string                `json:"cardholderId"`
-	CreatedAt      string                `json:"createdAt"`
+	CreatedAt      timeTypes.ISODateTime `json:"createdAt"`
 	MaskCardNo     string                `json:"maskCardNo"`
 }
 type OpenCardData struct {
@@ -346,11 +344,11 @@ type OpenCardData struct {
 }
 
 func (s *PhotonPayOpenAPIService) OpenCard(ctx context.Context, req *OpenCardRequest) (*OpenCardData, error) {
-	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
-	cardholderID, err := photonPayID(req.CardholderID)
+	cardholderID, err := idconv.FromString(req.CardholderID)
 	if err != nil {
 		return nil, err
 	}
@@ -387,18 +385,18 @@ type CardIDRequest struct {
 
 type CardDetailData struct {
 	*CardData
-	CardBalance               string `json:"cardBalance"`
-	AvailableTransactionLimit string `json:"availableTransactionLimit"` // Invalid: velocity limits are not persisted.
-	TotalTransactionLimit     string `json:"totalTransactionLimit"`     // Invalid: velocity limits are not persisted.
-	UpdatedAt                 string `json:"updateAt"`
+	CardBalance               string                `json:"cardBalance"`
+	AvailableTransactionLimit string                `json:"availableTransactionLimit"` // Invalid: velocity limits are not persisted.
+	TotalTransactionLimit     string                `json:"totalTransactionLimit"`     // Invalid: velocity limits are not persisted.
+	UpdatedAt                 timeTypes.ISODateTime `json:"updateAt"`
 }
 
 func (s *PhotonPayOpenAPIService) CardDetail(ctx context.Context, req *CardIDRequest) (*CardDetailData, error) {
-	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
-	cardID, err := photonPayID(req.CardID)
+	cardID, err := idconv.FromString(req.CardID)
 	if err != nil {
 		return nil, err
 	}
@@ -415,16 +413,16 @@ func (s *PhotonPayOpenAPIService) CardDetail(ctx context.Context, req *CardIDReq
 		CardBalance:               "0",
 		AvailableTransactionLimit: "0",
 		TotalTransactionLimit:     "0",
-		UpdatedAt:                 card.UpdatedAt.UTC().Format("2006-01-02T15:04:05"),
+		UpdatedAt:                 timeTypes.ISODateTime(card.UpdatedAt.UTC()),
 	}, nil
 }
 
 func (s *PhotonPayOpenAPIService) CardCVV(ctx context.Context, req *CardIDRequest) (*CardData, error) {
-	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
-	cardID, err := photonPayID(req.CardID)
+	cardID, err := idconv.FromString(req.CardID)
 	if err != nil {
 		return nil, err
 	}
@@ -449,7 +447,7 @@ type ListCardsRequest struct {
 }
 
 func (s *PhotonPayOpenAPIService) ListCards(ctx context.Context, req *ListCardsRequest) (*[]*CardData, error) {
-	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -483,11 +481,11 @@ type UpdateCardRequest struct {
 }
 
 func (s *PhotonPayOpenAPIService) UpdateCard(ctx context.Context, req *UpdateCardRequest) (*OpenCardData, error) {
-	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
-	cardID, err := photonPayID(req.CardID)
+	cardID, err := idconv.FromString(req.CardID)
 	if err != nil {
 		return nil, err
 	}
@@ -514,7 +512,7 @@ type RequestResultRequest struct {
 }
 
 func (s *PhotonPayOpenAPIService) RequestResult(ctx context.Context, req *RequestResultRequest) (*OpenCardData, error) {
-	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -544,11 +542,11 @@ type ChangeCardStatusRequest struct {
 }
 
 func (s *PhotonPayOpenAPIService) FreezeCard(ctx context.Context, req *ChangeCardStatusRequest) (*CardData, error) {
-	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
-	cardID, err := photonPayID(req.CardID)
+	cardID, err := idconv.FromString(req.CardID)
 	if err != nil {
 		return nil, err
 	}
@@ -572,11 +570,11 @@ type CancelCardRequest struct {
 }
 
 func (s *PhotonPayOpenAPIService) CancelCard(ctx context.Context, req *CancelCardRequest) (*CardData, error) {
-	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
-	cardID, err := photonPayID(req.CardID)
+	cardID, err := idconv.FromString(req.CardID)
 	if err != nil {
 		return nil, err
 	}
@@ -610,7 +608,7 @@ type TradeData struct {
 }
 
 func (s *PhotonPayOpenAPIService) ListTrades(ctx context.Context, req *ListTradeRequest) (*[]TradeData, error) {
-	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -626,8 +624,8 @@ func (s *PhotonPayOpenAPIService) ListTrades(ctx context.Context, req *ListTrade
 	items := make([]TradeData, 0, len(transactions))
 	for _, transaction := range transactions {
 		items = append(items, TradeData{
-			TransactionID:       photonPayIDString(transaction.ID),
-			CardID:              photonPayIDString(transaction.CardID),
+			TransactionID:       idconv.ToString(transaction.ID),
+			CardID:              idconv.ToString(transaction.CardID),
 			RequestID:           transaction.RequestID,
 			TransactionAmount:   transaction.TxAmount.InexactFloat64(),
 			TransactionCurrency: transaction.TxCurrency,
@@ -664,17 +662,17 @@ type SandboxTransactionRequest struct {
 type SandboxTransactionData struct{}
 
 func (s *PhotonPayOpenAPIService) SandboxTransaction(ctx context.Context, req *SandboxTransactionRequest) (*SandboxTransactionData, error) {
-	accountID, err := s.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
-	cardID, err := photonPayID(req.CardID)
+	cardID, err := idconv.FromString(req.CardID)
 	if err != nil {
 		return nil, err
 	}
 	var originTransactionID model.ID
 	if req.OriginTransactionID != "" {
-		originTransactionID, err = photonPayID(req.OriginTransactionID)
+		originTransactionID, err = idconv.FromString(req.OriginTransactionID)
 		if err != nil {
 			return nil, err
 		}
@@ -708,7 +706,7 @@ func (s *PhotonPayOpenAPIService) Upload(_ context.Context, req *UploadRequest) 
 
 func cardHolderData(holder *model.CardHolder) *CardHolderData {
 	return &CardHolderData{
-		CardholderID:           photonPayIDString(holder.ID),
+		CardholderID:           idconv.ToString(holder.ID),
 		MemberID:               photon.MemberID,
 		Status:                 photon.CardHolderStatusFromGeneric(holder.Status),
 		CardholderReviewStatus: photon.CardHolderReviewStatusFromGeneric(holder.ReviewStatus),
@@ -718,7 +716,7 @@ func cardHolderData(holder *model.CardHolder) *CardHolderData {
 
 func cardData(card *model.Card) *CardData {
 	return &CardData{
-		CardID:         photonPayIDString(card.ID),
+		CardID:         idconv.ToString(card.ID),
 		CardNo:         card.CardNumber,
 		CVV:            card.Cvv,
 		ExpirationDate: card.ExpireAt.Format("01/06"),
@@ -727,8 +725,8 @@ func cardData(card *model.Card) *CardData {
 		CardStatus:     photon.CardStatusFromGeneric(card.Status),
 		CardFormFactor: photon.CardFormFactorFromGeneric(card.FormType),
 		CardType:       photon.CardTypeFromGeneric(card.CardType),
-		CardholderID:   photonPayIDString(card.CardHolderID),
-		CreatedAt:      card.CreatedAt.UTC().Format("2006-01-02T15:04:05"),
+		CardholderID:   idconv.ToString(card.CardHolderID),
+		CreatedAt:      timeTypes.ISODateTime(card.CreatedAt.UTC()),
 		MaskCardNo:     maskCardNumber(card.CardNumber),
 	}
 }

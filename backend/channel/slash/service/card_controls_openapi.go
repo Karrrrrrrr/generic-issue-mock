@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"generic-mock/channel/slash/biz"
+	"generic-mock/channel/slash/pkg/idconv"
 )
 
 type OpenAPISpendingConstraint struct {
@@ -89,7 +90,7 @@ func (service *SlashOpenAPIService) CardGroup(ctx context.Context, req *OpenAPIC
 		return nil, err
 	}
 	result := &OpenAPICardGroup{
-		ID:    slashIDString(account.ID),
+		ID:    idconv.ToUUID(account.ID),
 		Name:  account.Name,
 		Cards: []string{},
 	}
@@ -97,7 +98,7 @@ func (service *SlashOpenAPIService) CardGroup(ctx context.Context, req *OpenAPIC
 		result.Name = *req.Name
 	}
 	if req.VirtualAccountID != nil {
-		id, err := slashID(*req.VirtualAccountID)
+		id, err := idconv.FromUUID(*req.VirtualAccountID)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +108,7 @@ func (service *SlashOpenAPIService) CardGroup(ctx context.Context, req *OpenAPIC
 		}); err != nil {
 			return nil, err
 		}
-		result.VirtualAccountID = slashIDString(id)
+		result.VirtualAccountID = idconv.ToUUID(id)
 	}
 	return result, nil
 }

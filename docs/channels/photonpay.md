@@ -26,7 +26,7 @@ PhotonPay SDK 当前没有被 Marxo 调用的授权配置 OpenAPI。mock 因此�
 
 ## 账户解析
 
-所有 PhotonPay 资源按 `(AccountID, Channel=photonpay)` 隔离。先调用 token 接口：`app_id` 由 PhotonPay `service/id.go` 解析为 `Account.ID`，`secret` 必须为空；成功时 `access_token` 返回同一账户 ID 的十进制格式。后续 OpenAPI 请求从 Marxo SDK 使用的 token 字段解析账户，并将 `AccountID` 显式传到 usecase/repository 请求；不得使用固定 token、固定账户、`context.Context` 隐式范围或通过卡片推导账户。
+所有 PhotonPay 资源按 `(AccountID, Channel=photonpay)` 隔离。先调用 token 接口：`app_id` 由 PhotonPay `channel/photonpay/pkg/idconv` 解析为 `Account.ID`，`secret` 必须为空；成功时 `access_token` 返回同一账户 ID 的十进制格式。后续 OpenAPI 请求从 Marxo SDK 使用的 token 字段解析账户，并将 `AccountID` 显式传到 usecase/repository 请求；不得使用固定 token、固定账户、`context.Context` 隐式范围或通过卡片推导账户。
 
 ```bash
 curl -X POST http://127.0.0.1:8000/photonpay/oauth2/token/accessToken \
@@ -111,7 +111,7 @@ curl -X POST http://127.0.0.1:8000/photonpay/vcc/open/v2/sandBoxTransaction \
 
 ### 交易列表过滤
 
-对齐 Marxo 的 `PagingVccTradeOrder` 请求后补齐 SDK 使用的 card ID、交易状态、交易时间范围和分页字段。先用 `service/id.go` 解析传入卡 ID；随后显式构造 repository 查询，按 `CardTransaction.ID DESC` 排序。每个可选过滤字段均应在 DTO 中声明，不能用 `gin.H` 或 raw GORM predicate 拼接。响应交易 ID 与原交易 ID 再格式化为 PhotonPay 十进制字符串。
+对齐 Marxo 的 `PagingVccTradeOrder` 请求后补齐 SDK 使用的 card ID、交易状态、交易时间范围和分页字段。先用 `channel/photonpay/pkg/idconv` 解析传入卡 ID；随后显式构造 repository 查询，按 `CardTransaction.ID DESC` 排序。每个可选过滤字段均应在 DTO 中声明，不能用 `gin.H` 或 raw GORM predicate 拼接。响应交易 ID 与原交易 ID 再格式化为 PhotonPay 十进制字符串。
 
 验证夹具应覆盖：同一张卡的授权、冲正、退款各一笔；使用 `originTransactionId` 查询退款/冲正来源；时间范围边界；空页。清算交易应返回 `settledAt`，而未清算授权不能冒充已清算。
 
@@ -127,7 +127,7 @@ Marxo 的实际入口是 `POST ${MARXO_BASE_URL}/api/v1/notify/ds-event`。这�
 | `X-PD-NOTIFICATION-TYPE` | `auth`、`verification`、`void`、`refund`、`cardholder_status_update`、`card_status_update` 等 | 交易分支目前由前四种触发；卡/持卡人状态各使用对应类型。 |
 | `X-PD-PUBLISHED-AT` | 渠道事件唯一时间/键 | OTP 事件以它作为下游幂等关联键；所有事件建议携带。 |
 
-交易或清算事件使用 `issuing` 或 `issuing_settlement`，并在 header 中给出 `auth`、`verification`、`void` 或 `refund`。下面是可直接用于集成测试的最小完整交易报文；所有卡、交易和原交易 ID 必须经 PhotonPay `service/id.go` 格式化，不能直接序列化数据库 ID。
+交易或清算事件使用 `issuing` 或 `issuing_settlement`，并在 header 中给出 `auth`、`verification`、`void` 或 `refund`。下面是可直接用于集成测试的最小完整交易报文；所有卡、交易和原交易 ID 必须经 PhotonPay `channel/photonpay/pkg/idconv` 格式化，不能直接序列化数据库 ID。
 
 ```bash
 # signature = Base64(RSA_sign_MD5(exact_body_bytes, photonpay_private_key))

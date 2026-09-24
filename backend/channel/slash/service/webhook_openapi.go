@@ -6,6 +6,7 @@ import (
 	"time"
 
 	slash "generic-mock/channel/slash/enums"
+	"generic-mock/channel/slash/pkg/idconv"
 )
 
 type OpenAPIWebhookRequest struct {
@@ -31,7 +32,7 @@ func (service *SlashOpenAPIService) Webhook(ctx context.Context, req *OpenAPIWeb
 		return nil, err
 	}
 	result := &OpenAPIWebhook{
-		ID:        slashIDString(item.ID),
+		ID:        idconv.ToUUID(item.ID),
 		Name:      item.Name,
 		CreatedAt: item.CreatedAt,
 		UpdatedAt: item.UpdatedAt,

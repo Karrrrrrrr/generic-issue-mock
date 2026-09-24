@@ -1,6 +1,10 @@
 package service
 
-import "context"
+import (
+	"context"
+
+	"generic-mock/channel/slash/pkg/idconv"
+)
 
 type OpenAPIMerchant struct {
 	ID   string `json:"id"`
@@ -19,7 +23,7 @@ func (service *SlashOpenAPIService) GetMerchant(ctx context.Context, req *OpenAP
 		return nil, err
 	}
 	return &OpenAPIMerchant{
-		ID:   slashIDString(item.ID),
+		ID:   idconv.ToUUID(item.ID),
 		Name: item.Name,
 	}, nil
 }

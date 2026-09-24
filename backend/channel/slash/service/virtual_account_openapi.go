@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"generic-mock/channel/slash/biz"
+	"generic-mock/channel/slash/pkg/idconv"
 	"generic-mock/model"
 
 	"github.com/shopspring/decimal"
@@ -21,7 +22,7 @@ type OpenAPIVirtualAccountMutationRequest struct {
 func virtualAccountData(item *model.VirtualAccount) *OpenAPIVirtualAccountData {
 	result := &OpenAPIVirtualAccountData{
 		VirtualAccount: OpenAPIVirtualAccountDetails{
-			ID:          slashIDString(item.ID),
+			ID:          idconv.ToUUID(item.ID),
 			Name:        item.Name,
 			AccountType: "primary",
 		},
@@ -34,11 +35,11 @@ func virtualAccountData(item *model.VirtualAccount) *OpenAPIVirtualAccountData {
 }
 
 func (service *SlashOpenAPIService) GetVirtualAccount(ctx context.Context, req *OpenAPIIDRequest) (*OpenAPIVirtualAccountData, error) {
-	accountID, err := service.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountUUID(req.APIKey)
 	if err != nil {
 		return nil, err
 	}
-	id, err := slashID(req.ID)
+	id, err := idconv.FromUUID(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -53,12 +54,12 @@ func (service *SlashOpenAPIService) GetVirtualAccount(ctx context.Context, req *
 }
 
 func (service *SlashOpenAPIService) CreateVirtualAccount(ctx context.Context, req *OpenAPIVirtualAccountMutationRequest) (*OpenAPIVirtualAccountData, error) {
-	accountID, err := service.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountUUID(req.APIKey)
 	if err != nil {
 		return nil, err
 	}
 	if req.AccountID != nil {
-		selected, err := slashID(*req.AccountID)
+		selected, err := idconv.FromUUID(*req.AccountID)
 		if err != nil {
 			return nil, err
 		}
@@ -77,14 +78,14 @@ func (service *SlashOpenAPIService) CreateVirtualAccount(ctx context.Context, re
 }
 
 func (service *SlashOpenAPIService) UpdateVirtualAccount(ctx context.Context, req *OpenAPIVirtualAccountMutationRequest) (*OpenAPIVirtualAccountData, error) {
-	accountID, err := service.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountUUID(req.APIKey)
 	if err != nil {
 		return nil, err
 	}
 	if req.ID == nil {
 		return nil, biz.ErrInvalidOperation
 	}
-	id, err := slashID(*req.ID)
+	id, err := idconv.FromUUID(*req.ID)
 	if err != nil {
 		return nil, err
 	}

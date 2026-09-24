@@ -5,13 +5,14 @@ import (
 
 	photon "generic-mock/channel/photonpay/enums"
 	common "generic-mock/enums"
+	timeTypes "generic-mock/pkg/types/time"
 )
 
 type OpenAPIIssuingHistoryData struct {
 	CardID            string                 `json:"cardId"`
 	CardType          photon.CardType        `json:"cardType"`
 	CardFormFactor    photon.CardFormFactor  `json:"cardFormFactor"`
-	CreatedAt         string                 `json:"createdAt"`
+	CreatedAt         timeTypes.ISODateTime  `json:"createdAt"`
 	Status            photon.OperationStatus `json:"status"`
 	ActualFeeAmount   string                 `json:"actualFeeAmount"`
 	ActualFeeCurrency common.Currency        `json:"actualFeeCurrency"`
@@ -41,7 +42,7 @@ func (service *PhotonPayOpenAPIService) IssuingHistory(ctx context.Context, req 
 
 type OpenAPICardFundsData struct {
 	CardID                    string                `json:"cardId"`
-	CreatedAt                 string                `json:"createdAt"`
+	CreatedAt                 timeTypes.ISODateTime `json:"createdAt"`
 	Amount                    float64               `json:"amount"`
 	CardBalance               float64               `json:"cardBalance"`
 	AvailableTransactionLimit float64               `json:"availableTransactionLimit"`

@@ -6,33 +6,35 @@ import (
 
 	"generic-mock/channel/photonpay/biz"
 	photon "generic-mock/channel/photonpay/enums"
+	"generic-mock/channel/photonpay/pkg/idconv"
 	common "generic-mock/enums"
 	"generic-mock/pkg/types"
+	timeTypes "generic-mock/pkg/types/time"
 )
 
 type OpenAPIAccountHistoryRequest struct {
 	OpenAPIAccountRequest
-	TransactedAtStart string `form:"transactedAtStart" binding:"required"`
-	TransactedAtEnd   string `form:"transactedAtEnd" binding:"required"`
+	TransactedAtStart time.Time `form:"transactedAtStart" time_format:"2006-01-02T15:04:05" time_utc:"1" binding:"required"`
+	TransactedAtEnd   time.Time `form:"transactedAtEnd" time_format:"2006-01-02T15:04:05" time_utc:"1" binding:"required"`
 }
 
 type OpenAPIAccountHistoryData struct {
-	AccountNo    string          `json:"accountNo"`
-	Currency     common.Currency `json:"currency"`
-	Amount       float64         `json:"amount"`
-	BalanceFund  float64         `json:"balanceFund"`
-	TransactedAt string          `json:"transactedAt"`
+	AccountNo    string                `json:"accountNo"`
+	Currency     common.Currency       `json:"currency"`
+	Amount       float64               `json:"amount"`
+	BalanceFund  float64               `json:"balanceFund"`
+	TransactedAt timeTypes.ISODateTime `json:"transactedAt"`
 }
 
 func (service *PhotonPayOpenAPIService) AccountHistory(ctx context.Context, req *OpenAPIAccountHistoryRequest) (*OpenAPIAccountHistoryData, error) {
-	accountID, err := service.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
 	return &OpenAPIAccountHistoryData{
-		AccountNo:    photonPayIDString(accountID),
+		AccountNo:    idconv.ToString(accountID),
 		Currency:     common.Currency_USD,
-		TransactedAt: time.Now().UTC().Format("2006-01-02T15:04:05"),
+		TransactedAt: timeTypes.ISODateTime(time.Now().UTC()),
 	}, nil
 }
 
@@ -47,25 +49,25 @@ type OpenAPIPreRechargeRequest struct {
 }
 
 type OpenAPIPreRechargeData struct {
-	AccountID              string          `json:"accountId"`
-	RequestID              string          `json:"requestId"`
-	ArrivalAmount          float64         `json:"arrivalAmount"`
-	ArrivalAmountCurrency  common.Currency `json:"arrivalAmountCurrency"`
-	RechargeAmount         float64         `json:"rechargeAmount"`
-	RechargeCurrency       common.Currency `json:"rechargeCurrency"`
-	RechargeFee            float64         `json:"rechargeFee"`
-	RechargeFeeCurrency    common.Currency `json:"rechargeFeeCurrency"`
-	ExchangeRate           float64         `json:"exchangeRate"`
-	EffectiveQuotationTime int             `json:"effectiveQuotationTime"`
-	QuotedAt               string          `json:"quotedAt"`
+	AccountID              string                `json:"accountId"`
+	RequestID              string                `json:"requestId"`
+	ArrivalAmount          float64               `json:"arrivalAmount"`
+	ArrivalAmountCurrency  common.Currency       `json:"arrivalAmountCurrency"`
+	RechargeAmount         float64               `json:"rechargeAmount"`
+	RechargeCurrency       common.Currency       `json:"rechargeCurrency"`
+	RechargeFee            float64               `json:"rechargeFee"`
+	RechargeFeeCurrency    common.Currency       `json:"rechargeFeeCurrency"`
+	ExchangeRate           float64               `json:"exchangeRate"`
+	EffectiveQuotationTime int                   `json:"effectiveQuotationTime"`
+	QuotedAt               timeTypes.ISODateTime `json:"quotedAt"`
 }
 
 func (service *PhotonPayOpenAPIService) PreRecharge(ctx context.Context, req *OpenAPIPreRechargeRequest) (*OpenAPIPreRechargeData, error) {
-	accountID, err := service.accountID(&req.OpenAPIAccountRequest)
+	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
-	selectedAccountID, err := photonPayAccountID(req.AccountID)
+	selectedAccountID, err := idconv.FromAccountString(req.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +91,7 @@ func (service *PhotonPayOpenAPIService) PreRecharge(ctx context.Context, req *Op
 		return nil, biz.ErrInvalidOperation
 	}
 	return &OpenAPIPreRechargeData{
-		AccountID:              photonPayIDString(accountID),
+		AccountID:              idconv.ToString(accountID),
 		RequestID:              req.RequestID,
 		ArrivalAmount:          amount,
 		ArrivalAmountCurrency:  common.Currency_USD,
@@ -98,7 +100,7 @@ func (service *PhotonPayOpenAPIService) PreRecharge(ctx context.Context, req *Op
 		RechargeFeeCurrency:    common.Currency_USD,
 		ExchangeRate:           1,
 		EffectiveQuotationTime: 60,
-		QuotedAt:               time.Now().UTC().Format("2006-01-02T15:04:05"),
+		QuotedAt:               timeTypes.ISODateTime(time.Now().UTC()),
 	}, nil
 }
 
@@ -119,11 +121,11 @@ type OpenAPIRechargeData struct {
 	RechargeCurrency      common.Currency        `json:"rechargeCurrency"`
 	ExchangeRate          float64                `json:"exchangeRate"`
 	Status                photon.OperationStatus `json:"status"`
-	CreatedAt             string                 `json:"createdAt"`
+	CreatedAt             timeTypes.ISODateTime  `json:"createdAt"`
 }
 
 func (service *PhotonPayOpenAPIService) Recharge(ctx context.Context, req *OpenAPIRechargeRequest) (*OpenAPIRechargeData, error) {
-	if _, err := service.accountID(&req.OpenAPIAccountRequest); err != nil {
+	if _, err := idconv.FromAccountString(req.Token); err != nil {
 		return nil, err
 	}
 	result := &OpenAPIRechargeData{
@@ -131,7 +133,7 @@ func (service *PhotonPayOpenAPIService) Recharge(ctx context.Context, req *OpenA
 		RechargeCurrency:      common.Currency_USD,
 		ExchangeRate:          1,
 		Status:                photon.OperationStatus_Succeed,
-		CreatedAt:             time.Now().UTC().Format("2006-01-02T15:04:05"),
+		CreatedAt:             timeTypes.ISODateTime(time.Now().UTC()),
 	}
 	if req.CardID != nil {
 		card, err := service.CardDetail(ctx, &CardIDRequest{
