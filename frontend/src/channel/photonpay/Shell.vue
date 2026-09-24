@@ -7,12 +7,14 @@ import ThemeToggle from "@/channel/ThemeToggle.vue";
 const route = useRoute();
 const router = useRouter();
 const items = [
-  { label: "虚拟账户", key: "/photonpay/virtual-accounts" },
   {
     type: "group",
     label: "账户",
     key: "accounts",
-    children: [{ label: "账户", key: "/photonpay/accounts" }],
+    children: [
+        { label: "账户", key: "/photonpay/accounts" },
+        { label: "虚拟账户", key: "/photonpay/virtual-accounts" },
+    ],
   },
   {
     type: "group",
