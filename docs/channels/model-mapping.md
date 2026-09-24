@@ -82,7 +82,7 @@
 
 账户关联资源的 UI DTO 在原接口直接返回 `account_id`、`account_name`。账户名称通过只读账户关联查询获得，不在业务记录中冗余存储；前端不再为了显示名称单独拉取账户列表。
 
-已实现渠道的字段映射见 PhotonPay、Paynda、Slash 文档；UQPay、PingPong 为未来渠道（PingPong 契约待确认），Payful 已废弃，其文档仅作历史归档。
+已实现渠道的字段映射见 PhotonPay、Paynda、Slash 文档；UQPay、PingPong 为未来渠道。PingPong SDK 已阅读，其[模型映射与后续任务](pingpong.md#模型映射与必须先解决的问题)明确区分预算与根账户、独立/共享卡钱包、资金订单和两类交易报表，生产调用与部分业务语义仍待确认，暂不据此新增持久化字段。Payful 已废弃，其文档仅作历史归档。
 
 `CardProduct` 是渠道级配置，不包含 `AccountID`；产品查询按 `Channel` 隔离，唯一索引为 `(channel, prefix)`。同渠道账户共享产品及发卡序列，创建账户不再复制产品；卡片仍按账户隔离，且只能引用同渠道产品。
 

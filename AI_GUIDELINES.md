@@ -31,7 +31,7 @@ When a downstream DTO has mixed ID field types, apply the row's webhook rule per
 
 ## Backend Structure
 
-- `pingpong` is a future, unimplemented channel. Its generic enum and multi-prefix capability are preparation only; do not register routes, seed accounts, expose a working menu, or invent its OpenAPI/webhook contracts. Confirm SDK DTOs and actual downstream call sites before implementing the channel.
+- `pingpong` is a future, unimplemented channel. The supplied `sdk/pingpong` has been reviewed; use its actual HTTP sender, DTOs and enums plus the staged backlog in `docs/channels/pingpong.md`, not an assumption that its SDK is missing. Its 16 HTTP methods include budget accounts, funding orders and separate v3 card/v4 account transaction reports. Production Marxo call sites and webhook contracts are still unconfirmed; SDK tests are not production-call evidence. Resolve account selection and dedicated/shared budget-wallet semantics before implementing dependent flows. Do not register placeholder routes, seed accounts or expose a working menu merely because the enum/SDK exists; do not invent missing contracts.
 - `payful` is deprecated and no longer scheduled for implementation. `docs/channels/payful.md` is archived research, not an implementation requirement; do not add Payful APIs, UI, seed data or persistence fields for it.
 
 - Use Gin with Kratos-style layering: `channel/<channel>/service`, `biz`, `data`, and `http`.

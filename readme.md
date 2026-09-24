@@ -11,7 +11,7 @@
 | PhotonPay | 账户、持卡人、卡片、授权管理、卡交易、模拟交易、Webhook 管理 | 已实现 | [PhotonPay](docs/channels/photonpay.md) |
 | Paynda | 账户、持卡人、卡片、授权管理、卡交易、模拟交易、Webhook 管理 | 已实现 | [Paynda](docs/channels/paynda.md) |
 | Slash | 账户、虚拟账户、卡产品、持卡人、卡片、授权管理、卡交易、模拟交易、Webhook 管理 | 部分实现 | [Slash](docs/channels/slash.md) |
-| PingPong | 尚无菜单 | 未来渠道，待实现；已预留产品多前缀能力 | [PingPong](docs/channels/pingpong.md) |
+| PingPong | 尚无菜单 | 待实现；SDK 已阅读，已整理分阶段任务及多前缀能力 | [PingPong](docs/channels/pingpong.md) |
 | Payful | 不提供菜单 | 已废弃，不再实现 | [Payful（归档）](docs/channels/payful.md) |
 | UQPay | 尚无菜单 | 未实现 | [UQPay](docs/channels/uqpay.md) |
 
@@ -108,6 +108,6 @@ bash sdk/test-contract.sh
 
 `CardProduct.Prefix` 使用英文逗号分隔的数字前缀字符串，例如 `424242,555555`。**只有未来的 PingPong 渠道允许多前缀**；Slash、PhotonPay、Paynda 及其他渠道仍只允许单前缀（例如 `424242`），配置逗号列表会拒绝开卡。开卡前校验所有候选项，从中随机选择一个作为 `Card.CardBin`，卡号也使用同一个前缀；产品的 `NextCardNumber` 仍在所有候选 BIN、所有账户间共享。空项、非数字或超出卡号长度容量的配置不会被静默忽略。现有单前缀数据和已发行卡片无需改写。
 
-PingPong 目前仅预留渠道标识与多前缀能力，未提供 OpenAPI、Webhook 或管理页面；Payful 已废弃，其文档仅保留历史研究，不再作为待办。
+PingPong 目前仅预留渠道标识与多前缀能力，未提供 OpenAPI、Webhook 或管理页面。新加入的 `sdk/pingpong` 已核对 16 个 HTTP 方法，包含预算账户、卡与预算资金订单、v3 卡交易和 v4 账户交易；[后续任务](docs/channels/pingpong.md#后续任务顺序)按调用链确认、账户与钱包建模、开卡、资金报表和 UI 验收分阶段推进。Marxo 生产调用点和 Webhook 契约仍待补齐，不能把 SDK 示例当成生产接入证明。Payful 已废弃，其文档仅保留历史研究，不再作为待办。
 
 旧版数据库若存在按账户复制的同渠道同 BIN 产品，需先整理重复产品及卡片引用，再移除 `card_products.account_id` 与旧索引；不能直接套用新的唯一索引。本次代码调整不会自动清空或合并现有业务数据。
