@@ -206,7 +206,7 @@ onMounted(() => void load());
       :columns="columns"
       :data="rows"
       :loading="loading"
-      :bordered="false"
+      :bordered="true"
     />
 
     <n-modal

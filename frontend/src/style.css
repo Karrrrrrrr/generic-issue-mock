@@ -107,10 +107,9 @@ html[data-theme="dark"] .page-heading p {
 
 .sidebar {
     width: 208px;
-    padding: 0 10px 18px;
+    padding: 0;
     overflow: hidden;
     background: #ffffff;
-    border-right: 1px solid #e5e7eb;
 }
 
 .sidebar .n-layout-sider-scroll-container {
@@ -126,13 +125,26 @@ html[data-theme="dark"] .page-heading p {
     min-width: 0;
 }
 
-.sidebar .n-menu,
-.sidebar .n-menu *,
-.sidebar .n-menu .n-menu-item-content::before,
-.sidebar .n-menu-item-content,
-.sidebar .n-menu-item-content-header,
-.sidebar .n-menu-item-content__icon,
-.sidebar .n-menu-group-header,
+.sidebar .n-menu {
+    padding: 0 10px 18px;
+}
+
+.sidebar .n-menu .n-menu-item-content::before {
+    left: 0;
+    right: 0;
+    transition: background-color 180ms ease;
+}
+
+.sidebar .n-menu .n-menu-item-content-header,
+.sidebar .n-menu .n-menu-item-content__icon {
+    transition: color 180ms ease;
+}
+
+.sidebar .n-menu .n-menu-item-content:focus-visible::before {
+    outline: 2px solid var(--n-item-text-color-active);
+    outline-offset: 2px;
+}
+
 .app-header,
 .app-header *,
 .page-heading,
@@ -144,7 +156,7 @@ html[data-theme="dark"] .page-heading p {
 
 .channel-logo {
     height: 60px;
-    margin: 0 -10px 10px;
+    margin: 0 0 10px;
     display: grid;
     place-items: center;
     color: #12b89a;
@@ -320,6 +332,14 @@ html[data-theme="dark"] .n-card-header__main {
 .slide-leave-to {
     opacity: 0;
     transform: translateX(-30px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar .n-menu .n-menu-item-content::before,
+    .sidebar .n-menu .n-menu-item-content-header,
+    .sidebar .n-menu .n-menu-item-content__icon {
+        transition: none;
+    }
 }
 
 @media (min-width: 721px) and (max-width: 1000px) {

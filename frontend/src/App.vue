@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { darkTheme, NConfigProvider, NDialogProvider, NMessageProvider } from "naive-ui";
+import {
+  darkTheme,
+  NConfigProvider,
+  NDialogProvider,
+  NMessageProvider,
+  type GlobalThemeOverrides,
+} from "naive-ui";
 
 const isDark = ref(false);
 
@@ -17,7 +23,7 @@ onMounted(() => {
 });
 onUnmounted(() => window.removeEventListener("generic-mock-theme-change", syncTheme));
 
-const themeOverrides = computed(() => ({
+const themeOverrides = computed<GlobalThemeOverrides>(() => ({
   common: {
     primaryColor: "#12B89A",
     primaryColorHover: "#0FA385",
@@ -31,6 +37,9 @@ const themeOverrides = computed(() => ({
   Card: { borderRadius: "14px", paddingMedium: "20px" },
   Input: { borderRadius: "10px", heightMedium: "38px" },
   Select: { borderRadius: "10px", heightMedium: "38px" },
+  DataTable: {
+    borderColor: isDark.value ? "#3a3a40" : "#e5e7eb",
+  },
   Tag: {
     colorBordered: "transparent",
     colorBorderedPrimary: "transparent",
@@ -42,13 +51,13 @@ const themeOverrides = computed(() => ({
   Menu: {
     color: isDark.value ? "#242428" : "#ffffff",
     groupTextColor: isDark.value ? "#a6adbb" : "#8a94a6",
-    itemHeightMedium: "44px",
+    itemHeight: "44px",
     itemTextColor: isDark.value ? "#e0e0e0" : "#666980",
     itemTextColorHover: "#12B89A",
     itemTextColorActive: "#12B89A",
     itemColorHover: isDark.value ? "#2c3334" : "#edf8f6",
     itemColorActive: isDark.value ? "#203c37" : "#e3f6f3",
-    itemColorActiveHover: isDark.value ? "#203c37" : "#e3f6f3",
+    itemColorActiveHover: isDark.value ? "#284c44" : "#d4f0e9",
     itemIconColor: isDark.value ? "#e0e0e0" : "#666980",
     itemIconColorHover: "#12B89A",
     itemIconColorActive: "#12B89A",
