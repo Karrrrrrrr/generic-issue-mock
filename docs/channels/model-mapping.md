@@ -60,7 +60,8 @@
 | `BaseModel.ID` | 内部主键；对外必须经渠道 formatter 输出 |
 | `Account.ID` / `Account.Channel` | 渠道账户域主键和渠道范围；`Account` 不再额外引用 `AccountID` |
 | 除 `Account`、`CardProduct` 外业务表的 `AccountID` / `Channel` | 资源所属账户域和渠道；仓储操作与唯一索引必须包含两列 |
-| `Card.CardProductID` / `Card.CardBin` | 产品主键及开卡时从产品派生的 BIN 前缀 |
+| `CardProduct.Prefix` | 英文逗号分隔的数字 BIN 前缀字符串；只有未来 PingPong 支持多前缀，其他渠道仅单前缀 |
+| `Card.CardProductID` / `Card.CardBin` | 产品主键及开卡时从产品候选项中选中的单个 BIN；卡号使用同一个前缀，不保存整串候选列表 |
 | `Card.WalletID` | 卡余额钱包；共享卡可指向虚拟账户钱包 |
 | `Card.VirtualAccountID` | 非空表示共享余额卡；为空表示独立卡 |
 | `Card.RequestID` | 开卡请求的商户幂等键 |
@@ -81,6 +82,8 @@
 
 账户关联资源的 UI DTO 在原接口直接返回 `account_id`、`account_name`。账户名称通过只读账户关联查询获得，不在业务记录中冗余存储；前端不再为了显示名称单独拉取账户列表。
 
-下列渠道文档说明具体 API 字段如何映射到该结构：PhotonPay、Paynda、Slash、Payful、UQPay。
+已实现渠道的字段映射见 PhotonPay、Paynda、Slash 文档；UQPay、PingPong 为未来渠道（PingPong 契约待确认），Payful 已废弃，其文档仅作历史归档。
 
 `CardProduct` 是渠道级配置，不包含 `AccountID`；产品查询按 `Channel` 隔离，唯一索引为 `(channel, prefix)`。同渠道账户共享产品及发卡序列，创建账户不再复制产品；卡片仍按账户隔离，且只能引用同渠道产品。
+
+`Prefix` 保持字符串列，不新增 BIN 表或卡片候选列表字段。开卡统一使用 `pkg/cardnumber.Generate`：按英文逗号拆分并去除候选项两端空白，校验所有项均为非空数字且能容纳当前序号，只有 `pingpong` 可随机选择多个候选之一，其他渠道对多项配置直接报错。产品级 `NextCardNumber` 不按 BIN 拆分，仍在原事务中锁定、递增、保存；现有单前缀与已发卡数据不变。

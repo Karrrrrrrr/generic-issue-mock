@@ -12,6 +12,7 @@ const (
 )
 
 var (
+	ErrCardClosed        = kratosErrors.BadRequest("CARD_CLOSED", "已注销或注销中的卡片不能恢复或冻结")
 	ErrDatabaseOperation = kratosErrors.InternalServer(
 		errorReasonDatabaseOperation,
 		errorMessageDatabaseOperation,

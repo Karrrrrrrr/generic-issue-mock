@@ -11,6 +11,7 @@ import (
 
 	"github.com/samber/do"
 	"gorm.io/gen"
+	"gorm.io/gorm/clause"
 )
 
 type cardRepository struct {
@@ -139,4 +140,43 @@ func (r *cardRepository) FindCard(ctx context.Context, req *biz.FindCardRequest)
 			db.Card.AccountID.Eq(req.AccountID),
 			db.Card.Channel.Eq(string(enums.Channel_Slash)),
 		).First()
+}
+
+func (r *cardRepository) ExistForStatusChange(ctx context.Context, req *biz.CardStatusExistsRequest) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.Card.WithContext(ctx).Where(
+		db.Card.ID.Eq(req.ID),
+		db.Card.AccountID.Eq(req.AccountID),
+		db.Card.Channel.Eq(string(enums.Channel_Slash)),
+	).Count()
+	return count > 0, err
+}
+
+func (r *cardRepository) LockForStatusChange(ctx context.Context, req *biz.CardStatusLockRequest) (*model.Card, error) {
+	db := r.repository.DB(ctx)
+	return db.Card.WithContext(ctx).
+		Preload(db.Card.Account).
+		Preload(db.Card.Wallet).
+		Preload(db.Card.VirtualAccount.Wallet).
+		Clauses(clause.Locking{
+			Strength: "UPDATE",
+			Table:    clause.Table{Name: clause.CurrentTable},
+		}).
+		Where(
+			db.Card.ID.Eq(req.ID),
+			db.Card.AccountID.Eq(req.AccountID),
+			db.Card.Channel.Eq(string(enums.Channel_Slash)),
+		).First()
+}
+
+func (r *cardRepository) SaveStatus(ctx context.Context, req *biz.CardStatusSaveRequest) error {
+	db := r.repository.DB(ctx)
+	_, err := db.Card.WithContext(ctx).Where(
+		db.Card.ID.Eq(req.ID),
+		db.Card.AccountID.Eq(req.AccountID),
+		db.Card.Channel.Eq(string(enums.Channel_Slash)),
+	).UpdateSimple(
+		db.Card.Status.Value(string(req.Status)),
+	)
+	return err
 }

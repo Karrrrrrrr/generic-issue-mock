@@ -8,6 +8,25 @@ import (
 	"generic-mock/model"
 )
 
+type CardStatusExistsRequest struct {
+	AccountID model.ID
+	ID        model.ID
+}
+
+type CardStatusLockRequest struct {
+	AccountID model.ID
+	ID        model.ID
+}
+
+type CardStatusSaveRequest struct {
+	AccountID              model.ID
+	ID                     model.ID
+	Status                 enums.CardStatus
+	LastOperationRequestID string
+	LastOperationType      enums.OperationType
+	LastOperationStatus    enums.OperationStatus
+}
+
 type CardExistByIDRequest struct {
 	AccountID *model.ID
 	ID        model.ID
@@ -64,6 +83,9 @@ type CardCountRequest struct {
 }
 
 type PayndaCardRepository interface {
+	ExistForStatusChange(context.Context, *CardStatusExistsRequest) (bool, error)
+	LockForStatusChange(context.Context, *CardStatusLockRequest) (*model.Card, error)
+	SaveStatus(context.Context, *CardStatusSaveRequest) error
 	Count(context.Context, *CardCountRequest) (int64, error)
 	FindCard(context.Context, *FindCardRequest) (*model.Card, error)
 	Create(context.Context, *model.Card) error

@@ -8,6 +8,33 @@ import (
 	"generic-mock/model"
 )
 
+type CardStatusExistsRequest struct {
+	AccountID model.ID
+	ID        model.ID
+}
+
+type CardStatusLockRequest struct {
+	AccountID model.ID
+	ID        model.ID
+}
+
+type CardStatusSaveRequest struct {
+	AccountID              model.ID
+	ID                     model.ID
+	Status                 enums.CardStatus
+	LastOperationRequestID string
+	LastOperationType      enums.OperationType
+	LastOperationStatus    enums.OperationStatus
+}
+
+type CardOperationUpdateRequest struct {
+	AccountID model.ID
+	ID        model.ID
+	RequestID string
+	Type      enums.OperationType
+	Status    enums.OperationStatus
+}
+
 type CardExistCardByAccountIDRequest struct {
 	AccountID *model.ID
 	ID        model.ID
@@ -64,6 +91,10 @@ type CardCountRequest struct {
 }
 
 type CardRepository interface {
+	UpdateOperation(context.Context, *CardOperationUpdateRequest) error
+	ExistForStatusChange(context.Context, *CardStatusExistsRequest) (bool, error)
+	LockForStatusChange(context.Context, *CardStatusLockRequest) (*model.Card, error)
+	SaveStatus(context.Context, *CardStatusSaveRequest) error
 	Count(context.Context, *CardCountRequest) (int64, error)
 	FindCard(context.Context, *FindCardRequest) (*model.Card, error)
 	CreateCard(context.Context, *model.Card) error

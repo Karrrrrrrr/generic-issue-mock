@@ -291,8 +291,9 @@ type PayndaUICardData struct {
 	Balance       string            `json:"balance"`
 }
 type PayndaUIUpdateCardStatusRequest struct {
+	AccountID  string            `json:"account_id" binding:"required"`
 	ID         string            `uri:"id" binding:"required"`
-	CardStatus paynda.CardStatus `json:"card_status" binding:"required"`
+	CardStatus paynda.CardStatus `json:"card_status" binding:"required,oneof=ACTIVE FROZEN DELETED"`
 }
 
 func (s *PayndaUIService) CreateCardHolder(ctx context.Context, req *PayndaUICardHolderRequest) (*PayndaUICardHolderData, error) {
@@ -364,13 +365,18 @@ func (s *PayndaUIService) CreateCard(ctx context.Context, req *PayndaUICreateCar
 }
 
 func (s *PayndaUIService) UpdateCardStatus(ctx context.Context, req *PayndaUIUpdateCardStatusRequest) (*PayndaUICardData, error) {
+	accountID, err := idconv.FromAccountString(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
 	id, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.UpdateCardStatus(ctx, &biz.PayndaUIUpdateCardStatusRequest{
-		CardID: id,
-		Status: paynda.CardStatusToGeneric(req.CardStatus),
+		AccountID: accountID,
+		CardID:    id,
+		Status:    paynda.CardStatusToGeneric(req.CardStatus),
 	})
 	if err != nil {
 		return nil, err

@@ -403,7 +403,8 @@ type CreateCardRequest struct {
 }
 
 type UpdateCardStatusRequest struct {
-	CardStatus slash.CardStatus `json:"card_status" binding:"required"`
+	AccountID  string           `json:"account_id" binding:"required"`
+	CardStatus slash.CardStatus `json:"card_status" binding:"required,oneof=active paused inactive closed"`
 }
 
 type CardData struct {
@@ -481,13 +482,18 @@ type UpdateCardRequest struct {
 }
 
 func (s *SlashUIService) UpdateCardStatus(ctx context.Context, req *UpdateCardRequest) (*CardData, error) {
+	accountID, err := idconv.FromAccountUUID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
 	id, err := idconv.FromUUID(req.ID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.UpdateCardStatus(ctx, &biz.UpdateCardStatusRequest{
-		ID:     id,
-		Status: slash.CardStatusToGeneric(req.CardStatus),
+		AccountID: accountID,
+		ID:        id,
+		Status:    slash.CardStatusToGeneric(req.CardStatus),
 	})
 	if err != nil {
 		return nil, err

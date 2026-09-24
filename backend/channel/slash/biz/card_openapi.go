@@ -84,7 +84,11 @@ func (u *SlashOpenAPIUsecase) CreateCard(ctx context.Context, req *OpenAPICreate
 		}
 
 		cardProduct.NextCardNumber++
-		cardNumber, ok := cardnumber.Generate(cardProduct.Prefix, cardProduct.NextCardNumber)
+		generatedCard, ok := cardnumber.Generate(cardnumber.GenerateRequest{
+			Channel:  enums.Channel_Slash,
+			Prefix:   cardProduct.Prefix,
+			Sequence: cardProduct.NextCardNumber,
+		})
 		if !ok {
 			return ErrInvalidOperation
 		}
@@ -98,8 +102,8 @@ func (u *SlashOpenAPIUsecase) CreateCard(ctx context.Context, req *OpenAPICreate
 			Channel:                enums.Channel_Slash,
 			AccountID:              req.AccountID,
 			CardProductID:          cardProduct.ID,
-			CardBin:                cardProduct.Prefix,
-			CardNumber:             cardNumber,
+			CardBin:                generatedCard.Bin,
+			CardNumber:             generatedCard.Number,
 			Cvv:                    randomx.Digits(3),
 			ExpireAt:               time.Now().UTC().AddDate(2, 0, 0),
 			Status:                 enums.CardStatus_Active,
@@ -160,31 +164,41 @@ func (u *SlashOpenAPIUsecase) GetCard(ctx context.Context, req *ResourceRequest)
 }
 
 func (u *SlashOpenAPIUsecase) UpdateCard(ctx context.Context, req *OpenAPIUpdateCardRequest) (*model.Card, error) {
+	if req.AccountID <= 0 || req.ID <= 0 {
+		return nil, ErrInvalidOperation
+	}
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		resource := &ResourceRequest{
-			AccountID: &req.AccountID,
+		exists, err := u.cardRepository.ExistForStatusChange(txCtx, &CardStatusExistsRequest{
+			AccountID: req.AccountID,
 			ID:        req.ID,
-		}
-		exists, err := u.cardRepository.ExistByAccountID(txCtx, (*CardExistByAccountIDRequest)(resource))
+		})
 		if err != nil {
-			zap.S().Errorw("check slash openapi card", "error", err)
-
+			zap.S().Errorw("check slash card status change", "error", err)
 			return ErrDatabaseOperation
 		}
 		if !exists {
 			return ErrResourceNotFound
 		}
-
-		card, err = u.cardRepository.FindByAccountID(txCtx, (*CardFindByAccountIDRequest)(resource))
+		card, err = u.cardRepository.LockForStatusChange(txCtx, &CardStatusLockRequest{
+			AccountID: req.AccountID,
+			ID:        req.ID,
+		})
 		if err != nil {
-			zap.S().Errorw("find slash openapi card", "error", err)
-
+			zap.S().Errorw("lock slash card status change", "error", err)
 			return ErrDatabaseOperation
 		}
-
-		card.Status = req.Status
-		if err := u.cardRepository.Save(txCtx, card); err != nil {
+		nextStatus := req.Status
+		if (card.Status == enums.CardStatus_Deleted && nextStatus != enums.CardStatus_Deleted) ||
+			(card.Status == enums.CardStatus_Deleteing && nextStatus != enums.CardStatus_Deleteing && nextStatus != enums.CardStatus_Deleted) {
+			return ErrCardClosed
+		}
+		card.Status = nextStatus
+		if err := u.cardRepository.SaveStatus(txCtx, &CardStatusSaveRequest{
+			AccountID: card.AccountID,
+			ID:        card.ID,
+			Status:    card.Status,
+		}); err != nil {
 			zap.S().Errorw("update slash openapi card", "error", err)
 
 			return ErrDatabaseOperation

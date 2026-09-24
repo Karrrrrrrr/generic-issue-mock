@@ -142,10 +142,11 @@ export const api: ChannelAPI = {
       })
     ).data;
   },
-  async updateCardStatus(id, status) {
+  async updateCardStatus(payload) {
     return (
-      await request.put<Card>(`${baseURL}/cards/${id}/status`, {
-        card_status: status,
+      await request.put<Card>(`${baseURL}/cards/${payload.id}/status`, {
+        account_id: payload.account_id,
+        card_status: payload.card_status,
       })
     ).data;
   },

@@ -8,6 +8,22 @@ import (
 	"generic-mock/model"
 )
 
+type CardStatusExistsRequest struct {
+	AccountID model.ID
+	ID        model.ID
+}
+
+type CardStatusLockRequest struct {
+	AccountID model.ID
+	ID        model.ID
+}
+
+type CardStatusSaveRequest struct {
+	AccountID model.ID
+	ID        model.ID
+	Status    enums.CardStatus
+}
+
 type CardCountRequest struct {
 	AccountIDs  []model.ID
 	Offset      int
@@ -46,6 +62,9 @@ type CardListRequest struct {
 }
 
 type SlashCardRepository interface {
+	ExistForStatusChange(context.Context, *CardStatusExistsRequest) (bool, error)
+	LockForStatusChange(context.Context, *CardStatusLockRequest) (*model.Card, error)
+	SaveStatus(context.Context, *CardStatusSaveRequest) error
 	ExistByAccountID(context.Context, *CardExistByAccountIDRequest) (bool, error)
 	FindCard(context.Context, *FindCardRequest) (*model.Card, error)
 	Create(context.Context, *model.Card) error

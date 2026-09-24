@@ -119,19 +119,33 @@ func (u *PhotonPayUIUsecase) ReplayWebhookRecord(
 		return nil, ErrDatabaseOperation
 	}
 
+	startedAt := time.Now()
+	zap.S().Infow("webhook delivery started",
+		"channel", replay.Channel,
+		"account_id", replay.AccountID,
+		"webhook_record_id", replay.ID,
+		"event", replay.Event,
+		"source_id", replay.SourceID,
+		"attempt", replay.AttemptCount,
+		"method", "POST",
+		"url", replay.TargetURL,
+		"request_body", string(replay.Payload),
+	)
 	result, deliveryErr := u.webhookClient.Deliver(ctx, &PhotonPayWebhookDeliveryRequest{
 		TargetURL:      replay.TargetURL,
 		Payload:        replay.Payload,
 		RequestHeaders: replay.RequestHeaders,
 	})
-	if deliveryErr != nil {
-		replay.Status = enums.WebhookDeliveryStatus_Failed
-		replay.ErrorMessage = deliveryErr.Error()
-	} else {
+	if result != nil {
 		replay.StatusCode = result.StatusCode
 		replay.ResponseBody = result.ResponseBody
 		replay.RequestHeaders = result.RequestHeaders
 		replay.ResponseHeaders = result.ResponseHeaders
+	}
+	if deliveryErr != nil {
+		replay.Status = enums.WebhookDeliveryStatus_Failed
+		replay.ErrorMessage = deliveryErr.Error()
+	} else {
 		if result.StatusCode >= 200 && result.StatusCode < 300 && photonPayWebhookAcknowledged(result.ResponseBody) {
 			deliveredAt := time.Now().UTC()
 			replay.Status = enums.WebhookDeliveryStatus_Succeeded
@@ -140,6 +154,28 @@ func (u *PhotonPayUIUsecase) ReplayWebhookRecord(
 			replay.Status = enums.WebhookDeliveryStatus_Failed
 			replay.ErrorMessage = "unexpected PhotonPay webhook response"
 		}
+	}
+	logFields := []any{
+		"channel", replay.Channel,
+		"account_id", replay.AccountID,
+		"webhook_record_id", replay.ID,
+		"event", replay.Event,
+		"source_id", replay.SourceID,
+		"attempt", replay.AttemptCount,
+		"method", "POST",
+		"url", replay.TargetURL,
+		"status", replay.Status,
+		"status_code", replay.StatusCode,
+		"request_headers", string(replay.RequestHeaders),
+		"response_headers", string(replay.ResponseHeaders),
+		"response_body", replay.ResponseBody,
+		"duration_ms", time.Since(startedAt).Milliseconds(),
+		"error", replay.ErrorMessage,
+	}
+	if replay.Status == enums.WebhookDeliveryStatus_Failed {
+		zap.S().Errorw("webhook delivery failed", logFields...)
+	} else {
+		zap.S().Infow("webhook delivery succeeded", logFields...)
 	}
 	if err := u.webhookRecordRepo.Save(ctx, replay); err != nil {
 		zap.S().Errorw("save photonpay webhook replay record", "error", err)
@@ -191,6 +227,18 @@ func (u *PhotonPayUIUsecase) dispatchCardStatus(ctx context.Context, card *model
 			zap.S().Errorw("create photonpay card status webhook record", "error", err)
 			continue
 		}
+		startedAt := time.Now()
+		zap.S().Infow("webhook delivery started",
+			"channel", record.Channel,
+			"account_id", record.AccountID,
+			"webhook_record_id", record.ID,
+			"event", record.Event,
+			"source_id", record.SourceID,
+			"attempt", record.AttemptCount,
+			"method", "POST",
+			"url", record.TargetURL,
+			"request_body", string(record.Payload),
+		)
 		result, deliveryErr := u.webhookClient.Deliver(ctx, &PhotonPayWebhookDeliveryRequest{
 			TargetURL:      config.TargetURL,
 			Payload:        payload,
@@ -198,15 +246,16 @@ func (u *PhotonPayUIUsecase) dispatchCardStatus(ctx context.Context, card *model
 			NotifyType:     string(photon.WebhookEventCardStatusUpdate),
 			PublishedAt:    time.Now().UTC().Format(time.RFC3339),
 		})
-		if deliveryErr != nil {
-			record.Status = enums.WebhookDeliveryStatus_Failed
-			record.ErrorMessage = deliveryErr.Error()
-			zap.S().Errorw("deliver photonpay card status webhook", "error", deliveryErr, "webhook_record_id", record.ID)
-		} else {
+		if result != nil {
 			record.StatusCode = result.StatusCode
 			record.ResponseBody = result.ResponseBody
 			record.RequestHeaders = result.RequestHeaders
 			record.ResponseHeaders = result.ResponseHeaders
+		}
+		if deliveryErr != nil {
+			record.Status = enums.WebhookDeliveryStatus_Failed
+			record.ErrorMessage = deliveryErr.Error()
+		} else {
 			if result.StatusCode >= 200 && result.StatusCode < 300 && photonPayWebhookAcknowledged(result.ResponseBody) {
 				deliveredAt := time.Now().UTC()
 				record.Status = enums.WebhookDeliveryStatus_Succeeded
@@ -215,6 +264,28 @@ func (u *PhotonPayUIUsecase) dispatchCardStatus(ctx context.Context, card *model
 				record.Status = enums.WebhookDeliveryStatus_Failed
 				record.ErrorMessage = "unexpected PhotonPay webhook response"
 			}
+		}
+		logFields := []any{
+			"channel", record.Channel,
+			"account_id", record.AccountID,
+			"webhook_record_id", record.ID,
+			"event", record.Event,
+			"source_id", record.SourceID,
+			"attempt", record.AttemptCount,
+			"method", "POST",
+			"url", record.TargetURL,
+			"status", record.Status,
+			"status_code", record.StatusCode,
+			"request_headers", string(record.RequestHeaders),
+			"response_headers", string(record.ResponseHeaders),
+			"response_body", record.ResponseBody,
+			"duration_ms", time.Since(startedAt).Milliseconds(),
+			"error", record.ErrorMessage,
+		}
+		if record.Status == enums.WebhookDeliveryStatus_Failed {
+			zap.S().Errorw("webhook delivery failed", logFields...)
+		} else {
+			zap.S().Infow("webhook delivery succeeded", logFields...)
 		}
 		if err := u.webhookRecordRepo.Save(ctx, record); err != nil {
 			zap.S().Errorw("save photonpay card status webhook record", "error", err)
@@ -254,6 +325,18 @@ func (u *PhotonPayUIUsecase) dispatch(ctx context.Context, event photon.WebhookE
 			zap.S().Errorw("create photonpay webhook record", "error", err)
 			continue
 		}
+		startedAt := time.Now()
+		zap.S().Infow("webhook delivery started",
+			"channel", record.Channel,
+			"account_id", record.AccountID,
+			"webhook_record_id", record.ID,
+			"event", record.Event,
+			"source_id", record.SourceID,
+			"attempt", record.AttemptCount,
+			"method", "POST",
+			"url", record.TargetURL,
+			"request_body", string(record.Payload),
+		)
 		result, deliveryErr := u.webhookClient.Deliver(ctx, &PhotonPayWebhookDeliveryRequest{
 			TargetURL:      config.TargetURL,
 			Payload:        payload,
@@ -261,15 +344,16 @@ func (u *PhotonPayUIUsecase) dispatch(ctx context.Context, event photon.WebhookE
 			NotifyType:     string(event),
 			PublishedAt:    transaction.CreatedAt.UTC().Format(time.RFC3339),
 		})
-		if deliveryErr != nil {
-			record.Status = enums.WebhookDeliveryStatus_Failed
-			record.ErrorMessage = deliveryErr.Error()
-			zap.S().Errorw("deliver photonpay webhook", "error", deliveryErr, "webhook_record_id", record.ID)
-		} else {
+		if result != nil {
 			record.StatusCode = result.StatusCode
 			record.ResponseBody = result.ResponseBody
 			record.RequestHeaders = result.RequestHeaders
 			record.ResponseHeaders = result.ResponseHeaders
+		}
+		if deliveryErr != nil {
+			record.Status = enums.WebhookDeliveryStatus_Failed
+			record.ErrorMessage = deliveryErr.Error()
+		} else {
 			if result.StatusCode >= 200 && result.StatusCode < 300 && photonPayWebhookAcknowledged(result.ResponseBody) {
 				deliveredAt := time.Now().UTC()
 				record.Status = enums.WebhookDeliveryStatus_Succeeded
@@ -278,6 +362,28 @@ func (u *PhotonPayUIUsecase) dispatch(ctx context.Context, event photon.WebhookE
 				record.Status = enums.WebhookDeliveryStatus_Failed
 				record.ErrorMessage = "unexpected PhotonPay webhook response"
 			}
+		}
+		logFields := []any{
+			"channel", record.Channel,
+			"account_id", record.AccountID,
+			"webhook_record_id", record.ID,
+			"event", record.Event,
+			"source_id", record.SourceID,
+			"attempt", record.AttemptCount,
+			"method", "POST",
+			"url", record.TargetURL,
+			"status", record.Status,
+			"status_code", record.StatusCode,
+			"request_headers", string(record.RequestHeaders),
+			"response_headers", string(record.ResponseHeaders),
+			"response_body", record.ResponseBody,
+			"duration_ms", time.Since(startedAt).Milliseconds(),
+			"error", record.ErrorMessage,
+		}
+		if record.Status == enums.WebhookDeliveryStatus_Failed {
+			zap.S().Errorw("webhook delivery failed", logFields...)
+		} else {
+			zap.S().Infow("webhook delivery succeeded", logFields...)
 		}
 		if err := u.webhookRecordRepo.Save(ctx, record); err != nil {
 			zap.S().Errorw("save photonpay webhook record", "error", err)

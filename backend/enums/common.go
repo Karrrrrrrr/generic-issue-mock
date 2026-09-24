@@ -99,6 +99,7 @@ const (
 	Channel_PhotonPay Channel = "photonpay"
 	Channel_Paynda    Channel = "paynda"
 	Channel_Slash     Channel = "slash"
+	Channel_PingPong  Channel = "pingpong" // 未来渠道，待实现。
 )
 
 type OperationType string

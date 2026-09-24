@@ -58,26 +58,26 @@ func (c *webhookClient) Deliver(ctx context.Context, req *biz.PayndaWebhookDeliv
 	if err != nil {
 		return nil, err
 	}
+	result := &biz.PayndaWebhookDeliveryResult{
+		RequestHeaders: requestHeaders,
+	}
 	response, err := c.client.Do(httpRequest)
 	if err != nil {
-		return nil, err
+		return result, err
 	}
 	defer response.Body.Close()
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, err
-	}
+	result.StatusCode = response.StatusCode
 	responseHeaders, err := json.Marshal(response.Header)
 	if err != nil {
-		return nil, err
+		return result, err
 	}
-
-	return &biz.PayndaWebhookDeliveryResult{
-		StatusCode:      response.StatusCode,
-		ResponseBody:    string(body),
-		RequestHeaders:  requestHeaders,
-		ResponseHeaders: responseHeaders,
-	}, nil
+	result.ResponseHeaders = responseHeaders
+	body, err := io.ReadAll(response.Body)
+	result.ResponseBody = string(body)
+	if err != nil {
+		return result, err
+	}
+	return result, nil
 }
 
 var _ biz.PayndaWebhookClient = (*webhookClient)(nil)

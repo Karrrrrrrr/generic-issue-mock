@@ -72,12 +72,18 @@ export interface TransactionListRequest extends PageRequest {
   created_to?: string;
 }
 
+export interface CardStatusUpdateRequest {
+  id: string;
+  account_id: string;
+  card_status: string;
+}
+
 export interface ChannelAPI {
   listCardholders(page?: PageRequest): Promise<ListResponse<Cardholder>>;
 
   listCards(query?: CardListRequest): Promise<ListResponse<Card>>;
 
-  updateCardStatus(id: string, status: string): Promise<Card>;
+  updateCardStatus(payload: CardStatusUpdateRequest): Promise<Card>;
 
   listTransactions(query?: TransactionListRequest): Promise<ListResponse<Transaction>>;
 

@@ -1,8 +1,10 @@
-# Payful
+# Payful（已废弃，历史归档）
 
 ## 状态
 
-Payful 在 Marxo 中已经被实际使用，但 generic-mock 尚未有 `backend/channel/payful`、路由或管理 UI。Payful 不支持虚拟账户，开卡应使用独立卡钱包。
+**Payful 已废弃，不再实现，也不属于未来渠道待办。** 不添加 `backend/channel/payful`、路由、管理 UI、种子数据或为它扩展通用模型。
+
+以下内容仅保留此前的 SDK 调研记录；其中「实现」「应」「目标」等表述均为废止的历史方案，不构成当前开发要求。新增未来渠道为 [PingPong（待实现）](pingpong.md)，不能复用或推定 Payful 的协议作为 PingPong 契约。
 
 ## 目标字段映射
 

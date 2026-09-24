@@ -315,7 +315,11 @@ func seedChannelCards(
 			}
 		}
 
-		cardNumber, ok := cardnumber.Generate(persistedProduct.Prefix, 1)
+		generatedCard, ok := cardnumber.Generate(cardnumber.GenerateRequest{
+			Channel:  seed.channel,
+			Prefix:   persistedProduct.Prefix,
+			Sequence: 1,
+		})
 		if !ok {
 			return gorm.ErrInvalidData
 		}
@@ -323,7 +327,7 @@ func seedChannelCards(
 		result := db.WithContext(ctx).Where(&model.Card{
 			AccountID:  account.ID,
 			Channel:    seed.channel,
-			CardNumber: cardNumber,
+			CardNumber: generatedCard.Number,
 		}).First(&existingCard)
 		if result.Error == nil {
 			continue
@@ -336,8 +340,8 @@ func seedChannelCards(
 			AccountID:              account.ID,
 			Channel:                seed.channel,
 			CardProductID:          persistedProduct.ID,
-			CardBin:                persistedProduct.Prefix,
-			CardNumber:             cardNumber,
+			CardBin:                generatedCard.Bin,
+			CardNumber:             generatedCard.Number,
 			Cvv:                    "123",
 			ExpireAt:               time.Now().UTC().AddDate(2, 0, 0),
 			Status:                 enums.CardStatus_Active,

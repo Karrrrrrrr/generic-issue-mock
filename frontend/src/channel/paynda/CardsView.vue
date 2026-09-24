@@ -90,9 +90,40 @@ async function load() {
   }
 }
 
-async function changeStatus(card: Card, status: string) {
+function statusAction(card: Card) {
+  switch (card.card_status) {
+    case "ACTIVE":
+      return {
+        label: "冻结",
+        status: "FROZEN",
+      };
+    case "FROZEN":
+      return {
+        label: "恢复",
+        status: "ACTIVE",
+      };
+    case "DELETED":
+      return {
+        label: "已注销",
+        status: null,
+      };
+    default:
+      return {
+        label: "不可操作",
+        status: null,
+      };
+  }
+}
+
+async function changeStatus(card: Card) {
+  const action = statusAction(card);
+  if (action.status === null) return;
   try {
-    await api.updateCardStatus(card.id, status);
+    await api.updateCardStatus({
+      id: card.id,
+      account_id: card.account_id,
+      card_status: action.status,
+    });
     await load();
   } catch (error) {
     message.error(error instanceof Error ? error.message : "更新卡片状态失败");
@@ -199,11 +230,11 @@ const columns = [
               NButton,
               {
                 size: "small",
-                onClick: () =>
-                  changeStatus(card, card.card_status === "ACTIVE" ? "FROZEN" : "ACTIVE"),
+                disabled: statusAction(card).status === null,
+                onClick: () => changeStatus(card),
               },
               {
-                default: () => (card.card_status === "ACTIVE" ? "冻结" : "恢复"),
+                default: () => statusAction(card).label,
               },
             ),
           ],

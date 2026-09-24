@@ -70,7 +70,11 @@ func (u *PayndaOpenAPIUsecase) CreateCard(ctx context.Context, req *PayndaCreate
 			return ErrDatabaseOperation
 		}
 		product.NextCardNumber++
-		cardNumber, ok := cardnumber.Generate(product.Prefix, product.NextCardNumber)
+		generatedCard, ok := cardnumber.Generate(cardnumber.GenerateRequest{
+			Channel:  enums.Channel_Paynda,
+			Prefix:   product.Prefix,
+			Sequence: product.NextCardNumber,
+		})
 		if !ok {
 			return ErrInvalidOperation
 		}
@@ -95,8 +99,8 @@ func (u *PayndaOpenAPIUsecase) CreateCard(ctx context.Context, req *PayndaCreate
 			Channel:                enums.Channel_Paynda,
 			AccountID:              req.AccountID,
 			CardProductID:          product.ID,
-			CardBin:                product.Prefix,
-			CardNumber:             cardNumber,
+			CardBin:                generatedCard.Bin,
+			CardNumber:             generatedCard.Number,
 			Cvv:                    randomx.Digits(3),
 			ExpireAt:               req.ExpireAt,
 			Status:                 enums.CardStatus_Active,
@@ -197,25 +201,51 @@ func (u *PayndaOpenAPIUsecase) UpdateCardStatus(
 	ctx context.Context,
 	req *PayndaUpdateCardStatusRequest,
 ) (*model.Card, error) {
+	if req.AccountID <= 0 || req.CardID <= 0 {
+		return nil, ErrInvalidOperation
+	}
 	if req.RequestID == "" {
 		req.RequestID = randomx.Digits(20)
 	}
 
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		var err error
-		card, err = u.GetCard(txCtx, &PayndaResourceRequest{
+		exists, err := u.cardRepository.ExistForStatusChange(txCtx, &CardStatusExistsRequest{
 			AccountID: req.AccountID,
 			ID:        req.CardID,
 		})
 		if err != nil {
-			return err
+			zap.S().Errorw("check paynda card status change", "error", err)
+			return ErrDatabaseOperation
 		}
-		card.Status = paynda.CardStatusToGeneric(req.Status)
+		if !exists {
+			return ErrResourceNotFound
+		}
+		card, err = u.cardRepository.LockForStatusChange(txCtx, &CardStatusLockRequest{
+			AccountID: req.AccountID,
+			ID:        req.CardID,
+		})
+		if err != nil {
+			zap.S().Errorw("lock paynda card status change", "error", err)
+			return ErrDatabaseOperation
+		}
+		nextStatus := paynda.CardStatusToGeneric(req.Status)
+		if (card.Status == enums.CardStatus_Deleted && nextStatus != enums.CardStatus_Deleted) ||
+			(card.Status == enums.CardStatus_Deleteing && nextStatus != enums.CardStatus_Deleteing && nextStatus != enums.CardStatus_Deleted) {
+			return ErrCardClosed
+		}
+		card.Status = nextStatus
 		card.LastOperationRequestID = req.RequestID
 		card.LastOperationType = enums.OperationType_UpdateCard
 		card.LastOperationStatus = enums.OperationStatus_Succeed
-		if err := u.cardRepository.Save(txCtx, card); err != nil {
+		if err := u.cardRepository.SaveStatus(txCtx, &CardStatusSaveRequest{
+			AccountID:              card.AccountID,
+			ID:                     card.ID,
+			Status:                 card.Status,
+			LastOperationRequestID: card.LastOperationRequestID,
+			LastOperationType:      card.LastOperationType,
+			LastOperationStatus:    card.LastOperationStatus,
+		}); err != nil {
 			zap.S().Errorw("update paynda card status", "error", err)
 			return ErrDatabaseOperation
 		}

@@ -60,7 +60,11 @@ func (u *PhotonPayOpenAPIUsecase) OpenCard(ctx context.Context, req *OpenCardReq
 			return err
 		}
 		product.NextCardNumber++
-		cardNumber, ok := cardnumber.Generate(product.Prefix, product.NextCardNumber)
+		generatedCard, ok := cardnumber.Generate(cardnumber.GenerateRequest{
+			Channel:  common.Channel_PhotonPay,
+			Prefix:   product.Prefix,
+			Sequence: product.NextCardNumber,
+		})
 		if !ok {
 			return ErrInvalidOperation
 		}
@@ -83,8 +87,8 @@ func (u *PhotonPayOpenAPIUsecase) OpenCard(ctx context.Context, req *OpenCardReq
 			AccountID:              req.AccountID,
 			Channel:                common.Channel_PhotonPay,
 			CardProductID:          product.ID,
-			CardBin:                product.Prefix,
-			CardNumber:             cardNumber,
+			CardBin:                generatedCard.Bin,
+			CardNumber:             generatedCard.Number,
 			Cvv:                    randomx.Digits(3),
 			ExpireAt:               time.Now().UTC().AddDate(0, months, 0),
 			Status:                 common.CardStatus_Active,
@@ -185,24 +189,36 @@ func (u *PhotonPayOpenAPIUsecase) GetRequestResult(ctx context.Context, req *Req
 }
 
 func (u *PhotonPayOpenAPIUsecase) ChangeCardStatus(ctx context.Context, req *ChangeCardStatusRequest) (*model.Card, error) {
+	if req.AccountID <= 0 || req.CardID <= 0 {
+		return nil, ErrInvalidOperation
+	}
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		if err := u.requireCard(txCtx, &ResourceRequest{
-			AccountID: &req.AccountID,
+		exists, err := u.cardRepo.ExistForStatusChange(txCtx, &CardStatusExistsRequest{
+			AccountID: req.AccountID,
 			ID:        req.CardID,
-		}); err != nil {
-			return err
-		}
-
-		var err error
-		card, err = u.cardRepo.FindCardByID(txCtx, req.CardID)
+		})
 		if err != nil {
-			zap.S().Errorw("find photonpay card", "error", err)
-
+			zap.S().Errorw("check photonpay card status change", "error", err)
 			return ErrDatabaseOperation
 		}
-
-		card.Status = req.Status
+		if !exists {
+			return ErrResourceNotFound
+		}
+		card, err = u.cardRepo.LockForStatusChange(txCtx, &CardStatusLockRequest{
+			AccountID: req.AccountID,
+			ID:        req.CardID,
+		})
+		if err != nil {
+			zap.S().Errorw("lock photonpay card status change", "error", err)
+			return ErrDatabaseOperation
+		}
+		nextStatus := req.Status
+		if (card.Status == common.CardStatus_Deleted && nextStatus != common.CardStatus_Deleted) ||
+			(card.Status == common.CardStatus_Deleteing && nextStatus != common.CardStatus_Deleteing && nextStatus != common.CardStatus_Deleted) {
+			return ErrCardClosed
+		}
+		card.Status = nextStatus
 		if req.RequestID != "" {
 			card.LastOperationRequestID = req.RequestID
 		} else {
@@ -211,7 +227,14 @@ func (u *PhotonPayOpenAPIUsecase) ChangeCardStatus(ctx context.Context, req *Cha
 		card.LastOperationType = req.Operation
 		card.LastOperationStatus = common.OperationStatus_Succeed
 
-		if err := u.cardRepo.SaveCard(txCtx, card); err != nil {
+		if err := u.cardRepo.SaveStatus(txCtx, &CardStatusSaveRequest{
+			AccountID:              card.AccountID,
+			ID:                     card.ID,
+			Status:                 card.Status,
+			LastOperationRequestID: card.LastOperationRequestID,
+			LastOperationType:      card.LastOperationType,
+			LastOperationStatus:    card.LastOperationStatus,
+		}); err != nil {
 			zap.S().Errorw("update photonpay card status", "error", err)
 
 			return ErrDatabaseOperation
@@ -227,6 +250,9 @@ func (u *PhotonPayOpenAPIUsecase) ChangeCardStatus(ctx context.Context, req *Cha
 }
 
 func (u *PhotonPayOpenAPIUsecase) UpdateCard(ctx context.Context, req *UpdateCardRequest) (*model.Card, error) {
+	if req.AccountID <= 0 || req.CardID <= 0 {
+		return nil, ErrInvalidOperation
+	}
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		if err := u.requireCard(txCtx, &ResourceRequest{
@@ -237,7 +263,10 @@ func (u *PhotonPayOpenAPIUsecase) UpdateCard(ctx context.Context, req *UpdateCar
 		}
 
 		var err error
-		card, err = u.cardRepo.FindCardByID(txCtx, req.CardID)
+		card, err = u.cardRepo.FindCard(txCtx, &FindCardRequest{
+			AccountID: req.AccountID,
+			ID:        req.CardID,
+		})
 		if err != nil {
 			zap.S().Errorw("find photonpay card for update", "error", err)
 
@@ -247,7 +276,13 @@ func (u *PhotonPayOpenAPIUsecase) UpdateCard(ctx context.Context, req *UpdateCar
 		card.LastOperationRequestID = req.RequestID
 		card.LastOperationType = common.OperationType_UpdateCard
 		card.LastOperationStatus = common.OperationStatus_Succeed
-		if err := u.cardRepo.SaveCard(txCtx, card); err != nil {
+		if err := u.cardRepo.UpdateOperation(txCtx, &CardOperationUpdateRequest{
+			AccountID: card.AccountID,
+			ID:        card.ID,
+			RequestID: card.LastOperationRequestID,
+			Type:      card.LastOperationType,
+			Status:    card.LastOperationStatus,
+		}); err != nil {
 			zap.S().Errorw("update photonpay card", "error", err)
 
 			return ErrDatabaseOperation

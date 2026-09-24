@@ -121,19 +121,33 @@ func (u *SlashWebhookUsecase) ReplayRecord(ctx context.Context, req *ReplayWebho
 		zap.S().Errorw("create slash webhook replay record", "error", err)
 		return nil, ErrDatabaseOperation
 	}
+	startedAt := time.Now()
+	zap.S().Infow("webhook delivery started",
+		"channel", replay.Channel,
+		"account_id", replay.AccountID,
+		"webhook_record_id", replay.ID,
+		"event", replay.Event,
+		"source_id", replay.SourceID,
+		"attempt", replay.AttemptCount,
+		"method", "POST",
+		"url", replay.TargetURL,
+		"request_body", string(replay.Payload),
+	)
 	result, deliveryErr := u.webhookClient.Deliver(ctx, &SlashWebhookDeliveryRequest{
 		TargetURL:      replay.TargetURL,
 		Payload:        replay.Payload,
 		RequestHeaders: replay.RequestHeaders,
 	})
-	if deliveryErr != nil {
-		replay.Status = enums.WebhookDeliveryStatus_Failed
-		replay.ErrorMessage = deliveryErr.Error()
-	} else {
+	if result != nil {
 		replay.StatusCode = result.StatusCode
 		replay.ResponseBody = result.ResponseBody
 		replay.RequestHeaders = result.RequestHeaders
 		replay.ResponseHeaders = result.ResponseHeaders
+	}
+	if deliveryErr != nil {
+		replay.Status = enums.WebhookDeliveryStatus_Failed
+		replay.ErrorMessage = deliveryErr.Error()
+	} else {
 		if result.StatusCode >= 200 && result.StatusCode < 300 {
 			deliveredAt := time.Now().UTC()
 			replay.Status = enums.WebhookDeliveryStatus_Succeeded
@@ -142,6 +156,28 @@ func (u *SlashWebhookUsecase) ReplayRecord(ctx context.Context, req *ReplayWebho
 			replay.Status = enums.WebhookDeliveryStatus_Failed
 			replay.ErrorMessage = "unexpected Slash webhook response"
 		}
+	}
+	logFields := []any{
+		"channel", replay.Channel,
+		"account_id", replay.AccountID,
+		"webhook_record_id", replay.ID,
+		"event", replay.Event,
+		"source_id", replay.SourceID,
+		"attempt", replay.AttemptCount,
+		"method", "POST",
+		"url", replay.TargetURL,
+		"status", replay.Status,
+		"status_code", replay.StatusCode,
+		"request_headers", string(replay.RequestHeaders),
+		"response_headers", string(replay.ResponseHeaders),
+		"response_body", replay.ResponseBody,
+		"duration_ms", time.Since(startedAt).Milliseconds(),
+		"error", replay.ErrorMessage,
+	}
+	if replay.Status == enums.WebhookDeliveryStatus_Failed {
+		zap.S().Errorw("webhook delivery failed", logFields...)
+	} else {
+		zap.S().Infow("webhook delivery succeeded", logFields...)
 	}
 	if err := u.webhookRecordRepository.Save(ctx, replay); err != nil {
 		zap.S().Errorw("save slash webhook replay record", "error", err)
@@ -200,19 +236,32 @@ func (u *SlashWebhookUsecase) dispatchToConfig(
 		zap.S().Errorw("create slash webhook record", "error", err)
 		return
 	}
+	startedAt := time.Now()
+	zap.S().Infow("webhook delivery started",
+		"channel", record.Channel,
+		"account_id", record.AccountID,
+		"webhook_record_id", record.ID,
+		"event", record.Event,
+		"source_id", record.SourceID,
+		"attempt", record.AttemptCount,
+		"method", "POST",
+		"url", record.TargetURL,
+		"request_body", string(record.Payload),
+	)
 	result, deliveryErr := u.webhookClient.Deliver(ctx, &SlashWebhookDeliveryRequest{
 		TargetURL: config.TargetURL,
 		Payload:   payload,
 	})
-	if deliveryErr != nil {
-		record.Status = enums.WebhookDeliveryStatus_Failed
-		record.ErrorMessage = deliveryErr.Error()
-		zap.S().Errorw("deliver slash webhook", "error", deliveryErr, "webhook_record_id", record.ID)
-	} else {
+	if result != nil {
 		record.StatusCode = result.StatusCode
 		record.ResponseBody = result.ResponseBody
 		record.RequestHeaders = result.RequestHeaders
 		record.ResponseHeaders = result.ResponseHeaders
+	}
+	if deliveryErr != nil {
+		record.Status = enums.WebhookDeliveryStatus_Failed
+		record.ErrorMessage = deliveryErr.Error()
+	} else {
 		if result.StatusCode >= 200 && result.StatusCode < 300 {
 			deliveredAt := time.Now().UTC()
 			record.Status = enums.WebhookDeliveryStatus_Succeeded
@@ -221,6 +270,28 @@ func (u *SlashWebhookUsecase) dispatchToConfig(
 			record.Status = enums.WebhookDeliveryStatus_Failed
 			record.ErrorMessage = "unexpected Slash webhook response"
 		}
+	}
+	logFields := []any{
+		"channel", record.Channel,
+		"account_id", record.AccountID,
+		"webhook_record_id", record.ID,
+		"event", record.Event,
+		"source_id", record.SourceID,
+		"attempt", record.AttemptCount,
+		"method", "POST",
+		"url", record.TargetURL,
+		"status", record.Status,
+		"status_code", record.StatusCode,
+		"request_headers", string(record.RequestHeaders),
+		"response_headers", string(record.ResponseHeaders),
+		"response_body", record.ResponseBody,
+		"duration_ms", time.Since(startedAt).Milliseconds(),
+		"error", record.ErrorMessage,
+	}
+	if record.Status == enums.WebhookDeliveryStatus_Failed {
+		zap.S().Errorw("webhook delivery failed", logFields...)
+	} else {
+		zap.S().Infow("webhook delivery succeeded", logFields...)
 	}
 	if err := u.webhookRecordRepository.Save(ctx, record); err != nil {
 		zap.S().Errorw("save slash webhook record", "error", err)

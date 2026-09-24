@@ -14,6 +14,7 @@ const (
 )
 
 var (
+	ErrCardClosed            = kratosErrors.BadRequest("CARD_CLOSED", "已注销或注销中的卡片不能恢复或冻结")
 	ErrRequestResultNotFound = kratosErrors.NotFound("VCC1039", "invalid requestId")
 	ErrDatabaseOperation     = kratosErrors.InternalServer(
 		errorReasonDatabaseOperation,

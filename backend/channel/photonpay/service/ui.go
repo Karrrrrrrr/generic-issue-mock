@@ -458,8 +458,9 @@ func (s *PhotonPayUIService) ListAuthorizations(ctx context.Context, req *UIList
 }
 
 type UIUpdateCardStatusRequest struct {
+	AccountID  string            `json:"account_id" binding:"required"`
 	ID         string            `uri:"id" binding:"required"`
-	CardStatus photon.CardStatus `json:"card_status" binding:"required"`
+	CardStatus photon.CardStatus `json:"card_status" binding:"required,oneof=normal freezing frozen cancelled"`
 }
 
 type UIFundCardRequest struct {
@@ -484,13 +485,18 @@ func (s *PhotonPayUIService) FundCard(ctx context.Context, req *UIFundCardReques
 }
 
 func (s *PhotonPayUIService) UpdateCardStatus(ctx context.Context, req *UIUpdateCardStatusRequest) (*UICardData, error) {
+	accountID, err := idconv.FromAccountString(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
 	card, err := s.usecase.ChangeCardStatus(ctx, &biz.UIChangeCardStatusRequest{
-		CardID: cardID,
-		Status: photon.CardStatusToGeneric(req.CardStatus),
+		AccountID: accountID,
+		CardID:    cardID,
+		Status:    photon.CardStatusToGeneric(req.CardStatus),
 	})
 	if err != nil {
 		return nil, err

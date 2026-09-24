@@ -54,7 +54,7 @@ type Card struct {
 type CardProduct struct {
 	BaseModel
 	Channel        enums.Channel `gorm:"column:channel;type:varchar;not null;default:'';uniqueIndex:idx_card_products_channel_prefix"`
-	Prefix         string        `gorm:"column:prefix;type:varchar;not null;default:'';uniqueIndex:idx_card_products_channel_prefix"`
+	Prefix         string        `gorm:"column:prefix;type:varchar;not null;default:'';uniqueIndex:idx_card_products_channel_prefix;comment:卡 BIN 前缀列表，英文逗号分隔，仅 PingPong 支持多前缀"`
 	NextCardNumber int64         `gorm:"column:next_card_number;type:bigint;not null;default:0"`
 	IsDefault      bool          `gorm:"column:is_default;type:boolean;not null;default:false"`
 

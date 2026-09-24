@@ -33,8 +33,9 @@ type UIOpenCardRequest struct {
 }
 
 type UIChangeCardStatusRequest struct {
-	CardID model.ID
-	Status enums.CardStatus
+	AccountID model.ID
+	CardID    model.ID
+	Status    enums.CardStatus
 }
 
 func (u *PhotonPayUIUsecase) OpenCard(ctx context.Context, req *UIOpenCardRequest) (*model.Card, error) {
@@ -71,7 +72,11 @@ func (u *PhotonPayUIUsecase) OpenCard(ctx context.Context, req *UIOpenCardReques
 		}
 
 		product.NextCardNumber++
-		cardNumber, ok := cardnumber.Generate(product.Prefix, product.NextCardNumber)
+		generatedCard, ok := cardnumber.Generate(cardnumber.GenerateRequest{
+			Channel:  enums.Channel_PhotonPay,
+			Prefix:   product.Prefix,
+			Sequence: product.NextCardNumber,
+		})
 		if !ok {
 			return ErrInvalidOperation
 		}
@@ -90,8 +95,8 @@ func (u *PhotonPayUIUsecase) OpenCard(ctx context.Context, req *UIOpenCardReques
 			AccountID:              req.AccountID,
 			Channel:                enums.Channel_PhotonPay,
 			CardProductID:          product.ID,
-			CardBin:                product.Prefix,
-			CardNumber:             cardNumber,
+			CardBin:                generatedCard.Bin,
+			CardNumber:             generatedCard.Number,
 			Cvv:                    randomx.Digits(3),
 			ExpireAt:               time.Now().UTC().AddDate(0, 24, 0),
 			Status:                 enums.CardStatus_Active,
@@ -162,27 +167,44 @@ func (u *PhotonPayUIUsecase) ListCards(ctx context.Context, req *ListUICardsRequ
 }
 
 func (u *PhotonPayUIUsecase) ChangeCardStatus(ctx context.Context, req *UIChangeCardStatusRequest) (*model.Card, error) {
+	if req.AccountID <= 0 || req.CardID <= 0 {
+		return nil, ErrInvalidOperation
+	}
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		exists, err := u.cardRepo.ExistCardByID(txCtx, req.CardID)
+		exists, err := u.cardRepo.ExistForStatusChange(txCtx, &CardStatusExistsRequest{
+			AccountID: req.AccountID,
+			ID:        req.CardID,
+		})
 		if err != nil {
-			zap.S().Errorw("check photonpay UI card", "error", err)
-
+			zap.S().Errorw("check photonpay card status change", "error", err)
 			return ErrDatabaseOperation
 		}
 		if !exists {
 			return ErrResourceNotFound
 		}
-
-		card, err = u.cardRepo.FindCardByID(txCtx, req.CardID)
+		card, err = u.cardRepo.LockForStatusChange(txCtx, &CardStatusLockRequest{
+			AccountID: req.AccountID,
+			ID:        req.CardID,
+		})
 		if err != nil {
-			zap.S().Errorw("find photonpay UI card", "error", err)
-
+			zap.S().Errorw("lock photonpay card status change", "error", err)
 			return ErrDatabaseOperation
 		}
-
-		card.Status = req.Status
-		if err := u.cardRepo.SaveCard(txCtx, card); err != nil {
+		nextStatus := req.Status
+		if (card.Status == enums.CardStatus_Deleted && nextStatus != enums.CardStatus_Deleted) ||
+			(card.Status == enums.CardStatus_Deleteing && nextStatus != enums.CardStatus_Deleteing && nextStatus != enums.CardStatus_Deleted) {
+			return ErrCardClosed
+		}
+		card.Status = nextStatus
+		if err := u.cardRepo.SaveStatus(txCtx, &CardStatusSaveRequest{
+			AccountID:              card.AccountID,
+			ID:                     card.ID,
+			Status:                 card.Status,
+			LastOperationRequestID: card.LastOperationRequestID,
+			LastOperationType:      card.LastOperationType,
+			LastOperationStatus:    card.LastOperationStatus,
+		}); err != nil {
 			zap.S().Errorw("update photonpay UI card status", "error", err)
 
 			return ErrDatabaseOperation
