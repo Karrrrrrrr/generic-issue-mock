@@ -117,6 +117,7 @@ func genericModels() []any {
 		&model.VirtualCard{},
 		&model.PhysicalCard{},
 		&model.Wallet{},
+		&model.WalletTransfer{},
 		&model.VirtualAccount{},
 		&model.Account{},
 		&model.CardTransaction{},

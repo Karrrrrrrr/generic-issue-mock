@@ -1,13 +1,21 @@
-export type Channel = "slash" | "photonpay" | "paynda";
+export type Channel = "slash" | "photonpay" | "paynda" | "pingpong";
 
 const channelFromPath = window.location.pathname.split("/").filter(Boolean)[0];
 
 export const channel: Channel =
-    channelFromPath === "photonpay" || channelFromPath === "paynda"
-        ? channelFromPath
-        : "slash";
+  channelFromPath === "photonpay" ||
+  channelFromPath === "paynda" ||
+  channelFromPath === "pingpong"
+    ? channelFromPath
+    : "slash";
 
 export const channelConfig = {
+  pingpong: {
+    label: "PingPong",
+    supportsAuthorizationSimulation: true,
+    supportsCardStatus: true,
+    supportsCardholder: false,
+  },
   slash: {
     label: "Slash",
     supportsAuthorizationSimulation: true,

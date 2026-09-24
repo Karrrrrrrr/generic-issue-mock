@@ -10,6 +10,9 @@ import (
 	"generic-mock/channel/photonpay"
 	photonHTTP "generic-mock/channel/photonpay/http"
 	photonService "generic-mock/channel/photonpay/service"
+	"generic-mock/channel/pingpong"
+	pingHTTP "generic-mock/channel/pingpong/http"
+	pingService "generic-mock/channel/pingpong/service"
 	"generic-mock/channel/slash"
 	slashHTTP "generic-mock/channel/slash/http"
 	slashService "generic-mock/channel/slash/service"
@@ -48,9 +51,15 @@ func main() {
 	photonpay.RegisterProviders(injector)
 	paynda.RegisterProviders(injector)
 	slash.RegisterProviders(injector)
+	pingpong.RegisterProviders(injector)
 
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
+	pingHTTP.Register(pingHTTP.RegisterRequest{
+		Router:  router.Group("/pingpong"),
+		OpenAPI: do.MustInvoke[*pingService.PingPongOpenAPIService](injector),
+		UI:      do.MustInvoke[*pingService.PingPongUIService](injector),
+	})
 	photonHTTP.Register(
 		router.Group("/photonpay"),
 		do.MustInvoke[*photonService.PhotonPayOpenAPIService](injector),

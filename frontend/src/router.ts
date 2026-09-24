@@ -4,6 +4,40 @@ export const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
+      path: "/pingpong",
+      component: () => import("@/channel/pingpong/Shell.vue"),
+      children: [
+        {
+          path: "",
+          redirect: "/pingpong/accounts",
+        },
+        {
+          path: "accounts",
+          component: () => import("@/channel/pingpong/AccountsView.vue"),
+        },
+        {
+          path: "virtual-accounts",
+          component: () => import("@/channel/pingpong/VirtualAccountsView.vue"),
+        },
+        {
+          path: "products",
+          component: () => import("@/channel/pingpong/ProductsView.vue"),
+        },
+        {
+          path: "cards",
+          component: () => import("@/channel/pingpong/CardsView.vue"),
+        },
+        {
+          path: "authorizations",
+          component: () => import("@/channel/pingpong/AuthorizationsView.vue"),
+        },
+        {
+          path: "transfers",
+          component: () => import("@/channel/pingpong/TransfersView.vue"),
+        },
+      ],
+    },
+    {
       path: "/slash",
       component: () => import("@/channel/slash/Shell.vue"),
       children: [

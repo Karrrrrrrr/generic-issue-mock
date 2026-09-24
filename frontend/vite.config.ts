@@ -17,6 +17,7 @@ export default defineConfig(() => {
         "^/slash/ui": "http://127.0.0.1:8000",
         "^/photonpay/ui": "http://127.0.0.1:8000",
         "^/paynda/ui": "http://127.0.0.1:8000",
+        "^/pingpong/ui": "http://127.0.0.1:8000",
       },
     },
   };

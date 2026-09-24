@@ -45,6 +45,11 @@ func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 			Prefix:    payndaDefaultCardProductPrefix,
 			IsDefault: true,
 		},
+		{
+			Channel:   enums.Channel_PingPong,
+			Prefix:    "424242,424243",
+			IsDefault: true,
+		},
 	}
 
 	for _, item := range items {

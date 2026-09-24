@@ -60,7 +60,7 @@
 | `BaseModel.ID` | 内部主键；对外必须经渠道 formatter 输出 |
 | `Account.ID` / `Account.Channel` | 渠道账户域主键和渠道范围；`Account` 不再额外引用 `AccountID` |
 | 除 `Account`、`CardProduct` 外业务表的 `AccountID` / `Channel` | 资源所属账户域和渠道；仓储操作与唯一索引必须包含两列 |
-| `CardProduct.Prefix` | 英文逗号分隔的数字 BIN 前缀字符串；只有未来 PingPong 支持多前缀，其他渠道仅单前缀 |
+| `CardProduct.Prefix` | 英文逗号分隔的数字 BIN 前缀字符串；只有 PingPong 支持多前缀，其他渠道仅单前缀 |
 | `Card.CardProductID` / `Card.CardBin` | 产品主键及开卡时从产品候选项中选中的单个 BIN；卡号使用同一个前缀，不保存整串候选列表 |
 | `Card.WalletID` | 实际余额和消费钱包；`share` 指向 VA 钱包，`single` 与 `virtual_account_single` 指向独立卡钱包 |
 | `Card.VirtualAccountID` | VA 关联，不等于共享余额：`share` 与 `virtual_account_single` 均非空，`single` 为空 |
@@ -82,7 +82,7 @@
 | `share` | 有 | 同一个 VA 钱包 | 所属根账户钱包 |
 | `virtual_account_single` | 有 | 独立卡钱包，与 VA 钱包不同 | 所关联 VA 钱包 |
 
-PingPong 的预算组映射为 VA，其普通卡使用第三种类型。初始化第三类卡只分配独立零余额钱包，不把预算余额复制到卡上；充值时才从预算钱包转移资金，转出回到同一个预算钱包。业务通过 `pkg/cardwallet.Prepare` 分配钱包、在同一事务持久化，通过 `FundingWalletID` 解析资金来源。模拟授权/清算只用 `Card.WalletID`，不会因存在 VA 关联而再次扣预算钱包。
+PingPong OpenAPI 的「预算组」映射为 `VirtualAccount`；内部和 UI 一律使用「虚拟账户」，其普通卡使用第三种类型。初始化第三类卡只分配独立零余额钱包，不把虚拟账户余额复制到卡上；充值时才从虚拟账户钱包转移资金，转出回到同一个虚拟账户钱包。业务通过 `pkg/cardwallet.Prepare` 分配钱包、在同一事务持久化，通过 `FundingWalletID` 解析资金来源。模拟授权/清算只用 `Card.WalletID`，不会因存在 VA 关联而再次扣虚拟账户钱包。
 
 - 创建账户必须在同一事务创建 `WalletType_Account` 的 USD 钱包，并将其 ID 回写到 `Account.WalletID`。
 - 账户余额调整是管理端的直接余额变更，可凭空增加或减少余额，不要求资金来源。
@@ -91,11 +91,11 @@ PingPong 的预算组映射为 VA，其普通卡使用第三种类型。初始�
 
 除 PingPong 授权外，模拟授权不校验余额是否充足；各渠道模拟清算允许超过授权金额，钱包余额和剩余授权金额均可为负数，并允许继续清算。每次输入金额仍须为正数，展示剩余额度时不得截断为零。普通账户、卡、虚拟账户资金划转不适用这一例外。
 
-PingPong 的页面模拟授权必须检查卡自身可用余额，足够后由本地授权并异步推送结果；不等待下游批准，也不使用 `AuthorizationConfig`。余额不足不能靠关联预算或根账户余额通过。Webhook 投递状态与授权业务状态分离：超时/失败不撤销本地授权，重放不得重复授权或记账。此规则仅约束 PingPong 授权，不收紧清算规则；具体 Webhook 报文仍待确认。
+PingPong 的页面模拟授权必须检查卡自身可用余额，足够后由本地授权并异步推送结果；不等待下游批准，也不使用 `AuthorizationConfig`。余额不足不能靠关联虚拟账户或根账户余额通过。Webhook 投递状态与授权业务状态分离：超时/失败不撤销本地授权，重放不得重复授权或记账。此规则仅约束 PingPong 授权，不收紧清算规则；具体 Webhook 报文仍待确认。
 
 账户关联资源的 UI DTO 在原接口直接返回 `account_id`、`account_name`。账户名称通过只读账户关联查询获得，不在业务记录中冗余存储；前端不再为了显示名称单独拉取账户列表。
 
-已实现渠道的字段映射见 PhotonPay、Paynda、Slash 文档；UQPay、PingPong 为未来渠道。PingPong SDK 已阅读，用户已确认预算组为 VA、卡片为独立钱包的第三类卡；通用枚举和钱包分配能力已落地，不新增冗余预算 ID 或资金来源列。其余[模型映射与后续任务](pingpong.md#模型映射与必须先解决的问题)仍区分预算与根账户、资金订单和两类交易报表，生产调用与部分协议语义待确认。Payful 已废弃，其文档仅作历史归档。
+已有渠道的字段映射见各渠道文档；PingPong 已部分实现，UQPay 仍待实现，Payful 已废弃。PingPong 虚拟账户为 VA、普通卡为独立钱包的第三类卡，不新增冗余虚拟账户 ID 或资金来源列；新增 `WalletTransfer` 留存成功资金订单、幂等键、钱包方向及双方前后余额，卡关联可空，虚拟账户订单不伪造卡。所有记录继承 `(AccountID, Channel)`；有值请求键按该对唯一，空键用于无幂等键的独立虚拟账户划转。其[剩余任务](pingpong.md#后续任务顺序)包括报表、3DS、生产调用与 Webhook 契约。
 
 `CardProduct` 是渠道级配置，不包含 `AccountID`；产品查询按 `Channel` 隔离，唯一索引为 `(channel, prefix)`。同渠道账户共享产品及发卡序列，创建账户不再复制产品；卡片仍按账户隔离，且只能引用同渠道产品。
 

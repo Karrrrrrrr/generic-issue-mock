@@ -107,6 +107,13 @@ type Account struct {
 	Wallet   *Wallet       `gorm:"foreignKey:WalletID;references:ID;->"`
 }
 
+func (account *Account) GetName() string {
+	if account == nil {
+		return ""
+	}
+	return account.Name
+}
+
 type CardTransaction struct {
 	Account *Account `gorm:"foreignKey:AccountID,Channel;references:ID,Channel;->"`
 	BaseModel
