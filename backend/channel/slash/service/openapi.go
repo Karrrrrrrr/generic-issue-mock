@@ -42,7 +42,8 @@ type OpenAPIListRequest struct {
 }
 
 type OpenAPIMetadata struct {
-	Count int `json:"count"`
+	Count      int    `json:"count"`
+	NextCursor string `json:"nextCursor"`
 }
 
 type OpenAPIVirtualAccountData struct {
@@ -103,7 +104,7 @@ type OpenAPIVirtualAccountTransferRequest struct {
 }
 
 type OpenAPIVirtualAccountTransferData struct {
-	ID string `json:"id"`
+	ID string `json:"transferId"`
 }
 
 func (s *SlashOpenAPIService) TransferVirtualAccount(ctx context.Context, req *OpenAPIVirtualAccountTransferRequest) (*OpenAPIVirtualAccountTransferData, error) {
@@ -186,8 +187,8 @@ func (s *SlashOpenAPIService) ListCards(ctx context.Context, req *OpenAPIListCar
 
 type OpenAPICreateCardRequest struct {
 	OpenAPIAccountRequest
-	AccountID          string          `json:"accountId"`        // Invalid: mock has one generic account.
-	VirtualAccountID   string          `json:"virtualAccountId"` // Invalid: virtual-account assignment is unsupported.
+	AccountID          string          `json:"accountId"` // Invalid: mock has one generic account.
+	VirtualAccountID   *string         `json:"virtualAccountId"`
 	Type               slash.CardType  `json:"type" binding:"required"`
 	Name               string          `json:"name" binding:"required"` // Invalid: card names are not persisted.
 	IsSingleUse        bool            `json:"isSingleUse"`             // Invalid: single-use cards are unsupported.
@@ -211,11 +212,20 @@ func (s *SlashOpenAPIService) CreateCard(ctx context.Context, req *OpenAPICreate
 	if err != nil {
 		return nil, err
 	}
+	var virtualAccountID *model.ID
+	if req.VirtualAccountID != nil {
+		parsed, err := slashID(*req.VirtualAccountID)
+		if err != nil {
+			return nil, err
+		}
+		virtualAccountID = &parsed
+	}
 	item, err := s.usecase.CreateCard(ctx, &biz.OpenAPICreateCardRequest{
-		AccountID:     accountID,
-		CardProductID: cardProductID,
-		Currency:      enums.Currency_USD,
-		RequestID:     req.UserData.RequestID,
+		VirtualAccountID: virtualAccountID,
+		AccountID:        accountID,
+		CardProductID:    cardProductID,
+		Currency:         enums.Currency_USD,
+		RequestID:        req.UserData.RequestID,
 	})
 	if err != nil {
 		return nil, err
@@ -243,7 +253,10 @@ func (s *SlashOpenAPIService) GetCard(ctx context.Context, req *OpenAPIIDRequest
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.GetCard(ctx, &biz.ResourceRequest{AccountID: &accountID, ID: id})
+	item, err := s.usecase.GetCard(ctx, &biz.ResourceRequest{
+		AccountID: &accountID,
+		ID:        id,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +314,8 @@ type OpenAPIListCardProductsRequest struct {
 }
 
 type OpenAPIListCardProductsData struct {
-	Items []*OpenAPICardProduct `json:"items"`
+	Items    []*OpenAPICardProduct `json:"items"`
+	Metadata OpenAPIMetadata       `json:"metadata"`
 }
 
 func (s *SlashOpenAPIService) ListCardProducts(ctx context.Context, req *OpenAPIListCardProductsRequest) (*OpenAPIListCardProductsData, error) {
@@ -311,6 +325,7 @@ func (s *SlashOpenAPIService) ListCardProducts(ctx context.Context, req *OpenAPI
 	}
 
 	return &OpenAPIListCardProductsData{
+		Metadata: OpenAPIMetadata{Count: len(items)},
 		Items: types.BulkConvertSlice(items, func(item *model.CardProduct) *OpenAPICardProduct {
 			return &OpenAPICardProduct{
 				ID:     slashIDString(item.ID),
@@ -390,7 +405,10 @@ func (s *SlashOpenAPIService) GetTransaction(ctx context.Context, req *OpenAPIID
 	if err != nil {
 		return nil, err
 	}
-	item, err := s.usecase.GetTransaction(ctx, &biz.ResourceRequest{AccountID: &accountID, ID: id})
+	item, err := s.usecase.GetTransaction(ctx, &biz.ResourceRequest{
+		AccountID: &accountID,
+		ID:        id,
+	})
 	if err != nil {
 		return nil, err
 	}

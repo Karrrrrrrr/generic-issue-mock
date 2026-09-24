@@ -10,6 +10,12 @@ type VirtualAccountListRequest struct {
 	AccountIDs []model.ID
 }
 
+type SaveVirtualAccountRequest struct {
+	AccountID model.ID
+	ID        model.ID
+	Name      string
+}
+
 type VirtualAccountExistByAccountIDRequest struct {
 	AccountID *model.ID
 	ID        model.ID
@@ -21,6 +27,7 @@ type VirtualAccountFindByAccountIDRequest struct {
 }
 
 type SlashVirtualAccountRepository interface {
+	Save(context.Context, *SaveVirtualAccountRequest) error
 	ExistByAccountID(context.Context, *VirtualAccountExistByAccountIDRequest) (bool, error)
 	ListVirtualAccounts(context.Context, *VirtualAccountListRequest) ([]*model.VirtualAccount, error)
 	CreateVirtualAccount(context.Context, *model.VirtualAccount) error

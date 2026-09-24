@@ -53,6 +53,7 @@ func (r *virtualAccountRepository) ExistByAccountID(ctx context.Context, req *bi
 func (r *virtualAccountRepository) FindByAccountID(ctx context.Context, req *biz.VirtualAccountFindByAccountIDRequest) (*model.VirtualAccount, error) {
 	db := r.repository.DB(ctx)
 	return db.VirtualAccount.WithContext(ctx).
+		Preload(db.VirtualAccount.Wallet).
 		Preload(db.VirtualAccount.Account).
 		Where(
 			db.VirtualAccount.ID.Eq(req.ID),
@@ -77,4 +78,14 @@ func (r *virtualAccountRepository) ListVirtualAccounts(ctx context.Context, req 
 
 func (r *virtualAccountRepository) CreateVirtualAccount(ctx context.Context, item *model.VirtualAccount) error {
 	return r.repository.DB(ctx).VirtualAccount.WithContext(ctx).Create(item)
+}
+
+func (r *virtualAccountRepository) Save(ctx context.Context, req *biz.SaveVirtualAccountRequest) error {
+	db := r.repository.DB(ctx)
+	_, err := db.VirtualAccount.WithContext(ctx).Where(
+		db.VirtualAccount.ID.Eq(req.ID),
+		db.VirtualAccount.AccountID.Eq(req.AccountID),
+		db.VirtualAccount.Channel.Eq(string(enums.Channel_Slash)),
+	).Update(db.VirtualAccount.Name, req.Name)
+	return err
 }

@@ -14,7 +14,8 @@ const (
 )
 
 var (
-	ErrDatabaseOperation = kratosErrors.InternalServer(
+	ErrRequestResultNotFound = kratosErrors.NotFound("VCC1039", "invalid requestId")
+	ErrDatabaseOperation     = kratosErrors.InternalServer(
 		errorReasonDatabaseOperation,
 		errorMessageDatabaseOperation,
 	)

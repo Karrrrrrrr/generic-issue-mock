@@ -37,7 +37,7 @@ func (r *accountRepository) Exist(ctx context.Context, id model.ID) (bool, error
 func (r *accountRepository) Find(ctx context.Context, id model.ID) (*model.Account, error) {
 	db := r.repository.DB(ctx)
 
-	return db.Account.WithContext(ctx).Where(
+	return db.Account.WithContext(ctx).Preload(db.Account.Wallet).Where(
 		db.Account.ID.Eq(id),
 		db.Account.Channel.Eq(string(enums.Channel_Slash)),
 	).First()

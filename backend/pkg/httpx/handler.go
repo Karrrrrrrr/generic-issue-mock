@@ -23,6 +23,11 @@ func Bind[Req any, Resp any](
 	errorEncoder ErrorEncoder,
 ) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		defer func() {
+			if ctx.Request.MultipartForm != nil {
+				_ = ctx.Request.MultipartForm.RemoveAll()
+			}
+		}()
 		var request Req
 		if err := bindRequest(&bindRequestInput{
 			Context: ctx,
@@ -56,6 +61,10 @@ func bindRequest(input *bindRequestInput) error {
 		if err := json.NewDecoder(ctx.Request.Body).Decode(request); err != nil && err != io.EOF {
 			return err
 		}
+	} else if ctx.ContentType() == binding.MIMEMultipartPOSTForm {
+		if err := ctx.Request.ParseMultipartForm(32 << 20); err != nil {
+			return err
+		}
 	} else if err := ctx.Request.ParseForm(); err != nil {
 		return err
 	}
@@ -80,6 +89,9 @@ func bindRequest(input *bindRequestInput) error {
 	})
 	if err := binding.MapFormWithTag(request, headers, "header"); err != nil {
 		return err
+	}
+	if ctx.ContentType() == binding.MIMEMultipartPOSTForm {
+		return binding.FormMultipart.Bind(ctx.Request, request)
 	}
 	return binding.Validator.ValidateStruct(request)
 }

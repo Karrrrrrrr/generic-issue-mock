@@ -21,11 +21,12 @@ type OpenAPIListCardsRequest struct {
 }
 
 type OpenAPICreateCardRequest struct {
-	AccountID     model.ID
-	CardHolderID  model.ID
-	CardProductID model.ID
-	Currency      enums.Currency
-	RequestID     string
+	VirtualAccountID *model.ID
+	AccountID        model.ID
+	CardHolderID     model.ID
+	CardProductID    model.ID
+	Currency         enums.Currency
+	RequestID        string
 }
 
 type OpenAPIUpdateCardRequest struct {
@@ -110,6 +111,18 @@ func (u *SlashOpenAPIUsecase) CreateCard(ctx context.Context, req *OpenAPICreate
 			RequestID:              req.RequestID,
 			LastOperationRequestID: req.RequestID,
 		}
+		if req.VirtualAccountID != nil {
+			virtual, err := u.GetVirtualAccount(txCtx, &ResourceRequest{
+				AccountID: &req.AccountID,
+				ID:        *req.VirtualAccountID,
+			})
+			if err != nil {
+				return err
+			}
+			card.VirtualAccountID = req.VirtualAccountID
+			card.WalletID = virtual.WalletID
+			card.CardType = enums.CardType_Share
+		}
 		if err := u.cardRepository.Create(txCtx, card); err != nil {
 			zap.S().Errorw("create slash openapi card", "error", err)
 
@@ -149,7 +162,10 @@ func (u *SlashOpenAPIUsecase) GetCard(ctx context.Context, req *ResourceRequest)
 func (u *SlashOpenAPIUsecase) UpdateCard(ctx context.Context, req *OpenAPIUpdateCardRequest) (*model.Card, error) {
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		resource := &ResourceRequest{AccountID: &req.AccountID, ID: req.ID}
+		resource := &ResourceRequest{
+			AccountID: &req.AccountID,
+			ID:        req.ID,
+		}
 		exists, err := u.cardRepository.ExistByAccountID(txCtx, (*CardExistByAccountIDRequest)(resource))
 		if err != nil {
 			zap.S().Errorw("check slash openapi card", "error", err)
