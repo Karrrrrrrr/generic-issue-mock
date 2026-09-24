@@ -4,16 +4,23 @@ import (
 	"context"
 	"time"
 
+	"generic-mock/enums"
 	"generic-mock/model"
 )
 
 type AuthorizationListBalancesRequest struct {
+	Statuses     []enums.CardTransactionStatus
 	AccountIDs   []model.ID
 	IDs          []model.ID
 	CardIDs      []model.ID
 	MerchantName *string
 	CreatedFrom  *time.Time
 	CreatedTo    *time.Time
+}
+
+type FindAuthorizationDetailRequest struct {
+	AccountID model.ID
+	ID        model.ID
 }
 
 type ExistAuthorizationRequest struct {
@@ -33,6 +40,7 @@ type LockAuthorizationRequest struct {
 }
 
 type AuthorizationRepository interface {
+	FindAuthorizationDetail(context.Context, *FindAuthorizationDetailRequest) (*model.Authorization, error)
 	ListAuthorizations(context.Context, *AuthorizationListBalancesRequest) ([]*model.Authorization, error)
 	AuthorizationExists(context.Context, *ExistAuthorizationRequest) (bool, error)
 	LockAuthorization(context.Context, *LockAuthorizationRequest) (*model.Authorization, error)

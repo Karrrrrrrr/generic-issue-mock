@@ -63,6 +63,10 @@ const statusLabels: Record<string, EnumLabel> = {
     label: "成功",
     type: "success",
   },
+  declined: {
+    label: "已拒绝",
+    type: "error",
+  },
   failed: {
     label: "失败",
     type: "error",

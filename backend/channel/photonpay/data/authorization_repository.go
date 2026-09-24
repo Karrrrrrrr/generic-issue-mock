@@ -7,6 +7,7 @@ import (
 	"generic-mock/channel/photonpay/biz"
 	"generic-mock/enums"
 	"generic-mock/model"
+	"generic-mock/pkg/types"
 
 	"github.com/samber/do"
 )
@@ -74,6 +75,11 @@ func (r *authorizationRepository) ListAuthorizations(ctx context.Context, req *b
 	if len(req.CardIDs) != 0 {
 		query = query.Where(db.Authorization.CardID.In(req.CardIDs...))
 	}
+	if len(req.Statuses) != 0 {
+		query = query.Where(db.Authorization.Status.In(types.BulkConvertSlice(req.Statuses, func(value enums.CardTransactionStatus) string {
+			return string(value)
+		})...))
+	}
 	if req.MerchantName != nil {
 		query = query.Where(db.Authorization.MerchantName.Like("%" + *req.MerchantName + "%"))
 	}
@@ -84,4 +90,15 @@ func (r *authorizationRepository) ListAuthorizations(ctx context.Context, req *b
 		query = query.Where(db.Authorization.CreatedAt.Lte(*req.CreatedTo))
 	}
 	return query.Order(db.Authorization.ID.Desc()).Find()
+}
+
+func (r *authorizationRepository) FindAuthorizationDetail(ctx context.Context, req *biz.FindAuthorizationDetailRequest) (*model.Authorization, error) {
+	db := r.repository.DB(ctx)
+	return db.Authorization.WithContext(ctx).
+		Preload(db.Authorization.Account).
+		Where(
+			db.Authorization.ID.Eq(req.ID),
+			db.Authorization.AccountID.Eq(req.AccountID),
+			db.Authorization.Channel.Eq(string(enums.Channel_PhotonPay)),
+		).First()
 }

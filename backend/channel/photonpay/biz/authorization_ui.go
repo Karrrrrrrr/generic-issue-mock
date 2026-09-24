@@ -14,6 +14,7 @@ import (
 )
 
 type ListAuthorizationBalancesRequest struct {
+	Statuses     []enums.CardTransactionStatus
 	AccountID    *model.ID
 	CreatedFrom  *time.Time
 	CreatedTo    *time.Time
@@ -42,9 +43,30 @@ type ClearAuthorizationRequest struct {
 	Amount    decimal.Decimal
 }
 
+type ReverseAuthorizationRequest struct {
+	AccountID model.ID
+	ID        model.ID
+	Amount    decimal.Decimal
+}
+
+type RefundAuthorizationRequest struct {
+	AccountID model.ID
+	ID        model.ID
+	Amount    decimal.Decimal
+}
+
+type applyAuthorizationStepRequest struct {
+	AccountID model.ID
+	ID        model.ID
+	Amount    decimal.Decimal
+	Type      enums.CardTransactionType
+}
+
 type AuthorizationBalance struct {
 	Authorization *model.Authorization
 	Settled       decimal.Decimal
+	Reversed      decimal.Decimal
+	Refunded      decimal.Decimal
 	Remaining     decimal.Decimal
 }
 
@@ -61,14 +83,22 @@ func authorizationBalance(req *authorizationBalanceRequest) *AuthorizationBalanc
 		Remaining:     auth.Amount,
 	}
 	for _, stage := range stages {
-		if stage.Type == enums.CardTransactionType_CLEAR && stage.Status != enums.TransactionStatus_FAILED {
-			result.Settled = result.Settled.Add(stage.TxAmount)
-			result.Remaining = result.Remaining.Sub(stage.TxAmount)
-		}
-		if stage.Type == enums.CardTransactionType_VOID {
-			result.Remaining = result.Remaining.Sub(stage.TxAmount)
+		switch stage.Type {
+		case enums.CardTransactionType_CLEAR:
+			if stage.Status == enums.TransactionStatus_SUCCEED {
+				result.Settled = result.Settled.Add(stage.TxAmount)
+			}
+		case enums.CardTransactionType_VOID:
+			if stage.Status == enums.TransactionStatus_VOID || stage.Status == enums.TransactionStatus_SUCCEED {
+				result.Reversed = result.Reversed.Add(stage.TxAmount)
+			}
+		case enums.CardTransactionType_REFUND:
+			if stage.Status == enums.TransactionStatus_SUCCEED {
+				result.Refunded = result.Refunded.Add(stage.TxAmount)
+			}
 		}
 	}
+	result.Remaining = auth.Amount.Sub(result.Settled).Sub(result.Reversed)
 	return result
 }
 
@@ -179,6 +209,7 @@ func (u *PhotonPayUIUsecase) ListAuthorizationBalances(ctx context.Context, req 
 	}
 	items, err := u.authorizationRepo.ListAuthorizations(ctx, &AuthorizationListBalancesRequest{
 		AccountIDs:   types.PointerSlice(req.AccountID),
+		Statuses:     req.Statuses,
 		IDs:          types.PointerSlice(req.ID),
 		CardIDs:      types.PointerSlice(req.CardID),
 		MerchantName: req.MerchantName,
@@ -208,6 +239,33 @@ func (u *PhotonPayUIUsecase) ListAuthorizationBalances(ctx context.Context, req 
 }
 
 func (u *PhotonPayUIUsecase) ClearAuthorization(ctx context.Context, req *ClearAuthorizationRequest) (*model.CardTransaction, error) {
+	return u.applyAuthorizationStep(ctx, &applyAuthorizationStepRequest{
+		AccountID: req.AccountID,
+		ID:        req.ID,
+		Amount:    req.Amount,
+		Type:      enums.CardTransactionType_CLEAR,
+	})
+}
+
+func (u *PhotonPayUIUsecase) ReverseAuthorization(ctx context.Context, req *ReverseAuthorizationRequest) (*model.CardTransaction, error) {
+	return u.applyAuthorizationStep(ctx, &applyAuthorizationStepRequest{
+		AccountID: req.AccountID,
+		ID:        req.ID,
+		Amount:    req.Amount,
+		Type:      enums.CardTransactionType_VOID,
+	})
+}
+
+func (u *PhotonPayUIUsecase) RefundAuthorization(ctx context.Context, req *RefundAuthorizationRequest) (*model.CardTransaction, error) {
+	return u.applyAuthorizationStep(ctx, &applyAuthorizationStepRequest{
+		AccountID: req.AccountID,
+		ID:        req.ID,
+		Amount:    req.Amount,
+		Type:      enums.CardTransactionType_REFUND,
+	})
+}
+
+func (u *PhotonPayUIUsecase) applyAuthorizationStep(ctx context.Context, req *applyAuthorizationStepRequest) (*model.CardTransaction, error) {
 	if req.ID <= 0 || req.AccountID <= 0 || !req.Amount.IsPositive() {
 		return nil, ErrInvalidOperation
 	}
@@ -218,7 +276,7 @@ func (u *PhotonPayUIUsecase) ClearAuthorization(ctx context.Context, req *ClearA
 			ID:        req.ID,
 		})
 		if err != nil {
-			zap.S().Errorw("check photonpay clearing authorization", "error", err)
+			zap.S().Errorw("check photonpay authorization for operation", "error", err)
 			return ErrDatabaseOperation
 		}
 		if !exists {
@@ -229,7 +287,7 @@ func (u *PhotonPayUIUsecase) ClearAuthorization(ctx context.Context, req *ClearA
 			ID:        req.ID,
 		})
 		if err != nil {
-			zap.S().Errorw("lock photonpay clearing authorization", "error", err)
+			zap.S().Errorw("lock photonpay authorization for operation", "error", err)
 			return ErrDatabaseOperation
 		}
 		stages, err := u.cardTransactionRepo.ListStages(ctx, &ListAuthorizationStagesRequest{
@@ -237,33 +295,40 @@ func (u *PhotonPayUIUsecase) ClearAuthorization(ctx context.Context, req *ClearA
 			ID:        req.ID,
 		})
 		if err != nil {
-			zap.S().Errorw("list photonpay clearing stages", "error", err)
+			zap.S().Errorw("list photonpay authorization operation stages", "error", err)
 			return ErrDatabaseOperation
 		}
-		card, err := u.cardRepo.FindCard(ctx, &FindCardRequest{
-			AccountID: req.AccountID,
-			ID:        auth.CardID,
-		})
-		if err != nil {
-			zap.S().Errorw("find photonpay clearing card", "error", err)
-			return ErrDatabaseOperation
-		}
-		wallet, err := u.walletRepo.LockWallet(ctx, &LockWalletRequest{
-			AccountID: req.AccountID,
-			ID:        card.WalletID,
-		})
-		if err != nil {
-			zap.S().Errorw("lock photonpay clearing wallet", "error", err)
-			return ErrDatabaseOperation
-		}
-		if wallet.Currency != auth.Currency {
-			return ErrInvalidOperation
-		}
-		wallet.Amount = wallet.Amount.Sub(req.Amount)
-		wallet.Out = wallet.Out.Add(req.Amount)
-		if err := u.walletRepo.SaveWallet(ctx, wallet); err != nil {
-			zap.S().Errorw("save photonpay clearing wallet", "error", err)
-			return ErrDatabaseOperation
+		if req.Type != enums.CardTransactionType_VOID {
+			card, err := u.cardRepo.FindCard(ctx, &FindCardRequest{
+				AccountID: req.AccountID,
+				ID:        auth.CardID,
+			})
+			if err != nil {
+				zap.S().Errorw("find photonpay authorization operation card", "error", err)
+				return ErrDatabaseOperation
+			}
+			wallet, err := u.walletRepo.LockWallet(ctx, &LockWalletRequest{
+				AccountID: req.AccountID,
+				ID:        card.WalletID,
+			})
+			if err != nil {
+				zap.S().Errorw("lock photonpay authorization operation wallet", "error", err)
+				return ErrDatabaseOperation
+			}
+			if wallet.Currency != auth.Currency {
+				return ErrInvalidOperation
+			}
+			if req.Type == enums.CardTransactionType_REFUND {
+				wallet.Amount = wallet.Amount.Add(req.Amount)
+				wallet.In = wallet.In.Add(req.Amount)
+			} else {
+				wallet.Amount = wallet.Amount.Sub(req.Amount)
+				wallet.Out = wallet.Out.Add(req.Amount)
+			}
+			if err := u.walletRepo.SaveWallet(ctx, wallet); err != nil {
+				zap.S().Errorw("save photonpay authorization operation wallet", "error", err)
+				return ErrDatabaseOperation
+			}
 		}
 		var originID model.ID
 		for _, stage := range stages {
@@ -272,14 +337,18 @@ func (u *PhotonPayUIUsecase) ClearAuthorization(ctx context.Context, req *ClearA
 				break
 			}
 		}
+		status := enums.TransactionStatus_SUCCEED
+		if req.Type == enums.CardTransactionType_VOID {
+			status = enums.TransactionStatus_VOID
+		}
 		result = &model.CardTransaction{
 			AccountID:               req.AccountID,
 			Channel:                 enums.Channel_PhotonPay,
 			AuthorizationID:         auth.ID,
 			OriginCardTransactionID: originID,
 			CardID:                  auth.CardID,
-			Type:                    enums.CardTransactionType_CLEAR,
-			Status:                  enums.TransactionStatus_SUCCEED,
+			Type:                    req.Type,
+			Status:                  status,
 			Currency:                auth.Currency,
 			TxCurrency:              auth.Currency,
 			TxAmount:                req.Amount,
@@ -289,7 +358,7 @@ func (u *PhotonPayUIUsecase) ClearAuthorization(ctx context.Context, req *ClearA
 			AuthorizationCode:       auth.AuthorizationCode,
 		}
 		if err := u.cardTransactionRepo.Create(ctx, result); err != nil {
-			zap.S().Errorw("create photonpay clearing stage", "error", err)
+			zap.S().Errorw("create photonpay authorization operation stage", "error", err)
 			return ErrDatabaseOperation
 		}
 		return nil

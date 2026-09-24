@@ -254,10 +254,6 @@ func CardHolderReviewStatusFromGeneric(_ generic.CardHolderReviewStatus) CardHol
 	return CardHolderReviewStatus_Approved
 }
 
-func AuthorizationStatusFromGeneric(_ generic.CardTransactionStatus) AuthorizationStatus {
-	return AuthorizationStatus_Authorized
-}
-
 func TransactionStatusFromGeneric(value generic.CardTransactionStatus) TransactionStatus {
 	switch value {
 	case generic.TransactionStatus_PENDING:

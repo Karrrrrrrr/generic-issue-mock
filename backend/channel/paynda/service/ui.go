@@ -726,49 +726,6 @@ func (s *PayndaUIService) MoveFunds(ctx context.Context, req *MoveFundsRequest) 
 	return &struct{}{}, nil
 }
 
-type AuthorizationBalanceData struct {
-	AccountName  string          `json:"account_name"`
-	AccountID    string          `json:"account_id"`
-	ID           string          `json:"id"`
-	CardID       string          `json:"card_id"`
-	Currency     common.Currency `json:"currency"`
-	Amount       string          `json:"amount"`
-	Settled      string          `json:"settled"`
-	Remaining    string          `json:"remaining"`
-	MerchantName string          `json:"merchant_name"`
-	CreatedAt    time.Time       `json:"created_at"`
-}
-
-type ClearAuthorizationRequest struct {
-	ManagementAccountRequest
-	ID     string          `uri:"id" binding:"required"`
-	Amount decimal.Decimal `json:"amount"`
-}
-type ClearAuthorizationData struct {
-	ID string `json:"id"`
-}
-
-func (s *PayndaUIService) ClearAuthorization(ctx context.Context, req *ClearAuthorizationRequest) (*ClearAuthorizationData, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
-	authID, err := idconv.FromString(req.ID)
-	if err != nil {
-		return nil, err
-	}
-	item, err := s.usecase.ClearAuthorization(ctx, &biz.ClearAuthorizationRequest{
-		AccountID: accountID,
-		ID:        authID,
-		Amount:    req.Amount,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &ClearAuthorizationData{ID: idconv.ToString(item.ID)}, nil
-}
-
 func uiAccountName(account *model.Account) string {
 	if account == nil {
 		return ""
