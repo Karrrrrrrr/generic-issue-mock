@@ -3,6 +3,8 @@
 Scope: every exported channel operation in `slash`, `photonpay`, and `payndapay`,
 including their integration interfaces. UQPay is intentionally excluded.
 Low-level request transports are exercised through the public operations.
+After the removal of 22 unused Slash methods, the explicit cases cover 25 Slash,
+36 PhotonPay, and 43 Paynda operations (104 in total, counting interface wrappers).
 
 ## Run
 
@@ -47,32 +49,39 @@ SDK DTOs, SDK module files, nor Marxo files are modified by this workaround.
 Consequently, use this runner rather than an unconfigured standalone `go test`.
 
 Some PhotonPay SDK list validators reject non-nil optional filters (for example,
-`CardType` and `CardFormFactor`) before sending any HTTP request. Invocation tests
+`CardType`, `CardFormFactor`, and trade `TransactionType`) before sending any HTTP request. Live tests
 omit those filters; offline regression cases record that existing SDK behavior.
 This is an SDK-side limitation, not a server protocol fix, and the SDK is unchanged.
 
 ## Assertions
 
-- Invoke the actual SDK methods, rather than replacing them with HTTP stubs.
+- Call each actual SDK method directly in its test case. Assertions use explicit
+  `if` checks of errors and named response fields. There is no reflection,
+  dynamic method dispatch, generic invocation table, or schema-checking framework.
+- Shared helpers only configure the local client, prepare fixtures, and capture
+  HTTP exchanges; they do not invoke methods selected by name or hide assertions.
 - Record real upstream HTTP responses through a local reverse proxy, without
   modifying request/response payloads or replacing SDK decoding.
-- Check HTTP success, JSON content type, channel envelope codes, and non-null data.
-- Recursively check returned field types against the original SDK response types:
-  string versus number, integer versus fraction, booleans, arrays, objects, and
-  `json:",string"` numeric strings. Optional SDK fields can remain absent; core
-  identifiers, timestamps, amounts, and pagination fields have explicit assertions.
+- Decode through the original SDK response DTOs on every call. Check identifiers,
+  timestamps, amounts, statuses, empty arrays, and pagination fields explicitly.
+  Card and transaction cases additionally decode captured response bodies into
+  explicit wire DTOs and check HTTP status, content type, and success envelopes.
+  In particular, Paynda transaction string IDs are checked on the wire because
+  the SDK's `json.Number` also accepts JSON numbers.
 - Validate Slash canonical UUID IDs and RFC3339 timestamps; Paynda decimal IDs
   and `2006-01-02 15:04:05` timestamps; PhotonPay decimal IDs and
   `2006-01-02T15:04:05` timestamps. Validate card expiry and CVV formats as well.
-- Exercise empty and populated card lists, mutations, funding operations,
-  transactions, uploads, and SDK interface wrappers.
+- Exercise card creation, empty/populated/paged queries, freeze/unfreeze/close,
+  sensitive details, funding, request-result queries, account isolation, malformed
+  IDs, missing parameters, and SDK interface wrappers.
+- Exercise authorization, over-clearing, independent/linked refunds, reversal,
+  transaction detail/list queries, date filtering, pagination, and invalid inputs.
 - Decode Paynda's JSON-string request-result envelope and validate its embedded
   card/transfer DTO. Check PhotonPay's missing-request code `VCC1039` through the
   SDK predicate, so idempotency probes preserve downstream control flow.
-- Reflect over SDK public methods to fail if a method has no invocation case.
-- Run negative unit cases against the checker itself, including number/string
-  swaps, null arrays, integer overflow, and invalid timestamps. Preserve the
-  existing offline signature, disabled-BIN, and nil/empty-input checks.
+- Preserve offline signature, disabled-BIN, and nil/empty-input checks using
+  direct calls. Adding an SDK method requires adding its explicit test case;
+  there is intentionally no reflection-based coverage discovery.
 
 ## Protocol-only behavior
 
@@ -81,15 +90,20 @@ The existing implemented account/card/transaction flows still use the business
 and repository layers. Additional SDK-only capabilities intentionally have
 limited semantics and do not introduce channel-specific persistence:
 
-- Slash group, legal-entity, and merchant directory entries are account-derived
-  protocol views. Spending controls, modifiers, and fee reporting are placeholders.
-  OpenAPI webhook/authorization-webhook DTOs do not change the UI-managed callback
-  configuration.
+- Slash legal-entity entries are account-derived protocol views. Cases for deleted
+  group, merchant, webhook, utilization, and spending-control SDK calls are removed.
 - PhotonPay quote/recharge, funding-history, billing-address, and SDK subscription
   endpoints provide protocol responses, not a complete funding/subscription engine.
 - Paynda cardholder wallet DTOs are views of the owning account wallet. Card controls
   are not persisted. Account/cardholder delete endpoints acknowledge valid resources
   without deleting the underlying business aggregates.
+
+Pagination checks cover field types, page selection, and empty-array encoding,
+not complete business-level total-count semantics. PhotonPay sandbox requests use
+the explicit origin ID `"0"` for an independent transaction; linked refunds and
+reversals use the authorization transaction's decimal ID. An explicitly supplied
+empty origin is invalid, while an omitted optional origin is represented by nil
+in the server DTO.
 
 Unsupported input fields are marked `Invalid:` at the service boundary. The tests
 must not be interpreted as business-correctness or third-party certification tests.

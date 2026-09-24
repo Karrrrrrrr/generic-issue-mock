@@ -538,7 +538,7 @@ type ChangeCardStatusRequest struct {
 	OpenAPIAccountRequest
 	CardID    string              `json:"cardId" binding:"required"`
 	RequestID string              `json:"requestId" binding:"required"`
-	Status    photon.FreezeStatus `json:"status" binding:"required"`
+	Status    photon.FreezeStatus `json:"status" binding:"required,oneof=freeze unfreeze"`
 }
 
 func (s *PhotonPayOpenAPIService) FreezeCard(ctx context.Context, req *ChangeCardStatusRequest) (*CardData, error) {
@@ -599,11 +599,14 @@ type ListTradeRequest struct {
 }
 type TradeData struct {
 	TransactionID       string                   `json:"transactionId"`
+	CreatedAt           timeTypes.ISODateTime    `json:"createdAt"`
+	TxnDate             timeTypes.ISODateTime    `json:"txnDate"`
+	TransactionType     photon.TransactionType   `json:"transactionType"`
 	CardID              string                   `json:"cardId"`
 	RequestID           string                   `json:"requestId"`
 	TransactionAmount   float64                  `json:"transactionAmount"`
 	TransactionCurrency common.Currency          `json:"transactionCurrency"`
-	MerchantName        string                   `json:"merchantName"`
+	MerchantName        string                   `json:"merchantNameLocation"`
 	Status              photon.TransactionStatus `json:"status"`
 }
 
@@ -625,6 +628,9 @@ func (s *PhotonPayOpenAPIService) ListTrades(ctx context.Context, req *ListTrade
 	for _, transaction := range transactions {
 		items = append(items, TradeData{
 			TransactionID:       idconv.ToString(transaction.ID),
+			CreatedAt:           timeTypes.ISODateTime(transaction.CreatedAt.UTC()),
+			TxnDate:             timeTypes.ISODateTime(transaction.CreatedAt.UTC()),
+			TransactionType:     photon.TransactionTypeFromGeneric(transaction.Type),
 			CardID:              idconv.ToString(transaction.CardID),
 			RequestID:           transaction.RequestID,
 			TransactionAmount:   transaction.TxAmount.InexactFloat64(),
@@ -648,10 +654,10 @@ type SandboxTransactionRequest struct {
 	CardID              string                        `json:"cardID" binding:"required"`
 	Cvv                 string                        `json:"cvv" binding:"required"`            // Invalid: the mock does not verify card security codes.
 	ExpirationDate      string                        `json:"expirationDate" binding:"required"` // Invalid: the mock does not verify card expiry.
-	OriginTransactionID string                        `json:"originTransactionId"`
+	OriginTransactionID *string                       `json:"originTransactionId"`
 	TxnCurrency         common.Currency               `json:"txnCurrency" binding:"required"`
-	TxnAmount           float64                       `json:"txnAmount" binding:"required"`
-	TxnType             photon.SandboxTransactionType `json:"txnType" binding:"required"`
+	TxnAmount           float64                       `json:"txnAmount" binding:"required,gt=0"`
+	TxnType             photon.SandboxTransactionType `json:"txnType" binding:"required,oneof=auth void refund"`
 	Mcc                 string                        `json:"mcc" binding:"required"`
 	MerchantName        string                        `json:"merchantName" binding:"required"`
 	MerchantCountry     string                        `json:"merchantCountry" binding:"required"`
@@ -670,12 +676,9 @@ func (s *PhotonPayOpenAPIService) SandboxTransaction(ctx context.Context, req *S
 	if err != nil {
 		return nil, err
 	}
-	var originTransactionID model.ID
-	if req.OriginTransactionID != "" {
-		originTransactionID, err = idconv.FromString(req.OriginTransactionID)
-		if err != nil {
-			return nil, err
-		}
+	originTransactionID, err := idconv.FromRefundAuthorizationString(req.OriginTransactionID)
+	if err != nil {
+		return nil, err
 	}
 	err = s.usecase.SandboxTransaction(ctx, &biz.SandboxTransactionRequest{
 		AccountID:           accountID,

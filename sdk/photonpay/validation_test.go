@@ -5,32 +5,35 @@ import "testing"
 func TestListSDKValidation(testContext *testing.T) {
 	cardType := "share"
 	formFactor := "virtual_card"
-	requests := []struct {
-		name     string
-		validate func() error
-	}{
-		{
-			name:     "card type filter",
-			validate: (&PagingVccCardRequest{CardType: &cardType}).Validate,
-		},
-		{
-			name:     "card form filter",
-			validate: (&PagingVccCardRequest{CardFormFactor: &formFactor}).Validate,
-		},
-		{
-			name:     "funds form filter",
-			validate: (&PagingRechargeCardFundsDetailRequest{CardFormFactor: &formFactor}).Validate,
-		},
-		{
-			name:     "trade form filter",
-			validate: (&PagingVccTradeOrderRequest{CardFormFactor: &formFactor}).Validate,
-		},
-	}
-	for _, request := range requests {
-		testContext.Run(request.name, func(testContext *testing.T) {
-			if err := request.validate(); err == nil {
-				testContext.Fatal("SDK no longer rejects this filter; add a live filtered-call case")
-			}
-		})
-	}
+	testContext.Run("card-type-filter", func(testContext *testing.T) {
+		request := &PagingVccCardRequest{CardType: &cardType}
+		if err := request.Validate(); err == nil {
+			testContext.Fatal("SDK no longer rejects this filter; add a live filtered-call case")
+		}
+	})
+	testContext.Run("card-form-filter", func(testContext *testing.T) {
+		request := &PagingVccCardRequest{CardFormFactor: &formFactor}
+		if err := request.Validate(); err == nil {
+			testContext.Fatal("SDK no longer rejects this filter; add a live filtered-call case")
+		}
+	})
+	testContext.Run("funds-form-filter", func(testContext *testing.T) {
+		request := &PagingRechargeCardFundsDetailRequest{CardFormFactor: &formFactor}
+		if err := request.Validate(); err == nil {
+			testContext.Fatal("SDK no longer rejects this filter; add a live filtered-call case")
+		}
+	})
+	testContext.Run("trade-form-filter", func(testContext *testing.T) {
+		request := &PagingVccTradeOrderRequest{CardFormFactor: &formFactor}
+		if err := request.Validate(); err == nil {
+			testContext.Fatal("SDK no longer rejects this filter; add a live filtered-call case")
+		}
+	})
+	testContext.Run("trade-type-filter", func(testContext *testing.T) {
+		transactionType := "refund"
+		request := &PagingVccTradeOrderRequest{TransactionType: &transactionType}
+		if err := request.Validate(); err == nil {
+			testContext.Fatal("SDK no longer rejects this filter; add a live filtered-call case")
+		}
+	})
 }

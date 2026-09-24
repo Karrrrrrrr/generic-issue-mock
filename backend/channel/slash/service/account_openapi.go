@@ -67,6 +67,31 @@ func (service *SlashOpenAPIService) GetAccount(ctx context.Context, req *OpenAPI
 	if err != nil {
 		return nil, err
 	}
+	return convertOpenAPIAccountData(item), nil
+}
+
+func (service *SlashOpenAPIService) ListAccounts(ctx context.Context, req *OpenAPIAccountRequest) (*OpenAPIItems[*OpenAPIAccountData], error) {
+	accountID, err := idconv.FromAccountUUID(req.APIKey)
+	if err != nil {
+		return nil, err
+	}
+	items, err := service.usecase.ListAccounts(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	accounts := make([]*OpenAPIAccountData, 0, len(items))
+	for _, item := range items {
+		accounts = append(accounts, convertOpenAPIAccountData(item))
+	}
+	return &OpenAPIItems[*OpenAPIAccountData]{
+		Items: accounts,
+		Metadata: OpenAPIMetadata{
+			Count: len(accounts),
+		},
+	}, nil
+}
+
+func convertOpenAPIAccountData(item *model.Account) *OpenAPIAccountData {
 	return &OpenAPIAccountData{
 		ID:            idconv.ToUUID(item.ID),
 		Name:          item.Name,
@@ -75,18 +100,7 @@ func (service *SlashOpenAPIService) GetAccount(ctx context.Context, req *OpenAPI
 		Type:          slash.AccountTypeDebit,
 		CreatedAt:     item.CreatedAt,
 		Balances:      []string{idconv.ToUUID(item.WalletID)},
-	}, nil
-}
-
-func (service *SlashOpenAPIService) ListAccounts(ctx context.Context, req *OpenAPIAccountPathRequest) (*OpenAPIItems[*OpenAPIAccountData], error) {
-	item, err := service.GetAccount(ctx, req)
-	if err != nil {
-		return nil, err
 	}
-	return &OpenAPIItems[*OpenAPIAccountData]{
-		Items:    []*OpenAPIAccountData{item},
-		Metadata: OpenAPIMetadata{Count: 1},
-	}, nil
 }
 
 func (service *SlashOpenAPIService) ListAccountBalances(ctx context.Context, req *OpenAPIAccountPathRequest) (*OpenAPIAccountBalancesData, error) {

@@ -53,12 +53,18 @@ func TestPayndaPaySDKCardTransferRejectsDisabledBin(testContext *testing.T) {
 		Amount:    decimal.NewFromInt(1),
 		RequestID: "request-id",
 	}
-	for _, transfer := range []func(context.Context, *CardTransferRequest) (*CardTransferResult, error){client.CardTransferIn, client.CardTransferOut} {
-		result, err := transfer(context.Background(), request)
+	testContext.Run("transfer-in", func(testContext *testing.T) {
+		result, err := client.CardTransferIn(context.Background(), request)
 		if err == nil || result == nil || result.Status != CardTransferStatusFailed {
 			testContext.Fatalf("disabled BIN: result=%+v error=%v", result, err)
 		}
-	}
+	})
+	testContext.Run("transfer-out", func(testContext *testing.T) {
+		result, err := client.CardTransferOut(context.Background(), request)
+		if err == nil || result == nil || result.Status != CardTransferStatusFailed {
+			testContext.Fatalf("disabled BIN: result=%+v error=%v", result, err)
+		}
+	})
 }
 
 func TestCardStatusUpdateRequestValidateNil(testContext *testing.T) {
