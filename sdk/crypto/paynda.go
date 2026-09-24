@@ -3,9 +3,9 @@ package crypto
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"strconv"
 	"time"
-	"tman/errors"
 )
 
 // SignatureParams 签名参数
@@ -39,7 +39,7 @@ func validatePayndaWebhookTimestamp(timestamp string) error {
 	// Parse the timestamp
 	ts, err := strconv.ParseInt(timestamp, 10, 64)
 	if err != nil {
-		return errors.NewBadRequest("invalid x-webhook-timestamp")
+		return fmt.Errorf("invalid x-webhook-timestamp")
 	}
 
 	// Convert to time.Time (assuming timestamp is in seconds)
@@ -56,7 +56,7 @@ func validatePayndaWebhookTimestamp(timestamp string) error {
 
 	// Check if within 2 minutes (120 seconds)
 	if diff > 2*time.Minute {
-		return errors.NewBadRequest("timestamp is not within acceptable window")
+		return fmt.Errorf("timestamp is not within acceptable window")
 	}
 
 	return nil
@@ -74,7 +74,7 @@ func ValidatePayndaWebhookSignature(req *SignatureParams, signature string) erro
 
 	// 验签
 	if signature != expectedSignature {
-		return errors.NewBadRequest("signature err")
+		return fmt.Errorf("signature err")
 	}
 
 	return nil

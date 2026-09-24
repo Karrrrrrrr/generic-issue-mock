@@ -69,7 +69,7 @@ func New(testContext *testing.T, channel string) *Suite {
 	testContext.Helper()
 	base := os.Getenv("MOCK_BASE_URL")
 	if base == "" {
-		base = "http://127.0.0.1:18000"
+		base = "http://127.0.0.1:8000"
 	}
 	target, err := url.Parse(base)
 	if err != nil {

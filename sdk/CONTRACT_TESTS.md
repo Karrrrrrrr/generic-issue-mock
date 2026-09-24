@@ -40,13 +40,11 @@ inspection. Repeated runs do not depend on IDs or data from earlier runs.
 Only loopback server URLs are accepted; old remote credentials and remote test
 endpoints are no longer used. Do not point the local server at a production DB.
 
-The SDK source imports `tman/errors` and `tman/enums`, supplied by the existing
-Marxo checkout. Also, its source uses the Resty beta API, while `sdk/go.mod`
-declares an incompatible RC release. The runner creates a temporary Go workspace
-that connects the real Marxo module and selects `resty.dev/v3 v3.0.0-beta.3`, the
-version declared by Marxo. It removes the workspace on exit. Neither SDK source,
-SDK DTOs, SDK module files, nor Marxo files are modified by this workaround.
-Consequently, use this runner rather than an unconfigured standalone `go test`.
+The SDK source imports `tman/enums`, supplied by the existing Marxo checkout.
+The runner creates a temporary Go workspace that connects the real Marxo module
+and removes it on exit. Resty is declared directly as `resty.dev/v3 v3.0.0-beta.3`
+in `sdk/go.mod`; the runner does not override its version. Use this runner for
+the three-channel tests while the PhotonPay interface depends on `tman/enums`.
 
 Some PhotonPay SDK list validators reject non-nil optional filters (for example,
 `CardType`, `CardFormFactor`, and trade `TransactionType`) before sending any HTTP request. Live tests

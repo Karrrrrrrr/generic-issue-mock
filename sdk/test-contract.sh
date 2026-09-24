@@ -14,6 +14,5 @@ fi
 export GOWORK="$workspace/go.work"
 cd "$workspace"
 go work init "$root" "$marxo"
-go work edit -replace=resty.dev/v3=resty.dev/v3@v3.0.0-beta.3
 cd "$root"
 go test -count=1 -timeout=5m ./internal/contract ./slash ./photonpay ./payndapay "$@"
