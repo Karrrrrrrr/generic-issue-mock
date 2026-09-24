@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { renderEnumTag } from "@/channel/tableTags";
 import { h, onMounted, ref } from "vue";
 import {
   createDiscreteApi,
@@ -11,7 +12,6 @@ import {
   NModal,
   NPagination,
   NSpace,
-  NTag,
 } from "naive-ui";
 import { type WebhookRecord, webhookRecordApi } from "./api";
 
@@ -65,10 +65,6 @@ function changePageSize(value: number) {
   void load();
 }
 
-function statusType(status: string) {
-  return status === "succeeded" ? "success" : "error";
-}
-
 const columns: DataTableColumns<WebhookRecord> = [
   {
     title: "账户名称",
@@ -77,6 +73,7 @@ const columns: DataTableColumns<WebhookRecord> = [
   {
     title: "事件",
     key: "event",
+    render: (row) => renderEnumTag(row.event, "event"),
   },
   {
     title: "目标地址",
@@ -86,17 +83,7 @@ const columns: DataTableColumns<WebhookRecord> = [
   {
     title: "状态",
     key: "status",
-    render: (row) =>
-      h(
-        NTag,
-        {
-          type: statusType(row.status),
-          size: "small",
-        },
-        {
-          default: () => row.status,
-        },
-      ),
+    render: (row) => renderEnumTag(row.status, "status"),
   },
   {
     title: "HTTP",
@@ -148,7 +135,14 @@ onMounted(() => void load());
         <h1>Webhook 投递记录</h1>
       </div>
     </div>
-    <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" />
+    <n-data-table
+      :scroll-x="1200"
+      table-layout="fixed"
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :bordered="false"
+    />
     <n-pagination
       v-model:page="page"
       :page-size="pageSize"

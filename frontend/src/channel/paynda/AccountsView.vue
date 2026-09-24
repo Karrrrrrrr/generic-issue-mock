@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { renderAmountTag } from "@/channel/tableTags";
 import { h, onMounted, ref } from "vue";
 import {
   createDiscreteApi,
@@ -104,6 +105,7 @@ const columns: DataTableColumns<Account> = [
   {
     title: "余额",
     key: "balance",
+    render: (row) => renderAmountTag(row.balance, "USD"),
   },
   {
     title: "名称",
@@ -150,7 +152,14 @@ onMounted(() => void load());
       </div>
       <n-button type="primary" @click="openCreate">新增账户</n-button>
     </div>
-    <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" />
+    <n-data-table
+      :scroll-x="1000"
+      table-layout="fixed"
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :bordered="false"
+    />
     <n-pagination
       v-model:page="page"
       :page-size="pageSize"

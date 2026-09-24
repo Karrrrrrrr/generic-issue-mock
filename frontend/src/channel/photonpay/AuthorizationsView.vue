@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { renderAmountTag } from "@/channel/tableTags";
 import { h, onMounted, ref } from "vue";
 import { createDiscreteApi, NButton, NCard, NDataTable, NInputNumber, NModal } from "naive-ui";
 import { request } from "@/channel/shared";
@@ -43,18 +44,17 @@ const columns = [
   {
     title: "授权金额",
     key: "amount",
+    render: (row: Authorization) => renderAmountTag(row.amount, row.currency),
   },
   {
     title: "已清算",
     key: "settled",
+    render: (row: Authorization) => renderAmountTag(row.settled, row.currency),
   },
   {
     title: "可清算",
     key: "remaining",
-  },
-  {
-    title: "币种",
-    key: "currency",
+    render: (row: Authorization) => renderAmountTag(row.remaining, row.currency),
   },
   {
     title: "商户",
@@ -124,7 +124,13 @@ onMounted(load);
     <n-button :loading="loading" @click="load">刷新</n-button>
   </div>
   <n-card :bordered="false">
-    <n-data-table :loading="loading" :columns="columns" :data="rows" />
+    <n-data-table
+      :scroll-x="1600"
+      table-layout="fixed"
+      :loading="loading"
+      :columns="columns"
+      :data="rows"
+    />
   </n-card>
   <n-modal
     :show="Boolean(selected)"

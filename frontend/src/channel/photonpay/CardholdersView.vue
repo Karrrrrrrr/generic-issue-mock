@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { renderEnumTag } from "@/channel/tableTags";
 import { onMounted, ref } from "vue";
 import { createDiscreteApi, NButton, NCard, NDataTable } from "naive-ui";
 import { api } from "./api";
@@ -32,6 +33,7 @@ const columns = [
   {
     title: "状态",
     key: "status",
+    render: (holder: Cardholder) => renderEnumTag(holder.status, "status"),
   },
 ];
 
@@ -58,6 +60,12 @@ onMounted(load);
     <n-button :loading="loading" @click="load">刷新</n-button>
   </div>
   <n-card :bordered="false">
-    <n-data-table :loading="loading" :columns="columns" :data="rows" />
+    <n-data-table
+      :scroll-x="1100"
+      table-layout="fixed"
+      :loading="loading"
+      :columns="columns"
+      :data="rows"
+    />
   </n-card>
 </template>

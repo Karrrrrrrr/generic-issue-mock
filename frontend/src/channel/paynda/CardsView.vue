@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { renderAmountTag, renderEnumTag } from "@/channel/tableTags";
 import { h, onMounted, ref } from "vue";
 import {
   createDiscreteApi,
@@ -10,7 +11,6 @@ import {
   NInputNumber,
   NModal,
   NSpace,
-  NTag,
 } from "naive-ui";
 import { api, fundsApi } from "./api";
 import type { Card } from "@/channel/types";
@@ -90,31 +90,19 @@ const columns = [
     key: "account_id",
   },
   {
-    title: "币种",
-    key: "card_currency",
-  },
-  {
     title: "余额",
     key: "balance",
+    render: (card: Card) => renderAmountTag(card.balance, card.card_currency),
   },
   {
     title: "资金类型",
     key: "funding_source",
+    render: (card: Card) => renderEnumTag(card.funding_source, "funding"),
   },
   {
     title: "状态",
     key: "card_status",
-    render: (card: Card) =>
-      h(
-        NTag,
-        {
-          type: card.card_status === "ACTIVE" ? "success" : "warning",
-          size: "small",
-        },
-        {
-          default: () => card.card_status,
-        },
-      ),
+    render: (card: Card) => renderEnumTag(card.card_status, "status"),
   },
   {
     title: "操作",
@@ -176,7 +164,13 @@ onMounted(load);
     <n-button :loading="loading" @click="load">刷新</n-button>
   </div>
   <n-card :bordered="false">
-    <n-data-table :loading="loading" :columns="columns" :data="rows" />
+    <n-data-table
+      :scroll-x="1400"
+      table-layout="fixed"
+      :loading="loading"
+      :columns="columns"
+      :data="rows"
+    />
   </n-card>
   <n-modal
     :show="Boolean(fundingCard)"

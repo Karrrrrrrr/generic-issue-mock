@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { renderAmountTag, renderEnumTag } from "@/channel/tableTags";
 import { h, onMounted, ref } from "vue";
 import { createDiscreteApi, NButton, NCard, NDataTable, NSpace, NTag } from "naive-ui";
 import { api } from "./api";
@@ -48,11 +49,19 @@ const columns = [
   {
     title: "金额",
     key: "amount",
-    render: (r: Transaction) => `${r.currency} ${r.amount}`,
+    render: (row: Transaction) => renderAmountTag(row.amount, row.currency),
   },
   { title: "商户", key: "merchant_name" },
-  { title: "类型", key: "transaction_type" },
-  { title: "状态", key: "status" },
+  {
+    title: "类型",
+    key: "transaction_type",
+    render: (row: Transaction) => renderEnumTag(row.transaction_type, "transaction"),
+  },
+  {
+    title: "状态",
+    key: "status",
+    render: (row: Transaction) => renderEnumTag(row.status, "status"),
+  },
   {
     title: "操作",
     key: "actions",
@@ -70,6 +79,11 @@ onMounted(() => void load());
     <n-button @click="load">刷新</n-button>
   </div>
   <n-card :bordered="false">
-    <n-data-table :columns="columns" :data="rows" />
+    <n-data-table
+      :scroll-x="1000"
+      table-layout="fixed"
+      :columns="columns"
+      :data="rows"
+    />
   </n-card>
 </template>

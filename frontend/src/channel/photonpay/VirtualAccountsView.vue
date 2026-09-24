@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { renderAmountTag } from "@/channel/tableTags";
 import { accountApi } from "./api";
 import { h, onMounted, ref } from "vue";
 import {
@@ -75,16 +76,12 @@ const columns = [
     key: "account_name",
   },
   {
-    title: "币种",
-    key: "currency",
-    render: (account: VirtualAccount) =>
-      wallets.value.find((wallet) => wallet.id === account.wallet_id)?.currency || "—",
-  },
-  {
     title: "余额",
     key: "balance",
-    render: (account: VirtualAccount) =>
-      wallets.value.find((wallet) => wallet.id === account.wallet_id)?.amount || "0",
+    render: (account: VirtualAccount) => {
+      const wallet = wallets.value.find((item) => item.id === account.wallet_id);
+      return wallet ? renderAmountTag(wallet.amount, wallet.currency) : "—";
+    },
   },
   {
     title: "所属账户 ID",
@@ -198,7 +195,12 @@ onMounted(load);
     </n-space>
   </div>
   <n-card :bordered="false">
-    <n-data-table :columns="columns" :data="rows" />
+    <n-data-table
+      :scroll-x="1400"
+      table-layout="fixed"
+      :columns="columns"
+      :data="rows"
+    />
   </n-card>
   <n-modal v-model:show="visible" preset="card" title="新增虚拟账户">
     <n-form>

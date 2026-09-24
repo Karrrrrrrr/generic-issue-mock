@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { renderEnumTag } from "@/channel/tableTags";
 import { onMounted, ref } from "vue";
 import { NCard, NDataTable } from "naive-ui";
 import { type CardProduct, managementApi } from "./api";
@@ -27,11 +28,17 @@ onMounted(() => void load());
     </div>
     <n-card :bordered="false">
       <n-data-table
+        :scroll-x="600"
+        table-layout="fixed"
         :loading="loading"
         :data="rows"
         :columns="[
           { title: 'BIN', key: 'prefix' },
-          { title: '默认产品', key: 'is_default' },
+          {
+            title: '默认产品',
+            key: 'is_default',
+            render: (row: CardProduct) => renderEnumTag(row.is_default, 'defaultProduct'),
+          },
           { title: 'ID', key: 'id' },
         ]"
       />

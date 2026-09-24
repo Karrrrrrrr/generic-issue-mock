@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { renderEnumTag } from "@/channel/tableTags";
 import { h, onMounted, ref } from "vue";
 import {
   createDiscreteApi,
@@ -12,7 +13,6 @@ import {
   NSelect,
   NSpace,
   NSwitch,
-  NTag,
 } from "naive-ui";
 import {
   type Account,
@@ -147,22 +147,14 @@ const columns: DataTableColumns<Webhook> = [
     title: "事件",
     key: "event",
     width: 220,
-    render: (row) => h(NTag, { size: "small" }, { default: () => row.event }),
+    render: (row) => renderEnumTag(row.event, "event"),
   },
   { title: "目标地址", key: "target_url", ellipsis: { tooltip: true } },
   {
     title: "状态",
     key: "enabled",
     width: 100,
-    render: (row) =>
-      h(
-        NTag,
-        {
-          type: row.enabled ? "success" : "default",
-          size: "small",
-        },
-        { default: () => (row.enabled ? "启用" : "停用") },
-      ),
+    render: (row) => renderEnumTag(row.enabled, "enabled"),
   },
   { title: "更新时间", key: "updated_at", width: 180 },
   {
@@ -222,7 +214,14 @@ onMounted(() => void load());
       style="width: min(360px, 100%)"
       @update:value="changeAccountFilter"
     />
-    <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" />
+    <n-data-table
+      :scroll-x="1200"
+      table-layout="fixed"
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :bordered="false"
+    />
     <n-modal
       v-model:show="creating"
       preset="card"
