@@ -19,7 +19,7 @@ func uiCardStatuses(value *channelEnums.CardStatus) []enums.CardStatus {
 	for _, candidate := range []enums.CardStatus{
 		enums.CardStatus_Active,
 		enums.CardStatus_Frozen,
-		enums.CardStatus_Frozing,
+		enums.CardStatus_Freezing,
 		enums.CardStatus_Deleted,
 		enums.CardStatus_Inactive,
 	} {

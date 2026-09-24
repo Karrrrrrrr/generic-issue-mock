@@ -214,7 +214,7 @@ func CardFormFactorToGeneric(value CardFormFactor) generic.CardFormType {
 
 func CardStatusFromGeneric(value generic.CardStatus) CardStatus {
 	switch value {
-	case generic.CardStatus_Frozing:
+	case generic.CardStatus_Freezing:
 		return CardStatus_Freezing
 	case generic.CardStatus_Frozen:
 		return CardStatus_Frozen
@@ -228,7 +228,7 @@ func CardStatusFromGeneric(value generic.CardStatus) CardStatus {
 func CardStatusToGeneric(value CardStatus) generic.CardStatus {
 	switch value {
 	case CardStatus_Freezing:
-		return generic.CardStatus_Frozing
+		return generic.CardStatus_Freezing
 	case CardStatus_Frozen:
 		return generic.CardStatus_Frozen
 	case CardStatus_Cancelled:

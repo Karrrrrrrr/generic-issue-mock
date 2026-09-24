@@ -87,7 +87,7 @@ type CardStatus string
 const (
 	CardStatus_Inactive  CardStatus = "inactive" // 实体卡专用
 	CardStatus_Active    CardStatus = "active"   // 正常
-	CardStatus_Frozing   CardStatus = "frozing"  // 冻结中
+	CardStatus_Freezing  CardStatus = "freezing" // 冻结中
 	CardStatus_Frozen    CardStatus = "frozen"   // 冻结
 	CardStatus_Deleteing CardStatus = "deleting" // 删除中
 	CardStatus_Deleted   CardStatus = "deleted"  // 已删除
