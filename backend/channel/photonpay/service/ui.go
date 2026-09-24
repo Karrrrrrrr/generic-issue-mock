@@ -675,11 +675,11 @@ func photonPayUICardHolderData(item *model.CardHolder) *UICardHolderData {
 func photonPayUICardData(item *model.Card) *UICardData {
 	balance := decimal.Zero
 	fundingSource := "卡资金"
-	if item.VirtualAccount != nil && item.VirtualAccount.Wallet != nil {
-		balance = item.VirtualAccount.Wallet.Amount
-		fundingSource = "虚拟账户共享资金"
-	} else if item.Wallet != nil {
+	if item.Wallet != nil {
 		balance = item.Wallet.Amount
+		if item.Wallet.Type == common.WalletType_VirtualAccount {
+			fundingSource = "虚拟账户共享资金"
+		}
 	}
 
 	return &UICardData{

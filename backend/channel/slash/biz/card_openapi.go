@@ -7,6 +7,7 @@ import (
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/cardnumber"
+	"generic-mock/pkg/cardwallet"
 	"generic-mock/pkg/randomx"
 	"generic-mock/pkg/types"
 
@@ -115,6 +116,7 @@ func (u *SlashOpenAPIUsecase) CreateCard(ctx context.Context, req *OpenAPICreate
 			RequestID:              req.RequestID,
 			LastOperationRequestID: req.RequestID,
 		}
+		var virtualAccount *model.VirtualAccount
 		if req.VirtualAccountID != nil {
 			virtual, err := u.GetVirtualAccount(txCtx, &ResourceRequest{
 				AccountID: &req.AccountID,
@@ -123,10 +125,28 @@ func (u *SlashOpenAPIUsecase) CreateCard(ctx context.Context, req *OpenAPICreate
 			if err != nil {
 				return err
 			}
-			card.VirtualAccountID = req.VirtualAccountID
-			card.WalletID = virtual.WalletID
+			virtualAccount = virtual
 			card.CardType = enums.CardType_Share
 		}
+		assignment, ok := cardwallet.Prepare(cardwallet.PrepareRequest{
+			AccountID:      card.AccountID,
+			Channel:        card.Channel,
+			CardType:       card.CardType,
+			Currency:       card.CardCurrency,
+			VirtualAccount: virtualAccount,
+		})
+		if !ok {
+			return ErrInvalidOperation
+		}
+		if assignment.CreateWallet {
+			if err := u.walletRepository.Create(txCtx, assignment.Wallet); err != nil {
+				zap.S().Errorw("create slash openapi card wallet", "error", err)
+				return ErrDatabaseOperation
+			}
+		}
+		card.VirtualAccountID = assignment.VirtualAccountID
+		card.WalletID = assignment.Wallet.ID
+		card.Wallet = assignment.Wallet
 		if err := u.cardRepository.Create(txCtx, card); err != nil {
 			zap.S().Errorw("create slash openapi card", "error", err)
 

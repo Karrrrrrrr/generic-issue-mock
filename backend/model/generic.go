@@ -28,8 +28,8 @@ type Card struct {
 	Cvv                    string                `gorm:"column:cvv;type:varchar;not null;default:''"`
 	ExpireAt               time.Time             `gorm:"column:expire_at;type:timestamptz;not null"`
 	Status                 enums.CardStatus      `gorm:"column:status;type:varchar;not null;default:''"`
-	VirtualAccountID       *ID                   `gorm:"column:virtual_account_id;type:bigint;default:null"`   // nil 表示普通卡，非 nil 表示虚拟账户卡，共享余额。
-	WalletID               ID                    `gorm:"column:wallet_id;type:bigint;not null;default:0"`      // 虚拟账户卡指向虚拟账户的钱包 ID，减少一次查询。
+	VirtualAccountID       *ID                   `gorm:"column:virtual_account_id;type:bigint;default:null"`   // 所属虚拟账户；可以共享余额，也可以仅作为独立卡的资金来源。
+	WalletID               ID                    `gorm:"column:wallet_id;type:bigint;not null;default:0"`      // 实际消费钱包；share 复用虚拟账户钱包，其他类型使用独立卡钱包。
 	CardHolderID           ID                    `gorm:"column:card_holder_id;type:bigint;not null;default:0"` // 持卡人 ID，允许为空。
 	FormType               enums.CardFormType    `gorm:"column:form_type;type:varchar;not null;default:''"`
 	RequestID              string                `gorm:"column:request_id;type:varchar;not null;default:'';uniqueIndex:idx_cards_scope_request,where:request_id <> ''"`
@@ -38,7 +38,7 @@ type Card struct {
 	LastOperationStatus    enums.OperationStatus `gorm:"column:last_operation_status;type:varchar;not null;default:''"`
 	CardCurrency           enums.Currency        `gorm:"column:card_currency;type:varchar;not null;default:''"`
 	CardScheme             enums.CardScheme      `gorm:"column:card_scheme;type:varchar;not null;default:''"`
-	CardType               enums.CardType        `gorm:"column:card_type;type:varchar;not null;default:''"`
+	CardType               enums.CardType        `gorm:"column:card_type;type:varchar;not null;default:'';comment:single 独立卡，share 共享虚拟账户钱包，virtual_account_single 虚拟账户供资的独立卡"`
 	RawRequest             []byte                `gorm:"column:raw_request;type:jsonb;not null;default:'{}'"`
 
 	// ref

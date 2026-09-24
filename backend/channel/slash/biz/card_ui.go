@@ -7,10 +7,10 @@ import (
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/cardnumber"
+	"generic-mock/pkg/cardwallet"
 	"generic-mock/pkg/randomx"
 	"generic-mock/pkg/types"
 
-	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
@@ -94,13 +94,16 @@ func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest)
 			zap.S().Errorw("advance slash card product sequence", "error", err)
 			return ErrDatabaseOperation
 		}
-		wallet := &model.Wallet{
-			AccountID: holder.AccountID,
+		assignment, ok := cardwallet.Prepare(cardwallet.PrepareRequest{
+			AccountID: req.AccountID,
 			Channel:   enums.Channel_Slash,
-			Amount:    decimal.Zero,
-			Type:      enums.WalletType_Card,
+			CardType:  enums.CardType_Single,
 			Currency:  req.Currency,
+		})
+		if !ok {
+			return ErrInvalidOperation
 		}
+		wallet := assignment.Wallet
 		if err := u.walletRepository.Create(txCtx, wallet); err != nil {
 			zap.S().Errorw("create slash card wallet", "error", err)
 			return ErrDatabaseOperation

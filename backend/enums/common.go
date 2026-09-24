@@ -20,8 +20,9 @@ const (
 type CardType string
 
 const (
-	CardType_Share  CardType = "share"  // 表示是虚拟账户卡, 可以共享余额
-	CardType_Single CardType = "single" // 表示是普通卡, 不可以共享余额
+	CardType_Share                CardType = "share"
+	CardType_Single               CardType = "single"
+	CardType_VirtualAccountSingle CardType = "virtual_account_single"
 )
 
 type CardFormType string

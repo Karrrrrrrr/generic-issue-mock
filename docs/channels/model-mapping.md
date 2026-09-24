@@ -14,7 +14,7 @@
 | `Account` | 渠道账户域；浏览器管理资源的隔离边界 | 账户级业务表的 `AccountID` |
 | `CardHolder` | 可复用持卡人资料 | `Card.CardHolderID` |
 | `Wallet` | 余额、待入账/待出账和累计入出账 | `Card.WalletID`、`VirtualAccount.WalletID`、`Account.WalletID` |
-| `VirtualAccount` | 可共享余额的账户 | `Card.VirtualAccountID` |
+| `VirtualAccount` | 虚拟账户；可供卡片共享钱包，也可仅为独立卡供资 | `Card.VirtualAccountID` |
 | `Card` | 卡片及其渠道无关状态 | BIN、卡号、CVV、到期日、状态、持卡人、钱包、请求 ID |
 | `Authorization` | 授权事件 | 卡、金额、商户、授权码、状态、发生时间 |
 | `CardTransaction` | 授权、清算、冲正、退款、资金划拨 | 卡、授权、原交易、金额、币种、商户、状态、清算时间 |
@@ -50,7 +50,7 @@
 | 账户余额直接调整 | 已实现 | 在账户页面直接增加或扣减账户钱包余额，不要求资金来源。 |
 | 账户钱包与卡/虚拟账户双向划转 | 余额操作已实现 | 在资源页面充值/转出；同一事务按钱包 ID 顺序锁定来源与目标，验证账户与币种，更新余额和累计入出账。统一资金流水仍待补齐。 |
 | `WebhookConfig` | 渠道 webhook 订阅配置 | 渠道、事件、目标地址、启用状态 |
-| `AuthorizationConfig` | 同步授权回调配置 | 账户、渠道、目标地址、启用状态和超时；每个账户和渠道唯一，回调失败即交易失败 |
+| `AuthorizationConfig` | 支持同步授权的渠道回调配置 | 账户、渠道、目标地址、启用状态和超时；每个账户和渠道唯一，回调失败即交易失败；PingPong 不使用此配置 |
 | `WebhookRecord` | 一次 webhook 投递记录 | 配置、来源资源、请求报文、响应、投递状态和次数 |
 
 ## 通用字段语义
@@ -62,8 +62,9 @@
 | 除 `Account`、`CardProduct` 外业务表的 `AccountID` / `Channel` | 资源所属账户域和渠道；仓储操作与唯一索引必须包含两列 |
 | `CardProduct.Prefix` | 英文逗号分隔的数字 BIN 前缀字符串；只有未来 PingPong 支持多前缀，其他渠道仅单前缀 |
 | `Card.CardProductID` / `Card.CardBin` | 产品主键及开卡时从产品候选项中选中的单个 BIN；卡号使用同一个前缀，不保存整串候选列表 |
-| `Card.WalletID` | 卡余额钱包；共享卡可指向虚拟账户钱包 |
-| `Card.VirtualAccountID` | 非空表示共享余额卡；为空表示独立卡 |
+| `Card.WalletID` | 实际余额和消费钱包；`share` 指向 VA 钱包，`single` 与 `virtual_account_single` 指向独立卡钱包 |
+| `Card.VirtualAccountID` | VA 关联，不等于共享余额：`share` 与 `virtual_account_single` 均非空，`single` 为空 |
+| `Card.CardType` | `single` 普通独立卡；`share` VA 共享卡；`virtual_account_single` VA 供资的独立卡 |
 | `Card.RequestID` | 开卡请求的商户幂等键 |
 | `Card.LastOperation*` | 最近一次开卡/冻结/更新/销卡操作的幂等键、类型和结果 |
 | `CardTransaction.AuthorizationID` | 清算和撤销必须关联同账户同卡的有效授权；退款可为 `0`（独立退款），也可关联授权，无须先清算 |
@@ -73,16 +74,28 @@
 
 ## 资金流规则
 
+三种卡的关联和资金流：
+
+| 卡类型 | VA 关联 | 消费钱包 | 普通充值/转出对手方 |
+| --- | --- | --- | --- |
+| `single` | 无 | 独立卡钱包 | 所属根账户钱包 |
+| `share` | 有 | 同一个 VA 钱包 | 所属根账户钱包 |
+| `virtual_account_single` | 有 | 独立卡钱包，与 VA 钱包不同 | 所关联 VA 钱包 |
+
+PingPong 的预算组映射为 VA，其普通卡使用第三种类型。初始化第三类卡只分配独立零余额钱包，不把预算余额复制到卡上；充值时才从预算钱包转移资金，转出回到同一个预算钱包。业务通过 `pkg/cardwallet.Prepare` 分配钱包、在同一事务持久化，通过 `FundingWalletID` 解析资金来源。模拟授权/清算只用 `Card.WalletID`，不会因存在 VA 关联而再次扣预算钱包。
+
 - 创建账户必须在同一事务创建 `WalletType_Account` 的 USD 钱包，并将其 ID 回写到 `Account.WalletID`。
 - 账户余额调整是管理端的直接余额变更，可凭空增加或减少余额，不要求资金来源。
-- 普通卡和虚拟账户充值均从所属账户的钱包转出，并在同一事务锁定来源与目标钱包；来源余额不足时拒绝操作。
+- `single` 卡与虚拟账户充值从所属根账户钱包转出；`virtual_account_single` 卡只能从所关联 VA 钱包供资。所有普通资金划转在同一事务锁定来源与目标钱包，来源余额不足时拒绝操作。
 - 充值不是直接修改目标余额：应同时更新两个钱包的 `Amount`、`In`/`Out`，并按已实现渠道的规则创建资金变动交易。
 
-模拟授权和清算不校验余额是否充足；清算允许超过授权金额，钱包余额和剩余授权金额均可为负数，并允许继续清算。每次输入金额仍须为正数，展示剩余额度时不得截断为零。普通账户、卡、虚拟账户资金划转不适用这一例外。
+除 PingPong 授权外，模拟授权不校验余额是否充足；各渠道模拟清算允许超过授权金额，钱包余额和剩余授权金额均可为负数，并允许继续清算。每次输入金额仍须为正数，展示剩余额度时不得截断为零。普通账户、卡、虚拟账户资金划转不适用这一例外。
+
+PingPong 的页面模拟授权必须检查卡自身可用余额，足够后由本地授权并异步推送结果；不等待下游批准，也不使用 `AuthorizationConfig`。余额不足不能靠关联预算或根账户余额通过。Webhook 投递状态与授权业务状态分离：超时/失败不撤销本地授权，重放不得重复授权或记账。此规则仅约束 PingPong 授权，不收紧清算规则；具体 Webhook 报文仍待确认。
 
 账户关联资源的 UI DTO 在原接口直接返回 `account_id`、`account_name`。账户名称通过只读账户关联查询获得，不在业务记录中冗余存储；前端不再为了显示名称单独拉取账户列表。
 
-已实现渠道的字段映射见 PhotonPay、Paynda、Slash 文档；UQPay、PingPong 为未来渠道。PingPong SDK 已阅读，其[模型映射与后续任务](pingpong.md#模型映射与必须先解决的问题)明确区分预算与根账户、独立/共享卡钱包、资金订单和两类交易报表，生产调用与部分业务语义仍待确认，暂不据此新增持久化字段。Payful 已废弃，其文档仅作历史归档。
+已实现渠道的字段映射见 PhotonPay、Paynda、Slash 文档；UQPay、PingPong 为未来渠道。PingPong SDK 已阅读，用户已确认预算组为 VA、卡片为独立钱包的第三类卡；通用枚举和钱包分配能力已落地，不新增冗余预算 ID 或资金来源列。其余[模型映射与后续任务](pingpong.md#模型映射与必须先解决的问题)仍区分预算与根账户、资金订单和两类交易报表，生产调用与部分协议语义待确认。Payful 已废弃，其文档仅作历史归档。
 
 `CardProduct` 是渠道级配置，不包含 `AccountID`；产品查询按 `Channel` 隔离，唯一索引为 `(channel, prefix)`。同渠道账户共享产品及发卡序列，创建账户不再复制产品；卡片仍按账户隔离，且只能引用同渠道产品。
 

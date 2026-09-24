@@ -125,18 +125,13 @@ func (u *SlashUIUsecase) SimulateAuthorization(ctx context.Context, req *Simulat
 			return ErrInvalidOperation
 		}
 		walletID := card.WalletID
-		if card.VirtualAccountID != nil {
-			virtualAccount, err := u.virtualAccountRepository.FindByID(txCtx, *card.VirtualAccountID)
-			if err != nil {
-				zap.S().Errorw("find slash UI authorization virtual account", "error", err)
-				return ErrDatabaseOperation
-			}
-			walletID = virtualAccount.WalletID
-		}
 		if walletID == 0 {
 			return ErrResourceNotFound
 		}
-		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, walletID)
+		wallet, err := u.walletRepository.LockWallet(txCtx, &LockWalletRequest{
+			AccountID: card.AccountID,
+			ID:        walletID,
+		})
 		if err != nil {
 			zap.S().Errorw("lock slash UI authorization wallet", "error", err)
 			return ErrDatabaseOperation

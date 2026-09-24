@@ -5,6 +5,7 @@ import (
 
 	"generic-mock/enums"
 	"generic-mock/model"
+	"generic-mock/pkg/cardwallet"
 	"generic-mock/pkg/types"
 
 	"github.com/shopspring/decimal"
@@ -49,24 +50,35 @@ func (u *PhotonPayUIUsecase) FundCard(ctx context.Context, req *UIFundCardReques
 
 			return ErrDatabaseOperation
 		}
-		accountID := card.AccountID
-		source, err := u.walletRepo.FindByIDForUpdate(txCtx, &WalletFindByIDForUpdateRequest{
-			AccountID: &accountID,
-			ID:        account.WalletID,
-		})
-		if err != nil {
-			zap.S().Errorw("lock photonpay UI account wallet", "error", err)
-
-			return ErrDatabaseOperation
+		card.Account = account
+		fundingWalletID, ok := cardwallet.FundingWalletID(card)
+		if !ok {
+			return ErrInvalidOperation
 		}
-		target, err := u.walletRepo.FindByIDForUpdate(txCtx, &WalletFindByIDForUpdateRequest{
-			AccountID: &accountID,
-			ID:        card.WalletID,
-		})
-		if err != nil {
-			zap.S().Errorw("lock photonpay UI card wallet", "error", err)
-
-			return ErrDatabaseOperation
+		walletIDs := []model.ID{fundingWalletID, card.WalletID}
+		if walletIDs[0] > walletIDs[1] {
+			walletIDs[0], walletIDs[1] = walletIDs[1], walletIDs[0]
+		}
+		wallets := make(map[model.ID]*model.Wallet)
+		for _, walletID := range walletIDs {
+			wallet, err := u.walletRepo.LockWallet(txCtx, &LockWalletRequest{
+				AccountID: card.AccountID,
+				ID:        walletID,
+			})
+			if err != nil {
+				zap.S().Errorw("lock photonpay UI funding wallet", "error", err)
+				return ErrDatabaseOperation
+			}
+			wallets[walletID] = wallet
+		}
+		source := wallets[fundingWalletID]
+		target := wallets[card.WalletID]
+		if source.Currency != target.Currency || target.Currency != card.CardCurrency {
+			return ErrInvalidOperation
+		}
+		if card.CardType == enums.CardType_VirtualAccountSingle &&
+			(source.Type != enums.WalletType_VirtualAccount || target.Type != enums.WalletType_Card) {
+			return ErrInvalidOperation
 		}
 		if source.Amount.LessThan(req.Amount) {
 			return ErrInvalidOperation
@@ -76,7 +88,7 @@ func (u *PhotonPayUIUsecase) FundCard(ctx context.Context, req *UIFundCardReques
 		target.Amount = target.Amount.Add(req.Amount)
 		target.In = target.In.Add(req.Amount)
 		if err := u.walletRepo.Save(txCtx, source); err != nil {
-			zap.S().Errorw("save photonpay UI account wallet", "error", err)
+			zap.S().Errorw("save photonpay UI funding source wallet", "error", err)
 
 			return ErrDatabaseOperation
 		}

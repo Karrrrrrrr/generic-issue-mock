@@ -785,11 +785,11 @@ func authorizationConfigData(item *model.AuthorizationConfig) *AuthorizationConf
 func cardData(item *model.Card) *CardData {
 	balance := decimal.Zero
 	fundingSource := "卡资金"
-	if item.VirtualAccount != nil && item.VirtualAccount.Wallet != nil {
-		balance = item.VirtualAccount.Wallet.Amount
-		fundingSource = "虚拟账户共享资金"
-	} else if item.Wallet != nil {
+	if item.Wallet != nil {
 		balance = item.Wallet.Amount
+		if item.Wallet.Type == common.WalletType_VirtualAccount {
+			fundingSource = "虚拟账户共享资金"
+		}
 	}
 
 	return &CardData{
