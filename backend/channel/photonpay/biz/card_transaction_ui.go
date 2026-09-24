@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"time"
 
 	"generic-mock/enums"
 	"generic-mock/model"
@@ -11,6 +12,19 @@ import (
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
+
+type ListUITransactionsRequest struct {
+	AccountID       *model.ID
+	CreatedFrom     *time.Time
+	CreatedTo       *time.Time
+	Offset          int
+	Limit           int
+	ID              *model.ID
+	CardID          *model.ID
+	AuthorizationID *model.ID
+	Types           []enums.CardTransactionType
+	Statuses        []enums.CardTransactionStatus
+}
 
 type UISimulateRefundRequest struct {
 	AuthorizationID *model.ID
@@ -28,19 +42,46 @@ type UIApplyTransactionStepRequest struct {
 	Amount            *decimal.Decimal
 }
 
-func (u *PhotonPayUIUsecase) ListTransactions(ctx context.Context, req *ListRequest) ([]*model.CardTransaction, error) {
+func (u *PhotonPayUIUsecase) ListTransactions(ctx context.Context, req *ListUITransactionsRequest) ([]*model.CardTransaction, int64, error) {
+	if (req.CreatedFrom != nil && req.CreatedFrom.IsZero()) ||
+		(req.CreatedTo != nil && req.CreatedTo.IsZero()) ||
+		(req.CreatedFrom != nil && req.CreatedTo != nil && req.CreatedFrom.After(*req.CreatedTo)) {
+		return nil, 0, ErrInvalidOperation
+	}
 	transactions, err := u.cardTransactionRepo.ListTransactions(ctx, &CardTransactionListTransactionsRequest{
-		AccountIDs: types.PointerSlice(req.AccountID),
-		Limit:      req.Limit,
-		Offset:     req.Offset,
+		AccountIDs:       types.PointerSlice(req.AccountID),
+		IDs:              types.PointerSlice(req.ID),
+		Statuses:         req.Statuses,
+		CreatedFrom:      req.CreatedFrom,
+		CreatedTo:        req.CreatedTo,
+		CardIDs:          types.PointerSlice(req.CardID),
+		AuthorizationIDs: types.PointerSlice(req.AuthorizationID),
+		Types:            req.Types,
+		Limit:            req.Limit,
+		Offset:           req.Offset,
 	})
 	if err != nil {
 		zap.S().Errorw("list photonpay UI card transactions", "error", err)
 
-		return nil, ErrDatabaseOperation
+		return nil, 0, ErrDatabaseOperation
 	}
 
-	return transactions, nil
+	total, err := u.cardTransactionRepo.Count(ctx, &CardTransactionCountRequest{
+		AccountIDs:       types.PointerSlice(req.AccountID),
+		IDs:              types.PointerSlice(req.ID),
+		Statuses:         req.Statuses,
+		CreatedFrom:      req.CreatedFrom,
+		CreatedTo:        req.CreatedTo,
+		CardIDs:          types.PointerSlice(req.CardID),
+		AuthorizationIDs: types.PointerSlice(req.AuthorizationID),
+		Types:            req.Types,
+	})
+	if err != nil {
+		zap.S().Errorw("count photonpay UI card transactions", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+
+	return transactions, total, nil
 }
 
 // SimulateRefund creates a posted refund directly for an active card.

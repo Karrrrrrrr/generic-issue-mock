@@ -108,8 +108,8 @@ func cardPredicates(db *query.Query, req *biz.CardListRequest) []gen.Condition {
 	if len(req.AccountIDs) != 0 {
 		predicates = append(predicates, db.Card.AccountID.In(req.AccountIDs...))
 	}
-	if req.IDContains != nil {
-		predicates = append(predicates, db.Card.ID.Like("%"+*req.IDContains+"%"))
+	if len(req.IDs) != 0 {
+		predicates = append(predicates, db.Card.ID.In(req.IDs...))
 	}
 	if req.CardNumber != nil {
 		predicates = append(predicates, db.Card.CardNumber.Like("%"+*req.CardNumber+"%"))
@@ -118,6 +118,12 @@ func cardPredicates(db *query.Query, req *biz.CardListRequest) []gen.Condition {
 		predicates = append(predicates, db.Card.Status.In(types.BulkConvertSlice(req.Statuses, func(value enums.CardStatus) string {
 			return string(value)
 		})...))
+	}
+	if req.CreatedFrom != nil {
+		predicates = append(predicates, db.Card.CreatedAt.Gte(*req.CreatedFrom))
+	}
+	if req.CreatedTo != nil {
+		predicates = append(predicates, db.Card.CreatedAt.Lte(*req.CreatedTo))
 	}
 	return predicates
 }

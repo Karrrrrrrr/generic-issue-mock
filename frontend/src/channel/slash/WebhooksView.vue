@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useClientPagination } from "@/channel/pagination";
+import { formatDateTime } from "@/channel/dateTime";
 import { renderEnumTag } from "@/channel/tableTags";
 import { h, onMounted, ref } from "vue";
 import {
@@ -25,6 +27,7 @@ import {
 const { dialog, message } = createDiscreteApi(["dialog", "message"]);
 const loading = ref(false);
 const rows = ref<Webhook[]>([]);
+const pagination = useClientPagination(rows);
 const accounts = ref<Account[]>([]);
 const filterAccountID = ref<string | null>(null);
 const creating = ref(false);
@@ -156,7 +159,12 @@ const columns: DataTableColumns<Webhook> = [
     width: 100,
     render: (row) => renderEnumTag(row.enabled, "enabled"),
   },
-  { title: "更新时间", key: "updated_at", width: 180 },
+  {
+    title: "更新时间",
+    key: "updated_at",
+    width: 180,
+    render: (row) => formatDateTime(row.updated_at),
+  },
   {
     title: "操作",
     key: "actions",
@@ -203,6 +211,7 @@ onMounted(() => void load());
       <n-button type="primary" @click="openCreate">新增 Webhook</n-button>
     </div>
     <n-select
+      class="list-filter"
       v-model:value="filterAccountID"
       @focus="loadAccountOptions"
       :options="
@@ -215,6 +224,8 @@ onMounted(() => void load());
       @update:value="changeAccountFilter"
     />
     <n-data-table
+      max-height="max(160px, calc(100dvh - 400px))"
+      :pagination="pagination"
       :scroll-x="1200"
       table-layout="fixed"
       :columns="columns"

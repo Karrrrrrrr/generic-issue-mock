@@ -22,7 +22,12 @@ type CardHolderListRequest struct {
 	Limit      int
 }
 
+type CardHolderCountRequest struct {
+	AccountIDs []model.ID
+}
+
 type CardHolderRepository interface {
+	Count(context.Context, *CardHolderCountRequest) (int64, error)
 	Create(context.Context, *model.CardHolder) error
 	ExistCardHolderByID(context.Context, model.ID) (bool, error)
 	FindCardHolderByID(context.Context, model.ID) (*model.CardHolder, error)

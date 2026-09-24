@@ -41,6 +41,10 @@ export const router = createRouter({
           path: "webhooks",
           component: () => import("@/channel/slash/WebhooksView.vue"),
         },
+        {
+          path: "webhook-records",
+          component: () => import("@/channel/slash/WebhookRecordsView.vue"),
+        },
       ],
     },
     {

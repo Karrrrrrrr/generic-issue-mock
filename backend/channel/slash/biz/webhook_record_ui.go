@@ -7,6 +7,7 @@ import (
 	slash "generic-mock/channel/slash/enums"
 	"generic-mock/enums"
 	"generic-mock/model"
+	"generic-mock/pkg/types"
 
 	"encoding/json"
 	"github.com/samber/do"
@@ -18,6 +19,21 @@ type DispatchWebhookRequest struct {
 	Event     slash.WebhookEvent
 	EntityID  string
 	EventID   string
+}
+
+type ListWebhookRecordsRequest struct {
+	AccountID   *model.ID
+	Event       *slash.WebhookEvent
+	Status      *enums.WebhookDeliveryStatus
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
+	Offset      int
+	Limit       int
+}
+
+type ReplayWebhookRecordRequest struct {
+	AccountID model.ID
+	ID        model.ID
 }
 
 type SlashWebhookUsecase struct {
@@ -32,6 +48,106 @@ func NewSlashWebhookUsecase(injector *do.Injector) (*SlashWebhookUsecase, error)
 		webhookRecordRepository: do.MustInvoke[SlashWebhookRecordRepository](injector),
 		webhookClient:           do.MustInvoke[SlashWebhookClient](injector),
 	}, nil
+}
+
+func (u *SlashWebhookUsecase) ListRecords(ctx context.Context, req *ListWebhookRecordsRequest) ([]*model.WebhookRecord, int64, error) {
+	if (req.CreatedFrom != nil && req.CreatedFrom.IsZero()) ||
+		(req.CreatedTo != nil && req.CreatedTo.IsZero()) ||
+		(req.CreatedFrom != nil && req.CreatedTo != nil && req.CreatedFrom.After(*req.CreatedTo)) {
+		return nil, 0, ErrInvalidOperation
+	}
+	filters := WebhookRecordFilters{
+		AccountIDs:  types.PointerSlice(req.AccountID),
+		Statuses:    types.PointerSlice(req.Status),
+		CreatedFrom: req.CreatedFrom,
+		CreatedTo:   req.CreatedTo,
+	}
+	if req.Event != nil {
+		filters.Events = []string{string(*req.Event)}
+	}
+	items, err := u.webhookRecordRepository.List(ctx, &WebhookRecordListRequest{
+		WebhookRecordFilters: filters,
+		Offset:               req.Offset,
+		Limit:                req.Limit,
+	})
+	if err != nil {
+		zap.S().Errorw("list slash webhook records", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+	total, err := u.webhookRecordRepository.Count(ctx, &WebhookRecordCountRequest{
+		WebhookRecordFilters: filters,
+	})
+	if err != nil {
+		zap.S().Errorw("count slash webhook records", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+	return items, total, nil
+}
+
+func (u *SlashWebhookUsecase) ReplayRecord(ctx context.Context, req *ReplayWebhookRecordRequest) (*model.WebhookRecord, error) {
+	exists, err := u.webhookRecordRepository.Exist(ctx, &WebhookRecordExistRequest{
+		AccountID: req.AccountID,
+		ID:        req.ID,
+	})
+	if err != nil {
+		zap.S().Errorw("check slash webhook replay record", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, ErrResourceNotFound
+	}
+	original, err := u.webhookRecordRepository.Find(ctx, &WebhookRecordFindRequest{
+		AccountID: req.AccountID,
+		ID:        req.ID,
+	})
+	if err != nil {
+		zap.S().Errorw("find slash webhook replay record", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	replay := &model.WebhookRecord{
+		Account:         original.Account,
+		AccountID:       original.AccountID,
+		Channel:         original.Channel,
+		WebhookConfigID: original.WebhookConfigID,
+		Event:           original.Event,
+		TargetURL:       original.TargetURL,
+		SourceID:        original.SourceID,
+		Payload:         original.Payload,
+		RequestHeaders:  original.RequestHeaders,
+		Status:          enums.WebhookDeliveryStatus_Pending,
+		AttemptCount:    original.AttemptCount + 1,
+	}
+	if err := u.webhookRecordRepository.Create(ctx, replay); err != nil {
+		zap.S().Errorw("create slash webhook replay record", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	result, deliveryErr := u.webhookClient.Deliver(ctx, &SlashWebhookDeliveryRequest{
+		TargetURL:      replay.TargetURL,
+		Payload:        replay.Payload,
+		RequestHeaders: replay.RequestHeaders,
+	})
+	if deliveryErr != nil {
+		replay.Status = enums.WebhookDeliveryStatus_Failed
+		replay.ErrorMessage = deliveryErr.Error()
+	} else {
+		replay.StatusCode = result.StatusCode
+		replay.ResponseBody = result.ResponseBody
+		replay.RequestHeaders = result.RequestHeaders
+		replay.ResponseHeaders = result.ResponseHeaders
+		if result.StatusCode >= 200 && result.StatusCode < 300 {
+			deliveredAt := time.Now().UTC()
+			replay.Status = enums.WebhookDeliveryStatus_Succeeded
+			replay.DeliveredAt = &deliveredAt
+		} else {
+			replay.Status = enums.WebhookDeliveryStatus_Failed
+			replay.ErrorMessage = "unexpected Slash webhook response"
+		}
+	}
+	if err := u.webhookRecordRepository.Save(ctx, replay); err != nil {
+		zap.S().Errorw("save slash webhook replay record", "error", err)
+		return nil, ErrDatabaseOperation
+	}
+	return replay, nil
 }
 
 func (u *SlashWebhookUsecase) Dispatch(ctx context.Context, req *DispatchWebhookRequest) {

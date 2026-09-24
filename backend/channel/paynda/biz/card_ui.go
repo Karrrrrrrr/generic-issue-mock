@@ -14,6 +14,17 @@ import (
 	"go.uber.org/zap"
 )
 
+type ListUICardsRequest struct {
+	AccountID   *model.ID
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
+	Offset      int
+	Limit       int
+	ID          *model.ID
+	CardNumber  *string
+	Statuses    []enums.CardStatus
+}
+
 type PayndaUICreateCardRequest struct {
 	AccountID    model.ID
 	CardHolderID model.ID
@@ -150,16 +161,39 @@ func (u *PayndaUIUsecase) UpdateCardStatus(ctx context.Context, req *PayndaUIUpd
 	return card, nil
 }
 
-func (u *PayndaUIUsecase) ListCards(ctx context.Context, req *PayndaListRequest) ([]*model.Card, error) {
+func (u *PayndaUIUsecase) ListCards(ctx context.Context, req *ListUICardsRequest) ([]*model.Card, int64, error) {
+	if (req.CreatedFrom != nil && req.CreatedFrom.IsZero()) ||
+		(req.CreatedTo != nil && req.CreatedTo.IsZero()) ||
+		(req.CreatedFrom != nil && req.CreatedTo != nil && req.CreatedFrom.After(*req.CreatedTo)) {
+		return nil, 0, ErrInvalidOperation
+	}
 	items, err := u.cardRepository.List(ctx, &CardListRequest{
-		AccountIDs: types.PointerSlice(req.AccountID),
-		Limit:      req.Limit,
-		Offset:     req.Offset,
+		AccountIDs:  types.PointerSlice(req.AccountID),
+		IDs:         types.PointerSlice(req.ID),
+		Statuses:    req.Statuses,
+		CreatedFrom: req.CreatedFrom,
+		CreatedTo:   req.CreatedTo,
+		CardNumber:  req.CardNumber,
+		Limit:       req.Limit,
+		Offset:      req.Offset,
 	})
 	if err != nil {
 		zap.S().Errorw("list paynda UI cards", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, 0, ErrDatabaseOperation
 	}
 
-	return items, nil
+	total, err := u.cardRepository.Count(ctx, &CardCountRequest{
+		AccountIDs:  types.PointerSlice(req.AccountID),
+		IDs:         types.PointerSlice(req.ID),
+		Statuses:    req.Statuses,
+		CreatedFrom: req.CreatedFrom,
+		CreatedTo:   req.CreatedTo,
+		CardNumber:  req.CardNumber,
+	})
+	if err != nil {
+		zap.S().Errorw("count paynda UI cards", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+
+	return items, total, nil
 }

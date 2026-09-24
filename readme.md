@@ -49,6 +49,16 @@ cd ../frontend
 bun dev
 ```
 
+## SDK 联调
+
+全量 SDK 联调使用独立数据库 `generic_mock_sdk_test`，不使用日常开发库 `generic_mock`：
+
+```bash
+bash sdk/test-contract.sh
+```
+
+脚本自动重建测试库、初始化表结构和种子数据、启动独立后端（默认 `127.0.0.1:18000`），测试结束后停止后端。测试库和日志保留，下一次运行时重置测试库。只初始化测试库、不运行测试时执行 `bash sdk/init-test-db.sh`。本地 PostgreSQL 的连接配置及安全限制见 `sdk/CONTRACT_TESTS.md`。
+
 ## 约束
 
 1. 通用模型使用自增 `int64 ID`；渠道 DTO 用本渠道 ID 转换函数（统一位于 `channel/<channel>/pkg/idconv`，公开函数以 `To...` / `From...` 表达转换方向）格式化和反解析 mock 自有资源 ID。

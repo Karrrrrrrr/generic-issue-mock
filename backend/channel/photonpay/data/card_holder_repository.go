@@ -97,3 +97,17 @@ func (r *cardHolderRepository) List(ctx context.Context, req *biz.CardHolderList
 }
 
 var _ biz.CardHolderRepository = (*cardHolderRepository)(nil)
+
+func (r *cardHolderRepository) Count(
+	ctx context.Context,
+	req *biz.CardHolderCountRequest,
+) (int64, error) {
+	db := r.repository.DB(ctx)
+	query := db.CardHolder.WithContext(ctx).
+		Where(db.CardHolder.Channel.Eq(string(enums.Channel_PhotonPay)))
+	if len(req.AccountIDs) != 0 {
+		query = query.Where(db.CardHolder.AccountID.In(req.AccountIDs...))
+	}
+
+	return query.Count()
+}

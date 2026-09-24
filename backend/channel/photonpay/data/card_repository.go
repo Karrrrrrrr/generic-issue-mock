@@ -164,6 +164,25 @@ func (r *cardRepository) ListCards(ctx context.Context, req *biz.CardListCardsRe
 	if len(req.AccountIDs) != 0 {
 		query = query.Where(db.Card.AccountID.In(req.AccountIDs...))
 	}
+	if len(req.IDs) != 0 {
+		query = query.Where(db.Card.ID.In(req.IDs...))
+	}
+	if len(req.Statuses) != 0 {
+		values := make([]string, 0, len(req.Statuses))
+		for _, value := range req.Statuses {
+			values = append(values, string(value))
+		}
+		query = query.Where(db.Card.Status.In(values...))
+	}
+	if req.CardNumber != nil {
+		query = query.Where(db.Card.CardNumber.Like("%" + *req.CardNumber + "%"))
+	}
+	if req.CreatedFrom != nil {
+		query = query.Where(db.Card.CreatedAt.Gte(*req.CreatedFrom))
+	}
+	if req.CreatedTo != nil {
+		query = query.Where(db.Card.CreatedAt.Lte(*req.CreatedTo))
+	}
 	return query.
 		Preload(db.Card.Wallet).
 		Preload(db.Card.VirtualAccount.Wallet).
@@ -215,4 +234,37 @@ func (r *cardRepository) FindCard(ctx context.Context, req *biz.FindCardRequest)
 			db.Card.AccountID.Eq(req.AccountID),
 			db.Card.Channel.Eq(string(enums.Channel_PhotonPay)),
 		).First()
+}
+
+func (r *cardRepository) Count(
+	ctx context.Context,
+	req *biz.CardCountRequest,
+) (int64, error) {
+	db := r.repository.DB(ctx)
+	query := db.Card.WithContext(ctx).
+		Where(db.Card.Channel.Eq(string(enums.Channel_PhotonPay)))
+	if len(req.AccountIDs) != 0 {
+		query = query.Where(db.Card.AccountID.In(req.AccountIDs...))
+	}
+
+	if len(req.IDs) != 0 {
+		query = query.Where(db.Card.ID.In(req.IDs...))
+	}
+	if len(req.Statuses) != 0 {
+		values := make([]string, 0, len(req.Statuses))
+		for _, value := range req.Statuses {
+			values = append(values, string(value))
+		}
+		query = query.Where(db.Card.Status.In(values...))
+	}
+	if req.CardNumber != nil {
+		query = query.Where(db.Card.CardNumber.Like("%" + *req.CardNumber + "%"))
+	}
+	if req.CreatedFrom != nil {
+		query = query.Where(db.Card.CreatedAt.Gte(*req.CreatedFrom))
+	}
+	if req.CreatedTo != nil {
+		query = query.Where(db.Card.CreatedAt.Lte(*req.CreatedTo))
+	}
+	return query.Count()
 }

@@ -45,7 +45,7 @@ func (u *PayndaUIUsecase) CreateCardHolder(ctx context.Context, req *PayndaUICre
 	return holder, nil
 }
 
-func (u *PayndaUIUsecase) ListCardHolders(ctx context.Context, req *PayndaListRequest) ([]*model.CardHolder, error) {
+func (u *PayndaUIUsecase) ListCardHolders(ctx context.Context, req *PayndaListRequest) ([]*model.CardHolder, int64, error) {
 	items, err := u.cardHolderRepository.List(ctx, &CardHolderListRequest{
 		AccountIDs: types.PointerSlice(req.AccountID),
 		Limit:      req.Limit,
@@ -53,8 +53,16 @@ func (u *PayndaUIUsecase) ListCardHolders(ctx context.Context, req *PayndaListRe
 	})
 	if err != nil {
 		zap.S().Errorw("list paynda UI card holders", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, 0, ErrDatabaseOperation
 	}
 
-	return items, nil
+	total, err := u.cardHolderRepository.Count(ctx, &CardHolderCountRequest{
+		AccountIDs: types.PointerSlice(req.AccountID),
+	})
+	if err != nil {
+		zap.S().Errorw("count paynda UI card holders", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+
+	return items, total, nil
 }

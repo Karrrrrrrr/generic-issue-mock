@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useRemotePagination } from "@/channel/pagination";
 import { renderEnumTag } from "@/channel/tableTags";
 import { onMounted, ref } from "vue";
 import { createDiscreteApi, NButton, NCard, NDataTable } from "naive-ui";
@@ -7,6 +8,7 @@ import type { Cardholder } from "@/channel/types";
 
 const { message } = createDiscreteApi(["message"]);
 const rows = ref<Cardholder[]>([]);
+const { page, pageSize, total, pagination } = useRemotePagination(load);
 const loading = ref(false);
 const columns = [
   {
@@ -40,7 +42,12 @@ const columns = [
 async function load() {
   loading.value = true;
   try {
-    rows.value = (await api.listCardholders()).data;
+    const response = await api.listCardholders({
+      page_number: page.value,
+      page_size: pageSize.value,
+    });
+    rows.value = response.data;
+    total.value = response.total_items;
   } catch (error) {
     message.error(error instanceof Error ? error.message : "加载持卡人失败");
   } finally {
@@ -61,6 +68,9 @@ onMounted(load);
   </div>
   <n-card :bordered="false">
     <n-data-table
+      max-height="max(160px, calc(100dvh - 400px))"
+      remote
+      :pagination="pagination"
       :scroll-x="1100"
       table-layout="fixed"
       :loading="loading"

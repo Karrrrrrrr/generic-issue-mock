@@ -2,18 +2,21 @@ package biz
 
 import (
 	"context"
+	"time"
 
 	"generic-mock/enums"
 	"generic-mock/model"
 )
 
 type CardCountRequest struct {
-	AccountIDs []model.ID
-	Offset     int
-	Limit      int
-	IDContains *string
-	CardNumber *string
-	Statuses   []enums.CardStatus
+	AccountIDs  []model.ID
+	Offset      int
+	Limit       int
+	CardNumber  *string
+	Statuses    []enums.CardStatus
+	IDs         []model.ID
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
 }
 
 type CardExistByAccountIDRequest struct {
@@ -32,12 +35,14 @@ type FindCardRequest struct {
 }
 
 type CardListRequest struct {
-	AccountIDs []model.ID
-	Offset     int
-	Limit      int
-	IDContains *string
-	CardNumber *string
-	Statuses   []enums.CardStatus
+	AccountIDs  []model.ID
+	Offset      int
+	Limit       int
+	CardNumber  *string
+	Statuses    []enums.CardStatus
+	IDs         []model.ID
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
 }
 
 type SlashCardRepository interface {

@@ -313,21 +313,6 @@ func (s *PayndaUIService) CreateCardHolder(ctx context.Context, req *PayndaUICar
 	return payndaUICardHolderData(item), nil
 }
 
-func (s *PayndaUIService) ListCards(ctx context.Context, req *PayndaUIListRequest) (*PayndaUIListResponse[*PayndaUICardData], error) {
-	listRequest, err := payndaUIListRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	items, err := s.usecase.ListCards(ctx, listRequest)
-	if err != nil {
-		return nil, err
-	}
-	return &PayndaUIListResponse[*PayndaUICardData]{
-		TotalItems: len(items),
-		Data:       types.BulkConvertSlice(items, payndaUICardData),
-	}, nil
-}
-
 func (s *PayndaUIService) ListAuthorizations(ctx context.Context, req *PayndaUIListRequest) (*PayndaUIListResponse[*PayndaUIAuthorizationData], error) {
 	listRequest, err := payndaUIListRequest(req)
 	if err != nil {
@@ -348,12 +333,12 @@ func (s *PayndaUIService) ListCardHolders(ctx context.Context, req *PayndaUIList
 	if err != nil {
 		return nil, err
 	}
-	items, err := s.usecase.ListCardHolders(ctx, listRequest)
+	items, total, err := s.usecase.ListCardHolders(ctx, listRequest)
 	if err != nil {
 		return nil, err
 	}
 	return &PayndaUIListResponse[*PayndaUICardHolderData]{
-		TotalItems: len(items),
+		TotalItems: int(total),
 		Data:       types.BulkConvertSlice(items, payndaUICardHolderData),
 	}, nil
 }
@@ -510,20 +495,7 @@ func (s *PayndaUIService) ReverseTransaction(ctx context.Context, req *PayndaUIA
 func (s *PayndaUIService) RefundTransaction(ctx context.Context, req *PayndaUIApplyTransactionStepRequest) (*PayndaUITransactionData, error) {
 	return s.applyTransactionStep(ctx, req, common.CardTransactionType_REFUND)
 }
-func (s *PayndaUIService) ListTransactions(ctx context.Context, req *PayndaUIListRequest) (*PayndaUIListResponse[*PayndaUITransactionData], error) {
-	listRequest, err := payndaUIListRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	items, err := s.usecase.ListTransactions(ctx, listRequest)
-	if err != nil {
-		return nil, err
-	}
-	return &PayndaUIListResponse[*PayndaUITransactionData]{
-		TotalItems: len(items),
-		Data:       types.BulkConvertSlice(items, payndaUITransactionData),
-	}, nil
-}
+
 func (s *PayndaUIService) applyTransactionStep(
 	ctx context.Context,
 	req *PayndaUIApplyTransactionStepRequest,
@@ -765,34 +737,6 @@ type AuthorizationBalanceData struct {
 	Remaining    string          `json:"remaining"`
 	MerchantName string          `json:"merchant_name"`
 	CreatedAt    time.Time       `json:"created_at"`
-}
-
-func (s *PayndaUIService) ListAuthorizationBalances(ctx context.Context, req *ManagementListRequest) (*[]AuthorizationBalanceData, error) {
-	accountID, err := idconv.FromOptionalString(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
-	items, err := s.usecase.ListAuthorizationBalances(ctx, accountID)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]AuthorizationBalanceData, 0, len(items))
-	for _, item := range items {
-		auth := item.Authorization
-		result = append(result, AuthorizationBalanceData{
-			AccountID:    idconv.ToString(auth.AccountID),
-			AccountName:  uiAccountName(auth.Account),
-			ID:           idconv.ToString(auth.ID),
-			CardID:       idconv.ToString(auth.CardID),
-			Currency:     auth.Currency,
-			Amount:       auth.Amount.String(),
-			Settled:      item.Settled.String(),
-			Remaining:    item.Remaining.String(),
-			MerchantName: auth.MerchantName,
-			CreatedAt:    auth.CreatedAt,
-		})
-	}
-	return &result, nil
 }
 
 type ClearAuthorizationRequest struct {

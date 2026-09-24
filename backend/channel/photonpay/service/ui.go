@@ -385,13 +385,13 @@ func (s *PhotonPayUIService) ListCardHolders(ctx context.Context, req *UIListReq
 	if err != nil {
 		return nil, err
 	}
-	holders, err := s.usecase.ListCardHolders(ctx, listRequest)
+	holders, total, err := s.usecase.ListCardHolders(ctx, listRequest)
 	if err != nil {
 		return nil, err
 	}
 
 	return &UIListResponse[*UICardHolderData]{
-		TotalItems: len(holders),
+		TotalItems: int(total),
 		Data:       types.BulkConvertSlice(holders, photonPayUICardHolderData),
 	}, nil
 }
@@ -440,22 +440,6 @@ func (s *PhotonPayUIService) CreateCard(ctx context.Context, req *UICreateCardRe
 	}
 
 	return photonPayUICardData(card), nil
-}
-
-func (s *PhotonPayUIService) ListCards(ctx context.Context, req *UIListRequest) (*UIListResponse[*UICardData], error) {
-	listRequest, err := photonPayUIListRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	cards, err := s.usecase.ListCards(ctx, listRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	return &UIListResponse[*UICardData]{
-		TotalItems: len(cards),
-		Data:       types.BulkConvertSlice(cards, photonPayUICardData),
-	}, nil
 }
 
 func (s *PhotonPayUIService) ListAuthorizations(ctx context.Context, req *UIListRequest) (*UIListResponse[*UIAuthorizationData], error) {
@@ -653,22 +637,6 @@ func (s *PhotonPayUIService) applyTransactionStep(ctx context.Context, req *UIAp
 	}
 
 	return photonPayUITransactionData(item), nil
-}
-
-func (s *PhotonPayUIService) ListTransactions(ctx context.Context, req *UIListRequest) (*UIListResponse[*UITransactionData], error) {
-	listRequest, err := photonPayUIListRequest(req)
-	if err != nil {
-		return nil, err
-	}
-	transactions, err := s.usecase.ListTransactions(ctx, listRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	return &UIListResponse[*UITransactionData]{
-		TotalItems: len(transactions),
-		Data:       types.BulkConvertSlice(transactions, photonPayUITransactionData),
-	}, nil
 }
 
 func photonPayUIListRequest(req *UIListRequest) (*biz.ListRequest, error) {
@@ -983,34 +951,6 @@ type AuthorizationBalanceData struct {
 	Remaining    string          `json:"remaining"`
 	MerchantName string          `json:"merchant_name"`
 	CreatedAt    time.Time       `json:"created_at"`
-}
-
-func (s *PhotonPayUIService) ListAuthorizationBalances(ctx context.Context, req *ManagementListRequest) (*[]AuthorizationBalanceData, error) {
-	accountID, err := idconv.FromOptionalString(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
-	items, err := s.usecase.ListAuthorizationBalances(ctx, accountID)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]AuthorizationBalanceData, 0, len(items))
-	for _, item := range items {
-		auth := item.Authorization
-		result = append(result, AuthorizationBalanceData{
-			AccountID:    idconv.ToString(auth.AccountID),
-			AccountName:  uiAccountName(auth.Account),
-			ID:           idconv.ToString(auth.ID),
-			CardID:       idconv.ToString(auth.CardID),
-			Currency:     auth.Currency,
-			Amount:       auth.Amount.String(),
-			Settled:      item.Settled.String(),
-			Remaining:    item.Remaining.String(),
-			MerchantName: auth.MerchantName,
-			CreatedAt:    auth.CreatedAt,
-		})
-	}
-	return &result, nil
 }
 
 type ClearAuthorizationRequest struct {

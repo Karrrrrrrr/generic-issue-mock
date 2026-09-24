@@ -31,6 +31,14 @@ const themeOverrides = computed(() => ({
   Card: { borderRadius: "14px", paddingMedium: "20px" },
   Input: { borderRadius: "10px", heightMedium: "38px" },
   Select: { borderRadius: "10px", heightMedium: "38px" },
+  Tag: {
+    colorBordered: "transparent",
+    colorBorderedPrimary: "transparent",
+    colorBorderedInfo: "transparent",
+    colorBorderedSuccess: "transparent",
+    colorBorderedWarning: "transparent",
+    colorBorderedError: "transparent",
+  },
   Menu: {
     color: isDark.value ? "#242428" : "#ffffff",
     groupTextColor: isDark.value ? "#a6adbb" : "#8a94a6",

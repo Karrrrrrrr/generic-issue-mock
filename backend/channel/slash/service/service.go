@@ -459,36 +459,6 @@ func (s *SlashUIService) CreateCard(ctx context.Context, req *CreateCardRequest)
 	return cardData(item), nil
 }
 
-type ListCardsRequest struct {
-	ListRequest
-	ID         *string           `form:"id" binding:"omitempty,min=1"`
-	CardNumber *string           `form:"card_number" binding:"omitempty,min=1"`
-	CardStatus *slash.CardStatus `form:"card_status" binding:"omitempty,oneof=active paused inactive closed"`
-}
-
-func (s *SlashUIService) ListCards(ctx context.Context, req *ListCardsRequest) (*ListResponse[*CardData], error) {
-	accountID, err := idconv.FromOptionalUUID(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
-	offset, limit := pagination(types.Value(req.PageNumber), types.Value(req.PageSize))
-	items, total, err := s.usecase.ListCards(ctx, &biz.ListCardsRequest{
-		AccountID:  accountID,
-		Offset:     offset,
-		Limit:      limit,
-		IDContains: req.ID,
-		CardNumber: req.CardNumber,
-		Status:     types.ConvertPointer(req.CardStatus, slash.CardStatusToGeneric),
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &ListResponse[*CardData]{
-		TotalItems: total,
-		Data:       types.BulkConvertSlice(items, cardData),
-	}, nil
-}
-
 type IDRequest struct {
 	ID string `uri:"id" binding:"required"`
 }
@@ -685,15 +655,6 @@ func (s *SlashUIService) GetAuthorization(ctx context.Context, req *IDRequest) (
 	return authorizationData(item), nil
 }
 
-type ListTransactionsRequest struct {
-	ListRequest
-	ID              *string                  `form:"id"`
-	CardID          *string                  `form:"card_id"`
-	AuthorizationID *string                  `form:"authorization_id"`
-	TransactionType *slash.TransactionType   `form:"transaction_type" binding:"omitempty,oneof=auth clear void refund"`
-	Status          *slash.TransactionStatus `form:"status" binding:"omitempty,oneof=pending posted failed"`
-}
-
 type TransactionData struct {
 	AccountName          string                  `json:"account_name"`
 	AccountID            string                  `json:"account_id"`
@@ -710,43 +671,6 @@ type TransactionData struct {
 	AuthorizationCode    string                  `json:"authorization_code"`
 	TransactedAt         time.Time               `json:"transacted_at"`
 	CreatedAt            time.Time               `json:"created_at"`
-}
-
-func (s *SlashUIService) ListTransactions(ctx context.Context, req *ListTransactionsRequest) (*ListResponse[*TransactionData], error) {
-	accountID, err := idconv.FromOptionalUUID(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
-	offset, limit := pagination(types.Value(req.PageNumber), types.Value(req.PageSize))
-	id, err := idconv.FromOptionalUUID(req.ID)
-	if err != nil {
-		return nil, err
-	}
-	cardID, err := idconv.FromOptionalUUID(req.CardID)
-	if err != nil {
-		return nil, err
-	}
-	authorizationID, err := idconv.FromOptionalUUID(req.AuthorizationID)
-	if err != nil {
-		return nil, err
-	}
-	items, total, err := s.usecase.ListCardTransactions(ctx, &biz.ListCardTransactionsRequest{
-		AccountID:       accountID,
-		Offset:          offset,
-		Limit:           limit,
-		ID:              id,
-		CardID:          cardID,
-		AuthorizationID: authorizationID,
-		Type:            types.ConvertPointer(req.TransactionType, slash.TransactionTypeToGeneric),
-		Status:          types.ConvertPointer(req.Status, slash.TransactionStatusToGeneric),
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &ListResponse[*TransactionData]{
-		TotalItems: total,
-		Data:       types.BulkConvertSlice(items, transactionData),
-	}, nil
 }
 
 func (s *SlashUIService) GetTransaction(ctx context.Context, req *IDRequest) (*TransactionData, error) {
@@ -1088,34 +1012,6 @@ type AuthorizationBalanceData struct {
 	Remaining    string          `json:"remaining"`
 	MerchantName string          `json:"merchant_name"`
 	CreatedAt    time.Time       `json:"created_at"`
-}
-
-func (s *SlashUIService) ListAuthorizationBalances(ctx context.Context, req *ManagementListRequest) (*[]AuthorizationBalanceData, error) {
-	accountID, err := idconv.FromOptionalUUID(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
-	items, err := s.usecase.ListAuthorizationBalances(ctx, accountID)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]AuthorizationBalanceData, 0, len(items))
-	for _, item := range items {
-		auth := item.Authorization
-		result = append(result, AuthorizationBalanceData{
-			AccountID:    idconv.ToUUID(auth.AccountID),
-			AccountName:  uiAccountName(auth.Account),
-			ID:           idconv.ToUUID(auth.ID),
-			CardID:       idconv.ToUUID(auth.CardID),
-			Currency:     auth.Currency,
-			Amount:       auth.Amount.String(),
-			Settled:      item.Settled.String(),
-			Remaining:    item.Remaining.String(),
-			MerchantName: auth.MerchantName,
-			CreatedAt:    auth.CreatedAt,
-		})
-	}
-	return &result, nil
 }
 
 type ClearAuthorizationRequest struct {

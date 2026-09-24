@@ -14,6 +14,17 @@ import (
 	"go.uber.org/zap"
 )
 
+type ListUICardsRequest struct {
+	AccountID   *model.ID
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
+	Offset      int
+	Limit       int
+	ID          *model.ID
+	CardNumber  *string
+	Statuses    []enums.CardStatus
+}
+
 type UIOpenCardRequest struct {
 	AccountID    model.ID
 	CardHolderID model.ID
@@ -112,19 +123,42 @@ func (u *PhotonPayUIUsecase) OpenCard(ctx context.Context, req *UIOpenCardReques
 	return card, nil
 }
 
-func (u *PhotonPayUIUsecase) ListCards(ctx context.Context, req *ListRequest) ([]*model.Card, error) {
+func (u *PhotonPayUIUsecase) ListCards(ctx context.Context, req *ListUICardsRequest) ([]*model.Card, int64, error) {
+	if (req.CreatedFrom != nil && req.CreatedFrom.IsZero()) ||
+		(req.CreatedTo != nil && req.CreatedTo.IsZero()) ||
+		(req.CreatedFrom != nil && req.CreatedTo != nil && req.CreatedFrom.After(*req.CreatedTo)) {
+		return nil, 0, ErrInvalidOperation
+	}
 	cards, err := u.cardRepo.ListCards(ctx, &CardListCardsRequest{
-		AccountIDs: types.PointerSlice(req.AccountID),
-		Limit:      req.Limit,
-		Offset:     req.Offset,
+		AccountIDs:  types.PointerSlice(req.AccountID),
+		IDs:         types.PointerSlice(req.ID),
+		Statuses:    req.Statuses,
+		CreatedFrom: req.CreatedFrom,
+		CreatedTo:   req.CreatedTo,
+		CardNumber:  req.CardNumber,
+		Limit:       req.Limit,
+		Offset:      req.Offset,
 	})
 	if err != nil {
 		zap.S().Errorw("list photonpay UI cards", "error", err)
 
-		return nil, ErrDatabaseOperation
+		return nil, 0, ErrDatabaseOperation
 	}
 
-	return cards, nil
+	total, err := u.cardRepo.Count(ctx, &CardCountRequest{
+		AccountIDs:  types.PointerSlice(req.AccountID),
+		IDs:         types.PointerSlice(req.ID),
+		Statuses:    req.Statuses,
+		CreatedFrom: req.CreatedFrom,
+		CreatedTo:   req.CreatedTo,
+		CardNumber:  req.CardNumber,
+	})
+	if err != nil {
+		zap.S().Errorw("count photonpay UI cards", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+
+	return cards, total, nil
 }
 
 func (u *PhotonPayUIUsecase) ChangeCardStatus(ctx context.Context, req *UIChangeCardStatusRequest) (*model.Card, error) {

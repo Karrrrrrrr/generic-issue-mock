@@ -40,7 +40,10 @@ const items = [
     type: "group",
     label: "配置",
     key: "configuration",
-    children: [{ label: "Webhook 管理", key: "/slash/webhooks" }],
+    children: [
+      { label: "Webhook 管理", key: "/slash/webhooks" },
+      { label: "投递记录", key: "/slash/webhook-records" },
+    ],
   },
 ];
 </script>

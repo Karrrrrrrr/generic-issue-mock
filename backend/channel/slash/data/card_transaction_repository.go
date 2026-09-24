@@ -113,6 +113,12 @@ func cardTransactionPredicates(db *query.Query, req *biz.CardTransactionListRequ
 			return string(value)
 		})...))
 	}
+	if req.CreatedFrom != nil {
+		predicates = append(predicates, db.CardTransaction.CreatedAt.Gte(*req.CreatedFrom))
+	}
+	if req.CreatedTo != nil {
+		predicates = append(predicates, db.CardTransaction.CreatedAt.Lte(*req.CreatedTo))
+	}
 	return predicates
 }
 

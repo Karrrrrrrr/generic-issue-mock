@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"time"
 
 	"generic-mock/enums"
 	"generic-mock/model"
@@ -11,6 +12,15 @@ import (
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
+
+type ListAuthorizationBalancesRequest struct {
+	AccountID    *model.ID
+	CreatedFrom  *time.Time
+	CreatedTo    *time.Time
+	ID           *model.ID
+	CardID       *model.ID
+	MerchantName *string
+}
 
 type ListAuthorizationsRequest struct {
 	AccountID *model.ID
@@ -208,9 +218,19 @@ func (u *SlashUIUsecase) requireAuthorization(ctx context.Context, id model.ID) 
 	return nil
 }
 
-func (u *SlashUIUsecase) ListAuthorizationBalances(ctx context.Context, accountID *model.ID) ([]*AuthorizationBalance, error) {
+func (u *SlashUIUsecase) ListAuthorizationBalances(ctx context.Context, req *ListAuthorizationBalancesRequest) ([]*AuthorizationBalance, error) {
+	if (req.CreatedFrom != nil && req.CreatedFrom.IsZero()) ||
+		(req.CreatedTo != nil && req.CreatedTo.IsZero()) ||
+		(req.CreatedFrom != nil && req.CreatedTo != nil && req.CreatedFrom.After(*req.CreatedTo)) {
+		return nil, ErrInvalidOperation
+	}
 	items, err := u.authorizationRepository.ListAuthorizations(ctx, &AuthorizationListBalancesRequest{
-		AccountIDs: types.PointerSlice(accountID),
+		AccountIDs:   types.PointerSlice(req.AccountID),
+		IDs:          types.PointerSlice(req.ID),
+		CardIDs:      types.PointerSlice(req.CardID),
+		MerchantName: req.MerchantName,
+		CreatedFrom:  req.CreatedFrom,
+		CreatedTo:    req.CreatedTo,
 	})
 	if err != nil {
 		zap.S().Errorw("list slash authorization balances", "error", err)

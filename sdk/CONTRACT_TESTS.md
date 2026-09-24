@@ -8,37 +8,76 @@ After the removal of 22 unused Slash methods, the explicit cases cover 25 Slash,
 
 ## Run
 
-The tests require PostgreSQL and the mock server. From the repository root:
+The tests require local PostgreSQL, Go, `psql`, `curl`, and `flock`. Run from the
+repository root; do not start a server manually:
 
 ```sh
-cd backend
-export GOCACHE=/home/kar/.cache/go-build
-export GOTMPDIR=/home/kar/.cache/go-tmp
-mkdir -p "$GOCACHE" "$GOTMPDIR"
-HTTP_ADDR=127.0.0.1:18000 go run .
+bash sdk/test-contract.sh
 ```
 
-In another terminal, from the repository root:
+Every invocation of the runner, including filtered runs, performs these steps:
+
+1. Build the mock backend and call `sdk/init-test-db.sh`.
+2. Recreate the dedicated **`generic_mock_sdk_test`** database, migrate the schema,
+   and seed the initial channel accounts, card products, cards, and configuration.
+3. Start a managed backend on `127.0.0.1:18000`, explicitly connected to that DB.
+4. Run the Slash, PhotonPay, and Paynda SDK tests against that backend.
+5. Stop the backend on success, failure, or interruption. Retain the test database
+   and log directory for inspection; reset the test database on the next run.
+
+To initialize the test database without starting the server or running tests:
 
 ```sh
-bash sdk/test-contract.sh -v
+bash sdk/init-test-db.sh
 ```
 
-Overrides:
+**Initialization deletes the previous contents of `generic_mock_sdk_test`.** It
+never resets `generic_mock` and does not accept an arbitrary database name or the
+application's inherited `DATABASE_DSN`. The database must be local. An existing
+database without the script's identifying comment is rejected, not dropped.
+Active connections are not forcibly terminated: stop manual test-db clients
+before reinitializing. A shared file lock prevents concurrent runner/init jobs.
+
+The standalone initializer uses `backend/cmd/init`, which requires an explicit
+`DATABASE_DSN` and reuses the backend's migration and seed functions. No duplicate
+schema SQL is maintained in the shell script.
+
+The runner enables verbose output by default. `[SDK]` logs show actual SDK HTTP
+calls, while `[UI setup]` logs show fixture creation, funding, and transaction
+simulation. Each request includes its method, URL/query, and body; each response
+includes its status, content type, and body. Request/response streams are restored
+after logging so the SDK still receives the original payload. Request headers
+are not dumped. Bodies contain local mock card details; do not publish these logs
+with real credentials or data. When running tests directly, use `go test -v` to
+see logs from passing cases.
+
+Overrides (all optional):
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `TEST_PGHOST` | `127.0.0.1` | Local PostgreSQL host; loopback only |
+| `TEST_PGPORT` | `5432` | PostgreSQL port |
+| `TEST_PGUSER` | `postgres` | Local role with database creation/deletion privileges |
+| `TEST_PGPASSWORD` | `root` | Local database password; may be explicitly empty |
+| `TEST_HTTP_PORT` | `18000` | Dedicated HTTP port; an occupied port is rejected |
+| `MARXO_ROOT` | `/home/kar/workspace/ptm/marxo` | Existing Marxo checkout |
+
+For example:
 
 ```sh
-MOCK_BASE_URL=http://127.0.0.1:8000 \
+TEST_HTTP_PORT=18001 \
+TEST_PGPORT=5432 \
 MARXO_ROOT=/path/to/marxo \
-bash sdk/test-contract.sh -v
+bash sdk/test-contract.sh -run TestSlashCreateCard
 ```
 
-The server accepts `DATABASE_DSN`; its default is the local `generic_mock`
-database configured in `backend/data/postgres.go`. No database reset is needed.
-Each suite creates a uniquely named account, funds it through the UI API, and
-creates its own cardholders, cards, and transactions. Fixtures are retained for
-inspection. Repeated runs do not depend on IDs or data from earlier runs.
-Only loopback server URLs are accepted; old remote credentials and remote test
-endpoints are no longer used. Do not point the local server at a production DB.
+The runner rejects a supplied `MOCK_BASE_URL` rather than connecting to an
+unverified server/database. It exports its own URL to the SDK tests. The test
+helper's direct-run fallback is also `http://127.0.0.1:18000`, not the normal
+development server on port 8000. The ordinary backend's database default remains
+unchanged. Each suite still creates isolated fixture accounts, but those accounts
+now accumulate only in the dedicated test database. The runner prints the log
+directory containing `server.log` and `tests.log` when it exits.
 
 The SDK source imports `tman/enums`, supplied by the existing Marxo checkout.
 The runner creates a temporary Go workspace that connects the real Marxo module

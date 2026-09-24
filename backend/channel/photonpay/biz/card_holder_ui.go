@@ -44,7 +44,7 @@ func (u *PhotonPayUIUsecase) CreateCardHolder(ctx context.Context, req *UICreate
 	return holder, nil
 }
 
-func (u *PhotonPayUIUsecase) ListCardHolders(ctx context.Context, req *ListRequest) ([]*model.CardHolder, error) {
+func (u *PhotonPayUIUsecase) ListCardHolders(ctx context.Context, req *ListRequest) ([]*model.CardHolder, int64, error) {
 	holders, err := u.cardHolderRepo.List(ctx, &CardHolderListRequest{
 		AccountIDs: types.PointerSlice(req.AccountID),
 		Limit:      req.Limit,
@@ -53,8 +53,16 @@ func (u *PhotonPayUIUsecase) ListCardHolders(ctx context.Context, req *ListReque
 	if err != nil {
 		zap.S().Errorw("list photonpay UI card holders", "error", err)
 
-		return nil, ErrDatabaseOperation
+		return nil, 0, ErrDatabaseOperation
 	}
 
-	return holders, nil
+	total, err := u.cardHolderRepo.Count(ctx, &CardHolderCountRequest{
+		AccountIDs: types.PointerSlice(req.AccountID),
+	})
+	if err != nil {
+		zap.S().Errorw("count photonpay UI card holders", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+
+	return holders, total, nil
 }

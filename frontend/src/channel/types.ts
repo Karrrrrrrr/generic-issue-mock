@@ -47,14 +47,39 @@ export interface ListResponse<T> {
   data: T[];
 }
 
-export interface ChannelAPI {
-  listCardholders(): Promise<ListResponse<Cardholder>>;
+export interface PageRequest {
+  page_number: number;
+  page_size: number;
+}
 
-  listCards(): Promise<ListResponse<Card>>;
+export interface CardListRequest extends PageRequest {
+  account_id?: string;
+  id?: string;
+  card_number?: string;
+  card_status?: string;
+  created_from?: string;
+  created_to?: string;
+}
+
+export interface TransactionListRequest extends PageRequest {
+  account_id?: string;
+  id?: string;
+  card_id?: string;
+  authorization_id?: string;
+  transaction_type?: string;
+  status?: string;
+  created_from?: string;
+  created_to?: string;
+}
+
+export interface ChannelAPI {
+  listCardholders(page?: PageRequest): Promise<ListResponse<Cardholder>>;
+
+  listCards(query?: CardListRequest): Promise<ListResponse<Card>>;
 
   updateCardStatus(id: string, status: string): Promise<Card>;
 
-  listTransactions(): Promise<ListResponse<Transaction>>;
+  listTransactions(query?: TransactionListRequest): Promise<ListResponse<Transaction>>;
 
   simulateAuthorization(payload: {
     cardID: string;

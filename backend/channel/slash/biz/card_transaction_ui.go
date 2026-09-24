@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"time"
 
 	"generic-mock/enums"
 	"generic-mock/model"
@@ -14,13 +15,15 @@ import (
 
 type ListCardTransactionsRequest struct {
 	AccountID       *model.ID
+	CreatedFrom     *time.Time
+	CreatedTo       *time.Time
 	Offset          int
 	Limit           int
 	ID              *model.ID
 	CardID          *model.ID
 	AuthorizationID *model.ID
-	Type            *enums.CardTransactionType
-	Status          *enums.CardTransactionStatus
+	Types           []enums.CardTransactionType
+	Statuses        []enums.CardTransactionStatus
 }
 
 type SimulateRefundRequest struct {
@@ -131,15 +134,22 @@ func (u *SlashUIUsecase) SimulateRefund(ctx context.Context, req *SimulateRefund
 }
 
 func (u *SlashUIUsecase) ListCardTransactions(ctx context.Context, req *ListCardTransactionsRequest) ([]*model.CardTransaction, int64, error) {
+	if (req.CreatedFrom != nil && req.CreatedFrom.IsZero()) ||
+		(req.CreatedTo != nil && req.CreatedTo.IsZero()) ||
+		(req.CreatedFrom != nil && req.CreatedTo != nil && req.CreatedFrom.After(*req.CreatedTo)) {
+		return nil, 0, ErrInvalidOperation
+	}
 	items, err := u.cardTransactionRepository.List(ctx, &CardTransactionListRequest{
 		AccountIDs:       types.PointerSlice(req.AccountID),
-		AuthorizationIDs: types.PointerSlice(req.AuthorizationID),
-		CardIDs:          types.PointerSlice(req.CardID),
 		IDs:              types.PointerSlice(req.ID),
+		Statuses:         req.Statuses,
+		CreatedFrom:      req.CreatedFrom,
+		CreatedTo:        req.CreatedTo,
+		CardIDs:          types.PointerSlice(req.CardID),
+		AuthorizationIDs: types.PointerSlice(req.AuthorizationID),
+		Types:            req.Types,
 		Limit:            req.Limit,
 		Offset:           req.Offset,
-		Statuses:         types.PointerSlice(req.Status),
-		Types:            types.PointerSlice(req.Type),
 	})
 	if err != nil {
 		zap.S().Errorw("list slash card transactions", "error", err)
@@ -147,13 +157,15 @@ func (u *SlashUIUsecase) ListCardTransactions(ctx context.Context, req *ListCard
 	}
 	total, err := u.cardTransactionRepository.Count(ctx, &CardTransactionCountRequest{
 		AccountIDs:       types.PointerSlice(req.AccountID),
-		AuthorizationIDs: types.PointerSlice(req.AuthorizationID),
-		CardIDs:          types.PointerSlice(req.CardID),
 		IDs:              types.PointerSlice(req.ID),
+		Statuses:         req.Statuses,
+		CreatedFrom:      req.CreatedFrom,
+		CreatedTo:        req.CreatedTo,
+		CardIDs:          types.PointerSlice(req.CardID),
+		AuthorizationIDs: types.PointerSlice(req.AuthorizationID),
+		Types:            req.Types,
 		Limit:            req.Limit,
 		Offset:           req.Offset,
-		Statuses:         types.PointerSlice(req.Status),
-		Types:            types.PointerSlice(req.Type),
 	})
 	if err != nil {
 		zap.S().Errorw("count slash card transactions", "error", err)

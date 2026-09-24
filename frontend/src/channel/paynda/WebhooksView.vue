@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useClientPagination } from "@/channel/pagination";
 import { renderEnumTag } from "@/channel/tableTags";
 import { h, onMounted, ref } from "vue";
 import {
@@ -21,6 +22,7 @@ const loading = ref(false);
 const visible = ref(false);
 const editing = ref<Webhook | null>(null);
 const rows = ref<Webhook[]>([]);
+const pagination = useClientPagination(rows);
 const accounts = ref<Account[]>([]);
 const filterAccountID = ref<string | null>(null);
 const form = ref({ account_id: "", event: "", target_url: "", enabled: true });
@@ -183,6 +185,7 @@ onMounted(() => void load());
     </div>
 
     <n-select
+      class="list-filter"
       v-model:value="filterAccountID"
       @focus="loadAccountOptions"
       :options="
@@ -196,6 +199,8 @@ onMounted(() => void load());
     />
 
     <n-data-table
+      max-height="max(160px, calc(100dvh - 400px))"
+      :pagination="pagination"
       :scroll-x="1200"
       table-layout="fixed"
       :columns="columns"

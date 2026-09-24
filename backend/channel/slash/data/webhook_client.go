@@ -29,6 +29,11 @@ func (c *webhookClient) Deliver(ctx context.Context, req *biz.SlashWebhookDelive
 		return nil, err
 	}
 	httpRequest.Header.Set("Content-Type", "application/json")
+	if len(req.RequestHeaders) != 0 {
+		if err := json.Unmarshal(req.RequestHeaders, &httpRequest.Header); err != nil {
+			return nil, err
+		}
+	}
 	requestHeaders, err := json.Marshal(httpRequest.Header)
 	if err != nil {
 		return nil, err

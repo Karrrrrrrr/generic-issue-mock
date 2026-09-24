@@ -22,7 +22,12 @@ type CardHolderListRequest struct {
 	Limit      int
 }
 
+type CardHolderCountRequest struct {
+	AccountIDs []model.ID
+}
+
 type PayndaCardHolderRepository interface {
+	Count(context.Context, *CardHolderCountRequest) (int64, error)
 	Create(context.Context, *model.CardHolder) error
 	ExistByID(context.Context, model.ID) (bool, error)
 	FindByID(context.Context, model.ID) (*model.CardHolder, error)

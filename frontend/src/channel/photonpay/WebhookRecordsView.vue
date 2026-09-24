@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime } from "@/channel/dateTime";
 import { renderEnumTag } from "@/channel/tableTags";
 import { h, onMounted, ref } from "vue";
 import {
@@ -98,7 +99,7 @@ const columns: DataTableColumns<WebhookRecord> = [
   {
     title: "时间",
     key: "created_at",
-    render: (row) => h("span", new Date(row.created_at).toLocaleString()),
+    render: (row) => formatDateTime(row.created_at),
   },
   {
     title: "操作",
@@ -136,6 +137,7 @@ onMounted(() => void load());
       </div>
     </div>
     <n-data-table
+      max-height="max(160px, calc(100dvh - 400px))"
       :scroll-x="1200"
       table-layout="fixed"
       :columns="columns"
@@ -158,7 +160,12 @@ onMounted(() => void load());
       title="投递详情"
       style="width: min(900px, calc(100vw - 32px))"
     >
-      <n-descriptions v-if="selected" :column="2" label-placement="left">
+      <n-descriptions
+        v-if="selected"
+        class="webhook-detail-summary"
+        :column="2"
+        label-placement="left"
+      >
         <n-descriptions-item label="事件">{{ selected.event }}</n-descriptions-item>
         <n-descriptions-item label="状态">{{ selected.status }}</n-descriptions-item>
         <n-descriptions-item label="目标地址">{{ selected.target_url }}</n-descriptions-item>

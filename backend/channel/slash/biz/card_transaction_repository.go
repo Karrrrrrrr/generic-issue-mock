@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"time"
 
 	"generic-mock/enums"
 	"generic-mock/model"
@@ -16,6 +17,8 @@ type CardTransactionCountRequest struct {
 	AuthorizationIDs []model.ID
 	Types            []enums.CardTransactionType
 	Statuses         []enums.CardTransactionStatus
+	CreatedFrom      *time.Time
+	CreatedTo        *time.Time
 }
 
 type CardTransactionExistByAccountIDRequest struct {
@@ -37,6 +40,8 @@ type CardTransactionListRequest struct {
 	AuthorizationIDs []model.ID
 	Types            []enums.CardTransactionType
 	Statuses         []enums.CardTransactionStatus
+	CreatedFrom      *time.Time
+	CreatedTo        *time.Time
 }
 
 type ListAuthorizationStagesRequest struct {

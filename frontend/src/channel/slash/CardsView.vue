@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import TableFilters, { type FilterField } from "@/channel/TableFilters.vue";
+import { useTableFilters } from "@/channel/tableFilters";
+import { accountApi } from "./api";
+import { useRemotePagination } from "@/channel/pagination";
+import { formatDateTime } from "@/channel/dateTime";
 import { renderAmountTag, renderEnumTag } from "@/channel/tableTags";
 import { h, onMounted, ref } from "vue";
 import {
@@ -18,15 +23,71 @@ import type { Card } from "@/channel/types";
 const { message } = createDiscreteApi(["message"]);
 const loading = ref(false);
 const rows = ref<Card[]>([]);
+const { page, pageSize, total, pagination } = useRemotePagination(load);
 const fundingCard = ref<Card>();
 const fundingAmount = ref<number | null>(null);
 const withdrawing = ref(false);
 const funding = ref(false);
 
+const filterFields: FilterField[] = [
+  {
+    "key": "id",
+    "label": "卡 ID（精确）"
+  },
+  {
+    "key": "card_number",
+    "label": "卡号（支持部分卡号）"
+  },
+  {
+    "key": "card_status",
+    "label": "卡状态",
+    "options": [
+      {
+        "label": "正常",
+        "value": "active"
+      },
+      {
+        "label": "已冻结",
+        "value": "paused"
+      },
+      {
+        "label": "未激活",
+        "value": "inactive"
+      },
+      {
+        "label": "已关闭",
+        "value": "closed"
+      }
+    ]
+  }
+];
+const {
+  filters,
+  dateRange,
+  appliedFilters,
+  accountOptions,
+  accountsLoading,
+  loadAccounts,
+  search,
+  reset,
+} = useTableFilters({
+  loadAccounts: () => accountApi.listAll(),
+  onSearch: () => {
+    page.value = 1;
+    void load();
+  },
+});
+
 async function load() {
   loading.value = true;
   try {
-    rows.value = (await api.listCards()).data;
+    const response = await api.listCards({
+      ...appliedFilters.value,
+      page_number: page.value,
+      page_size: pageSize.value,
+    });
+    rows.value = response.data;
+    total.value = response.total_items;
   } catch (error) {
     message.error(error instanceof Error ? error.message : "加载卡片失败");
   } finally {
@@ -78,6 +139,10 @@ const columns = [
     key: "account_name",
   },
   {
+    title: "卡 ID",
+    key: "id",
+  },
+  {
     title: "卡 BIN",
     key: "card_bin",
   },
@@ -107,6 +172,7 @@ const columns = [
   {
     title: "到期日",
     key: "expires_at",
+    render: (row: Card) => formatDateTime(row.expires_at),
   },
   {
     title: "操作",
@@ -167,9 +233,23 @@ onMounted(load);
     </div>
     <n-button :loading="loading" @click="load">刷新</n-button>
   </div>
+  <TableFilters
+    v-model:values="filters"
+    v-model:date-range="dateRange"
+    :fields="filterFields"
+    :account-options="accountOptions"
+    :accounts-loading="accountsLoading"
+    :loading="loading"
+    @load-accounts="loadAccounts"
+    @search="search"
+    @reset="reset"
+  />
   <n-card :bordered="false">
     <n-data-table
-      :scroll-x="1400"
+      max-height="max(160px, calc(100dvh - 580px))"
+      remote
+      :pagination="pagination"
+      :scroll-x="1600"
       table-layout="fixed"
       :loading="loading"
       :columns="columns"

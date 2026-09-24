@@ -84,6 +84,8 @@ func Register(router *gin.RouterGroup, service *service.SlashUIService, openAPIS
 		uiRoutes.PUT("/webhooks/:id", bind(service.UpdateWebhook))
 		uiRoutes.DELETE("/webhooks/:id", bind(service.DeleteWebhook))
 		uiRoutes.GET("/webhooks/events", bind(service.ListWebhookEvents))
+		uiRoutes.GET("/webhook-records", bind(service.ListWebhookRecords))
+		uiRoutes.POST("/webhook-records/:id/replay", bind(service.ReplayWebhookRecord))
 	}
 }
 

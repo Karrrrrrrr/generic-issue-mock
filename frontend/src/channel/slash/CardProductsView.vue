@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { useClientPagination } from "@/channel/pagination";
 import { renderEnumTag } from "@/channel/tableTags";
 import { onMounted, ref } from "vue";
 import { NCard, NDataTable } from "naive-ui";
 import { type CardProduct, managementApi } from "./api";
 
 const rows = ref<CardProduct[]>([]);
+const pagination = useClientPagination(rows);
 const loading = ref(false);
 
 async function load() {
@@ -28,6 +30,8 @@ onMounted(() => void load());
     </div>
     <n-card :bordered="false">
       <n-data-table
+        max-height="max(160px, calc(100dvh - 400px))"
+        :pagination="pagination"
         :scroll-x="600"
         table-layout="fixed"
         :loading="loading"

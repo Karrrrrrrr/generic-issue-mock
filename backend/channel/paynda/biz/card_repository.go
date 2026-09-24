@@ -2,6 +2,8 @@ package biz
 
 import (
 	"context"
+	"generic-mock/enums"
+	"time"
 
 	"generic-mock/model"
 )
@@ -42,12 +44,27 @@ type FindCardRequest struct {
 }
 
 type CardListRequest struct {
-	AccountIDs []model.ID
-	Offset     int
-	Limit      int
+	AccountIDs  []model.ID
+	Offset      int
+	Limit       int
+	IDs         []model.ID
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
+	Statuses    []enums.CardStatus
+	CardNumber  *string
+}
+
+type CardCountRequest struct {
+	AccountIDs  []model.ID
+	IDs         []model.ID
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
+	Statuses    []enums.CardStatus
+	CardNumber  *string
 }
 
 type PayndaCardRepository interface {
+	Count(context.Context, *CardCountRequest) (int64, error)
 	FindCard(context.Context, *FindCardRequest) (*model.Card, error)
 	Create(context.Context, *model.Card) error
 	ExistByID(context.Context, *CardExistByIDRequest) (bool, error)

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime } from "@/channel/dateTime";
 import { renderAmountTag } from "@/channel/tableTags";
 import { h, onMounted, ref } from "vue";
 import {
@@ -118,7 +119,7 @@ const columns: DataTableColumns<Account> = [
   {
     title: "创建时间",
     key: "created_at",
-    render: (row) => h("span", new Date(row.created_at).toLocaleString()),
+    render: (row) => formatDateTime(row.created_at),
   },
   {
     title: "操作",
@@ -145,6 +146,7 @@ onMounted(() => void load());
       <n-button type="primary" @click="openCreate">新增账户</n-button>
     </div>
     <n-data-table
+      max-height="max(160px, calc(100dvh - 400px))"
       :scroll-x="1000"
       table-layout="fixed"
       :columns="columns"

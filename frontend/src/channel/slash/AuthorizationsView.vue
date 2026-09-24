@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import TableFilters, { type FilterField } from "@/channel/TableFilters.vue";
+import { useTableFilters } from "@/channel/tableFilters";
+import { accountApi } from "./api";
+import { useClientPagination } from "@/channel/pagination";
+import { formatDateTime } from "@/channel/dateTime";
 import { renderAmountTag } from "@/channel/tableTags";
 import { h, onMounted, ref } from "vue";
 import { createDiscreteApi, NButton, NCard, NDataTable, NInputNumber, NModal } from "naive-ui";
@@ -22,6 +27,7 @@ const { message } = createDiscreteApi(["message"]);
 const loading = ref(false);
 const saving = ref(false);
 const rows = ref<Authorization[]>([]);
+const pagination = useClientPagination(rows);
 const selected = ref<Authorization>();
 const amount = ref<number | null>(null);
 const columns = [
@@ -63,6 +69,7 @@ const columns = [
   {
     title: "时间",
     key: "created_at",
+    render: (row: Authorization) => formatDateTime(row.created_at),
   },
   {
     title: "操作",
@@ -83,10 +90,45 @@ const columns = [
   },
 ];
 
+const filterFields: FilterField[] = [
+  {
+    "key": "id",
+    "label": "授权 ID（精确）"
+  },
+  {
+    "key": "card_id",
+    "label": "卡 ID（精确）"
+  },
+  {
+    "key": "merchant_name",
+    "label": "商户名称（模糊）"
+  }
+];
+const {
+  filters,
+  dateRange,
+  appliedFilters,
+  accountOptions,
+  accountsLoading,
+  loadAccounts,
+  search,
+  reset,
+} = useTableFilters({
+  loadAccounts: () => accountApi.listAll(),
+  onSearch: () => {
+    pagination.value.onUpdatePage?.(1);
+    void load();
+  },
+});
+
 async function load() {
   loading.value = true;
   try {
-    rows.value = (await request.get<Authorization[]>(baseURL + "/authorization-balances")).data;
+    rows.value = (
+      await request.get<Authorization[]>(baseURL + "/authorization-balances", {
+        params: appliedFilters.value,
+      })
+    ).data;
   } catch (error) {
     message.error(error instanceof Error ? error.message : "加载授权失败");
   } finally {
@@ -123,8 +165,21 @@ onMounted(load);
     </div>
     <n-button :loading="loading" @click="load">刷新</n-button>
   </div>
+  <TableFilters
+    v-model:values="filters"
+    v-model:date-range="dateRange"
+    :fields="filterFields"
+    :account-options="accountOptions"
+    :accounts-loading="accountsLoading"
+    :loading="loading"
+    @load-accounts="loadAccounts"
+    @search="search"
+    @reset="reset"
+  />
   <n-card :bordered="false">
     <n-data-table
+      max-height="max(160px, calc(100dvh - 580px))"
+      :pagination="pagination"
       :scroll-x="1600"
       table-layout="fixed"
       :loading="loading"

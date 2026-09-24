@@ -127,11 +127,19 @@ export const refundApi = {
 };
 
 export const api: ChannelAPI = {
-  async listCardholders() {
-    return (await request.get<ListResponse<Cardholder>>(`${baseURL}/cardholders`)).data;
+  async listCardholders(page) {
+    return (
+      await request.get<ListResponse<Cardholder>>(`${baseURL}/cardholders`, {
+        params: page,
+      })
+    ).data;
   },
-  async listCards() {
-    return (await request.get<ListResponse<Card>>(`${baseURL}/cards`)).data;
+  async listCards(page) {
+    return (
+      await request.get<ListResponse<Card>>(`${baseURL}/cards`, {
+        params: page,
+      })
+    ).data;
   },
   async updateCardStatus(id, status) {
     return (
@@ -140,8 +148,12 @@ export const api: ChannelAPI = {
       })
     ).data;
   },
-  async listTransactions() {
-    return (await request.get<ListResponse<Transaction>>(`${baseURL}/transactions`)).data;
+  async listTransactions(page) {
+    return (
+      await request.get<ListResponse<Transaction>>(`${baseURL}/transactions`, {
+        params: page,
+      })
+    ).data;
   },
   async simulateAuthorization(payload) {
     await request.post(`${baseURL}/simulate/authorizations`, authorizationPayload(payload));

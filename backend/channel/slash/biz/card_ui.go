@@ -15,12 +15,14 @@ import (
 )
 
 type ListCardsRequest struct {
-	AccountID  *model.ID
-	Offset     int
-	Limit      int
-	IDContains *string
-	CardNumber *string
-	Status     *enums.CardStatus
+	AccountID   *model.ID
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
+	Offset      int
+	Limit       int
+	ID          *model.ID
+	CardNumber  *string
+	Statuses    []enums.CardStatus
 }
 
 type CreateCardRequest struct {
@@ -132,25 +134,34 @@ func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest)
 }
 
 func (u *SlashUIUsecase) ListCards(ctx context.Context, req *ListCardsRequest) ([]*model.Card, int64, error) {
+	if (req.CreatedFrom != nil && req.CreatedFrom.IsZero()) ||
+		(req.CreatedTo != nil && req.CreatedTo.IsZero()) ||
+		(req.CreatedFrom != nil && req.CreatedTo != nil && req.CreatedFrom.After(*req.CreatedTo)) {
+		return nil, 0, ErrInvalidOperation
+	}
 	items, err := u.cardRepository.List(ctx, &CardListRequest{
-		AccountIDs: types.PointerSlice(req.AccountID),
-		CardNumber: req.CardNumber,
-		IDContains: req.IDContains,
-		Limit:      req.Limit,
-		Offset:     req.Offset,
-		Statuses:   types.PointerSlice(req.Status),
+		AccountIDs:  types.PointerSlice(req.AccountID),
+		IDs:         types.PointerSlice(req.ID),
+		Statuses:    req.Statuses,
+		CreatedFrom: req.CreatedFrom,
+		CreatedTo:   req.CreatedTo,
+		CardNumber:  req.CardNumber,
+		Limit:       req.Limit,
+		Offset:      req.Offset,
 	})
 	if err != nil {
 		zap.S().Errorw("list slash cards", "error", err)
 		return nil, 0, ErrDatabaseOperation
 	}
 	total, err := u.cardRepository.Count(ctx, &CardCountRequest{
-		AccountIDs: types.PointerSlice(req.AccountID),
-		CardNumber: req.CardNumber,
-		IDContains: req.IDContains,
-		Limit:      req.Limit,
-		Offset:     req.Offset,
-		Statuses:   types.PointerSlice(req.Status),
+		AccountIDs:  types.PointerSlice(req.AccountID),
+		IDs:         types.PointerSlice(req.ID),
+		Statuses:    req.Statuses,
+		CreatedFrom: req.CreatedFrom,
+		CreatedTo:   req.CreatedTo,
+		CardNumber:  req.CardNumber,
+		Limit:       req.Limit,
+		Offset:      req.Offset,
 	})
 	if err != nil {
 		zap.S().Errorw("count slash cards", "error", err)

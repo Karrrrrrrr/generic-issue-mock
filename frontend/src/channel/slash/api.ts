@@ -129,11 +129,19 @@ export const refundApi = {
 };
 
 export const api: ChannelAPI = {
-  async listCardholders() {
-    return (await request.get<ListResponse<Cardholder>>(`${baseURL}/cardholders`)).data;
+  async listCardholders(page) {
+    return (
+      await request.get<ListResponse<Cardholder>>(`${baseURL}/cardholders`, {
+        params: page,
+      })
+    ).data;
   },
-  async listCards() {
-    return (await request.get<ListResponse<Card>>(`${baseURL}/cards`)).data;
+  async listCards(page) {
+    return (
+      await request.get<ListResponse<Card>>(`${baseURL}/cards`, {
+        params: page,
+      })
+    ).data;
   },
   async updateCardStatus(id, status) {
     return (
@@ -142,8 +150,12 @@ export const api: ChannelAPI = {
       })
     ).data;
   },
-  async listTransactions() {
-    return (await request.get<ListResponse<Transaction>>(`${baseURL}/transactions`)).data;
+  async listTransactions(page) {
+    return (
+      await request.get<ListResponse<Transaction>>(`${baseURL}/transactions`, {
+        params: page,
+      })
+    ).data;
   },
   async simulateAuthorization(payload) {
     await request.post(`${baseURL}/simulate/authorizations`, authorizationPayload(payload));
@@ -199,5 +211,51 @@ export const fundsApi = {
       target_id: input.withdraw ? accountWallet.id : input.walletID,
       amount: String(input.amount),
     });
+  },
+};
+
+export interface WebhookRecord {
+  id: string;
+  account_id: string;
+  account_name: string;
+  event: string;
+  target_url: string;
+  source_id: string;
+  payload: string;
+  request_headers: string;
+  response_body: string;
+  response_headers: string;
+  status_code: number;
+  status: string;
+  attempt_count: number;
+  delivered_at: string | null;
+  error_message: string;
+  created_at: string;
+}
+
+export interface WebhookRecordListRequest {
+  page_number: number;
+  page_size: number;
+  account_id?: string;
+  event?: string;
+  status?: string;
+  created_from?: string;
+  created_to?: string;
+}
+
+export const webhookRecordApi = {
+  async list(query: WebhookRecordListRequest) {
+    return (
+      await request.get<ListResponse<WebhookRecord>>(`${baseURL}/webhook-records`, {
+        params: query,
+      })
+    ).data;
+  },
+  async replay(record: Pick<WebhookRecord, "id" | "account_id">) {
+    return (
+      await request.post<WebhookRecord>(`${baseURL}/webhook-records/${record.id}/replay`, {
+        account_id: record.account_id,
+      })
+    ).data;
   },
 };

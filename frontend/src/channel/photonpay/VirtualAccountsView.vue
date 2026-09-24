@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useClientPagination } from "@/channel/pagination";
 import { renderAmountTag } from "@/channel/tableTags";
 import { accountApi } from "./api";
 import { h, onMounted, ref } from "vue";
@@ -28,6 +29,7 @@ type VirtualAccount = {
 const baseURL = "/photonpay/ui";
 const { message } = createDiscreteApi(["message"]);
 const rows = ref<VirtualAccount[]>([]);
+const pagination = useClientPagination(rows);
 const wallets = ref<Wallet[]>([]);
 const fundingAccount = ref<VirtualAccount>();
 const fundingAmount = ref<number | null>(null);
@@ -196,6 +198,8 @@ onMounted(load);
   </div>
   <n-card :bordered="false">
     <n-data-table
+      max-height="max(160px, calc(100dvh - 400px))"
+      :pagination="pagination"
       :scroll-x="1400"
       table-layout="fixed"
       :columns="columns"

@@ -13,6 +13,19 @@ import (
 	"go.uber.org/zap"
 )
 
+type ListUITransactionsRequest struct {
+	AccountID       *model.ID
+	CreatedFrom     *time.Time
+	CreatedTo       *time.Time
+	Offset          int
+	Limit           int
+	ID              *model.ID
+	CardID          *model.ID
+	AuthorizationID *model.ID
+	Types           []enums.CardTransactionType
+	Statuses        []enums.CardTransactionStatus
+}
+
 type PayndaListTransactionsRequest struct {
 	PayndaListRequest
 	CardID         *model.ID
@@ -37,17 +50,44 @@ type PayndaUIApplyTransactionStepRequest struct {
 	Amount            *decimal.Decimal
 }
 
-func (u *PayndaUIUsecase) ListTransactions(ctx context.Context, req *PayndaListRequest) ([]*model.CardTransaction, error) {
+func (u *PayndaUIUsecase) ListTransactions(ctx context.Context, req *ListUITransactionsRequest) ([]*model.CardTransaction, int64, error) {
+	if (req.CreatedFrom != nil && req.CreatedFrom.IsZero()) ||
+		(req.CreatedTo != nil && req.CreatedTo.IsZero()) ||
+		(req.CreatedFrom != nil && req.CreatedTo != nil && req.CreatedFrom.After(*req.CreatedTo)) {
+		return nil, 0, ErrInvalidOperation
+	}
 	items, err := u.cardTransactionRepository.List(ctx, &CardTransactionListRequest{
-		AccountIDs: types.PointerSlice(req.AccountID),
-		Offset:     req.Offset,
-		Limit:      req.Limit,
+		AccountIDs:       types.PointerSlice(req.AccountID),
+		IDs:              types.PointerSlice(req.ID),
+		Statuses:         req.Statuses,
+		CreatedFrom:      req.CreatedFrom,
+		CreatedTo:        req.CreatedTo,
+		CardIDs:          types.PointerSlice(req.CardID),
+		AuthorizationIDs: types.PointerSlice(req.AuthorizationID),
+		Types:            req.Types,
+		Offset:           req.Offset,
+		Limit:            req.Limit,
 	})
 	if err != nil {
 		zap.S().Errorw("list paynda UI transactions", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, 0, ErrDatabaseOperation
 	}
-	return items, nil
+	total, err := u.cardTransactionRepository.Count(ctx, &CardTransactionCountRequest{
+		AccountIDs:       types.PointerSlice(req.AccountID),
+		IDs:              types.PointerSlice(req.ID),
+		Statuses:         req.Statuses,
+		CreatedFrom:      req.CreatedFrom,
+		CreatedTo:        req.CreatedTo,
+		CardIDs:          types.PointerSlice(req.CardID),
+		AuthorizationIDs: types.PointerSlice(req.AuthorizationID),
+		Types:            req.Types,
+	})
+	if err != nil {
+		zap.S().Errorw("count paynda UI card transactions", "error", err)
+		return nil, 0, ErrDatabaseOperation
+	}
+
+	return items, total, nil
 }
 
 // SimulateRefund creates a posted refund directly for an active card.

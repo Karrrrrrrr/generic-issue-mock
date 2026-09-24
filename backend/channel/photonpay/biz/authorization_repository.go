@@ -2,12 +2,18 @@ package biz
 
 import (
 	"context"
+	"time"
 
 	"generic-mock/model"
 )
 
 type AuthorizationListBalancesRequest struct {
-	AccountIDs []model.ID
+	AccountIDs   []model.ID
+	IDs          []model.ID
+	CardIDs      []model.ID
+	MerchantName *string
+	CreatedFrom  *time.Time
+	CreatedTo    *time.Time
 }
 
 type ExistAuthorizationRequest struct {

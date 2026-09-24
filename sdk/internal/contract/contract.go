@@ -69,7 +69,7 @@ func New(testContext *testing.T, channel string) *Suite {
 	testContext.Helper()
 	base := os.Getenv("MOCK_BASE_URL")
 	if base == "" {
-		base = "http://127.0.0.1:8000"
+		base = "http://127.0.0.1:18000"
 	}
 	target, err := url.Parse(base)
 	if err != nil {
@@ -90,9 +90,19 @@ func New(testContext *testing.T, channel string) *Suite {
 		body, err := io.ReadAll(response.Body)
 		response.Body.Close()
 		if err != nil {
+			testContext.Logf("[SDK][%s] response read failed: %s %s: %v", channel, response.Request.Method, response.Request.URL, err)
 			return err
 		}
 		response.Body = io.NopCloser(bytes.NewReader(body))
+		testContext.Logf(
+			"[SDK][%s] <-- %s %s status=%d content-type=%q\n%s",
+			channel,
+			response.Request.Method,
+			response.Request.URL,
+			response.StatusCode,
+			response.Header.Get("Content-Type"),
+			body,
+		)
 		suite.mu.Lock()
 		suite.exchanges = append(suite.exchanges, Exchange{
 			Method:      response.Request.Method,
@@ -104,7 +114,29 @@ func New(testContext *testing.T, channel string) *Suite {
 		suite.mu.Unlock()
 		return nil
 	}
-	server := httptest.NewServer(proxy)
+	proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, err error) {
+		testContext.Logf("[SDK][%s] request failed: %s %s: %v", channel, request.Method, request.URL, err)
+		writer.WriteHeader(http.StatusBadGateway)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		body, err := io.ReadAll(request.Body)
+		request.Body.Close()
+		if err != nil {
+			testContext.Logf("[SDK][%s] request read failed: %s %s: %v", channel, request.Method, request.URL, err)
+			writer.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		request.Body = io.NopCloser(bytes.NewReader(body))
+		testContext.Logf(
+			"[SDK][%s] --> %s %s content-type=%q\n%s",
+			channel,
+			request.Method,
+			strings.TrimRight(base, "/")+request.URL.RequestURI(),
+			request.Header.Get("Content-Type"),
+			body,
+		)
+		proxy.ServeHTTP(writer, request)
+	}))
 	testContext.Cleanup(server.Close)
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -147,6 +179,7 @@ func (suite *Suite) UI(testContext *testing.T, method, path string, input any) m
 	}
 	request.Header.Set("Content-Type", "application/json")
 	client := &http.Client{Timeout: 10 * time.Second}
+	testContext.Logf("[UI setup][%s] --> %s %s\n%s", suite.Channel, method, request.URL, body)
 	response, err := client.Do(request)
 	if err != nil {
 		testContext.Fatalf("local server unavailable: %v", err)
@@ -156,6 +189,15 @@ func (suite *Suite) UI(testContext *testing.T, method, path string, input any) m
 	if err != nil {
 		testContext.Fatal(err)
 	}
+	testContext.Logf(
+		"[UI setup][%s] <-- %s %s status=%d content-type=%q\n%s",
+		suite.Channel,
+		method,
+		request.URL,
+		response.StatusCode,
+		response.Header.Get("Content-Type"),
+		raw,
+	)
 	if response.StatusCode != http.StatusOK {
 		testContext.Fatalf("fixture %s %s: %d %s", method, path, response.StatusCode, raw)
 	}

@@ -103,5 +103,20 @@ func (r *authorizationRepository) ListAuthorizations(ctx context.Context, req *b
 	if len(req.AccountIDs) != 0 {
 		query = query.Where(db.Authorization.AccountID.In(req.AccountIDs...))
 	}
+	if len(req.IDs) != 0 {
+		query = query.Where(db.Authorization.ID.In(req.IDs...))
+	}
+	if len(req.CardIDs) != 0 {
+		query = query.Where(db.Authorization.CardID.In(req.CardIDs...))
+	}
+	if req.MerchantName != nil {
+		query = query.Where(db.Authorization.MerchantName.Like("%" + *req.MerchantName + "%"))
+	}
+	if req.CreatedFrom != nil {
+		query = query.Where(db.Authorization.CreatedAt.Gte(*req.CreatedFrom))
+	}
+	if req.CreatedTo != nil {
+		query = query.Where(db.Authorization.CreatedAt.Lte(*req.CreatedTo))
+	}
 	return query.Order(db.Authorization.ID.Desc()).Find()
 }

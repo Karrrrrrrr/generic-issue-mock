@@ -2,6 +2,8 @@ package biz
 
 import (
 	"context"
+	"generic-mock/enums"
+	"time"
 
 	"generic-mock/model"
 )
@@ -22,12 +24,31 @@ type ListAuthorizationStagesRequest struct {
 }
 
 type CardTransactionListTransactionsRequest struct {
-	AccountIDs []model.ID
-	Offset     int
-	Limit      int
+	AccountIDs       []model.ID
+	Offset           int
+	Limit            int
+	IDs              []model.ID
+	CreatedFrom      *time.Time
+	CreatedTo        *time.Time
+	Statuses         []enums.CardTransactionStatus
+	CardIDs          []model.ID
+	AuthorizationIDs []model.ID
+	Types            []enums.CardTransactionType
+}
+
+type CardTransactionCountRequest struct {
+	AccountIDs       []model.ID
+	IDs              []model.ID
+	CreatedFrom      *time.Time
+	CreatedTo        *time.Time
+	Statuses         []enums.CardTransactionStatus
+	CardIDs          []model.ID
+	AuthorizationIDs []model.ID
+	Types            []enums.CardTransactionType
 }
 
 type CardTransactionRepository interface {
+	Count(context.Context, *CardTransactionCountRequest) (int64, error)
 	ListStages(context.Context, *ListAuthorizationStagesRequest) ([]*model.CardTransaction, error)
 	Create(context.Context, *model.CardTransaction) error
 	ExistByID(context.Context, model.ID) (bool, error)

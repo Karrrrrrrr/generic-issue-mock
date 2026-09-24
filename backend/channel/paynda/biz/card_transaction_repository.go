@@ -29,13 +29,18 @@ type CardTransactionFindByRequestIDRequest struct {
 }
 
 type CardTransactionListRequest struct {
-	AccountIDs     []model.ID
-	Offset         int
-	Limit          int
-	CardIDs        []model.ID
-	StartCreatedAt *time.Time
-	EndCreatedAt   *time.Time
-	Types          []enums.CardTransactionType
+	AccountIDs       []model.ID
+	Offset           int
+	Limit            int
+	CardIDs          []model.ID
+	StartCreatedAt   *time.Time
+	EndCreatedAt     *time.Time
+	Types            []enums.CardTransactionType
+	IDs              []model.ID
+	CreatedFrom      *time.Time
+	CreatedTo        *time.Time
+	Statuses         []enums.CardTransactionStatus
+	AuthorizationIDs []model.ID
 }
 
 type ListAuthorizationStagesRequest struct {
@@ -43,7 +48,19 @@ type ListAuthorizationStagesRequest struct {
 	ID        model.ID
 }
 
+type CardTransactionCountRequest struct {
+	AccountIDs       []model.ID
+	IDs              []model.ID
+	CreatedFrom      *time.Time
+	CreatedTo        *time.Time
+	Statuses         []enums.CardTransactionStatus
+	CardIDs          []model.ID
+	AuthorizationIDs []model.ID
+	Types            []enums.CardTransactionType
+}
+
 type PayndaCardTransactionRepository interface {
+	Count(context.Context, *CardTransactionCountRequest) (int64, error)
 	ListStages(context.Context, *ListAuthorizationStagesRequest) ([]*model.CardTransaction, error)
 	Create(context.Context, *model.CardTransaction) error
 	Save(context.Context, *model.CardTransaction) error
