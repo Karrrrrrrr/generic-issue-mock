@@ -1,5 +1,6 @@
 import type { Card, Cardholder, ChannelAPI, ListResponse, Transaction } from "@/channel/types";
 import { authorizationPayload, request } from "@/channel/shared";
+import type { RefundSimulationRequest } from "@/channel/shared/simulation";
 
 const baseURL = "/paynda/ui";
 
@@ -112,16 +113,7 @@ export const webhookRecordApi = {
 };
 
 export const refundApi = {
-  async simulate(payload: {
-    authorization_id?: string;
-    card_id?: string;
-    amount: number;
-    currency?: string;
-    merchant_name: string;
-    merchant_category_code: string;
-    merchant_country: string;
-    merchant_city: string;
-  }) {
+  async simulate(payload: RefundSimulationRequest) {
     return (await request.post<Transaction>(`${baseURL}/simulate/refunds`, payload)).data;
   },
 };

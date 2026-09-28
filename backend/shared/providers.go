@@ -4,10 +4,10 @@ import (
 	"generic-mock/shared/biz"
 	"generic-mock/shared/data"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
-func RegisterProviders(injector *do.Injector) {
+func RegisterProviders(injector do.Injector) {
 	do.Provide(injector, data.NewRepository)
 	do.Provide(injector, data.NewTransaction)
 	do.Provide(injector, data.NewAccountRepository)

@@ -18,7 +18,7 @@ import (
 	timeTypes "generic-mock/pkg/types/time"
 
 	kratosErrors "github.com/go-kratos/kratos/v2/errors"
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type PhotonPayOpenAPIService struct {
@@ -29,7 +29,7 @@ type OpenAPIAccountRequest struct {
 	Token string `header:"X-PD-TOKEN" binding:"required"`
 }
 
-func NewPhotonPayOpenAPIService(injector *do.Injector) (*PhotonPayOpenAPIService, error) {
+func NewPhotonPayOpenAPIService(injector do.Injector) (*PhotonPayOpenAPIService, error) {
 	return &PhotonPayOpenAPIService{
 		usecase: do.MustInvoke[*biz.PhotonPayOpenAPIUsecase](injector),
 	}, nil

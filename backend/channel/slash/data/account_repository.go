@@ -7,12 +7,12 @@ import (
 	"generic-mock/enums"
 	"generic-mock/model"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type accountRepository struct{ repository *SlashRepository }
 
-func NewAccountRepository(injector *do.Injector) (biz.SlashAccountRepository, error) {
+func NewAccountRepository(injector do.Injector) (biz.SlashAccountRepository, error) {
 	return &accountRepository{repository: do.MustInvoke[*SlashRepository](injector)}, nil
 }
 

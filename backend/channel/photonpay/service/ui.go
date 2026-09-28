@@ -11,7 +11,7 @@ import (
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"github.com/shopspring/decimal"
 )
 
@@ -355,7 +355,7 @@ func (s *PhotonPayUIService) ReplayWebhookRecord(
 	return photonPayUIWebhookRecordData(item), nil
 }
 
-func NewPhotonPayUIService(injector *do.Injector) (*PhotonPayUIService, error) {
+func NewPhotonPayUIService(injector do.Injector) (*PhotonPayUIService, error) {
 	return &PhotonPayUIService{
 		usecase: do.MustInvoke[*biz.PhotonPayUIUsecase](injector),
 	}, nil

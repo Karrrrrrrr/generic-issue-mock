@@ -7,12 +7,12 @@ import (
 	"generic-mock/enums"
 	"generic-mock/model"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type webhookConfigRepository struct{ repository *PayndaRepository }
 
-func NewWebhookConfigRepository(injector *do.Injector) (biz.PayndaWebhookConfigRepository, error) {
+func NewWebhookConfigRepository(injector do.Injector) (biz.PayndaWebhookConfigRepository, error) {
 	return &webhookConfigRepository{repository: do.MustInvoke[*PayndaRepository](injector)}, nil
 }
 

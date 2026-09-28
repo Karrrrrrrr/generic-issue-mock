@@ -8,7 +8,7 @@ import (
 	"generic-mock/internal/query"
 	"generic-mock/model"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"gorm.io/gen"
 )
 
@@ -16,7 +16,7 @@ type webhookRecordRepository struct {
 	repository *SlashRepository
 }
 
-func NewWebhookRecordRepository(injector *do.Injector) (biz.SlashWebhookRecordRepository, error) {
+func NewWebhookRecordRepository(injector do.Injector) (biz.SlashWebhookRecordRepository, error) {
 	return &webhookRecordRepository{
 		repository: do.MustInvoke[*SlashRepository](injector),
 	}, nil

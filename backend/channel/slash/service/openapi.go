@@ -12,7 +12,7 @@ import (
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"github.com/shopspring/decimal"
 )
 
@@ -21,7 +21,7 @@ type SlashOpenAPIService struct {
 	webhookUsecase *biz.SlashWebhookUsecase
 }
 
-func NewSlashOpenAPIService(injector *do.Injector) (*SlashOpenAPIService, error) {
+func NewSlashOpenAPIService(injector do.Injector) (*SlashOpenAPIService, error) {
 	return &SlashOpenAPIService{
 		usecase:        do.MustInvoke[*biz.SlashOpenAPIUsecase](injector),
 		webhookUsecase: do.MustInvoke[*biz.SlashWebhookUsecase](injector),

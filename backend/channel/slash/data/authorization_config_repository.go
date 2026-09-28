@@ -7,7 +7,7 @@ import (
 	"generic-mock/enums"
 	"generic-mock/model"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type authorizationConfigRepository struct {
@@ -15,7 +15,7 @@ type authorizationConfigRepository struct {
 }
 
 func NewAuthorizationConfigRepository(
-	injector *do.Injector,
+	injector do.Injector,
 ) (biz.SlashAuthorizationConfigRepository, error) {
 	return &authorizationConfigRepository{
 		repository: do.MustInvoke[*SlashRepository](injector),

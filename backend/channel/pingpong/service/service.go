@@ -11,7 +11,7 @@ import (
 	pingerrors "generic-mock/channel/pingpong/errors"
 	"generic-mock/channel/pingpong/pkg/idconv"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"github.com/shopspring/decimal"
 )
 
@@ -22,7 +22,7 @@ type PingPongOpenAPIService struct {
 
 type PingPongUIService struct{ uc *biz.PingPongUIUsecase }
 
-func NewOpenAPIService(injector *do.Injector) (*PingPongOpenAPIService, error) {
+func NewOpenAPIService(injector do.Injector) (*PingPongOpenAPIService, error) {
 	apps := make(map[string]string)
 	if value, exists := os.LookupEnv("PINGPONG_APP_ACCOUNTS"); exists {
 		if err := json.Unmarshal([]byte(value), &apps); err != nil {
@@ -43,7 +43,7 @@ func NewOpenAPIService(injector *do.Injector) (*PingPongOpenAPIService, error) {
 	}, nil
 }
 
-func NewUIService(injector *do.Injector) (*PingPongUIService, error) {
+func NewUIService(injector do.Injector) (*PingPongUIService, error) {
 	return &PingPongUIService{uc: do.MustInvoke[*biz.PingPongUIUsecase](injector)}, nil
 }
 

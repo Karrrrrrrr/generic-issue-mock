@@ -1,11 +1,13 @@
 package biz
 
 import (
-	"github.com/samber/do"
+	sharedbiz "generic-mock/shared/biz"
+
+	"github.com/samber/do/v2"
 )
 
 type PhotonPayOpenAPIUsecase struct {
-	transaction         PhotonPayTransaction
+	transaction         sharedbiz.Transaction
 	cardHolderRepo      CardHolderRepository
 	cardRepo            CardRepository
 	cardProductRepo     CardProductRepository
@@ -13,9 +15,9 @@ type PhotonPayOpenAPIUsecase struct {
 	virtualAccountRepo  VirtualAccountRepository
 }
 
-func NewPhotonPayOpenAPIUsecase(injector *do.Injector) (*PhotonPayOpenAPIUsecase, error) {
+func NewPhotonPayOpenAPIUsecase(injector do.Injector) (*PhotonPayOpenAPIUsecase, error) {
 	return &PhotonPayOpenAPIUsecase{
-		transaction:         do.MustInvoke[PhotonPayTransaction](injector),
+		transaction:         do.MustInvoke[sharedbiz.Transaction](injector),
 		cardHolderRepo:      do.MustInvoke[CardHolderRepository](injector),
 		cardRepo:            do.MustInvoke[CardRepository](injector),
 		cardProductRepo:     do.MustInvoke[CardProductRepository](injector),

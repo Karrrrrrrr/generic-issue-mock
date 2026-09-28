@@ -8,7 +8,7 @@ import (
 	"generic-mock/shared/biz"
 	sharederrors "generic-mock/shared/errors"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"gorm.io/gorm"
 )
 
@@ -16,7 +16,7 @@ type Repository struct {
 	db *gorm.DB
 }
 
-func NewRepository(injector *do.Injector) (*Repository, error) {
+func NewRepository(injector do.Injector) (*Repository, error) {
 	return &Repository{db: do.MustInvoke[*gorm.DB](injector)}, nil
 }
 
@@ -30,7 +30,7 @@ type transaction struct {
 
 var _ biz.Transaction = (*transaction)(nil)
 
-func NewTransaction(injector *do.Injector) (biz.Transaction, error) {
+func NewTransaction(injector do.Injector) (biz.Transaction, error) {
 	return &transaction{repo: do.MustInvoke[*Repository](injector)}, nil
 }
 

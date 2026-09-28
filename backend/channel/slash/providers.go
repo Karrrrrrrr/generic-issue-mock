@@ -5,12 +5,11 @@ import (
 	"generic-mock/channel/slash/data"
 	"generic-mock/channel/slash/service"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
-func RegisterProviders(injector *do.Injector) {
+func RegisterProviders(injector do.Injector) {
 	do.Provide(injector, data.NewRepository)
-	do.Provide(injector, data.NewTransaction)
 	do.Provide(injector, data.NewCardHolderRepository)
 	do.Provide(injector, data.NewCardRepository)
 	do.Provide(injector, data.NewCardProductRepository)

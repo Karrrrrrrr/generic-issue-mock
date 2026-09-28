@@ -6,7 +6,7 @@ import (
 	"generic-mock/internal/query"
 	"generic-mock/pkg/gormx"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"gorm.io/gorm"
 )
 
@@ -14,7 +14,7 @@ type SlashRepository struct {
 	db *gorm.DB
 }
 
-func NewRepository(injector *do.Injector) (*SlashRepository, error) {
+func NewRepository(injector do.Injector) (*SlashRepository, error) {
 	return &SlashRepository{
 		db: do.MustInvoke[*gorm.DB](injector),
 	}, nil

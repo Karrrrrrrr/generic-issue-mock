@@ -1,11 +1,13 @@
 package biz
 
 import (
-	"github.com/samber/do"
+	sharedbiz "generic-mock/shared/biz"
+
+	"github.com/samber/do/v2"
 )
 
 type PayndaOpenAPIUsecase struct {
-	transaction               PayndaTransaction
+	transaction               sharedbiz.Transaction
 	cardHolderRepository      PayndaCardHolderRepository
 	cardProductRepository     PayndaCardProductRepository
 	cardRepository            PayndaCardRepository
@@ -15,9 +17,9 @@ type PayndaOpenAPIUsecase struct {
 	authorizationRepository   PayndaAuthorizationRepository
 }
 
-func NewPayndaOpenAPIUsecase(injector *do.Injector) (*PayndaOpenAPIUsecase, error) {
+func NewPayndaOpenAPIUsecase(injector do.Injector) (*PayndaOpenAPIUsecase, error) {
 	return &PayndaOpenAPIUsecase{
-		transaction:               do.MustInvoke[PayndaTransaction](injector),
+		transaction:               do.MustInvoke[sharedbiz.Transaction](injector),
 		cardHolderRepository:      do.MustInvoke[PayndaCardHolderRepository](injector),
 		cardProductRepository:     do.MustInvoke[PayndaCardProductRepository](injector),
 		cardRepository:            do.MustInvoke[PayndaCardRepository](injector),

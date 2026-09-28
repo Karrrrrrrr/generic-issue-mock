@@ -3,11 +3,11 @@ package biz
 import (
 	sharedbiz "generic-mock/shared/biz"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type PingPongOpenAPIUsecase struct {
-	tx                 PingPongTransaction
+	tx                 sharedbiz.Transaction
 	accountRepo        PingPongAccountRepository
 	virtualAccountRepo PingPongVirtualAccountRepository
 	cardRepo           PingPongCardRepository
@@ -18,7 +18,7 @@ type PingPongOpenAPIUsecase struct {
 
 type PingPongUIUsecase struct {
 	simulator          sharedbiz.CardTransactionSimulator
-	tx                 PingPongTransaction
+	tx                 sharedbiz.Transaction
 	accountRepo        PingPongAccountRepository
 	virtualAccountRepo PingPongVirtualAccountRepository
 	cardRepo           PingPongCardRepository
@@ -28,9 +28,9 @@ type PingPongUIUsecase struct {
 	authorizationRepo  PingPongAuthorizationRepository
 }
 
-func NewOpenAPIUsecase(injector *do.Injector) (*PingPongOpenAPIUsecase, error) {
+func NewOpenAPIUsecase(injector do.Injector) (*PingPongOpenAPIUsecase, error) {
 	return &PingPongOpenAPIUsecase{
-		tx:                 do.MustInvoke[PingPongTransaction](injector),
+		tx:                 do.MustInvoke[sharedbiz.Transaction](injector),
 		accountRepo:        do.MustInvoke[PingPongAccountRepository](injector),
 		virtualAccountRepo: do.MustInvoke[PingPongVirtualAccountRepository](injector),
 		cardRepo:           do.MustInvoke[PingPongCardRepository](injector),
@@ -40,10 +40,10 @@ func NewOpenAPIUsecase(injector *do.Injector) (*PingPongOpenAPIUsecase, error) {
 	}, nil
 }
 
-func NewUIUsecase(injector *do.Injector) (*PingPongUIUsecase, error) {
+func NewUIUsecase(injector do.Injector) (*PingPongUIUsecase, error) {
 	return &PingPongUIUsecase{
 		simulator:          do.MustInvoke[sharedbiz.CardTransactionSimulator](injector),
-		tx:                 do.MustInvoke[PingPongTransaction](injector),
+		tx:                 do.MustInvoke[sharedbiz.Transaction](injector),
 		accountRepo:        do.MustInvoke[PingPongAccountRepository](injector),
 		virtualAccountRepo: do.MustInvoke[PingPongVirtualAccountRepository](injector),
 		cardRepo:           do.MustInvoke[PingPongCardRepository](injector),

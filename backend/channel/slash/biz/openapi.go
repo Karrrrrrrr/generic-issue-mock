@@ -1,12 +1,14 @@
 package biz
 
 import (
-	"github.com/samber/do"
+	sharedbiz "generic-mock/shared/biz"
+
+	"github.com/samber/do/v2"
 )
 
 type SlashOpenAPIUsecase struct {
 	accountRepository         SlashAccountRepository
-	transaction               SlashTransaction
+	transaction               sharedbiz.Transaction
 	cardHolderRepository      SlashCardHolderRepository
 	cardRepository            SlashCardRepository
 	cardProductRepository     SlashCardProductRepository
@@ -15,10 +17,10 @@ type SlashOpenAPIUsecase struct {
 	walletRepository          SlashWalletRepository
 }
 
-func NewSlashOpenAPIUsecase(injector *do.Injector) (*SlashOpenAPIUsecase, error) {
+func NewSlashOpenAPIUsecase(injector do.Injector) (*SlashOpenAPIUsecase, error) {
 	return &SlashOpenAPIUsecase{
 		accountRepository:         do.MustInvoke[SlashAccountRepository](injector),
-		transaction:               do.MustInvoke[SlashTransaction](injector),
+		transaction:               do.MustInvoke[sharedbiz.Transaction](injector),
 		cardHolderRepository:      do.MustInvoke[SlashCardHolderRepository](injector),
 		cardRepository:            do.MustInvoke[SlashCardRepository](injector),
 		cardProductRepository:     do.MustInvoke[SlashCardProductRepository](injector),

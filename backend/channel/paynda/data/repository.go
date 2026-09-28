@@ -6,7 +6,7 @@ import (
 	"generic-mock/internal/query"
 	"generic-mock/pkg/gormx"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"gorm.io/gorm"
 )
 
@@ -14,7 +14,7 @@ type PayndaRepository struct {
 	db *gorm.DB
 }
 
-func NewPayndaRepository(injector *do.Injector) (*PayndaRepository, error) {
+func NewPayndaRepository(injector do.Injector) (*PayndaRepository, error) {
 	return &PayndaRepository{
 		db: do.MustInvoke[*gorm.DB](injector),
 	}, nil

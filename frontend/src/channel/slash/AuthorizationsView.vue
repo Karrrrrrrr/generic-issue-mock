@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from "vue";
+import { computed, h, onMounted, ref } from "vue";
 import {
   NAlert,
   NButton,
@@ -8,7 +8,6 @@ import {
   NCollapseItem,
   NDataTable,
   NEmpty,
-  NInputNumber,
   NModal,
   NSpin,
   NTag,
@@ -22,6 +21,8 @@ import { formatDateTime } from "@/channel/dateTime";
 import { formatEnumLabel, renderAmountTag, renderEnumTag } from "@/channel/tableTags";
 import { request } from "@/channel/shared";
 import { accountApi } from "./api";
+import TransactionStageForm from "@/channel/shared/TransactionStageForm.vue";
+import { simulationStages, type SimulationStage } from "@/channel/shared/simulation";
 
 type Authorization = {
   id: string;
@@ -57,8 +58,6 @@ type AuthorizationDetail = Authorization & {
   transactions: AuthorizationTransaction[];
 };
 
-type Operation = "clear" | "reverse" | "refund";
-
 const baseURL = "/slash/ui";
 const message = useMessage();
 const loading = ref(false);
@@ -68,12 +67,7 @@ const selected = ref<Authorization>();
 const detail = ref<AuthorizationDetail>();
 const detailLoading = ref(false);
 const detailError = ref("");
-const saving = ref<Operation>();
-const amounts = reactive<Record<Operation, number | null>>({
-  clear: null,
-  reverse: null,
-  refund: null,
-});
+const saving = ref(false);
 const transactions = computed(() => detail.value?.transactions ?? []);
 const transactionPagination = useClientPagination(transactions);
 const isOverCleared = computed(() => Number(detail.value?.remaining) < 0);
@@ -82,26 +76,6 @@ const hasRawPayload = computed(() => {
   return payload != null && (typeof payload !== "object" || Object.keys(payload).length > 0);
 });
 const rawPayload = computed(() => JSON.stringify(detail.value?.raw_payload, null, 2));
-const operations = [
-  {
-    key: "clear",
-    title: "清算",
-    type: "primary",
-    description: "扣减钱包余额，允许超额及多次清算。",
-  },
-  {
-    key: "reverse",
-    title: "撤销",
-    type: "warning",
-    description: "减少剩余授权金额，不产生钱包收支。",
-  },
-  {
-    key: "refund",
-    title: "退款",
-    type: "info",
-    description: "退回钱包余额，无需先有清算交易。",
-  },
-] as const;
 const metrics = [
   {
     key: "amount",
@@ -324,9 +298,6 @@ async function load() {
 function openDetail(row: Authorization) {
   selected.value = row;
   detail.value = undefined;
-  amounts.clear = null;
-  amounts.reverse = null;
-  amounts.refund = null;
   transactionPagination.value.onUpdatePage(1);
   void loadDetail();
 }
@@ -365,27 +336,18 @@ async function loadDetail() {
   }
 }
 
-function validAmount(operation: Operation) {
-  const amount = amounts[operation];
-  return amount !== null && Number.isFinite(amount) && amount > 0;
+async function simulateStage(stage: SimulationStage, amount: number) {
+  const row = detail.value;
+  if (!row) {
+    throw new Error("请先选择授权");
+  }
+  await request.post(`${baseURL}/authorizations/${row.id}/${stage}`, {
+    amount: String(amount),
+  });
 }
 
-async function submit(operation: Operation) {
-  const row = detail.value;
-  if (!row || saving.value || detailLoading.value || !validAmount(operation)) return;
-  saving.value = operation;
-  try {
-    await request.post(`${baseURL}/authorizations/${row.id}/${operation}`, {
-      amount: String(amounts[operation]),
-    });
-    amounts[operation] = null;
-    message.success(`已创建${operations.find((item) => item.key === operation)?.title}交易`);
-    await Promise.all([loadDetail(), load()]);
-  } catch (error) {
-    message.error(error instanceof Error ? error.message : "创建交易失败");
-  } finally {
-    saving.value = undefined;
-  }
+async function refreshSimulation() {
+  await Promise.all([loadDetail(), load()]);
 }
 
 onMounted(load);
@@ -525,32 +487,22 @@ onMounted(load);
             </div>
             <p class="authorization-hint">每次操作生成一笔独立交易，金额必须为正数。创建后自动刷新汇总与交易记录。</p>
             <div class="authorization-operations">
-              <form
-                v-for="operation in operations"
+              <div
+                v-for="operation in simulationStages"
                 :key="operation.key"
                 class="authorization-operation"
-                @submit.prevent="submit(operation.key)"
               >
                 <h3>{{ operation.title }}</h3>
-                <p class="authorization-hint">{{ operation.description }}</p>
-                <label :for="`authorization-${operation.key}`">{{ operation.title }}金额（{{ detail.currency }}）</label>
-                <n-input-number
-                  v-model:value="amounts[operation.key]"
-                  :input-props="{ id: `authorization-${operation.key}` }"
-                  :placeholder="`输入${operation.title}金额`"
-                  :show-button="false"
-                  :disabled="Boolean(saving) || detailLoading"
+                <TransactionStageForm
+                  :key="`${detail.id}-${operation.key}`"
+                  :stage="operation.key"
+                  :currency="detail.currency"
+                  :disabled="saving || detailLoading"
+                  :simulate="(amount) => simulateStage(operation.key, amount)"
+                  @busy="saving = $event"
+                  @completed="refreshSimulation"
                 />
-                <n-button
-                  attr-type="submit"
-                  :type="operation.type"
-                  ghost
-                  :loading="saving === operation.key"
-                  :disabled="Boolean(saving) || detailLoading || !validAmount(operation.key)"
-                >
-                  创建{{ operation.title }}
-                </n-button>
-              </form>
+              </div>
             </div>
           </section>
           <section class="authorization-section">

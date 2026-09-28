@@ -11,7 +11,7 @@ import (
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"go.uber.org/zap"
 )
 
@@ -43,7 +43,7 @@ type SlashWebhookUsecase struct {
 	webhookClient           SlashWebhookClient
 }
 
-func NewSlashWebhookUsecase(injector *do.Injector) (*SlashWebhookUsecase, error) {
+func NewSlashWebhookUsecase(injector do.Injector) (*SlashWebhookUsecase, error) {
 	return &SlashWebhookUsecase{
 		webhookConfigRepository: do.MustInvoke[SlashWebhookConfigRepository](injector),
 		webhookRecordRepository: do.MustInvoke[SlashWebhookRecordRepository](injector),

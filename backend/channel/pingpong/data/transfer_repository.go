@@ -7,12 +7,12 @@ import (
 	common "generic-mock/enums"
 	"generic-mock/model"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type transferRepository struct{ *PingPongRepository }
 
-func NewTransferRepository(injector *do.Injector) (biz.PingPongTransferRepository, error) {
+func NewTransferRepository(injector do.Injector) (biz.PingPongTransferRepository, error) {
 	return &transferRepository{PingPongRepository: do.MustInvoke[*PingPongRepository](injector)}, nil
 }
 

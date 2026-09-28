@@ -4,7 +4,7 @@ import (
 	"generic-mock/model"
 	sharedbiz "generic-mock/shared/biz"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type ListRequest struct {
@@ -20,7 +20,7 @@ type ResourceRequest struct {
 
 type PhotonPayUIUsecase struct {
 	simulator               sharedbiz.CardTransactionSimulator
-	transaction             PhotonPayTransaction
+	transaction             sharedbiz.Transaction
 	cardHolderRepo          CardHolderRepository
 	cardRepo                CardRepository
 	cardProductRepo         CardProductRepository
@@ -35,10 +35,10 @@ type PhotonPayUIUsecase struct {
 	virtualAccountRepo      VirtualAccountRepository
 }
 
-func NewPhotonPayUIUsecase(injector *do.Injector) (*PhotonPayUIUsecase, error) {
+func NewPhotonPayUIUsecase(injector do.Injector) (*PhotonPayUIUsecase, error) {
 	return &PhotonPayUIUsecase{
 		simulator:               do.MustInvoke[sharedbiz.CardTransactionSimulator](injector),
-		transaction:             do.MustInvoke[PhotonPayTransaction](injector),
+		transaction:             do.MustInvoke[sharedbiz.Transaction](injector),
 		cardHolderRepo:          do.MustInvoke[CardHolderRepository](injector),
 		cardRepo:                do.MustInvoke[CardRepository](injector),
 		cardProductRepo:         do.MustInvoke[CardProductRepository](injector),

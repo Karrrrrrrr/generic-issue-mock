@@ -7,7 +7,7 @@ import (
 	"generic-mock/enums"
 	"generic-mock/model"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"gorm.io/gorm/clause"
 )
 
@@ -17,7 +17,7 @@ type walletRepository struct {
 
 var _ biz.PayndaWalletRepository = (*walletRepository)(nil)
 
-func NewWalletRepository(injector *do.Injector) (biz.PayndaWalletRepository, error) {
+func NewWalletRepository(injector do.Injector) (biz.PayndaWalletRepository, error) {
 	return &walletRepository{
 		repository: do.MustInvoke[*PayndaRepository](injector),
 	}, nil

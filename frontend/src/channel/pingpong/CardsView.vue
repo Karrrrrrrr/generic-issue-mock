@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, ref } from "vue";
+import { computed, h, ref } from "vue";
 import {
   NAlert,
   NButton,
@@ -16,15 +16,24 @@ import { renderAmountTag } from "@/channel/tableTags";
 import { api, requestID, type Card } from "./api";
 import { useList } from "./list";
 import { renderTag } from "./tags";
-const { rows, loading, busy, filters, pagination, search, perform } = useList<Card>("cards");
+import CardAuthorizationForm from "@/channel/shared/CardAuthorizationForm.vue";
+import type { AuthorizationSimulationRequest, SimulationCard } from "@/channel/shared/simulation";
+
+const { rows, loading, busy, filters, pagination, search, perform, load } = useList<Card>("cards");
 const accountFilter = ref("");
 const cardFilter = ref("");
 const statusFilter = ref<string | null>(null);
 const selected = ref<Card>();
 const operation = ref("top_up");
 const amount = ref<number | null>(null);
-const merchant = ref("模拟商户");
+const simulationBusy = ref(false);
 const orderID = ref("");
+const simulationCards = computed<SimulationCard[]>(() => selected.value ? [{
+  id: selected.value.id,
+  label: `${selected.value.account_name} · ${selected.value.card_number}`,
+  currency: selected.value.currency,
+  disabled: selected.value.status !== "ACTIVE",
+}] : []);
 const statuses = [
   {
     label: "正常",
@@ -144,17 +153,33 @@ async function submit() {
     amount: amount.value,
     request_id: orderID.value,
   };
-  const done = await perform(() => operation.value === "authorize" ? api.post("simulate/authorizations", {
-    ...common,
-    card_id: card.id,
-    currency: card.currency,
-    merchant_name: merchant.value,
-  }) : api.post(`cards/${card.id}/fund`, {
+  const done = await perform(() => api.post(`cards/${card.id}/fund`, {
     ...common,
     account_id: card.account_id,
     action: operation.value,
   }));
   if (done) {
+    selected.value = undefined;
+  }
+}
+
+async function simulateAuthorization(request: AuthorizationSimulationRequest) {
+  await api.post("simulate/authorizations", {
+    card_id: request.cardID,
+    amount: request.amount,
+    currency: request.currency,
+    merchant_name: request.merchantName,
+    request_id: orderID.value,
+  });
+}
+
+function completeSimulation() {
+  selected.value = undefined;
+  void load();
+}
+
+function closeOperation(shown: boolean) {
+  if (!shown && !busy.value && !simulationBusy.value) {
     selected.value = undefined;
   }
 }
@@ -209,8 +234,11 @@ async function submit() {
       :show="Boolean(selected)"
       preset="card"
       :title="operation === 'authorize' ? '本地模拟授权' : operation === 'withdraw' ? '卡 → 虚拟账户' : '虚拟账户 → 卡'"
+      :closable="!busy && !simulationBusy"
+      :mask-closable="!busy && !simulationBusy"
+      :close-on-esc="!busy && !simulationBusy"
       style="width: min(560px, 90vw)"
-      @update:show="shown => { if (!shown) selected = undefined; }"
+      @update:show="closeOperation"
     >
       <n-space vertical :size="20">
         <p>
@@ -230,20 +258,27 @@ async function submit() {
         >
           余额足够即可本地授权，不等待下游同意。Webhook 协议尚未补齐，本轮不会发送通知。
         </n-alert>
+        <CardAuthorizationForm
+          v-if="selected && operation === 'authorize'"
+          :key="orderID"
+          :cards="simulationCards"
+          :authorize="simulateAuthorization"
+          :select-card="false"
+          :merchant-details="false"
+          @busy="simulationBusy = $event"
+          @completed="completeSimulation"
+        />
         <n-input-number
+          v-else
           v-model:value="amount"
           :min="0.01"
           :precision="2"
           placeholder="金额"
         />
-        <n-input
-          v-if="operation === 'authorize'"
-          v-model:value="merchant"
-          placeholder="商户名称"
-        />
       </n-space>
       <template #action>
         <n-button
+          v-if="operation !== 'authorize'"
           type="primary"
           :loading="busy"
           @click="submit"

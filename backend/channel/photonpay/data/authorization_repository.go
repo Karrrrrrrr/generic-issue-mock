@@ -9,14 +9,14 @@ import (
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type authorizationRepository struct {
 	repository *Repository
 }
 
-func NewAuthorizationRepository(injector *do.Injector) (biz.AuthorizationRepository, error) {
+func NewAuthorizationRepository(injector do.Injector) (biz.AuthorizationRepository, error) {
 	return &authorizationRepository{
 		repository: do.MustInvoke[*Repository](injector),
 	}, nil

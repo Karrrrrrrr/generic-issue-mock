@@ -11,7 +11,7 @@ import (
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"github.com/shopspring/decimal"
 )
 
@@ -20,7 +20,7 @@ type SlashUIService struct {
 	webhookUsecase *biz.SlashWebhookUsecase
 }
 
-func NewSlashUIService(injector *do.Injector) (*SlashUIService, error) {
+func NewSlashUIService(injector do.Injector) (*SlashUIService, error) {
 	return &SlashUIService{
 		usecase:        do.MustInvoke[*biz.SlashUIUsecase](injector),
 		webhookUsecase: do.MustInvoke[*biz.SlashWebhookUsecase](injector),

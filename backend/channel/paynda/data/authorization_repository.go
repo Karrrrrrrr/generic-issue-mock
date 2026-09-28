@@ -8,7 +8,7 @@ import (
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"gorm.io/gorm/clause"
 )
 
@@ -18,7 +18,7 @@ type authorizationRepository struct {
 
 var _ biz.PayndaAuthorizationRepository = (*authorizationRepository)(nil)
 
-func NewAuthorizationRepository(injector *do.Injector) (biz.PayndaAuthorizationRepository, error) {
+func NewAuthorizationRepository(injector do.Injector) (biz.PayndaAuthorizationRepository, error) {
 	return &authorizationRepository{
 		repository: do.MustInvoke[*PayndaRepository](injector),
 	}, nil

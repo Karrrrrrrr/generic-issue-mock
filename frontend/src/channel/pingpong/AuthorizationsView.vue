@@ -6,7 +6,6 @@ import {
   NCard,
   NDataTable,
   NInput,
-  NInputNumber,
   NModal,
   NSpace,
 } from "naive-ui";
@@ -15,27 +14,16 @@ import { renderAmountTag } from "@/channel/tableTags";
 import { api, requestID, type Authorization } from "./api";
 import { useList } from "./list";
 import { renderTag } from "./tags";
-const { rows, loading, busy, filters, pagination, search, perform } = useList<Authorization>("authorizations");
+import TransactionStageForm from "@/channel/shared/TransactionStageForm.vue";
+import { simulationStages, type SimulationStage } from "@/channel/shared/simulation";
+
+const { rows, loading, filters, pagination, search, load } = useList<Authorization>("authorizations");
 const accountFilter = ref("");
 const cardFilter = ref("");
 const selected = ref<Authorization>();
-const action = ref("clear");
-const amount = ref<number | null>(null);
+const action = ref<SimulationStage>("clear");
+const simulationBusy = ref(false);
 const orderID = ref("");
-const actions = [
-  {
-    label: "清算",
-    value: "clear"
-  },
-  {
-    label: "撤销",
-    value: "reverse"
-  },
-  {
-    label: "退款",
-    value: "refund"
-  },
-];
 const columns = [
   {
     title: "授权 ID",
@@ -94,16 +82,15 @@ const columns = [
     render: (row: Authorization) => h(NSpace, {
       size: 6
     }, {
-      default: () => actions.map(item => h(NButton, {
+      default: () => simulationStages.map(item => h(NButton, {
         size: "small",
         onClick: () => {
           selected.value = row;
-          action.value = item.value;
-          amount.value = null;
+          action.value = item.key;
           orderID.value = requestID();
         },
       }, {
-        default: () => item.label
+        default: () => item.title
       })),
     }),
   },
@@ -113,16 +100,25 @@ function query() {
   filters.card_id = cardFilter.value || undefined;
   search();
 }
-async function submit() {
+async function simulateStage(amount: number) {
   const authorization = selected.value;
-  if (!authorization || amount.value === null || amount.value <= 0) {
-    return;
+  if (!authorization) {
+    throw new Error("请先选择授权");
   }
-  if (await perform(() => api.post(`authorizations/${authorization.id}/stages`, {
-    amount: amount.value,
+  await api.post(`authorizations/${authorization.id}/stages`, {
+    amount,
     stage: action.value,
     request_id: orderID.value,
-  }))) {
+  });
+}
+
+function completeSimulation() {
+  selected.value = undefined;
+  void load();
+}
+
+function closeSimulation(shown: boolean) {
+  if (!shown && !simulationBusy.value) {
     selected.value = undefined;
   }
 }
@@ -169,9 +165,12 @@ async function submit() {
     <n-modal
       :show="Boolean(selected)"
       preset="card"
-      :title="actions.find(item => item.value === action)?.label"
+      :title="simulationStages.find(item => item.key === action)?.title"
+      :closable="!simulationBusy"
+      :mask-closable="!simulationBusy"
+      :close-on-esc="!simulationBusy"
       style="width: min(480px, 90vw)"
-      @update:show="shown => { if (!shown) selected = undefined; }"
+      @update:show="closeSimulation"
     >
       <p>
         授权
@@ -183,20 +182,15 @@ async function submit() {
       <p>
         允许超额及继续清算，剩余金额可为负数。退款不恢复授权额度。
       </p>
-      <n-input-number
-        v-model:value="amount"
-        :min="0.01"
-        :precision="2"
+      <TransactionStageForm
+        v-if="selected"
+        :key="orderID"
+        :stage="action"
+        :currency="selected.currency"
+        :simulate="simulateStage"
+        @busy="simulationBusy = $event"
+        @completed="completeSimulation"
       />
-      <template #action>
-        <n-button
-          type="primary"
-          :loading="busy"
-          @click="submit"
-        >
-          确认
-        </n-button>
-      </template>
     </n-modal>
   </section>
 </template>

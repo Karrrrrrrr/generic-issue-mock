@@ -15,7 +15,7 @@ import (
 	"generic-mock/pkg/types"
 	sharederrors "generic-mock/shared/errors"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"go.uber.org/zap"
 )
 
@@ -60,7 +60,7 @@ type CardIssuer struct {
 	tx                 Transaction
 }
 
-func NewCardIssuer(injector *do.Injector) (*CardIssuer, error) {
+func NewCardIssuer(injector do.Injector) (*CardIssuer, error) {
 	return &CardIssuer{
 		accountRepo:        do.MustInvoke[AccountRepo](injector),
 		cardRepo:           do.MustInvoke[CardRepo](injector),

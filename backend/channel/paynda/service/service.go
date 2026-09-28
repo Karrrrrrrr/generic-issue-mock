@@ -14,7 +14,7 @@ import (
 	"generic-mock/pkg/types"
 	timeTypes "generic-mock/pkg/types/time"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"github.com/shopspring/decimal"
 )
 
@@ -22,7 +22,7 @@ type PayndaOpenAPIService struct {
 	usecase *biz.PayndaOpenAPIUsecase
 }
 
-func NewPayndaOpenAPIService(injector *do.Injector) (*PayndaOpenAPIService, error) {
+func NewPayndaOpenAPIService(injector do.Injector) (*PayndaOpenAPIService, error) {
 	return &PayndaOpenAPIService{
 		usecase: do.MustInvoke[*biz.PayndaOpenAPIUsecase](injector),
 	}, nil

@@ -4,7 +4,7 @@ import (
 	"generic-mock/model"
 	sharedbiz "generic-mock/shared/biz"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type PayndaResourceRequest struct {
@@ -20,7 +20,7 @@ type PayndaListRequest struct {
 
 type PayndaUIUsecase struct {
 	simulator                 sharedbiz.CardTransactionSimulator
-	transaction               PayndaTransaction
+	transaction               sharedbiz.Transaction
 	cardRepository            PayndaCardRepository
 	cardHolderRepository      PayndaCardHolderRepository
 	cardProductRepository     PayndaCardProductRepository
@@ -33,10 +33,10 @@ type PayndaUIUsecase struct {
 	webhookClient             PayndaWebhookClient
 }
 
-func NewPayndaUIUsecase(injector *do.Injector) (*PayndaUIUsecase, error) {
+func NewPayndaUIUsecase(injector do.Injector) (*PayndaUIUsecase, error) {
 	return &PayndaUIUsecase{
 		simulator:                 do.MustInvoke[sharedbiz.CardTransactionSimulator](injector),
-		transaction:               do.MustInvoke[PayndaTransaction](injector),
+		transaction:               do.MustInvoke[sharedbiz.Transaction](injector),
 		cardRepository:            do.MustInvoke[PayndaCardRepository](injector),
 		cardHolderRepository:      do.MustInvoke[PayndaCardHolderRepository](injector),
 		cardProductRepository:     do.MustInvoke[PayndaCardProductRepository](injector),

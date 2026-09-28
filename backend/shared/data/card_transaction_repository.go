@@ -6,14 +6,14 @@ import (
 	"generic-mock/model"
 	"generic-mock/shared/biz"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type cardTransactionRepository struct {
 	*Repository
 }
 
-func NewCardTransactionRepository(injector *do.Injector) (biz.CardTransactionRepo, error) {
+func NewCardTransactionRepository(injector do.Injector) (biz.CardTransactionRepo, error) {
 	return &cardTransactionRepository{Repository: do.MustInvoke[*Repository](injector)}, nil
 }
 

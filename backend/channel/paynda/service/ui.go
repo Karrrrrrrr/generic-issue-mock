@@ -11,7 +11,7 @@ import (
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"github.com/shopspring/decimal"
 )
 
@@ -19,7 +19,7 @@ type PayndaUIService struct {
 	usecase *biz.PayndaUIUsecase
 }
 
-func NewPayndaUIService(injector *do.Injector) (*PayndaUIService, error) {
+func NewPayndaUIService(injector do.Injector) (*PayndaUIService, error) {
 	return &PayndaUIService{
 		usecase: do.MustInvoke[*biz.PayndaUIUsecase](injector),
 	}, nil

@@ -10,14 +10,14 @@ import (
 
 	"generic-mock/channel/slash/biz"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type webhookClient struct {
 	client *http.Client
 }
 
-func NewWebhookClient(_ *do.Injector) (biz.SlashWebhookClient, error) {
+func NewWebhookClient(_ do.Injector) (biz.SlashWebhookClient, error) {
 	return &webhookClient{
 		client: &http.Client{Timeout: 10 * time.Second},
 	}, nil

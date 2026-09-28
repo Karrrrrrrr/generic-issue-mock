@@ -8,7 +8,7 @@ import (
 	"generic-mock/model"
 	sharederrors "generic-mock/shared/errors"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
@@ -103,7 +103,7 @@ type balanceChanger struct {
 
 var _ BalanceChanger = (*balanceChanger)(nil)
 
-func NewBalanceChanger(injector *do.Injector) (BalanceChanger, error) {
+func NewBalanceChanger(injector do.Injector) (BalanceChanger, error) {
 	return &balanceChanger{
 		walletRepo: do.MustInvoke[WalletRepo](injector),
 		tx:         do.MustInvoke[Transaction](injector),

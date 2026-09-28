@@ -8,7 +8,7 @@ import (
 	"generic-mock/internal/query"
 	"generic-mock/model"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"gorm.io/gen"
 )
 
@@ -18,7 +18,7 @@ type cardTransactionRepository struct {
 
 var _ biz.PayndaCardTransactionRepository = (*cardTransactionRepository)(nil)
 
-func NewCardTransactionRepository(injector *do.Injector) (biz.PayndaCardTransactionRepository, error) {
+func NewCardTransactionRepository(injector do.Injector) (biz.PayndaCardTransactionRepository, error) {
 	return &cardTransactionRepository{
 		repository: do.MustInvoke[*PayndaRepository](injector),
 	}, nil

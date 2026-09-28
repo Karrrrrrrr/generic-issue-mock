@@ -10,7 +10,7 @@ import (
 	"generic-mock/pkg/types"
 	sharederrors "generic-mock/shared/errors"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
@@ -212,7 +212,7 @@ type cardTransactionSimulator struct {
 
 var _ CardTransactionSimulator = (*cardTransactionSimulator)(nil)
 
-func NewCardTransactionSimulator(injector *do.Injector) (CardTransactionSimulator, error) {
+func NewCardTransactionSimulator(injector do.Injector) (CardTransactionSimulator, error) {
 	return &cardTransactionSimulator{
 		accountRepo:         do.MustInvoke[AccountRepo](injector),
 		cardRepo:            do.MustInvoke[CardRepo](injector),

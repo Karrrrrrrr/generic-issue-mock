@@ -7,14 +7,14 @@ import (
 	"generic-mock/enums"
 	"generic-mock/model"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type virtualAccountRepository struct{ repository *SlashRepository }
 
 var _ biz.SlashVirtualAccountRepository = (*virtualAccountRepository)(nil)
 
-func NewVirtualAccountRepository(injector *do.Injector) (biz.SlashVirtualAccountRepository, error) {
+func NewVirtualAccountRepository(injector do.Injector) (biz.SlashVirtualAccountRepository, error) {
 	return &virtualAccountRepository{repository: do.MustInvoke[*SlashRepository](injector)}, nil
 }
 

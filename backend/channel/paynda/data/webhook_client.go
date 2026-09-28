@@ -15,7 +15,7 @@ import (
 	"generic-mock/channel/paynda/biz"
 	"generic-mock/pkg/randomx"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type webhookClient struct {
@@ -24,7 +24,7 @@ type webhookClient struct {
 	appSecret string
 }
 
-func NewWebhookClient(_ *do.Injector) (biz.PayndaWebhookClient, error) {
+func NewWebhookClient(_ do.Injector) (biz.PayndaWebhookClient, error) {
 	return &webhookClient{
 		client:    &http.Client{Timeout: 10 * time.Second},
 		appID:     os.Getenv("PAYNDA_WEBHOOK_APP_ID"),

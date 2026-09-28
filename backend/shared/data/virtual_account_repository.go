@@ -6,14 +6,14 @@ import (
 	"generic-mock/model"
 	"generic-mock/shared/biz"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type virtualAccountRepository struct {
 	*Repository
 }
 
-func NewVirtualAccountRepository(injector *do.Injector) (biz.VirtualAccountRepo, error) {
+func NewVirtualAccountRepository(injector do.Injector) (biz.VirtualAccountRepo, error) {
 	return &virtualAccountRepository{Repository: do.MustInvoke[*Repository](injector)}, nil
 }
 

@@ -5,34 +5,29 @@ import { useTableFilters } from "@/channel/tableFilters";
 import { accountApi } from "./api";
 import { useRemotePagination } from "@/channel/pagination";
 import { renderAmountTag, renderEnumTag } from "@/channel/tableTags";
-import { computed, h, onMounted, ref } from "vue";
+import { h, onMounted, ref } from "vue";
 import {
   createDiscreteApi,
   NButton,
   NCard,
   NDataTable,
-  NForm,
-  NFormItem,
-  NInputNumber,
   NModal,
   NSpace,
   NTag,
 } from "naive-ui";
-import { api, applyTransactionAmount } from "./api";
+import { api } from "./api";
+import TransactionStageForm from "@/channel/shared/TransactionStageForm.vue";
 import type { Transaction } from "@/channel/types";
+import { useSimulation } from "@/channel/shared/useSimulation";
+import { simulationStages, type SimulationStage } from "@/channel/shared/simulation";
 
 const { message } = createDiscreteApi(["message"]);
 const rows = ref<Transaction[]>([]);
 const loading = ref(false);
+const { submitting: simulationBusy, submit: submitSimulation } = useSimulation();
 const { page, pageSize, total, pagination } = useRemotePagination(load);
 const refunding = ref<Transaction | null>(null);
-const refundAmount = ref<number | null>(null);
-const refundVisible = computed({
-  get: () => refunding.value !== null,
-  set: (value) => {
-    if (!value) refunding.value = null;
-  },
-});
+const refundBusy = ref(false);
 
 const filterFields: FilterField[] = [
   {
@@ -122,29 +117,37 @@ async function load() {
   }
 }
 
-async function apply(transaction: Transaction, action: "clear" | "reverse" | "refund") {
-  try {
-    await api.applyTransactionStep(transaction.id, action);
+async function apply(transaction: Transaction, action: SimulationStage) {
+  const title = simulationStages.find((stage) => stage.key === action)!.title;
+  if (await submitSimulation(
+    () => api.applyTransactionStep(transaction.id, action),
+    `已创建${title}交易`,
+  )) {
     await load();
-  } catch (e) {
-    message.error(e instanceof Error ? e.message : "操作失败");
   }
 }
 
 function openRefund(row: Transaction) {
   refunding.value = row;
-  refundAmount.value = Number(row.amount);
 }
 
-async function submitRefund() {
-  if (!refunding.value || !refundAmount.value || refundAmount.value <= 0) return;
-  try {
-    await applyTransactionAmount(refunding.value.id, "refund", refundAmount.value);
-    refunding.value = null;
-    await load();
-  } catch (e) {
-    message.error(e instanceof Error ? e.message : "退款失败");
+async function simulateRefund(amount: number) {
+  const transaction = refunding.value;
+  if (!transaction) {
+    throw new Error("请先选择交易");
   }
+  await api.applyTransactionStep(transaction.id, "refund", amount);
+}
+
+function closeRefund(shown: boolean) {
+  if (!shown && !refundBusy.value) {
+    refunding.value = null;
+  }
+}
+
+function completeRefund() {
+  refunding.value = null;
+  void load();
 }
 
 function actions(row: Transaction) {
@@ -152,7 +155,11 @@ function actions(row: Transaction) {
     return [
       h(
         NButton,
-        { size: "small", onClick: () => apply(row, "reverse") },
+        {
+          size: "small",
+          disabled: simulationBusy.value,
+          onClick: () => apply(row, "reverse"),
+        },
         { default: () => "撤销" },
       ),
     ];
@@ -257,32 +264,25 @@ onMounted(() => void load());
     />
   </n-card>
   <n-modal
-    v-model:show="refundVisible"
+    :show="Boolean(refunding)"
     preset="card"
-    title="创建退款"
-    style="width: min(440px, calc(100vw - 32px))"
+    title="模拟退款"
+    style="width: min(480px, 90vw)"
+    :closable="!refundBusy"
+    :mask-closable="!refundBusy"
+    :close-on-esc="!refundBusy"
+    @update:show="closeRefund"
   >
-    <n-form label-placement="top">
-      <n-form-item label="原交易"
-        ><span
-          >{{ refunding?.merchant_name }} · {{ refunding?.currency }} {{ refunding?.amount }}</span
-        ></n-form-item
-      >
-      <n-form-item label="退款金额">
-        <n-input-number
-          v-model:value="refundAmount"
-          :min="0.01"
-          :max="Number(refunding?.amount || 0)"
-          :precision="2"
-          style="width: 100%"
-        />
-      </n-form-item>
-    </n-form>
-    <template #action>
-      <n-space justify="end">
-        <n-button @click="refunding = null">取消</n-button>
-        <n-button type="warning" @click="submitRefund">创建退款</n-button>
-      </n-space>
-    </template>
+    <p>{{ refunding?.merchant_name }} · {{ refunding?.currency }} {{ refunding?.amount }}</p>
+    <TransactionStageForm
+      v-if="refunding"
+      :key="refunding.id"
+      stage="refund"
+      :currency="refunding.currency"
+      :initial-amount="Number(refunding.amount)"
+      :simulate="simulateRefund"
+      @busy="refundBusy = $event"
+      @completed="completeRefund"
+    />
   </n-modal>
 </template>

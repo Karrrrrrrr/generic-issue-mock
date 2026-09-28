@@ -7,14 +7,14 @@ import (
 	"generic-mock/enums"
 	"generic-mock/model"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type cardTransactionRepository struct {
 	repository *Repository
 }
 
-func NewCardTransactionRepository(injector *do.Injector) (biz.CardTransactionRepository, error) {
+func NewCardTransactionRepository(injector do.Injector) (biz.CardTransactionRepository, error) {
 	return &cardTransactionRepository{
 		repository: do.MustInvoke[*Repository](injector),
 	}, nil

@@ -6,7 +6,7 @@ import (
 	"generic-mock/model"
 	"generic-mock/shared/biz"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"gorm.io/gorm/clause"
 )
 
@@ -14,7 +14,7 @@ type walletRepository struct {
 	*Repository
 }
 
-func NewWalletRepository(injector *do.Injector) (biz.WalletRepo, error) {
+func NewWalletRepository(injector do.Injector) (biz.WalletRepo, error) {
 	return &walletRepository{Repository: do.MustInvoke[*Repository](injector)}, nil
 }
 

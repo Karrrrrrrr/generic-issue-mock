@@ -9,10 +9,13 @@ import { h, onMounted, ref } from "vue";
 import { createDiscreteApi, NButton, NCard, NDataTable, NSpace, NTag } from "naive-ui";
 import { api } from "./api";
 import type { Transaction } from "@/channel/types";
+import { useSimulation } from "@/channel/shared/useSimulation";
+import { simulationStages, type SimulationStage } from "@/channel/shared/simulation";
 
 const { message } = createDiscreteApi(["message"]);
 const rows = ref<Transaction[]>([]);
 const loading = ref(false);
+const { submitting: simulationBusy, submit: submitSimulation } = useSimulation();
 const { page, pageSize, total, pagination } = useRemotePagination(load);
 
 const filterFields: FilterField[] = [
@@ -111,12 +114,13 @@ async function load() {
   }
 }
 
-async function apply(transaction: Transaction, action: "clear" | "reverse" | "refund") {
-  try {
-    await api.applyTransactionStep(transaction.id, action);
+async function apply(transaction: Transaction, action: SimulationStage) {
+  const title = simulationStages.find((stage) => stage.key === action)!.title;
+  if (await submitSimulation(
+    () => api.applyTransactionStep(transaction.id, action),
+    `已创建${title}交易`,
+  )) {
     await load();
-  } catch (e) {
-    message.error(e instanceof Error ? e.message : "操作失败");
   }
 }
 
@@ -125,7 +129,11 @@ function actions(r: Transaction) {
     return [
       h(
         NButton,
-        { size: "small", onClick: () => apply(r, "reverse") },
+        {
+          size: "small",
+          disabled: simulationBusy.value,
+          onClick: () => apply(r, "reverse"),
+        },
         { default: () => "撤销" },
       ),
     ];
@@ -133,7 +141,11 @@ function actions(r: Transaction) {
     return [
       h(
         NButton,
-        { size: "small", onClick: () => apply(r, "refund") },
+        {
+          size: "small",
+          disabled: simulationBusy.value,
+          onClick: () => apply(r, "refund"),
+        },
         { default: () => "退款" },
       ),
     ];

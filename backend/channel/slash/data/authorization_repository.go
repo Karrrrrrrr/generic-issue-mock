@@ -10,7 +10,7 @@ import (
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"gorm.io/gen"
 )
 
@@ -18,7 +18,7 @@ type authorizationRepository struct {
 	repository *SlashRepository
 }
 
-func NewAuthorizationRepository(injector *do.Injector) (biz.SlashAuthorizationRepository, error) {
+func NewAuthorizationRepository(injector do.Injector) (biz.SlashAuthorizationRepository, error) {
 	return &authorizationRepository{
 		repository: do.MustInvoke[*SlashRepository](injector),
 	}, nil

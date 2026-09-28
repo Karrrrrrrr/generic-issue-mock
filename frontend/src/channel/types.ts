@@ -1,3 +1,5 @@
+import type { AuthorizationSimulationRequest, SimulationStage } from "./shared/simulation";
+
 export interface Cardholder {
   account_id: string;
   account_name: string;
@@ -87,19 +89,11 @@ export interface ChannelAPI {
 
   listTransactions(query?: TransactionListRequest): Promise<ListResponse<Transaction>>;
 
-  simulateAuthorization(payload: {
-    cardID: string;
-    amount: number;
-    currency: string;
-    merchantName: string;
-    merchantMCC: string;
-    merchantCountry: string;
-    merchantCity: string;
-  }): Promise<void>;
+  simulateAuthorization(payload: AuthorizationSimulationRequest): Promise<void>;
 
   applyTransactionStep(
     id: string,
-    action: "clear" | "reverse" | "refund",
+    action: SimulationStage,
     amount?: number,
   ): Promise<void>;
 }

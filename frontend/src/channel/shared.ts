@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { AuthorizationSimulationRequest } from "./shared/simulation";
 
 export const request = axios.create({ timeout: 10_000 });
 
@@ -10,15 +11,7 @@ request.interceptors.response.use(
   },
 );
 
-export function authorizationPayload(payload: {
-  cardID: string;
-  amount: number;
-  currency: string;
-  merchantName: string;
-  merchantMCC: string;
-  merchantCountry: string;
-  merchantCity: string;
-}) {
+export function authorizationPayload(payload: AuthorizationSimulationRequest) {
   return {
     card_id: payload.cardID,
     transaction_amount: payload.amount,

@@ -20,7 +20,7 @@ import (
 	"generic-mock/data"
 
 	"github.com/gin-gonic/gin"
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"go.uber.org/zap"
 )
 

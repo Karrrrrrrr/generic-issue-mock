@@ -6,12 +6,12 @@ import (
 	"generic-mock/channel/pingpong/biz"
 	"generic-mock/model"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
 type cardTransactionRepository struct{ *PingPongRepository }
 
-func NewCardTransactionRepository(injector *do.Injector) (biz.PingPongCardTransactionRepository, error) {
+func NewCardTransactionRepository(injector do.Injector) (biz.PingPongCardTransactionRepository, error) {
 	return &cardTransactionRepository{PingPongRepository: do.MustInvoke[*PingPongRepository](injector)}, nil
 }
 

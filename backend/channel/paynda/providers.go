@@ -5,10 +5,10 @@ import (
 	"generic-mock/channel/paynda/data"
 	"generic-mock/channel/paynda/service"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
-func RegisterProviders(injector *do.Injector) {
+func RegisterProviders(injector do.Injector) {
 	do.Provide(injector, data.NewPayndaRepository)
 	do.Provide(injector, data.NewCardHolderRepository)
 	do.Provide(injector, data.NewCardProductRepository)
@@ -20,7 +20,6 @@ func RegisterProviders(injector *do.Injector) {
 	do.Provide(injector, data.NewWebhookConfigRepository)
 	do.Provide(injector, data.NewWebhookRecordRepository)
 	do.Provide(injector, data.NewWebhookClient)
-	do.Provide(injector, data.NewPayndaTransaction)
 	do.Provide(injector, biz.NewPayndaOpenAPIUsecase)
 	do.Provide(injector, biz.NewPayndaUIUsecase)
 	do.Provide(injector, service.NewPayndaOpenAPIService)

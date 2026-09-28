@@ -21,6 +21,7 @@ Slash、Paynda、PhotonPay、PingPong 的 UI 模拟授权、清算、退款和�
 - `BalanceChanger`：通用余额变更接口，具体实现 `balanceChanger` 不导出，编译期断言保证接口实现完整。请求、`Validate` 和实现集中在 `biz/balance_changer.go`。
 - `AccountRepo`、`CardRepo`、`CardHolderRepo`、`CardProductRepo`、`VirtualAccountRepo`、`WalletRepo`、`AuthorizationRepo`、`CardTransactionRepo`：按资源拆分，只包含当前共享业务需要的仓储操作。
 - `Transaction`：`InTx` 管理真实提交边界，`IsInTx` 判断当前 context 是否已经携带事务。
+- 四个渠道的 UI/OpenAPI usecase 直接注入 `shared/biz.Transaction`，只由 `shared.RegisterProviders` 注册一次；不再定义渠道事务接口、别名或私有实现。各渠道仓储仍通过 `gormx.DB(ctx, db)` 使用同一个 context 事务。`InTx` 拒绝嵌套事务，需要加入已有事务的共享余额组件通过 `IsInTx` 判断后直接执行。
 - `Notificator`：由上层实现并在每次开卡请求中传入。通用层不负责 webhook DTO、签名、HTTP 调用、队列或重试策略。
 - `CardTransactionNotificator`：只负责交易通知，不要求实现开卡通知接口。
 - 记账规则对所有渠道一致。模拟器决定操作金额、冻结释放上限和流程，由唯一的 `BalanceChanger` 实现钱包金额变更；它不是可按渠道切换的记账策略。

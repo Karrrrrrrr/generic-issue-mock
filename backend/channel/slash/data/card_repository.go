@@ -9,7 +9,7 @@ import (
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 	"gorm.io/gen"
 	"gorm.io/gorm/clause"
 )
@@ -18,7 +18,7 @@ type cardRepository struct {
 	repository *SlashRepository
 }
 
-func NewCardRepository(injector *do.Injector) (biz.SlashCardRepository, error) {
+func NewCardRepository(injector do.Injector) (biz.SlashCardRepository, error) {
 	return &cardRepository{
 		repository: do.MustInvoke[*SlashRepository](injector),
 	}, nil
