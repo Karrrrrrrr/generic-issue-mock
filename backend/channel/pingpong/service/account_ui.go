@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"generic-mock/channel/pingpong/biz"
-	"generic-mock/channel/pingpong/pkg/idconv"
+	pingerrors "generic-mock/channel/pingpong/errors"
 	common "generic-mock/enums"
 	"generic-mock/model"
 )
 
 type AccountData struct {
-	WalletID  string          `json:"wallet_id"`
-	ID        string          `json:"id"`
+	WalletID  model.ID        `json:"wallet_id"`
+	ID        model.ID        `json:"id"`
 	Name      string          `json:"name"`
 	Balance   Number          `json:"balance"`
 	Currency  common.Currency `json:"currency"`
@@ -20,14 +20,14 @@ type AccountData struct {
 }
 
 type UIUpdateAccountRequest struct {
-	ID   string `uri:"id" binding:"required"`
-	Name string `json:"name" binding:"required"`
+	ID   model.ID `uri:"id" binding:"required,gt=0"`
+	Name string   `json:"name" binding:"required"`
 }
 
 func (s *PingPongUIService) UpdateAccount(ctx context.Context, req *UIUpdateAccountRequest) (*AccountData, error) {
-	accountID, err := idconv.FromString(req.ID)
-	if err != nil {
-		return nil, err
+	accountID := req.ID
+	if accountID <= 0 {
+		return nil, pingerrors.ErrInvalid
 	}
 	item, err := s.uc.UpdateAccount(ctx, &biz.UpdateAccountRequest{
 		AccountID: accountID,
@@ -45,19 +45,19 @@ type UICreateAccountRequest struct {
 }
 
 type UIAccountBalanceRequest struct {
-	ID     string `uri:"id" binding:"required"`
-	Amount Number `json:"amount"`
+	ID     model.ID `uri:"id" binding:"required,gt=0"`
+	Amount Number   `json:"amount"`
 }
 
 type UIResourceRequest struct {
-	AccountID string `json:"account_id" binding:"required"`
-	ID        string `uri:"id" binding:"required"`
+	AccountID model.ID `json:"account_id" binding:"required,gt=0"`
+	ID        model.ID `uri:"id" binding:"required,gt=0"`
 }
 
 func toAccountData(item *model.Account) AccountData {
 	result := AccountData{
-		ID:        idconv.ToString(item.ID),
-		WalletID:  idconv.ToString(item.WalletID),
+		ID:        item.ID,
+		WalletID:  item.WalletID,
 		Name:      item.Name,
 		CreatedAt: item.CreatedAt,
 	}
@@ -100,9 +100,9 @@ func (s *PingPongUIService) CreateAccount(ctx context.Context, req *UICreateAcco
 }
 
 func (s *PingPongUIService) AdjustAccountBalance(ctx context.Context, req *UIAccountBalanceRequest) (*Empty, error) {
-	id, err := idconv.FromString(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id <= 0 {
+		return nil, pingerrors.ErrInvalid
 	}
 	if err := s.uc.AdjustAccount(ctx, &biz.AdjustAccountRequest{
 		AccountID: id,
@@ -113,11 +113,9 @@ func (s *PingPongUIService) AdjustAccountBalance(ctx context.Context, req *UIAcc
 	return &Empty{}, nil
 }
 
-func (req *UIResourceRequest) ParseAccountAndResourceIDs() (int64, int64, error) {
-	accountID, err := idconv.FromString(req.AccountID)
-	if err != nil {
-		return 0, 0, err
+func (req *UIResourceRequest) Validate() error {
+	if req == nil || req.AccountID <= 0 || req.ID <= 0 {
+		return pingerrors.ErrInvalid
 	}
-	id, err := idconv.FromString(req.ID)
-	return accountID, id, err
+	return nil
 }

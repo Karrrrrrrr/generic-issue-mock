@@ -3,12 +3,12 @@ package service
 import (
 	"context"
 
-	"generic-mock/channel/pingpong/pkg/idconv"
+	"generic-mock/model"
 )
 
 type UIProductData struct {
-	ID     string `json:"id"`
-	Prefix string `json:"prefix"`
+	ID     model.ID `json:"id"`
+	Prefix string   `json:"prefix"`
 }
 
 func (s *PingPongUIService) ListCardProducts(ctx context.Context, req *Empty) (*UIPage[UIProductData], error) {
@@ -22,7 +22,7 @@ func (s *PingPongUIService) ListCardProducts(ctx context.Context, req *Empty) (*
 	}
 	for _, item := range items {
 		result.Items = append(result.Items, UIProductData{
-			ID:     idconv.ToString(item.ID),
+			ID:     item.ID,
 			Prefix: item.Prefix,
 		})
 	}

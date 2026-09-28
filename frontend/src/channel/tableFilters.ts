@@ -4,7 +4,7 @@ import { useMessage, type SelectOption } from "naive-ui";
 
 type TableFilterOptions = {
   onSearch: () => void | Promise<void>;
-  loadAccounts: () => Promise<{ id: string; name: string }[]>;
+  loadAccounts: () => Promise<{ id: number; name: string }[]>;
 };
 
 export function useTableFilters(options: TableFilterOptions) {
@@ -24,7 +24,7 @@ export function useTableFilters(options: TableFilterOptions) {
       const accounts = await options.loadAccounts();
       accountOptions.value = accounts.map((account) => ({
         label: `${account.name} (${account.id})`,
-        value: account.id,
+        value: String(account.id),
       }));
     } catch (error) {
       message.error(error instanceof Error ? error.message : "加载账户选项失败");

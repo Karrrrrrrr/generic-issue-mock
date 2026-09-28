@@ -38,7 +38,7 @@ const emit = defineEmits<{
 const message = useMessage();
 const { submitting, result, submit } = useSimulation();
 const form = reactive({
-  cardID: "",
+  cardID: null as number | null,
   amount: 100 as number | null,
   currency: "USD",
   merchantName: "Amazon",
@@ -61,7 +61,7 @@ const currencyOptions = computed(() => [...new Set([
 
 watch(() => props.cards, (cards) => {
   if (!cards.some((item) => item.id === form.cardID && !item.disabled)) {
-    form.cardID = cards.find((item) => !item.disabled)?.id ?? "";
+    form.cardID = cards.find((item) => !item.disabled)?.id ?? null;
   }
 }, { immediate: true });
 watch(card, (selected) => {

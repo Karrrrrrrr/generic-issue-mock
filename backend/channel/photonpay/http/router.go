@@ -68,6 +68,7 @@ func Register(
 		uiRoutes.GET("/authorization-balances", bindUI(uiService.ListAuthorizationBalances))
 		uiRoutes.GET("/transactions", bindUI(uiService.ListTransactions))
 		uiRoutes.POST("/transactions/:id/refund", bindUI(uiService.RefundTransaction))
+		uiRoutes.POST("/transactions/:id/clear", bindUI(uiService.ClearTransaction))
 		uiRoutes.POST("/transactions/:id/reverse", bindUI(uiService.ReverseTransaction))
 		uiRoutes.POST("/simulate/authorizations", bindUI(uiService.SimulateAuthorization))
 		uiRoutes.POST("/simulate/refunds", bindUI(uiService.SimulateRefund))

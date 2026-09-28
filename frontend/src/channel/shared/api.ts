@@ -11,8 +11,8 @@ import type {
 } from "./contracts";
 
 export interface Account {
-  id: string;
-  wallet_id?: string;
+  id: number;
+  wallet_id?: number;
   name: string;
   balance: string;
   created_at: string;
@@ -20,8 +20,8 @@ export interface Account {
 }
 
 export interface Webhook {
-  id: string;
-  account_id: string;
+  id: number;
+  account_id: number;
   account_name: string;
   event: WebhookEvent;
   target_url: string;
@@ -33,12 +33,12 @@ export interface Webhook {
 export type WebhookEvent = string;
 
 export interface CardProduct {
-  id: string;
+  id: number;
   prefix: string;
 }
 
 export interface VirtualAccount {
-  id: string;
+  id: number;
   name: string;
   currency: string;
   funding_source: string;
@@ -48,8 +48,8 @@ export interface VirtualAccount {
 }
 
 export interface Wallet {
-  id: string;
-  account_id: string;
+  id: number;
+  account_id: number;
   account_name: string;
   kind: "account" | "virtual_account" | "card";
   currency: string;
@@ -57,8 +57,8 @@ export interface Wallet {
 }
 
 export interface WebhookRecord {
-  id: string;
-  account_id: string;
+  id: number;
+  account_id: number;
   account_name: string;
   event: string;
   target_url: string;
@@ -78,7 +78,7 @@ export interface WebhookRecord {
 export interface WebhookRecordListRequest {
   page_number: number;
   page_size: number;
-  account_id?: string;
+  account_id?: number;
   event?: string;
   status?: WebhookDeliveryStatus;
   created_from?: string;
@@ -112,7 +112,7 @@ export function createManagementAPI(baseURL: string) {
     async create(payload: Pick<Account, "name">) {
       return (await request.post<Account>(`${baseURL}/accounts`, payload)).data;
     },
-    async update(id: string, payload: Pick<Account, "name">) {
+    async update(id: number, payload: Pick<Account, "name">) {
       return (await request.put<Account>(`${baseURL}/accounts/${id}`, payload)).data;
     },
   };
@@ -121,7 +121,7 @@ export function createManagementAPI(baseURL: string) {
     async events() {
       return (await request.get<WebhookEvent[]>(`${baseURL}/webhooks/events`)).data;
     },
-    async list(accountID?: string) {
+    async list(accountID?: number) {
       return (
         await request.get<Webhook[]>(`${baseURL}/webhooks`, {
           params: {
@@ -133,10 +133,10 @@ export function createManagementAPI(baseURL: string) {
     async create(payload: Omit<Webhook, "id" | "created_at" | "updated_at" | "account_name">) {
       return (await request.post<Webhook>(`${baseURL}/webhooks`, payload)).data;
     },
-    async update(id: string, payload: Pick<Webhook, "target_url" | "enabled">) {
+    async update(id: number, payload: Pick<Webhook, "target_url" | "enabled">) {
       return (await request.put<Webhook>(`${baseURL}/webhooks/${id}`, payload)).data;
     },
-    async remove(id: string) {
+    async remove(id: number) {
       await request.delete(`${baseURL}/webhooks/${id}`);
     },
   };
@@ -197,7 +197,7 @@ export function createManagementAPI(baseURL: string) {
   };
 
   const fundsApi = {
-    async list(accountID?: string) {
+    async list(accountID?: number) {
       return (
         await request.get<Wallet[]>(baseURL + "/funds", {
           params: {
@@ -213,15 +213,16 @@ export function createManagementAPI(baseURL: string) {
       }
       await request.post(baseURL + "/funds/transfer", {
         account_id: account.id,
-        source_id: amount < 0 ? account.wallet_id : "",
-        target_id: amount > 0 ? account.wallet_id : "",
+        source_id: amount < 0 ? account.wallet_id : undefined,
+        target_id: amount > 0 ? account.wallet_id : undefined,
         amount: String(Math.abs(amount)),
       });
     },
 
     async transferResource(input: {
-      accountID: string;
-      walletID: string;
+      accountID: number;
+      walletID: number;
+      cardID?: number;
       amount: number;
       withdraw: boolean;
     }) {
@@ -232,6 +233,7 @@ export function createManagementAPI(baseURL: string) {
       }
       await request.post(baseURL + "/funds/transfer", {
         account_id: input.accountID,
+        card_id: input.cardID,
         source_id: input.withdraw ? input.walletID : accountWallet.id,
         target_id: input.withdraw ? accountWallet.id : input.walletID,
         amount: String(input.amount),
@@ -320,6 +322,7 @@ export function createManagementAPI(baseURL: string) {
     }
     await fundsApi.transferResource({
       accountID: input.card.account_id,
+      cardID: input.card.id,
       walletID: input.card.wallet_id,
       amount: input.amount,
       withdraw: input.withdraw,

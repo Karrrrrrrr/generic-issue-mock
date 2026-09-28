@@ -27,12 +27,12 @@ const loading = ref(false);
 const rows = ref<Webhook[]>([]);
 const pagination = useClientPagination(rows);
 const accounts = ref<Account[]>([]);
-const filterAccountID = ref<string | null>(null);
+const filterAccountID = ref<number | null>(null);
 const creating = ref(false);
 const editing = ref<Webhook | null>(null);
 const eventOptions = ref<WebhookEvent[]>([]);
 const form = ref({
-  account_id: "",
+  account_id: null as number | null,
   event: "" as WebhookEvent | "",
   target_url: "",
   enabled: true,
@@ -66,7 +66,7 @@ async function openCreate() {
   await loadAccountOptions();
   editing.value = null;
   form.value = {
-    account_id: "",
+    account_id: null as number | null,
     event: "",
     target_url: "",
     enabled: true,
@@ -74,7 +74,7 @@ async function openCreate() {
   creating.value = true;
 }
 
-function changeAccountFilter(value: string | null) {
+function changeAccountFilter(value: number | null) {
   filterAccountID.value = value;
   void load();
 }

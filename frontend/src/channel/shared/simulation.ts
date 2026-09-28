@@ -1,12 +1,12 @@
 export interface SimulationCard {
-  id: string;
+  id: number;
   label: string;
   currency: string;
   disabled: boolean;
 }
 
 export interface AuthorizationSimulationRequest {
-  cardID: string;
+  cardID: number;
   amount: number;
   currency: string;
   merchantName: string;
@@ -16,8 +16,8 @@ export interface AuthorizationSimulationRequest {
 }
 
 export interface RefundSimulationRequest {
-  authorization_id?: string;
-  card_id?: string;
+  authorization_id?: number;
+  card_id?: number;
   amount: number;
   currency?: string;
   merchant_name: string;

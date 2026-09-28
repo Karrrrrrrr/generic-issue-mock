@@ -515,13 +515,13 @@ func TestPhotonTransactions(testContext *testing.T) {
 	card := fixture.createCard(testContext)
 	cardID := card.CardDetail.CardID
 	cards := suite.UI(testContext, http.MethodGet, "/cards?account_id="+suite.Config.Account+"&id="+cardID, nil)
-	if actual := contract.Text(testContext, cards, "data.0.id"); actual != cardID {
+	if actual := suite.OpenAPIID(testContext, cards, "data.0.id"); actual != cardID {
 		testContext.Fatalf("unexpected funding card: %s", actual)
 	}
 	suite.UI(testContext, http.MethodPost, "/funds/transfer", map[string]any{
-		"account_id": suite.Config.Account,
-		"source_id":  suite.Config.Wallet,
-		"target_id":  contract.Text(testContext, cards, "data.0.wallet_id"),
+		"account_id": suite.ToUIID(testContext, suite.Config.Account),
+		"source_id":  suite.ToUIID(testContext, suite.Config.Wallet),
+		"target_id":  contract.ID(testContext, cards, "data.0.wallet_id"),
 		"amount":     "10",
 	})
 	testContext.Run("PagingVccTradeOrder/empty", func(testContext *testing.T) {
@@ -531,15 +531,15 @@ func TestPhotonTransactions(testContext *testing.T) {
 		}
 	})
 	authorization := suite.UI(testContext, http.MethodPost, "/simulate/authorizations", map[string]any{
-		"card_id":                cardID,
+		"card_id":                suite.ToUIID(testContext, cardID),
 		"transaction_amount":     2,
 		"transaction_currency":   "USD",
 		"merchant_name":          "SDK merchant",
 		"merchant_country":       "US",
 		"merchant_category_code": "5411",
 	})
-	authorizationID := contract.Text(testContext, authorization, "authorization.id")
-	authorizationTransactionID := contract.Text(testContext, authorization, "transaction.id")
+	authorizationID := contract.UIPathID(testContext, authorization, "authorization.id")
+	authorizationTransactionID := suite.OpenAPIID(testContext, authorization, "transaction.id")
 	testContext.Run("PagingVccTradeOrder/authorization", func(testContext *testing.T) {
 		items, err := client.PagingVccTradeOrder(suite.Context, token, &PagingVccTradeOrderRequest{CardID: &cardID})
 		if err != nil || len(items) != 1 {
@@ -556,20 +556,20 @@ func TestPhotonTransactions(testContext *testing.T) {
 	linkedRefund := suite.UI(testContext, http.MethodPost, "/authorizations/"+authorizationID+"/refund", map[string]any{
 		"amount": 1,
 	})
-	linkedRefundID := contract.Text(testContext, linkedRefund, "id")
+	linkedRefundID := suite.OpenAPIID(testContext, linkedRefund, "id")
 	independentRefund := suite.UI(testContext, http.MethodPost, "/simulate/refunds", map[string]any{
-		"card_id":                cardID,
+		"card_id":                suite.ToUIID(testContext, cardID),
 		"amount":                 3,
 		"currency":               "USD",
 		"merchant_name":          "SDK merchant",
 		"merchant_country":       "US",
 		"merchant_category_code": "5411",
 	})
-	independentRefundID := contract.Text(testContext, independentRefund, "id")
+	independentRefundID := suite.OpenAPIID(testContext, independentRefund, "id")
 	reversal := suite.UI(testContext, http.MethodPost, "/authorizations/"+authorizationID+"/reverse", map[string]any{
 		"amount": 2,
 	})
-	reversalID := contract.Text(testContext, reversal, "id")
+	reversalID := suite.OpenAPIID(testContext, reversal, "id")
 	testContext.Run("PagingVccTradeOrder/refunds-and-void", func(testContext *testing.T) {
 		items, err := client.PagingVccTradeOrder(suite.Context, token, &PagingVccTradeOrderRequest{CardID: &cardID})
 		if err != nil || len(items) != 4 {

@@ -6,24 +6,25 @@ import (
 	"time"
 
 	"generic-mock/channel/slash/biz"
-	"generic-mock/channel/slash/pkg/idconv"
+	slasherrors "generic-mock/channel/slash/errors"
 	common "generic-mock/enums"
+	"generic-mock/model"
 
 	"github.com/shopspring/decimal"
 )
 
 type GetAuthorizationDetailRequest struct {
 	ManagementAccountRequest
-	ID string `uri:"id" binding:"required"`
+	ID model.ID `uri:"id" binding:"required,gt=0"`
 }
 
 type ReverseAuthorizationRequest struct {
-	ID     string          `uri:"id" binding:"required"`
+	ID     model.ID        `uri:"id" binding:"required,gt=0"`
 	Amount decimal.Decimal `json:"amount"`
 }
 
 type RefundAuthorizationRequest struct {
-	ID     string          `uri:"id" binding:"required"`
+	ID     model.ID        `uri:"id" binding:"required,gt=0"`
 	Amount decimal.Decimal `json:"amount"`
 }
 
@@ -38,8 +39,8 @@ type AuthorizationDetailData struct {
 }
 
 type AuthorizationTransactionData struct {
-	ID              string                       `json:"id"`
-	AccountID       string                       `json:"account_id"`
+	ID              model.ID                     `json:"id"`
+	AccountID       model.ID                     `json:"account_id"`
 	AccountName     string                       `json:"account_name"`
 	TransactionType common.CardTransactionType   `json:"transaction_type"`
 	Status          common.CardTransactionStatus `json:"status"`
@@ -49,13 +50,13 @@ type AuthorizationTransactionData struct {
 }
 
 func (s *SlashUIService) GetAuthorizationDetail(ctx context.Context, req *GetAuthorizationDetailRequest) (*AuthorizationDetailData, error) {
-	accountID, err := idconv.FromAccountUUID(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID <= 0 {
+		return nil, slasherrors.ErrInvalidOperation
 	}
-	id, err := idconv.FromUUID(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id <= 0 {
+		return nil, slasherrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.GetAuthorizationDetail(ctx, &biz.GetAuthorizationDetailRequest{
 		AccountID: accountID,
@@ -78,8 +79,8 @@ func (s *SlashUIService) GetAuthorizationDetail(ctx context.Context, req *GetAut
 	}
 	for _, transaction := range item.Transactions {
 		result.Transactions = append(result.Transactions, AuthorizationTransactionData{
-			ID:              idconv.ToUUID(transaction.ID),
-			AccountID:       idconv.ToUUID(auth.AccountID),
+			ID:              transaction.ID,
+			AccountID:       auth.AccountID,
 			AccountName:     uiAccountName(auth.Account),
 			TransactionType: transaction.Type,
 			Status:          transaction.Status,
@@ -92,9 +93,9 @@ func (s *SlashUIService) GetAuthorizationDetail(ctx context.Context, req *GetAut
 }
 
 func (s *SlashUIService) ReverseAuthorization(ctx context.Context, req *ReverseAuthorizationRequest) (*ClearAuthorizationData, error) {
-	id, err := idconv.FromUUID(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id <= 0 {
+		return nil, slasherrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.ReverseAuthorization(ctx, &biz.ReverseAuthorizationRequest{
 		Notificator: s,
@@ -104,13 +105,13 @@ func (s *SlashUIService) ReverseAuthorization(ctx context.Context, req *ReverseA
 	if err != nil {
 		return nil, err
 	}
-	return &ClearAuthorizationData{ID: idconv.ToUUID(item.ID)}, nil
+	return &ClearAuthorizationData{ID: item.ID}, nil
 }
 
 func (s *SlashUIService) RefundAuthorization(ctx context.Context, req *RefundAuthorizationRequest) (*ClearAuthorizationData, error) {
-	id, err := idconv.FromUUID(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id <= 0 {
+		return nil, slasherrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.RefundAuthorization(ctx, &biz.RefundAuthorizationRequest{
 		Notificator: s,
@@ -120,5 +121,5 @@ func (s *SlashUIService) RefundAuthorization(ctx context.Context, req *RefundAut
 	if err != nil {
 		return nil, err
 	}
-	return &ClearAuthorizationData{ID: idconv.ToUUID(item.ID)}, nil
+	return &ClearAuthorizationData{ID: item.ID}, nil
 }

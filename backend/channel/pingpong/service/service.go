@@ -10,6 +10,7 @@ import (
 	"generic-mock/channel/pingpong/biz"
 	pingerrors "generic-mock/channel/pingpong/errors"
 	"generic-mock/channel/pingpong/pkg/idconv"
+	"generic-mock/model"
 
 	"github.com/samber/do/v2"
 	"github.com/shopspring/decimal"
@@ -91,7 +92,7 @@ func (req PageRequest) resolvePagination() (int, int, error) {
 
 type UIListRequest struct {
 	PageRequest
-	AccountID *string `form:"account_id"`
+	AccountID *model.ID `form:"account_id" binding:"omitempty,gt=0"`
 }
 
 type Empty struct{}

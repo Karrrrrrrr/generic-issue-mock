@@ -2,12 +2,13 @@ package service
 
 import (
 	"context"
-	"generic-mock/pkg/types"
 	"time"
 
 	"generic-mock/channel/slash/biz"
-	"generic-mock/channel/slash/pkg/idconv"
+	slasherrors "generic-mock/channel/slash/errors"
 	common "generic-mock/enums"
+	"generic-mock/model"
+	"generic-mock/pkg/types"
 
 	"github.com/shopspring/decimal"
 )
@@ -15,24 +16,24 @@ import (
 type ListAuthorizationBalancesRequest struct {
 	UIListTimeRange
 	Status       *common.CardTransactionStatus `form:"status" binding:"omitempty,oneof=pending authorized succeed failed void"`
-	AccountID    *string                       `form:"account_id"`
-	ID           *string                       `form:"id" binding:"omitempty,min=1"`
-	CardID       *string                       `form:"card_id" binding:"omitempty,min=1"`
+	AccountID    *model.ID                     `form:"account_id" binding:"omitempty,gt=0"`
+	ID           *model.ID                     `form:"id" binding:"omitempty,min=1"`
+	CardID       *model.ID                     `form:"card_id" binding:"omitempty,min=1"`
 	MerchantName *string                       `form:"merchant_name" binding:"omitempty,min=1"`
 }
 
 func (s *SlashUIService) ListAuthorizationBalances(ctx context.Context, req *ListAuthorizationBalancesRequest) (*[]AuthorizationBalanceData, error) {
-	accountID, err := idconv.FromOptionalUUID(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID != nil && *accountID <= 0 {
+		return nil, slasherrors.ErrInvalidOperation
 	}
-	id, err := idconv.FromOptionalUUID(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id != nil && *id <= 0 {
+		return nil, slasherrors.ErrInvalidOperation
 	}
-	cardID, err := idconv.FromOptionalUUID(req.CardID)
-	if err != nil {
-		return nil, err
+	cardID := req.CardID
+	if cardID != nil && *cardID <= 0 {
+		return nil, slasherrors.ErrInvalidOperation
 	}
 	items, err := s.usecase.ListAuthorizationBalances(ctx, &biz.ListAuthorizationBalancesRequest{
 		AccountID:    accountID,
@@ -58,9 +59,9 @@ type AuthorizationBalanceData struct {
 	Reversed     string                       `json:"reversed"`
 	Refunded     string                       `json:"refunded"`
 	AccountName  string                       `json:"account_name"`
-	AccountID    string                       `json:"account_id"`
-	ID           string                       `json:"id"`
-	CardID       string                       `json:"card_id"`
+	AccountID    model.ID                     `json:"account_id"`
+	ID           model.ID                     `json:"id"`
+	CardID       model.ID                     `json:"card_id"`
 	Currency     common.Currency              `json:"currency"`
 	Amount       string                       `json:"amount"`
 	Settled      string                       `json:"settled"`
@@ -70,17 +71,17 @@ type AuthorizationBalanceData struct {
 }
 
 type ClearAuthorizationRequest struct {
-	ID     string          `uri:"id" binding:"required"`
+	ID     model.ID        `uri:"id" binding:"required,gt=0"`
 	Amount decimal.Decimal `json:"amount"`
 }
 type ClearAuthorizationData struct {
-	ID string `json:"id"`
+	ID model.ID `json:"id"`
 }
 
 func (s *SlashUIService) ClearAuthorization(ctx context.Context, req *ClearAuthorizationRequest) (*ClearAuthorizationData, error) {
-	authID, err := idconv.FromUUID(req.ID)
-	if err != nil {
-		return nil, err
+	authID := req.ID
+	if authID <= 0 {
+		return nil, slasherrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.ClearAuthorization(ctx, &biz.ClearAuthorizationRequest{
 		Notificator: s,
@@ -90,16 +91,16 @@ func (s *SlashUIService) ClearAuthorization(ctx context.Context, req *ClearAutho
 	if err != nil {
 		return nil, err
 	}
-	return &ClearAuthorizationData{ID: idconv.ToUUID(item.ID)}, nil
+	return &ClearAuthorizationData{ID: item.ID}, nil
 }
 
 func authorizationBalanceData(item *biz.AuthorizationBalance) AuthorizationBalanceData {
 	auth := item.Authorization
 	return AuthorizationBalanceData{
-		AccountID:    idconv.ToUUID(auth.AccountID),
+		AccountID:    auth.AccountID,
 		AccountName:  uiAccountName(auth.Account),
-		ID:           idconv.ToUUID(auth.ID),
-		CardID:       idconv.ToUUID(auth.CardID),
+		ID:           auth.ID,
+		CardID:       auth.CardID,
 		Status:       auth.Status,
 		Currency:     auth.Currency,
 		Amount:       auth.Amount.String(),

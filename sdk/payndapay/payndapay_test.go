@@ -651,16 +651,16 @@ func TestPayndaTransactions(testContext *testing.T) {
 		}
 	})
 	first := suite.UI(testContext, http.MethodPost, "/simulate/refunds", map[string]any{
-		"card_id":                card.Card.ID,
+		"card_id":                suite.ToUIID(testContext, card.Card.ID),
 		"amount":                 2,
 		"currency":               "USD",
 		"merchant_name":          "First refund",
 		"merchant_country":       "US",
 		"merchant_category_code": "5411",
 	})
-	transactionID := contract.Text(testContext, first, "id")
+	transactionID := suite.OpenAPIID(testContext, first, "id")
 	suite.UI(testContext, http.MethodPost, "/simulate/refunds", map[string]any{
-		"card_id":                card.Card.ID,
+		"card_id":                suite.ToUIID(testContext, card.Card.ID),
 		"amount":                 3,
 		"currency":               "USD",
 		"merchant_name":          "Second refund",
@@ -755,15 +755,15 @@ func TestPayndaAuthorizationTransactions(testContext *testing.T) {
 	suite := fixture.suite
 	card, _ := fixture.createCard(testContext)
 	authorization := suite.UI(testContext, http.MethodPost, "/simulate/authorizations", map[string]any{
-		"card_id":                card.Card.ID,
+		"card_id":                suite.ToUIID(testContext, card.Card.ID),
 		"transaction_amount":     "2",
 		"transaction_currency":   "USD",
 		"merchant_name":          "Authorization merchant",
 		"merchant_country":       "US",
 		"merchant_category_code": "5411",
 	})
-	authorizationID := contract.Text(testContext, authorization, "authorization.id")
-	transactionID := contract.Text(testContext, authorization, "transaction.id")
+	authorizationID := contract.UIPathID(testContext, authorization, "authorization.id")
+	transactionID := suite.OpenAPIID(testContext, authorization, "transaction.id")
 	testContext.Run("QueryCardTransaction/authorization", func(testContext *testing.T) {
 		suite.Responses()
 		result, err := fixture.client.QueryCardTransaction(suite.Context, transactionID)
@@ -800,7 +800,7 @@ func TestPayndaAuthorizationTransactions(testContext *testing.T) {
 	clearing := suite.UI(testContext, http.MethodPost, "/authorizations/"+authorizationID+"/clear", map[string]any{
 		"amount": "3",
 	})
-	clearingID := contract.Text(testContext, clearing, "id")
+	clearingID := suite.OpenAPIID(testContext, clearing, "id")
 	testContext.Run("QueryCardTransaction/over-clearing", func(testContext *testing.T) {
 		result, err := fixture.client.QueryCardTransaction(suite.Context, clearingID)
 		if err != nil {

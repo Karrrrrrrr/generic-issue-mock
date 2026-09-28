@@ -4,11 +4,10 @@ import (
 	"context"
 	"time"
 
-	common "generic-mock/enums"
-
 	"generic-mock/channel/slash/biz"
 	slash "generic-mock/channel/slash/enums"
-	"generic-mock/channel/slash/pkg/idconv"
+	slasherrors "generic-mock/channel/slash/errors"
+	common "generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 )
@@ -22,13 +21,13 @@ type ListWebhookRecordsRequest struct {
 }
 
 type ReplayWebhookRecordRequest struct {
-	ID        string `uri:"id" binding:"required"`
-	AccountID string `json:"account_id" binding:"required"`
+	ID        model.ID `uri:"id" binding:"required,gt=0"`
+	AccountID model.ID `json:"account_id" binding:"required,gt=0"`
 }
 
 type WebhookRecordData struct {
-	ID              string                       `json:"id"`
-	AccountID       string                       `json:"account_id"`
+	ID              model.ID                     `json:"id"`
+	AccountID       model.ID                     `json:"account_id"`
 	AccountName     string                       `json:"account_name"`
 	Event           slash.WebhookEvent           `json:"event"`
 	TargetURL       string                       `json:"target_url"`
@@ -46,9 +45,9 @@ type WebhookRecordData struct {
 }
 
 func (s *SlashUIService) ListWebhookRecords(ctx context.Context, req *ListWebhookRecordsRequest) (*ListResponse[*WebhookRecordData], error) {
-	accountID, err := idconv.FromOptionalUUID(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID != nil && *accountID <= 0 {
+		return nil, slasherrors.ErrInvalidOperation
 	}
 	offset, limit := pagination(types.Value(req.PageNumber), types.Value(req.PageSize))
 	items, total, err := s.webhookUsecase.ListRecords(ctx, &biz.ListWebhookRecordsRequest{
@@ -70,13 +69,13 @@ func (s *SlashUIService) ListWebhookRecords(ctx context.Context, req *ListWebhoo
 }
 
 func (s *SlashUIService) ReplayWebhookRecord(ctx context.Context, req *ReplayWebhookRecordRequest) (*WebhookRecordData, error) {
-	accountID, err := idconv.FromAccountUUID(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID <= 0 {
+		return nil, slasherrors.ErrInvalidOperation
 	}
-	id, err := idconv.FromUUID(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id <= 0 {
+		return nil, slasherrors.ErrInvalidOperation
 	}
 	item, err := s.webhookUsecase.ReplayRecord(ctx, &biz.ReplayWebhookRecordRequest{
 		AccountID: accountID,
@@ -90,8 +89,8 @@ func (s *SlashUIService) ReplayWebhookRecord(ctx context.Context, req *ReplayWeb
 
 func webhookRecordData(item *model.WebhookRecord) *WebhookRecordData {
 	return &WebhookRecordData{
-		ID:              idconv.ToUUID(item.ID),
-		AccountID:       idconv.ToUUID(item.AccountID),
+		ID:              item.ID,
+		AccountID:       item.AccountID,
 		AccountName:     uiAccountName(item.Account),
 		Event:           slash.WebhookEvent(item.Event),
 		TargetURL:       item.TargetURL,

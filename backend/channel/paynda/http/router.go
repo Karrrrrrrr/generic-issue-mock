@@ -44,7 +44,7 @@ func bindUI[Req any, Resp any](fn httpx.ServiceFunc[Req, Resp]) gin.HandlerFunc 
 		func(data *Resp) any {
 			return data
 		},
-		uiFailure,
+		uiBindingFailure,
 		uiFailure,
 	)
 }
@@ -133,6 +133,7 @@ func Register(router *gin.RouterGroup, openapi *service.PayndaOpenAPIService, ui
 		uiRoutes.GET("/authorization-balances", bindUI(ui.ListAuthorizationBalances))
 		uiRoutes.GET("/transactions", bindUI(ui.ListTransactions))
 		uiRoutes.POST("/transactions/:id/refund", bindUI(ui.RefundTransaction))
+		uiRoutes.POST("/transactions/:id/clear", bindUI(ui.ClearTransaction))
 		uiRoutes.POST("/transactions/:id/reverse", bindUI(ui.ReverseTransaction))
 		uiRoutes.POST("/simulate/authorizations", bindUI(ui.SimulateAuthorization))
 		uiRoutes.POST("/simulate/refunds", bindUI(ui.SimulateRefund))
@@ -144,4 +145,9 @@ func Register(router *gin.RouterGroup, openapi *service.PayndaOpenAPIService, ui
 		uiRoutes.GET("/webhook-records", bindUI(ui.ListWebhookRecords))
 		uiRoutes.POST("/webhook-records/:id/replay", bindUI(ui.ReplayWebhookRecord))
 	}
+}
+
+func uiBindingFailure(err error) (int, any) {
+	_, response := uiFailure(err)
+	return http.StatusBadRequest, response
 }

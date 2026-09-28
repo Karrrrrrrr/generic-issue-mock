@@ -54,41 +54,42 @@ func Register(router *gin.RouterGroup, service *service.SlashUIService, openAPIS
 
 	uiRoutes := router.Group("/ui")
 	{
-		uiRoutes.GET("/accounts", bind(service.ListAccounts))
-		uiRoutes.POST("/accounts", bind(service.CreateAccount))
-		uiRoutes.PUT("/accounts/:id", bind(service.UpdateAccount))
-		uiRoutes.GET("/funds", bind(service.ListFunds))
-		uiRoutes.POST("/funds/transfer", bind(service.MoveFunds))
-		uiRoutes.GET("/managed-virtual-accounts", bind(service.ListManagedVirtualAccounts))
-		uiRoutes.POST("/managed-virtual-accounts", bind(service.CreateManagedVirtualAccount))
-		uiRoutes.GET("/virtual-accounts", bind(service.ListVirtualAccounts))
-		uiRoutes.GET("/card-products", bind(service.ListCardProducts))
-		uiRoutes.GET("/cardholders", bind(service.ListCardHolders))
-		uiRoutes.GET("/cards", bind(service.ListCards))
-		uiRoutes.GET("/cards/:id", bind(service.GetCard))
-		uiRoutes.PUT("/cards/:id/status", bind(service.UpdateCardStatus))
-		uiRoutes.GET("/authorization-config", bind(service.GetAuthorizationConfig))
-		uiRoutes.PUT("/authorization-config", bind(service.UpdateAuthorizationConfig))
-		uiRoutes.GET("/authorizations", bind(service.ListAuthorizations))
-		uiRoutes.GET("/authorizations/:id", bind(service.GetAuthorization))
-		uiRoutes.POST("/authorizations/:id/clear", bind(service.ClearAuthorization))
-		uiRoutes.GET("/authorizations/:id/detail", bind(service.GetAuthorizationDetail))
-		uiRoutes.POST("/authorizations/:id/reverse", bind(service.ReverseAuthorization))
-		uiRoutes.POST("/authorizations/:id/refund", bind(service.RefundAuthorization))
-		uiRoutes.GET("/authorization-balances", bind(service.ListAuthorizationBalances))
-		uiRoutes.GET("/transactions", bind(service.ListTransactions))
-		uiRoutes.GET("/transactions/:id", bind(service.GetTransaction))
-		uiRoutes.POST("/transactions/:id/refund", bind(service.RefundTransaction))
-		uiRoutes.POST("/transactions/:id/reverse", bind(service.ReverseTransaction))
-		uiRoutes.POST("/simulate/authorizations", bind(service.SimulateAuthorization))
-		uiRoutes.POST("/simulate/refunds", bind(service.SimulateRefund))
-		uiRoutes.GET("/webhooks", bind(service.ListWebhooks))
-		uiRoutes.POST("/webhooks", bind(service.CreateWebhook))
-		uiRoutes.PUT("/webhooks/:id", bind(service.UpdateWebhook))
-		uiRoutes.DELETE("/webhooks/:id", bind(service.DeleteWebhook))
-		uiRoutes.GET("/webhooks/events", bind(service.ListWebhookEvents))
-		uiRoutes.GET("/webhook-records", bind(service.ListWebhookRecords))
-		uiRoutes.POST("/webhook-records/:id/replay", bind(service.ReplayWebhookRecord))
+		uiRoutes.GET("/accounts", bindUI(service.ListAccounts))
+		uiRoutes.POST("/accounts", bindUI(service.CreateAccount))
+		uiRoutes.PUT("/accounts/:id", bindUI(service.UpdateAccount))
+		uiRoutes.GET("/funds", bindUI(service.ListFunds))
+		uiRoutes.POST("/funds/transfer", bindUI(service.MoveFunds))
+		uiRoutes.GET("/managed-virtual-accounts", bindUI(service.ListManagedVirtualAccounts))
+		uiRoutes.POST("/managed-virtual-accounts", bindUI(service.CreateManagedVirtualAccount))
+		uiRoutes.GET("/virtual-accounts", bindUI(service.ListVirtualAccounts))
+		uiRoutes.GET("/card-products", bindUI(service.ListCardProducts))
+		uiRoutes.GET("/cardholders", bindUI(service.ListCardHolders))
+		uiRoutes.GET("/cards", bindUI(service.ListCards))
+		uiRoutes.GET("/cards/:id", bindUI(service.GetCard))
+		uiRoutes.PUT("/cards/:id/status", bindUI(service.UpdateCardStatus))
+		uiRoutes.GET("/authorization-config", bindUI(service.GetAuthorizationConfig))
+		uiRoutes.PUT("/authorization-config", bindUI(service.UpdateAuthorizationConfig))
+		uiRoutes.GET("/authorizations", bindUI(service.ListAuthorizations))
+		uiRoutes.GET("/authorizations/:id", bindUI(service.GetAuthorization))
+		uiRoutes.POST("/authorizations/:id/clear", bindUI(service.ClearAuthorization))
+		uiRoutes.GET("/authorizations/:id/detail", bindUI(service.GetAuthorizationDetail))
+		uiRoutes.POST("/authorizations/:id/reverse", bindUI(service.ReverseAuthorization))
+		uiRoutes.POST("/authorizations/:id/refund", bindUI(service.RefundAuthorization))
+		uiRoutes.GET("/authorization-balances", bindUI(service.ListAuthorizationBalances))
+		uiRoutes.GET("/transactions", bindUI(service.ListTransactions))
+		uiRoutes.GET("/transactions/:id", bindUI(service.GetTransaction))
+		uiRoutes.POST("/transactions/:id/refund", bindUI(service.RefundTransaction))
+		uiRoutes.POST("/transactions/:id/clear", bindUI(service.ClearTransaction))
+		uiRoutes.POST("/transactions/:id/reverse", bindUI(service.ReverseTransaction))
+		uiRoutes.POST("/simulate/authorizations", bindUI(service.SimulateAuthorization))
+		uiRoutes.POST("/simulate/refunds", bindUI(service.SimulateRefund))
+		uiRoutes.GET("/webhooks", bindUI(service.ListWebhooks))
+		uiRoutes.POST("/webhooks", bindUI(service.CreateWebhook))
+		uiRoutes.PUT("/webhooks/:id", bindUI(service.UpdateWebhook))
+		uiRoutes.DELETE("/webhooks/:id", bindUI(service.DeleteWebhook))
+		uiRoutes.GET("/webhooks/events", bindUI(service.ListWebhookEvents))
+		uiRoutes.GET("/webhook-records", bindUI(service.ListWebhookRecords))
+		uiRoutes.POST("/webhook-records/:id/replay", bindUI(service.ReplayWebhookRecord))
 	}
 }
 
@@ -118,4 +119,18 @@ func failure(err error) (int, any) {
 		Reason:  appError.Reason,
 		Message: appError.Message,
 	}
+}
+
+func bindUI[Req any, Resp any](fn httpx.ServiceFunc[Req, Resp]) gin.HandlerFunc {
+	return httpx.Bind(
+		fn,
+		func(data *Resp) any { return data },
+		uiBindingFailure,
+		failure,
+	)
+}
+
+func uiBindingFailure(err error) (int, any) {
+	_, response := failure(err)
+	return http.StatusBadRequest, response
 }

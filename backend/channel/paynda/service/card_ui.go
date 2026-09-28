@@ -2,29 +2,30 @@ package service
 
 import (
 	"context"
-	common "generic-mock/enums"
 
 	"generic-mock/channel/paynda/biz"
-	"generic-mock/channel/paynda/pkg/idconv"
+	payndaerrors "generic-mock/channel/paynda/errors"
+	common "generic-mock/enums"
+	"generic-mock/model"
 	"generic-mock/pkg/types"
 )
 
 type ListUICardsRequest struct {
 	PayndaUIListRequest
 	UIListTimeRange
-	ID         *string            `form:"id" binding:"omitempty,min=1"`
+	ID         *model.ID          `form:"id" binding:"omitempty,min=1"`
 	CardNumber *string            `form:"card_number" binding:"omitempty,min=1"`
 	CardStatus *common.CardStatus `form:"card_status" binding:"omitempty,oneof=inactive active freezing frozen deleting deleted"`
 }
 
 func (s *PayndaUIService) ListCards(ctx context.Context, req *ListUICardsRequest) (*PayndaUIListResponse[*PayndaUICardData], error) {
-	accountID, err := idconv.FromOptionalString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID != nil && *accountID <= 0 {
+		return nil, payndaerrors.ErrInvalidOperation
 	}
-	id, err := idconv.FromOptionalString(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id != nil && *id <= 0 {
+		return nil, payndaerrors.ErrInvalidOperation
 	}
 	page, size := types.NormalizePagination(types.Value(req.PageNumber), types.Value(req.PageSize))
 	items, total, err := s.usecase.ListCards(ctx, &biz.ListUICardsRequest{

@@ -5,11 +5,14 @@
 - This repository simulates third-party channels for downstream systems. In this repository, a channel is the service being simulated; never carry downstream names such as `ThirdPartyID` into a generic model.
 - Generic models use an auto-incrementing `int64` primary key `ID` for relations and transactions. A channel service derives every external resource ID from that key with its channel formatter; do not persist `display_id` or add another resource token.
 - The channel formatter follows the downstream DTO field type. For a downstream string ID, format the internal `int64` as its decimal string and parse it back with validation. For a downstream numeric ID, pass the `int64` value. Only when the downstream contract requires another format, such as UUID, encode the ID into that required format and implement the inverse parser. Do not add a prefix, offset, hash, or other encoding merely to avoid decimal representation.
-- A channel service parses every incoming mock-owned resource ID with its channel ID conversion helpers in `channel/<channel>/pkg/idconv`, exposed as public functions with directional `To...` / `From...` names before invoking a usecase that accepts an internal `ID`. The formatter and parser must be reversible and validate the downstream-required format; responses derive IDs from the relevant model or relation ID at the service boundary.
+- A channel OpenAPI service parses every incoming mock-owned resource ID with its channel ID conversion helpers in `channel/<channel>/pkg/idconv`, exposed as public functions with directional `To...` / `From...` names before invoking a usecase that accepts an internal `ID`. The formatter and parser must be reversible and validate the downstream-required format; responses derive IDs from the relevant model or relation ID at the service boundary.
+
+- Browser UI resource IDs are internal `model.ID` (`int64`) for every channel, serialized as JSON numbers; optional IDs use `*model.ID`. UI does not apply OpenAPI ID codecs. URI/query IDs bind directly to integers and supplied IDs must be positive; caller request keys and raw webhook protocol references remain strings. OpenAPI and webhook ID representations remain unchanged.
+- Card funding/withdrawal UI actions require an active card. Reject other card states on the backend before moving funds, and disable those actions in the browser until activation.
 
 ### Implemented Channel ID Formats
 
-| Channel | OpenAPI and UI resource ID format | Webhook resource ID format | Source of truth |
+| Channel | OpenAPI resource ID format | Webhook resource ID format | Source of truth |
 | --- | --- | --- | --- |
 | `slash` | UUID string. Encode the `int64` into the last 8 bytes of a canonical UUID; parse only that canonical form. | No implemented mock-owned webhook ID DTO. Use the same UUID rule when one is added. | `channel/slash/pkg/idconv/id.go` and Slash SDK DTOs. |
 | `photonpay` | Decimal string: `strconv.FormatInt(ID, 10)` and `strconv.ParseInt`. | Decimal string for `ds-event` resource IDs such as `cardId` and `transactionId`. | `channel/photonpay/pkg/idconv/id.go` and `pkg/dealer/photonpay` DTOs. |

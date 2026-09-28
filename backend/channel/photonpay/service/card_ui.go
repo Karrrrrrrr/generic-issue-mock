@@ -2,29 +2,30 @@ package service
 
 import (
 	"context"
-	common "generic-mock/enums"
 
 	"generic-mock/channel/photonpay/biz"
-	"generic-mock/channel/photonpay/pkg/idconv"
+	photonpayerrors "generic-mock/channel/photonpay/errors"
+	common "generic-mock/enums"
+	"generic-mock/model"
 	"generic-mock/pkg/types"
 )
 
 type ListUICardsRequest struct {
 	UIListRequest
 	UIListTimeRange
-	ID         *string            `form:"id" binding:"omitempty,min=1"`
+	ID         *model.ID          `form:"id" binding:"omitempty,min=1"`
 	CardNumber *string            `form:"card_number" binding:"omitempty,min=1"`
 	CardStatus *common.CardStatus `form:"card_status" binding:"omitempty,oneof=inactive active freezing frozen deleting deleted"`
 }
 
 func (s *PhotonPayUIService) ListCards(ctx context.Context, req *ListUICardsRequest) (*UIListResponse[*UICardData], error) {
-	accountID, err := idconv.FromOptionalString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID != nil && *accountID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
-	id, err := idconv.FromOptionalString(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id != nil && *id <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	page, size := types.NormalizePagination(types.Value(req.PageNumber), types.Value(req.PageSize))
 	items, total, err := s.usecase.ListCards(ctx, &biz.ListUICardsRequest{

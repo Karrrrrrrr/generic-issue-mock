@@ -5,31 +5,31 @@ export interface Page<Item> {
   total: number;
 }
 export interface Account {
-  wallet_id: string;
-  id: string;
+  wallet_id: number;
+  id: number;
   name: string;
   balance: number;
   currency: string;
   created_at: string;
 }
 export interface Owned {
-  id: string;
-  account_id: string;
+  id: number;
+  account_id: number;
   account_name: string;
   created_at: string;
 }
 export interface VirtualAccount extends Owned {
-  wallet_id: string;
+  wallet_id: number;
   name: string;
   balance: number;
   currency: string;
 }
 export interface Card extends Owned {
-  wallet_id: string;
+  wallet_id: number;
   cvv: string;
   expires_at: string;
   card_type: "single" | "share" | "virtual_account_single";
-  virtual_account_id: string;
+  virtual_account_id: number;
   card_number: string;
   card_bin: string;
   status: CardStatus;
@@ -38,7 +38,7 @@ export interface Card extends Owned {
   currency: string;
 }
 export interface Authorization extends Owned {
-  card_id: string;
+  card_id: number;
   amount: number;
   remaining: number;
   settled: number;
@@ -62,12 +62,12 @@ export interface Transfer extends Owned {
   kind: WalletTransferKind;
   amount: number;
   currency: string;
-  source_wallet_id: string;
-  target_wallet_id: string;
+  source_wallet_id: number;
+  target_wallet_id: number;
   status: "succeed";
 }
 export interface Product {
-  id: string;
+  id: number;
   prefix: string;
 }
 async function request<Item>(path: string, options?: RequestInit): Promise<Item> {

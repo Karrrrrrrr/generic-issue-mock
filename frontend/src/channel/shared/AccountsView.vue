@@ -32,7 +32,7 @@ const {
 const { message } = createDiscreteApi(["message"]);
 const loading = ref(false);
 const visible = ref(false);
-const editingID = ref<string>();
+const editingID = ref<number>();
 const name = ref("");
 const rows = ref<Account[]>([]);
 const page = ref(1);
@@ -202,6 +202,7 @@ onMounted(() => void load());
     <n-modal
       :show="Boolean(adjustingAccount)"
       preset="card"
+      style="width: min(520px, calc(100vw - 32px))"
       title="账户资金调整"
       @update:show="
         (shown) => {

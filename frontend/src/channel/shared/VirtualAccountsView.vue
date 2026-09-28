@@ -33,7 +33,7 @@ const {
 }>();
 const { message } = createDiscreteApi(["message"]);
 const rows = ref<ManagedVirtualAccount[]>([]);
-const accountFilter = ref("");
+const accountFilter = ref<number | null>(null);
 const filteredRows = computed(() => rows.value.filter((row) => !accountFilter.value || row.account_id === accountFilter.value));
 const pagination = useClientPagination(filteredRows);
 const requestID = ref<string>();
@@ -78,8 +78,8 @@ async function submitFunding() {
 const visible = ref(false);
 const saving = ref(false);
 const name = ref("");
-const accountID = ref<string | null>(null);
-const accounts = ref<{ label: string; value: string }[]>([]);
+const accountID = ref<number | null>(null);
+const accounts = ref<{ label: string; value: number }[]>([]);
 const currency = ref("USD");
 const currencies = currencyOptions.map((value) => ({ label: value, value }));
 const columns = [
@@ -173,7 +173,7 @@ async function create() {
 async function openCreate() {
   try {
     const accountRows = await accountApi.listAll();
-    accounts.value = accountRows.map((account: { id: string; name: string }) => ({
+    accounts.value = accountRows.map((account: { id: number; name: string }) => ({
       label: account.name + " · " + account.id,
       value: account.id,
     }));
@@ -196,7 +196,7 @@ onMounted(load);
     </n-space>
   </div>
   <slot name="description" />
-  <n-input v-model:value="accountFilter" placeholder="按账户 ID 筛选" clearable />
+  <n-input-number v-model:value="accountFilter" :min="1" :precision="0" placeholder="按账户 ID 筛选" clearable />
   <n-card :bordered="false">
     <n-data-table
       max-height="max(160px, calc(100dvh - 400px))"
@@ -226,6 +226,7 @@ onMounted(load);
   <n-modal
     :show="Boolean(fundingAccount)"
     preset="card"
+    style="width: min(520px, calc(100vw - 32px))"
     :title="withdrawing ? '虚拟账户资金转出到账户' : '账户资金充值到虚拟账户'"
     @update:show="
       (shown) => {

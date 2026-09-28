@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"sort"
 
 	photonpayerrors "generic-mock/channel/photonpay/errors"
 	"generic-mock/enums"
@@ -19,10 +20,23 @@ type UIFundCardRequest struct {
 }
 
 type MoveFundsRequest struct {
+	CardID    *model.ID
 	AccountID model.ID
-	SourceID  model.ID
-	TargetID  model.ID
+	SourceID  *model.ID
+	TargetID  *model.ID
 	Amount    decimal.Decimal
+}
+
+func (req *MoveFundsRequest) Validate() error {
+	if req == nil || req.AccountID <= 0 || !req.Amount.IsPositive() ||
+		(req.CardID != nil && *req.CardID <= 0) ||
+		(req.SourceID != nil && *req.SourceID <= 0) ||
+		(req.TargetID != nil && *req.TargetID <= 0) ||
+		(req.SourceID == nil && req.TargetID == nil) ||
+		(req.SourceID != nil && req.TargetID != nil && *req.SourceID == *req.TargetID) {
+		return photonpayerrors.ErrInvalidOperation
+	}
+	return nil
 }
 
 func DefaultBalance() decimal.Decimal {
@@ -40,6 +54,9 @@ func (u *PhotonPayUIUsecase) FundCard(ctx context.Context, req *UIFundCardReques
 		card, err = u.getCard(txCtx, req.CardID)
 		if err != nil {
 			return err
+		}
+		if card.Status != enums.CardStatus_Active {
+			return photonpayerrors.ErrCardNotActive
 		}
 		if card.WalletID == 0 {
 			return photonpayerrors.ErrResourceNotFound
@@ -121,9 +138,22 @@ func (u *PhotonPayUIUsecase) ListFunds(ctx context.Context, accountID *model.ID)
 }
 
 func (u *PhotonPayUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsRequest) error {
-	if req.AccountID == 0 || !req.Amount.IsPositive() || req.SourceID == req.TargetID {
-		return photonpayerrors.ErrInvalidOperation
+	if err := req.Validate(); err != nil {
+		return err
 	}
+	sourceID := types.Value(req.SourceID)
+	targetID := types.Value(req.TargetID)
+	walletIDs := make([]model.ID, 0, 2)
+	if req.SourceID != nil {
+		walletIDs = append(walletIDs, *req.SourceID)
+	}
+	if req.TargetID != nil {
+		walletIDs = append(walletIDs, *req.TargetID)
+	}
+	sort.Slice(walletIDs, func(left, right int) bool {
+		return walletIDs[left] < walletIDs[right]
+	})
+
 	return u.transaction.InTx(ctx, func(ctx context.Context) error {
 		exists, err := u.accountRepo.Exist(ctx, req.AccountID)
 		if err != nil {
@@ -138,21 +168,32 @@ func (u *PhotonPayUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsReques
 			zap.S().Errorw("find photonpay funding account", "error", err)
 			return photonpayerrors.ErrDatabaseOperation
 		}
-		if account.WalletID == 0 || (req.SourceID != account.WalletID && req.TargetID != account.WalletID) {
+		if account.WalletID == 0 || (sourceID != account.WalletID && targetID != account.WalletID) {
 			return photonpayerrors.ErrInvalidOperation
 		}
-		wallets := make(map[model.ID]*model.Wallet)
-		ids := []model.ID{
-			req.SourceID,
-			req.TargetID,
+		cards, err := u.cardRepo.ListForFunding(ctx, &CardListForFundingRequest{
+			AccountID: req.AccountID,
+			WalletIDs: walletIDs,
+		})
+		if err != nil {
+			zap.S().Errorw("lock photonpay funding cards", "error", err)
+			return photonpayerrors.ErrDatabaseOperation
 		}
-		if ids[0] > ids[1] {
-			ids[0], ids[1] = ids[1], ids[0]
-		}
-		for _, walletID := range ids {
-			if walletID == 0 {
-				continue
+		selectedCardFound := req.CardID == nil
+		for _, card := range cards {
+			selected := req.CardID != nil && card.ID == *req.CardID
+			if selected {
+				selectedCardFound = true
 			}
+			if (selected || card.CardType != enums.CardType_Share) && card.Status != enums.CardStatus_Active {
+				return photonpayerrors.ErrCardNotActive
+			}
+		}
+		if !selectedCardFound {
+			return photonpayerrors.ErrResourceNotFound
+		}
+		wallets := make(map[model.ID]*model.Wallet)
+		for _, walletID := range walletIDs {
 			exists, err := u.walletRepo.WalletExists(ctx, &ExistWalletRequest{
 				AccountID: req.AccountID,
 				ID:        walletID,
@@ -174,7 +215,7 @@ func (u *PhotonPayUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsReques
 			}
 			wallets[walletID] = wallet
 		}
-		source, target := wallets[req.SourceID], wallets[req.TargetID]
+		source, target := wallets[sourceID], wallets[targetID]
 		if source == nil && target.Type != enums.WalletType_Account || target == nil && source.Type != enums.WalletType_Account {
 			return photonpayerrors.ErrInvalidOperation
 		}

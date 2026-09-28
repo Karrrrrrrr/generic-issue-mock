@@ -6,7 +6,7 @@ import (
 
 	"generic-mock/channel/photonpay/biz"
 	photon "generic-mock/channel/photonpay/enums"
-	"generic-mock/channel/photonpay/pkg/idconv"
+	photonpayerrors "generic-mock/channel/photonpay/errors"
 	common "generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -16,9 +16,9 @@ import (
 )
 
 type UIListRequest struct {
-	AccountID  *string `form:"account_id"`
-	PageNumber *int    `form:"page_number" binding:"omitempty,min=1"`
-	PageSize   *int    `form:"page_size" binding:"omitempty,min=1"`
+	AccountID  *model.ID `form:"account_id" binding:"omitempty,gt=0"`
+	PageNumber *int      `form:"page_number" binding:"omitempty,min=1"`
+	PageSize   *int      `form:"page_size" binding:"omitempty,min=1"`
 }
 
 type UIListResponse[T any] struct {
@@ -27,8 +27,8 @@ type UIListResponse[T any] struct {
 }
 
 type UIAccountData struct {
-	WalletID  string          `json:"wallet_id"`
-	ID        string          `json:"id"`
+	WalletID  model.ID        `json:"wallet_id"`
+	ID        model.ID        `json:"id"`
 	Name      string          `json:"name"`
 	Balance   decimal.Decimal `json:"balance"`
 	CreatedAt time.Time       `json:"created_at"`
@@ -36,8 +36,8 @@ type UIAccountData struct {
 
 type UIVirtualAccountData struct {
 	AccountName string    `json:"account_name"`
-	ID          string    `json:"id"`
-	AccountID   string    `json:"account_id"`
+	ID          model.ID  `json:"id"`
+	AccountID   model.ID  `json:"account_id"`
 	Name        string    `json:"name"`
 	Currency    string    `json:"currency"`
 	Balance     string    `json:"balance"`
@@ -45,17 +45,17 @@ type UIVirtualAccountData struct {
 }
 
 type UICreateVirtualAccountRequest struct {
-	AccountID string `json:"account_id" binding:"required"`
-	Name      string `json:"name" binding:"required"`
+	AccountID model.ID `json:"account_id" binding:"required,gt=0"`
+	Name      string   `json:"name" binding:"required"`
 }
 
 func (s *PhotonPayUIService) CreateVirtualAccount(
 	ctx context.Context,
 	req *UICreateVirtualAccountRequest,
 ) (*UIVirtualAccountData, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.CreateVirtualAccount(ctx, &biz.UICreateVirtualAccountRequest{
 		AccountID: accountID,
@@ -88,8 +88,8 @@ type UICreateAccountRequest struct {
 
 type UIWebhookData struct {
 	AccountName string              `json:"account_name"`
-	ID          string              `json:"id"`
-	AccountID   string              `json:"account_id"`
+	ID          model.ID            `json:"id"`
+	AccountID   model.ID            `json:"account_id"`
 	Event       photon.WebhookEvent `json:"event"`
 	TargetURL   string              `json:"target_url"`
 	Enabled     bool                `json:"enabled"`
@@ -99,7 +99,7 @@ type UIWebhookData struct {
 
 type UIAuthorizationConfigData struct {
 	AccountName   string    `json:"account_name"`
-	AccountID     string    `json:"account_id"`
+	AccountID     model.ID  `json:"account_id"`
 	TargetURL     string    `json:"target_url"`
 	Enabled       bool      `json:"enabled"`
 	TimeoutMillis int       `json:"timeout_millis"`
@@ -107,16 +107,16 @@ type UIAuthorizationConfigData struct {
 }
 
 type UIGetAuthorizationConfigRequest struct {
-	AccountID string `form:"account_id" binding:"required"`
+	AccountID model.ID `form:"account_id" binding:"required,gt=0"`
 }
 
 func (s *PhotonPayUIService) GetAuthorizationConfig(
 	ctx context.Context,
 	req *UIGetAuthorizationConfigRequest,
 ) (*UIAuthorizationConfigData, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.GetAuthorizationConfig(ctx, accountID)
 	if err != nil {
@@ -126,19 +126,19 @@ func (s *PhotonPayUIService) GetAuthorizationConfig(
 }
 
 type UIUpdateAuthorizationConfigRequest struct {
-	AccountID     string `json:"account_id" binding:"required"`
-	TargetURL     string `json:"target_url" binding:"required,url"`
-	Enabled       bool   `json:"enabled"`
-	TimeoutMillis int    `json:"timeout_millis" binding:"required,min=1"`
+	AccountID     model.ID `json:"account_id" binding:"required,gt=0"`
+	TargetURL     string   `json:"target_url" binding:"required,url"`
+	Enabled       bool     `json:"enabled"`
+	TimeoutMillis int      `json:"timeout_millis" binding:"required,min=1"`
 }
 
 func (s *PhotonPayUIService) UpdateAuthorizationConfig(
 	ctx context.Context,
 	req *UIUpdateAuthorizationConfigRequest,
 ) (*UIAuthorizationConfigData, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.UpdateAuthorizationConfig(ctx, &biz.UIUpdateAuthorizationConfigRequest{
 		AccountID:     accountID,
@@ -154,8 +154,8 @@ func (s *PhotonPayUIService) UpdateAuthorizationConfig(
 
 type UIWebhookRecordData struct {
 	AccountName     string                       `json:"account_name"`
-	ID              string                       `json:"id"`
-	AccountID       string                       `json:"account_id"`
+	ID              model.ID                     `json:"id"`
+	AccountID       model.ID                     `json:"account_id"`
 	Event           string                       `json:"event"`
 	TargetURL       string                       `json:"target_url"`
 	SourceID        string                       `json:"source_id"`
@@ -171,21 +171,21 @@ type UIWebhookRecordData struct {
 	CreatedAt       time.Time                    `json:"created_at"`
 }
 type UICreateWebhookRequest struct {
-	AccountID string              `json:"account_id" binding:"required"`
+	AccountID model.ID            `json:"account_id" binding:"required,gt=0"`
 	Event     photon.WebhookEvent `json:"event" binding:"required"`
 	TargetURL string              `json:"target_url" binding:"required,url"`
 	Enabled   bool                `json:"enabled"`
 }
 type UIUpdateWebhookRequest struct {
-	ID        string `uri:"id" binding:"required"`
-	TargetURL string `json:"target_url" binding:"required,url"`
-	Enabled   bool   `json:"enabled"`
+	ID        model.ID `uri:"id" binding:"required,gt=0"`
+	TargetURL string   `json:"target_url" binding:"required,url"`
+	Enabled   bool     `json:"enabled"`
 }
 
 func (s *PhotonPayUIService) CreateWebhook(ctx context.Context, req *UICreateWebhookRequest) (*UIWebhookData, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.CreateWebhook(ctx, &biz.UICreateWebhookRequest{
 		AccountID: accountID,
@@ -199,11 +199,11 @@ func (s *PhotonPayUIService) CreateWebhook(ctx context.Context, req *UICreateWeb
 	return photonPayUIWebhookData(item), nil
 }
 func (s *PhotonPayUIService) ListWebhooks(ctx context.Context, req *struct {
-	AccountID *string `form:"account_id"`
+	AccountID *model.ID `form:"account_id" binding:"omitempty,gt=0"`
 }) (*[]UIWebhookData, error) {
-	accountID, err := idconv.FromOptionalString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID != nil && *accountID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	items, err := s.usecase.ListWebhooks(ctx, &biz.WebhookListRequest{
 		AccountID: accountID,
@@ -223,9 +223,9 @@ func (s *PhotonPayUIService) ListWebhookEvents(context.Context, *struct{}) (*[]p
 	return &events, nil
 }
 func (s *PhotonPayUIService) UpdateWebhook(ctx context.Context, req *UIUpdateWebhookRequest) (*UIWebhookData, error) {
-	id, err := idconv.FromString(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.UpdateWebhook(ctx, &biz.UIUpdateWebhookRequest{
 		ID:        id,
@@ -238,11 +238,11 @@ func (s *PhotonPayUIService) UpdateWebhook(ctx context.Context, req *UIUpdateWeb
 	return photonPayUIWebhookData(item), nil
 }
 func (s *PhotonPayUIService) DeleteWebhook(ctx context.Context, req *struct {
-	ID string `uri:"id" binding:"required"`
+	ID model.ID `uri:"id" binding:"required,gt=0"`
 }) (*struct{}, error) {
-	id, err := idconv.FromString(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	if err := s.usecase.DeleteWebhook(ctx, id); err != nil {
 		return nil, err
@@ -251,17 +251,17 @@ func (s *PhotonPayUIService) DeleteWebhook(ctx context.Context, req *struct {
 }
 
 type UICardHolderRequest struct {
-	AccountID string `json:"account_id" binding:"required"`
-	FirstName string `json:"first_name" binding:"required"`
-	LastName  string `json:"last_name" binding:"required"`
-	Email     string `json:"email" binding:"required"`
-	Mobile    string `json:"phone_number" binding:"required"`
+	AccountID model.ID `json:"account_id" binding:"required,gt=0"`
+	FirstName string   `json:"first_name" binding:"required"`
+	LastName  string   `json:"last_name" binding:"required"`
+	Email     string   `json:"email" binding:"required"`
+	Mobile    string   `json:"phone_number" binding:"required"`
 }
 
 type UICardHolderData struct {
 	AccountName string                  `json:"account_name"`
-	AccountID   string                  `json:"account_id"`
-	ID          string                  `json:"id"`
+	AccountID   model.ID                `json:"account_id"`
+	ID          model.ID                `json:"id"`
 	FirstName   string                  `json:"first_name"`
 	LastName    string                  `json:"last_name"`
 	Email       string                  `json:"email"`
@@ -298,14 +298,14 @@ func (s *PhotonPayUIService) ListAccounts(ctx context.Context, req *UIListReques
 }
 
 type UIUpdateAccountRequest struct {
-	ID   string `uri:"id" binding:"required"`
-	Name string `json:"name" binding:"required"`
+	ID   model.ID `uri:"id" binding:"required,gt=0"`
+	Name string   `json:"name" binding:"required"`
 }
 
 func (s *PhotonPayUIService) UpdateAccount(ctx context.Context, req *UIUpdateAccountRequest) (*UIAccountData, error) {
-	id, err := idconv.FromAccountString(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.UpdateAccount(ctx, &biz.UIUpdateAccountRequest{
 		ID:   id,
@@ -339,12 +339,12 @@ func (s *PhotonPayUIService) ListWebhookRecords(
 func (s *PhotonPayUIService) ReplayWebhookRecord(
 	ctx context.Context,
 	req *struct {
-		ID string `uri:"id" binding:"required"`
+		ID model.ID `uri:"id" binding:"required,gt=0"`
 	},
 ) (*UIWebhookRecordData, error) {
-	id, err := idconv.FromString(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 
 	item, err := s.usecase.ReplayWebhookRecord(ctx, id)
@@ -362,9 +362,9 @@ func NewPhotonPayUIService(injector do.Injector) (*PhotonPayUIService, error) {
 }
 
 func (s *PhotonPayUIService) CreateCardHolder(ctx context.Context, req *UICardHolderRequest) (*UICardHolderData, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	holder, err := s.usecase.CreateCardHolder(ctx, &biz.UICreateCardHolderRequest{
 		AccountID: accountID,
@@ -397,19 +397,19 @@ func (s *PhotonPayUIService) ListCardHolders(ctx context.Context, req *UIListReq
 }
 
 type UICreateCardRequest struct {
-	CardProductID string `json:"card_product_id" binding:"required"`
-	AccountID     string `json:"account_id" binding:"required"`
-	CardHolderID  string `json:"cardholder_id" binding:"required"`
-	CardCurrency  string `json:"card_currency" binding:"required"`
-	RequestID     string `json:"request_id" binding:"required"`
+	CardProductID model.ID `json:"card_product_id" binding:"required,gt=0"`
+	AccountID     model.ID `json:"account_id" binding:"required,gt=0"`
+	CardHolderID  model.ID `json:"cardholder_id" binding:"required,gt=0"`
+	CardCurrency  string   `json:"card_currency" binding:"required"`
+	RequestID     string   `json:"request_id" binding:"required"`
 }
 
 type UICardData struct {
 	AccountName   string            `json:"account_name"`
-	AccountID     string            `json:"account_id"`
-	WalletID      string            `json:"wallet_id"`
-	ID            string            `json:"id"`
-	CardHolderID  string            `json:"cardholder_id"`
+	AccountID     model.ID          `json:"account_id"`
+	WalletID      model.ID          `json:"wallet_id"`
+	ID            model.ID          `json:"id"`
+	CardHolderID  model.ID          `json:"cardholder_id"`
 	CardNumber    string            `json:"card_number"`
 	CardBin       string            `json:"card_bin"`
 	CardCurrency  string            `json:"card_currency"`
@@ -422,17 +422,17 @@ type UICardData struct {
 }
 
 func (s *PhotonPayUIService) CreateCard(ctx context.Context, req *UICreateCardRequest) (*UICardData, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
-	cardHolderID, err := idconv.FromString(req.CardHolderID)
-	if err != nil {
-		return nil, err
+	cardHolderID := req.CardHolderID
+	if cardHolderID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
-	productID, err := idconv.FromString(req.CardProductID)
-	if err != nil {
-		return nil, err
+	productID := req.CardProductID
+	if productID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	card, err := s.usecase.OpenCard(ctx, &biz.UIOpenCardRequest{
 		CardProductID: productID,
@@ -464,20 +464,20 @@ func (s *PhotonPayUIService) ListAuthorizations(ctx context.Context, req *UIList
 }
 
 type UIUpdateCardStatusRequest struct {
-	AccountID  string            `json:"account_id" binding:"required"`
-	ID         string            `uri:"id" binding:"required"`
+	AccountID  model.ID          `json:"account_id" binding:"required,gt=0"`
+	ID         model.ID          `uri:"id" binding:"required,gt=0"`
 	CardStatus common.CardStatus `json:"card_status" binding:"required,oneof=active frozen deleted"`
 }
 
 type UIFundCardRequest struct {
-	ID     string  `uri:"id" binding:"required"`
-	Amount float64 `json:"amount" binding:"required,gt=0"`
+	ID     model.ID `uri:"id" binding:"required,gt=0"`
+	Amount float64  `json:"amount" binding:"required,gt=0"`
 }
 
 func (s *PhotonPayUIService) FundCard(ctx context.Context, req *UIFundCardRequest) (*UICardData, error) {
-	id, err := idconv.FromString(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.FundCard(ctx, &biz.UIFundCardRequest{
 		CardID: id,
@@ -491,13 +491,13 @@ func (s *PhotonPayUIService) FundCard(ctx context.Context, req *UIFundCardReques
 }
 
 func (s *PhotonPayUIService) UpdateCardStatus(ctx context.Context, req *UIUpdateCardStatusRequest) (*UICardData, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
-	cardID, err := idconv.FromString(req.ID)
-	if err != nil {
-		return nil, err
+	cardID := req.ID
+	if cardID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	card, err := s.usecase.ChangeCardStatus(ctx, &biz.UIChangeCardStatusRequest{
 		AccountID: accountID,
@@ -513,10 +513,10 @@ func (s *PhotonPayUIService) UpdateCardStatus(ctx context.Context, req *UIUpdate
 
 type UITransactionData struct {
 	AccountName          string                       `json:"account_name"`
-	AccountID            string                       `json:"account_id"`
-	ID                   string                       `json:"id"`
-	CardID               string                       `json:"card_id"`
-	AuthorizationID      string                       `json:"authorization_id"`
+	AccountID            model.ID                     `json:"account_id"`
+	ID                   model.ID                     `json:"id"`
+	CardID               model.ID                     `json:"card_id"`
+	AuthorizationID      model.ID                     `json:"authorization_id"`
 	TransactionType      common.CardTransactionType   `json:"transaction_type"`
 	Status               common.CardTransactionStatus `json:"status"`
 	Amount               string                       `json:"amount"`
@@ -527,10 +527,10 @@ type UITransactionData struct {
 }
 
 type UIAuthorizationData struct {
-	AccountID            string                       `json:"account_id"`
+	AccountID            model.ID                     `json:"account_id"`
 	AccountName          string                       `json:"account_name"`
-	ID                   string                       `json:"id"`
-	CardID               string                       `json:"card_id"`
+	ID                   model.ID                     `json:"id"`
+	CardID               model.ID                     `json:"card_id"`
 	Status               common.CardTransactionStatus `json:"status"`
 	AuthorizedAmount     string                       `json:"authorized_amount"`
 	Currency             string                       `json:"currency"`
@@ -541,13 +541,13 @@ type UIAuthorizationData struct {
 }
 
 type UISimulateAuthorizationRequest struct {
-	CardID               string  `json:"card_id" binding:"required"`
-	TransactionAmount    float64 `json:"transaction_amount" binding:"required"`
-	TransactionCurrency  string  `json:"transaction_currency" binding:"required"`
-	MerchantName         string  `json:"merchant_name" binding:"required"`
-	MerchantCategoryCode string  `json:"merchant_category_code" binding:"required"`
-	MerchantCountry      *string `json:"merchant_country" binding:"omitempty,min=1"`
-	MerchantCity         string  `json:"merchant_city"` // Invalid: generic model has no merchant city field.
+	CardID               model.ID `json:"card_id" binding:"required,gt=0"`
+	TransactionAmount    float64  `json:"transaction_amount" binding:"required"`
+	TransactionCurrency  string   `json:"transaction_currency" binding:"required"`
+	MerchantName         string   `json:"merchant_name" binding:"required"`
+	MerchantCategoryCode string   `json:"merchant_category_code" binding:"required"`
+	MerchantCountry      *string  `json:"merchant_country" binding:"omitempty,min=1"`
+	MerchantCity         string   `json:"merchant_city"` // Invalid: generic model has no merchant city field.
 }
 
 type UISimulateAuthorizationData struct {
@@ -558,8 +558,8 @@ type UISimulateAuthorizationData struct {
 }
 
 type UISimulateRefundRequest struct {
-	AuthorizationID      *string          `json:"authorization_id"`
-	CardID               *string          `json:"card_id"`
+	AuthorizationID      *model.ID        `json:"authorization_id" binding:"omitempty,gt=0"`
+	CardID               *model.ID        `json:"card_id" binding:"omitempty,gt=0"`
 	Amount               float64          `json:"amount" binding:"required,gt=0"`
 	Currency             *common.Currency `json:"currency"`
 	MerchantName         string           `json:"merchant_name" binding:"required"`
@@ -569,13 +569,13 @@ type UISimulateRefundRequest struct {
 }
 
 func (s *PhotonPayUIService) SimulateRefund(ctx context.Context, req *UISimulateRefundRequest) (*UITransactionData, error) {
-	authorizationID, err := idconv.FromOptionalString(req.AuthorizationID)
-	if err != nil {
-		return nil, err
+	authorizationID := req.AuthorizationID
+	if authorizationID != nil && *authorizationID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
-	cardID, err := idconv.FromOptionalString(req.CardID)
-	if err != nil {
-		return nil, err
+	cardID := req.CardID
+	if cardID != nil && *cardID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.SimulateRefund(ctx, &biz.UISimulateRefundRequest{
 		AuthorizationID: authorizationID,
@@ -593,9 +593,9 @@ func (s *PhotonPayUIService) SimulateRefund(ctx context.Context, req *UISimulate
 }
 
 func (s *PhotonPayUIService) SimulateAuthorization(ctx context.Context, req *UISimulateAuthorizationRequest) (*UISimulateAuthorizationData, error) {
-	cardID, err := idconv.FromString(req.CardID)
-	if err != nil {
-		return nil, err
+	cardID := req.CardID
+	if cardID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	result, err := s.usecase.SimulateAuthorization(ctx, &biz.UISimulateAuthorizationRequest{
 		CardID:          cardID,
@@ -618,7 +618,7 @@ func (s *PhotonPayUIService) SimulateAuthorization(ctx context.Context, req *UIS
 }
 
 type UIApplyTransactionStepRequest struct {
-	ID     string           `uri:"id" binding:"required"`
+	ID     model.ID         `uri:"id" binding:"required,gt=0"`
 	Amount *decimal.Decimal `json:"amount"`
 }
 
@@ -635,9 +635,9 @@ func (s *PhotonPayUIService) RefundTransaction(ctx context.Context, req *UIApply
 }
 
 func (s *PhotonPayUIService) applyTransactionStep(ctx context.Context, req *UIApplyTransactionStepRequest, transactionType common.CardTransactionType) (*UITransactionData, error) {
-	transactionID, err := idconv.FromString(req.ID)
-	if err != nil {
-		return nil, err
+	transactionID := req.ID
+	if transactionID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.ApplyTransactionStep(ctx, &biz.UIApplyTransactionStepRequest{
 		CardTransactionID: transactionID,
@@ -653,9 +653,9 @@ func (s *PhotonPayUIService) applyTransactionStep(ctx context.Context, req *UIAp
 
 func photonPayUIListRequest(req *UIListRequest) (*biz.ListRequest, error) {
 	page, size := types.NormalizePagination(types.Value(req.PageNumber), types.Value(req.PageSize))
-	accountID, err := idconv.FromOptionalString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID != nil && *accountID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	return &biz.ListRequest{
 		AccountID: accountID,
@@ -666,9 +666,9 @@ func photonPayUIListRequest(req *UIListRequest) (*biz.ListRequest, error) {
 
 func photonPayUICardHolderData(item *model.CardHolder) *UICardHolderData {
 	return &UICardHolderData{
-		AccountID:   idconv.ToString(item.AccountID),
+		AccountID:   item.AccountID,
 		AccountName: uiAccountName(item.Account),
-		ID:          idconv.ToString(item.ID),
+		ID:          item.ID,
 		FirstName:   item.FirstName,
 		LastName:    item.LastName,
 		Email:       item.Email,
@@ -689,11 +689,11 @@ func photonPayUICardData(item *model.Card) *UICardData {
 	}
 
 	return &UICardData{
-		AccountID:     idconv.ToString(item.AccountID),
+		AccountID:     item.AccountID,
 		AccountName:   uiAccountName(item.Account),
-		WalletID:      idconv.ToString(item.WalletID),
-		ID:            idconv.ToString(item.ID),
-		CardHolderID:  idconv.ToString(item.CardHolderID),
+		WalletID:      item.WalletID,
+		ID:            item.ID,
+		CardHolderID:  item.CardHolderID,
 		CardNumber:    item.CardNumber,
 		CardBin:       item.CardBin,
 		CardCurrency:  string(item.CardCurrency),
@@ -708,10 +708,10 @@ func photonPayUICardData(item *model.Card) *UICardData {
 
 func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationData {
 	return &UIAuthorizationData{
-		AccountID:            idconv.ToString(item.AccountID),
+		AccountID:            item.AccountID,
 		AccountName:          uiAccountName(item.Account),
-		ID:                   idconv.ToString(item.ID),
-		CardID:               idconv.ToString(item.CardID),
+		ID:                   item.ID,
+		CardID:               item.CardID,
 		Status:               item.Status,
 		AuthorizedAmount:     item.Amount.String(),
 		Currency:             string(item.Currency),
@@ -724,8 +724,8 @@ func photonPayUIAuthorizationData(item *model.Authorization) *UIAuthorizationDat
 
 func photonPayUIWebhookData(item *model.WebhookConfig) *UIWebhookData {
 	return &UIWebhookData{
-		ID:          idconv.ToString(item.ID),
-		AccountID:   idconv.ToString(item.AccountID),
+		ID:          item.ID,
+		AccountID:   item.AccountID,
 		AccountName: uiAccountName(item.Account),
 		Event:       photon.WebhookEvent(item.Event),
 		TargetURL:   item.TargetURL,
@@ -737,9 +737,9 @@ func photonPayUIWebhookData(item *model.WebhookConfig) *UIWebhookData {
 
 func photonPayUIVirtualAccountData(item *model.VirtualAccount) *UIVirtualAccountData {
 	return &UIVirtualAccountData{
-		AccountID:   idconv.ToString(item.AccountID),
+		AccountID:   item.AccountID,
 		AccountName: uiAccountName(item.Account),
-		ID:          idconv.ToString(item.ID),
+		ID:          item.ID,
 		Name:        item.Name,
 		Currency:    string(item.Wallet.Currency),
 		Balance:     item.Wallet.Available.String(),
@@ -749,7 +749,7 @@ func photonPayUIVirtualAccountData(item *model.VirtualAccount) *UIVirtualAccount
 
 func photonPayUIAuthorizationConfigData(item *model.AuthorizationConfig) *UIAuthorizationConfigData {
 	return &UIAuthorizationConfigData{
-		AccountID:     idconv.ToString(item.AccountID),
+		AccountID:     item.AccountID,
 		AccountName:   uiAccountName(item.Account),
 		TargetURL:     item.TargetURL,
 		Enabled:       item.Enabled,
@@ -760,8 +760,8 @@ func photonPayUIAuthorizationConfigData(item *model.AuthorizationConfig) *UIAuth
 
 func photonPayUIWebhookRecordData(item *model.WebhookRecord) *UIWebhookRecordData {
 	return &UIWebhookRecordData{
-		ID:              idconv.ToString(item.ID),
-		AccountID:       idconv.ToString(item.AccountID),
+		ID:              item.ID,
+		AccountID:       item.AccountID,
 		AccountName:     uiAccountName(item.Account),
 		Event:           item.Event,
 		TargetURL:       item.TargetURL,
@@ -785,8 +785,8 @@ func photonPayUIAccountData(item *model.Account) *UIAccountData {
 		balance = item.Wallet.Available
 	}
 	return &UIAccountData{
-		WalletID:  idconv.ToString(item.WalletID),
-		ID:        idconv.ToString(item.ID),
+		WalletID:  item.WalletID,
+		ID:        item.ID,
 		Name:      item.Name,
 		Balance:   balance,
 		CreatedAt: item.CreatedAt,
@@ -795,11 +795,11 @@ func photonPayUIAccountData(item *model.Account) *UIAccountData {
 
 func photonPayUITransactionData(item *model.CardTransaction) *UITransactionData {
 	return &UITransactionData{
-		AccountID:            idconv.ToString(item.AccountID),
+		AccountID:            item.AccountID,
 		AccountName:          uiAccountName(item.Account),
-		ID:                   idconv.ToString(item.ID),
-		CardID:               idconv.ToString(item.CardID),
-		AuthorizationID:      idconv.ToString(item.AuthorizationID),
+		ID:                   item.ID,
+		CardID:               item.CardID,
+		AuthorizationID:      item.AuthorizationID,
 		TransactionType:      item.Type,
 		Status:               item.Status,
 		Amount:               item.TxAmount.String(),
@@ -811,25 +811,25 @@ func photonPayUITransactionData(item *model.CardTransaction) *UITransactionData 
 }
 
 type ManagementListRequest struct {
-	AccountID *string `form:"account_id"`
+	AccountID *model.ID `form:"account_id" binding:"omitempty,gt=0"`
 }
 
 type ManagementAccountRequest struct {
-	AccountID string `form:"account_id" json:"account_id" binding:"required"`
+	AccountID model.ID `form:"account_id" json:"account_id" binding:"required,gt=0"`
 }
 type FundsData struct {
 	AccountName string            `json:"account_name"`
-	AccountID   string            `json:"account_id"`
-	ID          string            `json:"id"`
+	AccountID   model.ID          `json:"account_id"`
+	ID          model.ID          `json:"id"`
 	Currency    common.Currency   `json:"currency"`
 	Kind        photon.WalletKind `json:"kind"`
 	Amount      string            `json:"amount"`
 }
 
 func (s *PhotonPayUIService) ListFunds(ctx context.Context, req *ManagementListRequest) (*[]FundsData, error) {
-	accountID, err := idconv.FromOptionalString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID != nil && *accountID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	items, err := s.usecase.ListFunds(ctx, accountID)
 	if err != nil {
@@ -847,9 +847,9 @@ func (s *PhotonPayUIService) ListFunds(ctx context.Context, req *ManagementListR
 			kind = photon.WalletKindCard
 		}
 		result = append(result, FundsData{
-			AccountID:   idconv.ToString(item.AccountID),
+			AccountID:   item.AccountID,
 			AccountName: uiAccountName(item.Account),
-			ID:          idconv.ToString(item.ID),
+			ID:          item.ID,
 			Currency:    item.Currency,
 			Kind:        kind,
 			Amount:      item.Available.String(),
@@ -859,34 +859,23 @@ func (s *PhotonPayUIService) ListFunds(ctx context.Context, req *ManagementListR
 }
 
 type MoveFundsRequest struct {
+	CardID *model.ID `json:"card_id" binding:"omitempty,gt=0"`
 	ManagementAccountRequest
-	SourceID string          `json:"source_id"`
-	TargetID string          `json:"target_id"`
+	SourceID *model.ID       `json:"source_id" binding:"omitempty,gt=0"`
+	TargetID *model.ID       `json:"target_id" binding:"omitempty,gt=0"`
 	Amount   decimal.Decimal `json:"amount"`
 }
 
 func (s *PhotonPayUIService) MoveFunds(ctx context.Context, req *MoveFundsRequest) (*struct{}, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
-	var sourceID, targetID int64
-	if req.SourceID != "" {
-		sourceID, err = idconv.FromString(req.SourceID)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if req.TargetID != "" {
-		targetID, err = idconv.FromString(req.TargetID)
-		if err != nil {
-			return nil, err
-		}
+	accountID := req.AccountID
+	if accountID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	if err := s.usecase.MoveFunds(ctx, &biz.MoveFundsRequest{
+		CardID:    req.CardID,
 		AccountID: accountID,
-		SourceID:  sourceID,
-		TargetID:  targetID,
+		SourceID:  req.SourceID,
+		TargetID:  req.TargetID,
 		Amount:    req.Amount,
 	}); err != nil {
 		return nil, err
@@ -895,17 +884,17 @@ func (s *PhotonPayUIService) MoveFunds(ctx context.Context, req *MoveFundsReques
 }
 
 type ManagedVirtualAccountData struct {
-	AccountName string `json:"account_name"`
-	AccountID   string `json:"account_id"`
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	WalletID    string `json:"wallet_id"`
+	AccountName string   `json:"account_name"`
+	AccountID   model.ID `json:"account_id"`
+	ID          model.ID `json:"id"`
+	Name        string   `json:"name"`
+	WalletID    model.ID `json:"wallet_id"`
 }
 
 func (s *PhotonPayUIService) ListManagedVirtualAccounts(ctx context.Context, req *ManagementListRequest) (*[]ManagedVirtualAccountData, error) {
-	accountID, err := idconv.FromOptionalString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID != nil && *accountID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	items, err := s.usecase.ListManagedVirtualAccounts(ctx, accountID)
 	if err != nil {
@@ -914,11 +903,11 @@ func (s *PhotonPayUIService) ListManagedVirtualAccounts(ctx context.Context, req
 	result := make([]ManagedVirtualAccountData, 0, len(items))
 	for _, item := range items {
 		result = append(result, ManagedVirtualAccountData{
-			AccountID:   idconv.ToString(item.AccountID),
+			AccountID:   item.AccountID,
 			AccountName: uiAccountName(item.Account),
-			ID:          idconv.ToString(item.ID),
+			ID:          item.ID,
 			Name:        item.Name,
-			WalletID:    idconv.ToString(item.WalletID),
+			WalletID:    item.WalletID,
 		})
 	}
 	return &result, nil
@@ -931,9 +920,9 @@ type CreateManagedVirtualAccountRequest struct {
 }
 
 func (s *PhotonPayUIService) CreateManagedVirtualAccount(ctx context.Context, req *CreateManagedVirtualAccountRequest) (*ManagedVirtualAccountData, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID <= 0 {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.CreateManagedVirtualAccount(ctx, &biz.CreateManagedVirtualAccountRequest{
 		AccountID: accountID,
@@ -944,11 +933,11 @@ func (s *PhotonPayUIService) CreateManagedVirtualAccount(ctx context.Context, re
 		return nil, err
 	}
 	return &ManagedVirtualAccountData{
-		AccountID:   idconv.ToString(item.AccountID),
+		AccountID:   item.AccountID,
 		AccountName: uiAccountName(item.Account),
-		ID:          idconv.ToString(item.ID),
+		ID:          item.ID,
 		Name:        item.Name,
-		WalletID:    idconv.ToString(item.WalletID),
+		WalletID:    item.WalletID,
 	}, nil
 }
 

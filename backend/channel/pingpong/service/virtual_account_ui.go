@@ -6,18 +6,18 @@ import (
 
 	"generic-mock/channel/pingpong/biz"
 	pingerrors "generic-mock/channel/pingpong/errors"
-	"generic-mock/channel/pingpong/pkg/idconv"
 	common "generic-mock/enums"
+	"generic-mock/model"
 )
 
 type UIVirtualAccountIDData struct {
-	VirtualAccountID string `json:"virtual_account_id"`
+	VirtualAccountID model.ID `json:"virtual_account_id"`
 }
 
 type UIVirtualAccountData struct {
-	WalletID    string          `json:"wallet_id"`
-	ID          string          `json:"id"`
-	AccountID   string          `json:"account_id"`
+	WalletID    model.ID        `json:"wallet_id"`
+	ID          model.ID        `json:"id"`
+	AccountID   model.ID        `json:"account_id"`
 	AccountName string          `json:"account_name"`
 	Name        string          `json:"name"`
 	Balance     Number          `json:"balance"`
@@ -26,8 +26,8 @@ type UIVirtualAccountData struct {
 }
 
 type UICreateVirtualAccountRequest struct {
-	AccountID string `json:"account_id" binding:"required"`
-	Name      string `json:"name" binding:"required"`
+	AccountID model.ID `json:"account_id" binding:"required,gt=0"`
+	Name      string   `json:"name" binding:"required"`
 }
 
 type UIFundVirtualAccountRequest struct {
@@ -37,9 +37,9 @@ type UIFundVirtualAccountRequest struct {
 }
 
 func (s *PingPongUIService) ListVirtualAccounts(ctx context.Context, req *UIListRequest) (*UIPage[UIVirtualAccountData], error) {
-	accountID, err := idconv.FromOptionalString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID != nil && *accountID <= 0 {
+		return nil, pingerrors.ErrInvalid
 	}
 	page, limit, err := req.PageRequest.resolvePagination()
 	if err != nil {
@@ -62,9 +62,9 @@ func (s *PingPongUIService) ListVirtualAccounts(ctx context.Context, req *UIList
 			return nil, pingerrors.ErrInvalid
 		}
 		result.Items = append(result.Items, UIVirtualAccountData{
-			ID:          idconv.ToString(item.ID),
-			WalletID:    idconv.ToString(item.WalletID),
-			AccountID:   idconv.ToString(item.AccountID),
+			ID:          item.ID,
+			WalletID:    item.WalletID,
+			AccountID:   item.AccountID,
 			AccountName: item.Account.GetName(),
 			Name:        item.Name,
 			Balance:     Number{item.Wallet.Available},
@@ -76,9 +76,9 @@ func (s *PingPongUIService) ListVirtualAccounts(ctx context.Context, req *UIList
 }
 
 func (s *PingPongUIService) CreateVirtualAccount(ctx context.Context, req *UICreateVirtualAccountRequest) (*UIVirtualAccountIDData, error) {
-	accountID, err := idconv.FromString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID <= 0 {
+		return nil, pingerrors.ErrInvalid
 	}
 	item, err := s.uc.CreateVirtualAccount(ctx, &biz.UICreateVirtualAccountRequest{
 		AccountID: accountID,
@@ -87,12 +87,12 @@ func (s *PingPongUIService) CreateVirtualAccount(ctx context.Context, req *UICre
 	if err != nil {
 		return nil, err
 	}
-	return &UIVirtualAccountIDData{VirtualAccountID: idconv.ToString(item.ID)}, nil
+	return &UIVirtualAccountIDData{VirtualAccountID: item.ID}, nil
 }
 
-func (s *PingPongUIService) FundVirtualAccount(ctx context.Context, req *UIFundVirtualAccountRequest) (*RecordData, error) {
-	accountID, id, err := req.UIResourceRequest.ParseAccountAndResourceIDs()
-	if err != nil {
+func (s *PingPongUIService) FundVirtualAccount(ctx context.Context, req *UIFundVirtualAccountRequest) (*UIRecordData, error) {
+	accountID, id := req.AccountID, req.ID
+	if err := req.UIResourceRequest.Validate(); err != nil {
 		return nil, err
 	}
 	item, err := s.uc.FundVirtualAccount(ctx, &biz.UIVirtualAccountFundingRequest{
@@ -105,5 +105,5 @@ func (s *PingPongUIService) FundVirtualAccount(ctx context.Context, req *UIFundV
 	if err != nil {
 		return nil, err
 	}
-	return &RecordData{RecordID: idconv.ToString(item.ID)}, nil
+	return &UIRecordData{RecordID: item.ID}, nil
 }

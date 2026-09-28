@@ -7,19 +7,19 @@ import (
 	"generic-mock/channel/pingpong/biz"
 	ping "generic-mock/channel/pingpong/enums"
 	pingerrors "generic-mock/channel/pingpong/errors"
-	"generic-mock/channel/pingpong/pkg/idconv"
 	common "generic-mock/enums"
+	"generic-mock/model"
 )
 
 type UICardData struct {
-	WalletID         string            `json:"wallet_id"`
+	WalletID         model.ID          `json:"wallet_id"`
 	CVV              string            `json:"cvv"`
 	ExpiresAt        time.Time         `json:"expires_at"`
 	CardType         common.CardType   `json:"card_type"`
-	ID               string            `json:"id"`
-	AccountID        string            `json:"account_id"`
+	ID               model.ID          `json:"id"`
+	AccountID        model.ID          `json:"account_id"`
 	AccountName      string            `json:"account_name"`
-	VirtualAccountID string            `json:"virtual_account_id"`
+	VirtualAccountID model.ID          `json:"virtual_account_id"`
 	CardNumber       string            `json:"card_number"`
 	CardBin          string            `json:"card_bin"`
 	Status           common.CardStatus `json:"status"`
@@ -33,7 +33,7 @@ type UIListCardsRequest struct {
 	UIListRequest
 	UIListTimeRange
 	CardNumber *string            `form:"card_number" binding:"omitempty,min=1"`
-	ID         *string            `form:"card_id"`
+	ID         *model.ID          `form:"card_id" binding:"omitempty,gt=0"`
 	Status     *common.CardStatus `form:"status" binding:"omitempty,oneof=inactive active freezing frozen deleting deleted"`
 }
 
@@ -53,13 +53,13 @@ func (s *PingPongUIService) ListCards(ctx context.Context, req *UIListCardsReque
 	if err := req.UIListTimeRange.Validate(); err != nil {
 		return nil, err
 	}
-	accountID, err := idconv.FromOptionalString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID != nil && *accountID <= 0 {
+		return nil, pingerrors.ErrInvalid
 	}
-	cardID, err := idconv.FromOptionalString(req.ID)
-	if err != nil {
-		return nil, err
+	cardID := req.ID
+	if cardID != nil && *cardID <= 0 {
+		return nil, pingerrors.ErrInvalid
 	}
 
 	page, limit, err := req.PageRequest.resolvePagination()
@@ -88,14 +88,14 @@ func (s *PingPongUIService) ListCards(ctx context.Context, req *UIListCardsReque
 			return nil, pingerrors.ErrInvalid
 		}
 		result.Items = append(result.Items, UICardData{
-			ID:               idconv.ToString(item.ID),
-			WalletID:         idconv.ToString(item.WalletID),
+			ID:               item.ID,
+			WalletID:         item.WalletID,
 			CVV:              item.Cvv,
 			ExpiresAt:        item.ExpireAt,
 			CardType:         item.CardType,
-			AccountID:        idconv.ToString(item.AccountID),
+			AccountID:        item.AccountID,
 			AccountName:      item.Account.GetName(),
-			VirtualAccountID: idconv.ToString(*item.VirtualAccountID),
+			VirtualAccountID: *item.VirtualAccountID,
 			CardNumber:       item.CardNumber,
 			CardBin:          item.CardBin,
 			Status:           item.Status,
@@ -109,8 +109,8 @@ func (s *PingPongUIService) ListCards(ctx context.Context, req *UIListCardsReque
 }
 
 func (s *PingPongUIService) ChangeCardStatus(ctx context.Context, req *UIChangeCardRequest) (*Empty, error) {
-	accountID, id, err := req.UIResourceRequest.ParseAccountAndResourceIDs()
-	if err != nil {
+	accountID, id := req.AccountID, req.ID
+	if err := req.UIResourceRequest.Validate(); err != nil {
 		return nil, err
 	}
 	if err := s.uc.ChangeCard(ctx, &biz.UIChangeCardRequest{
@@ -123,9 +123,9 @@ func (s *PingPongUIService) ChangeCardStatus(ctx context.Context, req *UIChangeC
 	return &Empty{}, nil
 }
 
-func (s *PingPongUIService) FundCard(ctx context.Context, req *UIFundCardRequest) (*RecordData, error) {
-	accountID, id, err := req.UIResourceRequest.ParseAccountAndResourceIDs()
-	if err != nil {
+func (s *PingPongUIService) FundCard(ctx context.Context, req *UIFundCardRequest) (*UIRecordData, error) {
+	accountID, id := req.AccountID, req.ID
+	if err := req.UIResourceRequest.Validate(); err != nil {
 		return nil, err
 	}
 	item, err := s.uc.FundCard(ctx, &biz.UICardFundingRequest{
@@ -138,5 +138,5 @@ func (s *PingPongUIService) FundCard(ctx context.Context, req *UIFundCardRequest
 	if err != nil {
 		return nil, err
 	}
-	return &RecordData{RecordID: idconv.ToString(item.ID)}, nil
+	return &UIRecordData{RecordID: item.ID}, nil
 }

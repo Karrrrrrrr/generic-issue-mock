@@ -38,8 +38,8 @@ const authorizationBusy = ref(false);
 const activeTab = ref("authorization");
 const { submitting, result, submit } = useSimulation();
 const form = reactive({
-  authorizationID: "",
-  cardID: "",
+  authorizationID: null as number | null,
+  cardID: null as number | null,
   amount: 100 as number | null,
   currency: "USD",
   merchantName: "Amazon",
@@ -58,7 +58,7 @@ const cardOptions = computed(() => simulationCards.value.map((card) => ({
   value: card.id,
   disabled: card.disabled,
 })));
-const authorizationID = computed(() => form.authorizationID.trim());
+const authorizationID = computed(() => form.authorizationID);
 const currencyOptions = computed(() => [...new Set([
   "USD", "EUR", "GBP", ...simulationCards.value.map((card) => card.currency),
 ])].map((currency) => ({
@@ -66,7 +66,7 @@ const currencyOptions = computed(() => [...new Set([
   value: currency,
 })));
 
-function selectRefundCard(cardID: string) {
+function selectRefundCard(cardID: number | null) {
   form.cardID = cardID;
   const card = simulationCards.value.find((item) => item.id === cardID);
   if (card) {
@@ -82,7 +82,7 @@ async function loadCards() {
   cardsError.value = "";
   try {
     cards.value = await props.loadCards();
-    selectRefundCard(simulationCards.value.find((card) => !card.disabled)?.id ?? "");
+    selectRefundCard(simulationCards.value.find((card) => !card.disabled)?.id ?? null);
   } catch (error) {
     cardsError.value = error instanceof Error ? error.message : "加载卡失败";
   } finally {
@@ -96,6 +96,10 @@ async function submitRefund() {
   }
   if (!isPositiveSimulationAmount(form.amount)) {
     message.warning("退款金额必须是有限的正数");
+    return;
+  }
+  if (authorizationID.value !== null && (!Number.isSafeInteger(authorizationID.value) || authorizationID.value <= 0)) {
+    message.warning("授权 ID 必须是正整数");
     return;
   }
   const card = simulationCards.value.find((item) => item.id === form.cardID);
@@ -117,7 +121,7 @@ async function submitRefund() {
   if (authorizationID.value) {
     request.authorization_id = authorizationID.value;
   } else {
-    request.card_id = form.cardID;
+    request.card_id = card!.id;
     request.currency = form.currency;
   }
   if (await submit(() => props.refund(request), "退款交易已创建。")) {
@@ -168,7 +172,7 @@ onMounted(loadCards);
                   />
                 </n-form-item>
                 <n-form-item label="关联授权 ID（可选，留空为独立退款）">
-                  <n-input v-model:value="form.authorizationID" placeholder="不要求先清算" />
+                  <n-input-number v-model:value="form.authorizationID" :min="1" :precision="0" placeholder="不要求先清算" />
                 </n-form-item>
                 <n-form-item label="退款金额" required>
                   <n-input-number

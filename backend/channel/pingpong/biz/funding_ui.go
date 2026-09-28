@@ -83,8 +83,8 @@ func (uc *PingPongUIUsecase) FundCard(ctx context.Context, req *UICardFundingReq
 			result = previous
 			return nil
 		}
-		if card.Status == common.CardStatus_Deleted {
-			return pingerrors.ErrClosed
+		if card.Status != common.CardStatus_Active {
+			return pingerrors.ErrCardNotActive
 		}
 		result, err = uc.transferWalletFunds(ctx, transfer)
 		return err

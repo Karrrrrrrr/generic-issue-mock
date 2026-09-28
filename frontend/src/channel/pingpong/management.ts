@@ -71,7 +71,7 @@ export const accountApi = {
     });
     return { data: result.items.map(toAccount), total_items: result.total };
   },
-  async update(id: string, request: { name: string }): Promise<UIAccount> {
+  async update(id: number, request: { name: string }): Promise<UIAccount> {
     return toAccount(await api.put<Account>(`accounts/${id}`, request));
   },
   async create(request: { name: string }): Promise<UIAccount> {

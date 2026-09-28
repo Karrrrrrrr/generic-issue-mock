@@ -23,15 +23,15 @@ func newSlashFixture(testContext *testing.T) *slashFixture {
 	testContext.Helper()
 	suite := contract.New(testContext, "slash")
 	virtual := suite.UI(testContext, http.MethodPost, "/managed-virtual-accounts", map[string]any{
-		"account_id": suite.Config.Account,
+		"account_id": suite.ToUIID(testContext, suite.Config.Account),
 		"name":       "SDK virtual account",
 		"currency":   "USD",
 	})
-	suite.Config.VirtualAccount = contract.Text(testContext, virtual, "id")
+	suite.Config.VirtualAccount = suite.OpenAPIID(testContext, virtual, "id")
 	suite.UI(testContext, http.MethodPost, "/funds/transfer", map[string]any{
-		"account_id": suite.Config.Account,
-		"source_id":  suite.Config.Wallet,
-		"target_id":  contract.Text(testContext, virtual, "wallet_id"),
+		"account_id": suite.ToUIID(testContext, suite.Config.Account),
+		"source_id":  suite.ToUIID(testContext, suite.Config.Wallet),
+		"target_id":  contract.ID(testContext, virtual, "wallet_id"),
 		"amount":     "1000",
 	})
 	client := New(suite.Config)
@@ -171,14 +171,14 @@ func TestSlashAccounts(testContext *testing.T) {
 	})
 	testContext.Run("VirtualAccountTransfer", func(testContext *testing.T) {
 		destination := suite.UI(testContext, http.MethodPost, "/managed-virtual-accounts", map[string]any{
-			"account_id": suite.Config.Account,
+			"account_id": suite.ToUIID(testContext, suite.Config.Account),
 			"name":       "Destination",
 			"currency":   "USD",
 		})
 		_, err := client.VirtualAccountTransfer(suite.Context, &TransferRequest{
 			RequestID:   contract.Unique(),
 			Source:      suite.Config.VirtualAccount,
-			Destination: contract.Text(testContext, destination, "id"),
+			Destination: suite.OpenAPIID(testContext, destination, "id"),
 			AmountCents: 100,
 		})
 		if err != nil {
@@ -435,16 +435,16 @@ func TestSlashTransactions(testContext *testing.T) {
 		}
 	})
 	refund := suite.UI(testContext, http.MethodPost, "/simulate/refunds", map[string]any{
-		"card_id":                card.ID,
+		"card_id":                suite.ToUIID(testContext, card.ID),
 		"amount":                 2,
 		"currency":               "USD",
 		"merchant_name":          "Refund merchant",
 		"merchant_country":       "US",
 		"merchant_category_code": "5411",
 	})
-	refundID := contract.Text(testContext, refund, "id")
+	refundID := suite.OpenAPIID(testContext, refund, "id")
 	suite.UI(testContext, http.MethodPost, "/simulate/refunds", map[string]any{
-		"card_id":                otherCard.ID,
+		"card_id":                suite.ToUIID(testContext, otherCard.ID),
 		"amount":                 3,
 		"currency":               "USD",
 		"merchant_name":          "Other merchant",
@@ -513,15 +513,15 @@ func TestSlashAuthorizationTransactions(testContext *testing.T) {
 	suite := fixture.suite
 	card := fixture.createCard(testContext, "Authorization card")
 	authorization := suite.UI(testContext, http.MethodPost, "/simulate/authorizations", map[string]any{
-		"card_id":                card.ID,
+		"card_id":                suite.ToUIID(testContext, card.ID),
 		"transaction_amount":     2,
 		"transaction_currency":   "USD",
 		"merchant_name":          "Authorization merchant",
 		"merchant_country":       "US",
 		"merchant_category_code": "5411",
 	})
-	authorizationID := contract.Text(testContext, authorization, "authorization.id")
-	transactionID := contract.Text(testContext, authorization, "transaction.id")
+	authorizationID := contract.UIPathID(testContext, authorization, "authorization.id")
+	transactionID := suite.OpenAPIID(testContext, authorization, "transaction.id")
 	testContext.Run("GetTransaction/authorization", func(testContext *testing.T) {
 		result, err := fixture.client.GetTransaction(suite.Context, transactionID)
 		if err != nil {
@@ -537,7 +537,7 @@ func TestSlashAuthorizationTransactions(testContext *testing.T) {
 	clearing := suite.UI(testContext, http.MethodPost, "/authorizations/"+authorizationID+"/clear", map[string]any{
 		"amount": "3",
 	})
-	clearingID := contract.Text(testContext, clearing, "id")
+	clearingID := suite.OpenAPIID(testContext, clearing, "id")
 	testContext.Run("GetTransaction/over-clearing", func(testContext *testing.T) {
 		result, err := fixture.client.GetTransaction(suite.Context, clearingID)
 		if err != nil {

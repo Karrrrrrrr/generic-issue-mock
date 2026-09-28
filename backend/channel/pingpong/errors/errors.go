@@ -12,3 +12,5 @@ var (
 	ErrUnsupported  = kratoserrors.New(501, "NOT_IMPLEMENTED", "该 PingPong 协议尚未实现")
 	ErrAppMapping   = kratoserrors.BadRequest("APP_ACCOUNT_NOT_CONFIGURED", "请配置 PINGPONG_APP_ACCOUNTS 中的应用账户映射")
 )
+
+var ErrCardNotActive = kratoserrors.BadRequest("CARD_NOT_ACTIVE", "activate card before adjusting funds")

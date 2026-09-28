@@ -61,7 +61,13 @@ type CardListRequest struct {
 	CreatedTo   *time.Time
 }
 
+type CardListForFundingRequest struct {
+	AccountID model.ID
+	WalletIDs []model.ID
+}
+
 type SlashCardRepository interface {
+	ListForFunding(context.Context, *CardListForFundingRequest) ([]*model.Card, error)
 	ExistForStatusChange(context.Context, *CardStatusExistsRequest) (bool, error)
 	LockForStatusChange(context.Context, *CardStatusLockRequest) (*model.Card, error)
 	SaveStatus(context.Context, *CardStatusSaveRequest) error

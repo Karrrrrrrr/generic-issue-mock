@@ -144,6 +144,10 @@ async function changeStatus(card: Card) {
 }
 
 function openFunding(card: Card, withdraw: boolean) {
+  if (card.card_status !== "active") {
+    message.warning("请先激活卡片，再调整资金");
+    return;
+  }
   fundingCard.value = card;
   requestID.value = newRequestID?.();
   fundingAmount.value = null;
@@ -153,6 +157,10 @@ function openFunding(card: Card, withdraw: boolean) {
 async function submitFunding() {
   if (!fundingCard.value || !fundingAmount.value || !Number.isFinite(fundingAmount.value) || fundingAmount.value <= 0) {
     message.warning("请输入正数金额");
+    return;
+  }
+  if (fundingCard.value.card_status !== "active") {
+    message.warning("请先激活卡片，再调整资金");
     return;
   }
   funding.value = true;
@@ -241,7 +249,7 @@ const columns = [
               NButton,
               {
                 size: "small",
-                disabled: card.card_status === "deleted",
+                disabled: card.card_status !== "active",
                 onClick: () => openFunding(card, false),
               },
               {
@@ -252,7 +260,7 @@ const columns = [
               NButton,
               {
                 size: "small",
-                disabled: card.card_status === "deleted",
+                disabled: card.card_status !== "active",
                 onClick: () => openFunding(card, true),
               },
               {
@@ -316,6 +324,7 @@ defineExpose({ reload: load });
   <n-modal
     :show="Boolean(fundingCard)"
     preset="card"
+    style="width: min(520px, calc(100vw - 32px))"
     :title="withdrawing ? `卡资金转出到${fundingSourceLabel}` : `${fundingSourceLabel}资金充值到卡`"
     @update:show="
       (shown) => {

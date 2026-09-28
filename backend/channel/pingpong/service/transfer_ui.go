@@ -5,28 +5,29 @@ import (
 	"time"
 
 	"generic-mock/channel/pingpong/biz"
-	"generic-mock/channel/pingpong/pkg/idconv"
+	pingerrors "generic-mock/channel/pingpong/errors"
 	common "generic-mock/enums"
+	"generic-mock/model"
 )
 
 type UITransferData struct {
-	ID             string                    `json:"id"`
-	AccountID      string                    `json:"account_id"`
+	ID             model.ID                  `json:"id"`
+	AccountID      model.ID                  `json:"account_id"`
 	AccountName    string                    `json:"account_name"`
 	RequestID      string                    `json:"request_id"`
 	Kind           common.WalletTransferKind `json:"kind"`
 	Amount         Number                    `json:"amount"`
 	Currency       common.Currency           `json:"currency"`
-	SourceWalletID string                    `json:"source_wallet_id"`
-	TargetWalletID string                    `json:"target_wallet_id"`
+	SourceWalletID model.ID                  `json:"source_wallet_id"`
+	TargetWalletID model.ID                  `json:"target_wallet_id"`
 	Status         common.OperationStatus    `json:"status"`
 	CreatedAt      time.Time                 `json:"created_at"`
 }
 
 func (s *PingPongUIService) ListTransfers(ctx context.Context, req *UIListRequest) (*UIPage[UITransferData], error) {
-	accountID, err := idconv.FromOptionalString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID != nil && *accountID <= 0 {
+		return nil, pingerrors.ErrInvalid
 	}
 	page, limit, err := req.PageRequest.resolvePagination()
 	if err != nil {
@@ -46,18 +47,22 @@ func (s *PingPongUIService) ListTransfers(ctx context.Context, req *UIListReques
 	}
 	for _, item := range items {
 		result.Items = append(result.Items, UITransferData{
-			ID:             idconv.ToString(item.ID),
-			AccountID:      idconv.ToString(item.AccountID),
+			ID:             item.ID,
+			AccountID:      item.AccountID,
 			AccountName:    item.Account.GetName(),
 			RequestID:      item.RequestID,
 			Kind:           item.Kind,
 			Amount:         Number{item.Amount},
 			Currency:       item.Currency,
-			SourceWalletID: idconv.ToString(item.SourceWalletID),
-			TargetWalletID: idconv.ToString(item.TargetWalletID),
+			SourceWalletID: item.SourceWalletID,
+			TargetWalletID: item.TargetWalletID,
 			Status:         common.OperationStatus_Succeed,
 			CreatedAt:      item.CreatedAt,
 		})
 	}
 	return result, nil
+}
+
+type UIRecordData struct {
+	RecordID model.ID `json:"record_id"`
 }

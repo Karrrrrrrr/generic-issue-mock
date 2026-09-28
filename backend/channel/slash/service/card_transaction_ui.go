@@ -2,39 +2,40 @@ package service
 
 import (
 	"context"
-	common "generic-mock/enums"
 
 	"generic-mock/channel/slash/biz"
-	"generic-mock/channel/slash/pkg/idconv"
+	slasherrors "generic-mock/channel/slash/errors"
+	common "generic-mock/enums"
+	"generic-mock/model"
 	"generic-mock/pkg/types"
 )
 
 type ListTransactionsRequest struct {
 	ListRequest
 	UIListTimeRange
-	ID              *string                       `form:"id" binding:"omitempty,min=1"`
-	CardID          *string                       `form:"card_id" binding:"omitempty,min=1"`
-	AuthorizationID *string                       `form:"authorization_id" binding:"omitempty,min=1"`
+	ID              *model.ID                     `form:"id" binding:"omitempty,min=1"`
+	CardID          *model.ID                     `form:"card_id" binding:"omitempty,min=1"`
+	AuthorizationID *model.ID                     `form:"authorization_id" binding:"omitempty,min=1"`
 	TransactionType *common.CardTransactionType   `form:"transaction_type" binding:"omitempty,oneof=auth clear void refund verification fund_in fund_out"`
 	Status          *common.CardTransactionStatus `form:"status" binding:"omitempty,oneof=pending authorized succeed failed void"`
 }
 
 func (s *SlashUIService) ListTransactions(ctx context.Context, req *ListTransactionsRequest) (*ListResponse[*TransactionData], error) {
-	accountID, err := idconv.FromOptionalUUID(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID != nil && *accountID <= 0 {
+		return nil, slasherrors.ErrInvalidOperation
 	}
-	id, err := idconv.FromOptionalUUID(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id != nil && *id <= 0 {
+		return nil, slasherrors.ErrInvalidOperation
 	}
-	cardID, err := idconv.FromOptionalUUID(req.CardID)
-	if err != nil {
-		return nil, err
+	cardID := req.CardID
+	if cardID != nil && *cardID <= 0 {
+		return nil, slasherrors.ErrInvalidOperation
 	}
-	authorizationID, err := idconv.FromOptionalUUID(req.AuthorizationID)
-	if err != nil {
-		return nil, err
+	authorizationID := req.AuthorizationID
+	if authorizationID != nil && *authorizationID <= 0 {
+		return nil, slasherrors.ErrInvalidOperation
 	}
 	page, size := types.NormalizePagination(types.Value(req.PageNumber), types.Value(req.PageSize))
 	items, total, err := s.usecase.ListCardTransactions(ctx, &biz.ListCardTransactionsRequest{

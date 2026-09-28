@@ -33,3 +33,5 @@ var (
 		errorMessageInvalidDateOfBirth,
 	)
 )
+
+var ErrCardNotActive = kratosErrors.BadRequest("CARD_NOT_ACTIVE", "activate card before adjusting funds")

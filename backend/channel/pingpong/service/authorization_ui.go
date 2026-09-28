@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"generic-mock/channel/pingpong/biz"
-	"generic-mock/channel/pingpong/pkg/idconv"
+	pingerrors "generic-mock/channel/pingpong/errors"
 	common "generic-mock/enums"
 	"generic-mock/model"
 )
 
 type SimulateAuthorizationRequest struct {
-	CardID          string          `json:"card_id" binding:"required"`
+	CardID          model.ID        `json:"card_id" binding:"required,gt=0"`
 	Amount          Number          `json:"amount"`
 	Currency        common.Currency `json:"currency" binding:"required,oneof=USD"`
 	RequestID       string          `json:"request_id" binding:"required"`
@@ -26,10 +26,10 @@ type AuthorizationData struct {
 	Settled            Number                       `json:"settled"`
 	Reversed           Number                       `json:"reversed"`
 	Refunded           Number                       `json:"refunded"`
-	ID                 string                       `json:"id"`
-	AccountID          string                       `json:"account_id"`
+	ID                 model.ID                     `json:"id"`
+	AccountID          model.ID                     `json:"account_id"`
 	AccountName        string                       `json:"account_name"`
-	CardID             string                       `json:"card_id"`
+	CardID             model.ID                     `json:"card_id"`
 	Amount             Number                       `json:"amount"`
 	Remaining          Number                       `json:"remaining"`
 	Currency           common.Currency              `json:"currency"`
@@ -42,14 +42,14 @@ type AuthorizationData struct {
 type UIListAuthorizationsRequest struct {
 	UIListRequest
 	UIListTimeRange
-	ID           *string                       `form:"id"`
+	ID           *model.ID                     `form:"id" binding:"omitempty,gt=0"`
 	Status       *common.CardTransactionStatus `form:"status" binding:"omitempty,oneof=pending authorized succeed failed void"`
 	MerchantName *string                       `form:"merchant_name" binding:"omitempty,min=1"`
-	CardID       *string                       `form:"card_id"`
+	CardID       *model.ID                     `form:"card_id" binding:"omitempty,gt=0"`
 }
 
 type UIStageRequest struct {
-	ID        string                     `uri:"id" binding:"required"`
+	ID        model.ID                   `uri:"id" binding:"required,gt=0"`
 	Stage     common.CardTransactionType `json:"stage" binding:"required,oneof=clear void refund"`
 	Amount    Number                     `json:"amount"`
 	RequestID string                     `json:"request_id" binding:"required"`
@@ -61,10 +61,10 @@ func toAuthorizationData(item *model.Authorization) AuthorizationData {
 		Settled:            Number{amounts.Settled},
 		Reversed:           Number{amounts.Reversed},
 		Refunded:           Number{amounts.Refunded},
-		ID:                 idconv.ToString(item.ID),
-		AccountID:          idconv.ToString(item.AccountID),
+		ID:                 item.ID,
+		AccountID:          item.AccountID,
 		AccountName:        item.Account.GetName(),
-		CardID:             idconv.ToString(item.CardID),
+		CardID:             item.CardID,
 		Amount:             Number{item.Amount},
 		Remaining:          Number{amounts.Remaining},
 		Currency:           item.Currency,
@@ -76,9 +76,9 @@ func toAuthorizationData(item *model.Authorization) AuthorizationData {
 }
 
 func (s *PingPongUIService) SimulateAuthorization(ctx context.Context, req *SimulateAuthorizationRequest) (*AuthorizationData, error) {
-	cardID, err := idconv.FromString(req.CardID)
-	if err != nil {
-		return nil, err
+	cardID := req.CardID
+	if cardID <= 0 {
+		return nil, pingerrors.ErrInvalid
 	}
 	item, err := s.uc.SimulateAuthorization(ctx, &biz.SimulateAuthorizationRequest{
 		CardID:          cardID,
@@ -100,17 +100,17 @@ func (s *PingPongUIService) ListAuthorizations(ctx context.Context, req *UIListA
 	if err := req.UIListTimeRange.Validate(); err != nil {
 		return nil, err
 	}
-	id, err := idconv.FromOptionalString(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id != nil && *id <= 0 {
+		return nil, pingerrors.ErrInvalid
 	}
-	accountID, err := idconv.FromOptionalString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID != nil && *accountID <= 0 {
+		return nil, pingerrors.ErrInvalid
 	}
-	cardID, err := idconv.FromOptionalString(req.CardID)
-	if err != nil {
-		return nil, err
+	cardID := req.CardID
+	if cardID != nil && *cardID <= 0 {
+		return nil, pingerrors.ErrInvalid
 	}
 	page, limit, err := req.PageRequest.resolvePagination()
 	if err != nil {
@@ -141,9 +141,9 @@ func (s *PingPongUIService) ListAuthorizations(ctx context.Context, req *UIListA
 }
 
 func (s *PingPongUIService) ApplyAuthorizationStage(ctx context.Context, req *UIStageRequest) (*Empty, error) {
-	id, err := idconv.FromString(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id <= 0 {
+		return nil, pingerrors.ErrInvalid
 	}
 	if err := s.uc.Stage(ctx, &biz.AuthorizationStageRequest{
 		ID:        id,
@@ -157,12 +157,12 @@ func (s *PingPongUIService) ApplyAuthorizationStage(ctx context.Context, req *UI
 }
 
 type UIAuthorizationDetailRequest struct {
-	ID        string `uri:"id" binding:"required"`
-	AccountID string `form:"account_id" binding:"required"`
+	ID        model.ID `uri:"id" binding:"required,gt=0"`
+	AccountID model.ID `form:"account_id" binding:"required,gt=0"`
 }
 
 type UIAuthorizationTransactionData struct {
-	ID              string                       `json:"id"`
+	ID              model.ID                     `json:"id"`
 	TransactionType common.CardTransactionType   `json:"transaction_type"`
 	Status          common.CardTransactionStatus `json:"status"`
 	Amount          string                       `json:"amount"`
@@ -181,13 +181,13 @@ type UIAuthorizationDetailData struct {
 }
 
 func (s *PingPongUIService) GetAuthorization(ctx context.Context, req *UIAuthorizationDetailRequest) (*UIAuthorizationDetailData, error) {
-	accountID, err := idconv.FromString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID <= 0 {
+		return nil, pingerrors.ErrInvalid
 	}
-	id, err := idconv.FromString(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id <= 0 {
+		return nil, pingerrors.ErrInvalid
 	}
 	detail, err := s.uc.GetAuthorization(ctx, &biz.UIAuthorizationDetailRequest{
 		AccountID: accountID,
@@ -211,7 +211,7 @@ func (s *PingPongUIService) GetAuthorization(ctx context.Context, req *UIAuthori
 	})
 	for _, transaction := range item.CardTransactions {
 		result.Transactions = append(result.Transactions, UIAuthorizationTransactionData{
-			ID:              idconv.ToString(transaction.ID),
+			ID:              transaction.ID,
 			TransactionType: transaction.Type,
 			Status:          transaction.Status,
 			Amount:          transaction.TxAmount.String(),

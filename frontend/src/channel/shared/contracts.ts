@@ -10,7 +10,7 @@ export interface CardFundingRequest {
 }
 
 export interface AuthorizationTransaction {
-  id: string;
+  id: number;
   transaction_type: TransactionType;
   status: TransactionStatus;
   amount: string;
@@ -19,10 +19,10 @@ export interface AuthorizationTransaction {
 }
 
 export interface Authorization {
-  id: string;
-  account_id: string;
+  id: number;
+  account_id: number;
   account_name: string;
-  card_id: string;
+  card_id: number;
   status: TransactionStatus;
   amount: string;
   settled?: string;
@@ -53,11 +53,11 @@ export interface AuthorizationAPI {
 }
 
 export interface ManagedVirtualAccount {
-  id: string;
-  account_id: string;
+  id: number;
+  account_id: number;
   account_name: string;
   name: string;
-  wallet_id?: string;
+  wallet_id?: number;
   balance: string;
   currency: string;
 }
@@ -70,7 +70,7 @@ export interface VirtualAccountFundingRequest {
 
 export interface VirtualAccountAPI {
   list: () => Promise<ManagedVirtualAccount[]>;
-  create: (request: { account_id: string; name: string; currency: string }) => Promise<unknown>;
+  create: (request: { account_id: number; name: string; currency: string }) => Promise<unknown>;
   topUp: (request: VirtualAccountFundingRequest) => Promise<unknown>;
   withdraw?: (request: VirtualAccountFundingRequest) => Promise<unknown>;
 }

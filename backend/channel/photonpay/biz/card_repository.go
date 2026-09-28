@@ -2,9 +2,9 @@ package biz
 
 import (
 	"context"
-	"generic-mock/enums"
 	"time"
 
+	"generic-mock/enums"
 	"generic-mock/model"
 )
 
@@ -90,7 +90,13 @@ type CardCountRequest struct {
 	CardNumber  *string
 }
 
+type CardListForFundingRequest struct {
+	AccountID model.ID
+	WalletIDs []model.ID
+}
+
 type CardRepository interface {
+	ListForFunding(context.Context, *CardListForFundingRequest) ([]*model.Card, error)
 	UpdateOperation(context.Context, *CardOperationUpdateRequest) error
 	ExistForStatusChange(context.Context, *CardStatusExistsRequest) (bool, error)
 	LockForStatusChange(context.Context, *CardStatusLockRequest) (*model.Card, error)

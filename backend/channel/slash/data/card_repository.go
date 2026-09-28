@@ -180,3 +180,17 @@ func (r *cardRepository) SaveStatus(ctx context.Context, req *biz.CardStatusSave
 	)
 	return err
 }
+
+func (r *cardRepository) ListForFunding(ctx context.Context, req *biz.CardListForFundingRequest) ([]*model.Card, error) {
+	table := r.repository.DB(ctx).Card
+	query := table.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where(
+			table.AccountID.Eq(req.AccountID),
+			table.Channel.Eq(string(enums.Channel_Slash)),
+		)
+	if len(req.WalletIDs) != 0 {
+		query = query.Where(table.WalletID.In(req.WalletIDs...))
+	}
+	return query.Order(table.ID.Desc()).Find()
+}

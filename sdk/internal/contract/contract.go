@@ -6,9 +6,11 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/binary"
 	"encoding/json"
 	"encoding/pem"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
@@ -19,6 +21,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Config struct {
@@ -154,11 +158,11 @@ func New(testContext *testing.T, channel string) *Suite {
 		})),
 	}
 	account := suite.UI(testContext, http.MethodPost, "/accounts", map[string]any{"name": "SDK contract " + Unique()})
-	suite.Config.Account = Text(testContext, account, "id")
-	suite.Config.Wallet = Text(testContext, account, "wallet_id")
+	suite.Config.Account = suite.OpenAPIID(testContext, account, "id")
+	suite.Config.Wallet = suite.OpenAPIID(testContext, account, "wallet_id")
 	suite.UI(testContext, http.MethodPost, "/funds/transfer", map[string]any{
-		"account_id": suite.Config.Account,
-		"target_id":  Text(testContext, account, "wallet_id"),
+		"account_id": suite.ToUIID(testContext, suite.Config.Account),
+		"target_id":  ID(testContext, account, "wallet_id"),
 		"amount":     "10000",
 	})
 
@@ -202,7 +206,9 @@ func (suite *Suite) UI(testContext *testing.T, method, path string, input any) m
 		testContext.Fatalf("fixture %s %s: %d %s", method, path, response.StatusCode, raw)
 	}
 	var result map[string]any
-	if err := json.Unmarshal(raw, &result); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	if err := decoder.Decode(&result); err != nil {
 		testContext.Fatalf("fixture %s: %v: %s", path, err, raw)
 	}
 	return result
@@ -242,4 +248,53 @@ func (suite *Suite) Responses() []Exchange {
 	exchanges := suite.exchanges
 	suite.exchanges = nil
 	return exchanges
+}
+
+func ID(testContext *testing.T, object any, path string) int64 {
+	testContext.Helper()
+	number, ok := At(object, path).(json.Number)
+	if !ok {
+		testContext.Fatalf("%s: expected numeric UI ID, got %#v", path, At(object, path))
+	}
+	id, err := number.Int64()
+	if err != nil || id <= 0 {
+		testContext.Fatalf("%s: expected positive int64 UI ID, got %s", path, number)
+	}
+	return id
+}
+
+func UIPathID(testContext *testing.T, object any, path string) string {
+	testContext.Helper()
+	return strconv.FormatInt(ID(testContext, object, path), 10)
+}
+
+func (suite *Suite) OpenAPIID(testContext *testing.T, object any, path string) string {
+	testContext.Helper()
+	id := ID(testContext, object, path)
+	if suite.Channel == "slash" {
+		var encoded uuid.UUID
+		binary.BigEndian.PutUint64(encoded[8:], uint64(id))
+		return encoded.String()
+	}
+	return strconv.FormatInt(id, 10)
+}
+
+func (suite *Suite) ToUIID(testContext *testing.T, externalID string) int64 {
+	testContext.Helper()
+	if suite.Channel == "slash" {
+		encoded, err := uuid.Parse(externalID)
+		if err != nil || encoded.String() != externalID || binary.BigEndian.Uint64(encoded[:8]) != 0 {
+			testContext.Fatalf("invalid Slash resource ID: %s", externalID)
+		}
+		id := binary.BigEndian.Uint64(encoded[8:])
+		if id == 0 || id > math.MaxInt64 {
+			testContext.Fatalf("invalid Slash resource ID: %s", externalID)
+		}
+		return int64(id)
+	}
+	id, err := strconv.ParseInt(externalID, 10, 64)
+	if err != nil || id <= 0 || strconv.FormatInt(id, 10) != externalID {
+		testContext.Fatalf("invalid decimal resource ID: %s", externalID)
+	}
+	return id
 }

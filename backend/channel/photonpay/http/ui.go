@@ -15,7 +15,7 @@ func bindUI[Req any, Resp any](fn httpx.ServiceFunc[Req, Resp]) gin.HandlerFunc 
 		func(data *Resp) any {
 			return data
 		},
-		uiFailure,
+		uiBindingFailure,
 		uiFailure,
 	)
 }
@@ -36,4 +36,9 @@ func uiFailure(err error) (int, any) {
 		Reason:  appError.Reason,
 		Message: appError.Message,
 	}
+}
+
+func uiBindingFailure(err error) (int, any) {
+	_, response := uiFailure(err)
+	return http.StatusBadRequest, response
 }

@@ -3,14 +3,14 @@ package service
 import (
 	"context"
 
-	"generic-mock/channel/paynda/pkg/idconv"
+	"generic-mock/model"
 )
 
 type ListUICardProductsRequest struct{}
 
 type UICardProductData struct {
-	ID     string `json:"id"`
-	Prefix string `json:"prefix"`
+	ID     model.ID `json:"id"`
+	Prefix string   `json:"prefix"`
 }
 
 type UICardProductsData struct {
@@ -27,7 +27,7 @@ func (s *PayndaUIService) ListCardProducts(ctx context.Context, _ *ListUICardPro
 	}
 	for _, product := range products {
 		result.Items = append(result.Items, UICardProductData{
-			ID:     idconv.ToString(product.ID),
+			ID:     product.ID,
 			Prefix: product.Prefix,
 		})
 	}

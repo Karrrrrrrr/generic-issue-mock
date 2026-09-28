@@ -2,9 +2,9 @@ import type { AuthorizationSimulationRequest, SimulationStage } from "./shared/s
 import type { CardStatus, TransactionStatus, TransactionType } from "./enums";
 
 export interface Cardholder {
-  account_id: string;
+  account_id: number;
   account_name: string;
-  id: string;
+  id: number;
   first_name: string;
   last_name: string;
   email: string;
@@ -14,11 +14,11 @@ export interface Cardholder {
 }
 
 export interface Card {
-  account_id: string;
+  account_id: number;
   account_name: string;
-  wallet_id?: string;
-  id: string;
-  cardholder_id?: string;
+  wallet_id?: number;
+  id: number;
+  cardholder_id?: number;
   card_number: string;
   card_bin: string;
   card_currency: string;
@@ -29,15 +29,15 @@ export interface Card {
   funding_source?: string;
   balance: string;
   reserved?: string;
-  virtual_account_id?: string;
+  virtual_account_id?: number;
 }
 
 export interface Transaction {
-  account_id: string;
+  account_id: number;
   account_name: string;
-  id: string;
-  card_id: string;
-  authorization_id: string;
+  id: number;
+  card_id: number;
+  authorization_id: number;
   transaction_type: TransactionType;
   status: TransactionStatus;
   amount: string;
@@ -58,8 +58,8 @@ export interface PageRequest {
 }
 
 export interface CardListRequest extends PageRequest {
-  account_id?: string;
-  id?: string;
+  account_id?: number;
+  id?: number;
   card_number?: string;
   card_status?: CardStatus;
   created_from?: string;
@@ -67,10 +67,10 @@ export interface CardListRequest extends PageRequest {
 }
 
 export interface TransactionListRequest extends PageRequest {
-  account_id?: string;
-  id?: string;
-  card_id?: string;
-  authorization_id?: string;
+  account_id?: number;
+  id?: number;
+  card_id?: number;
+  authorization_id?: number;
   transaction_type?: TransactionType;
   status?: TransactionStatus;
   created_from?: string;
@@ -78,8 +78,8 @@ export interface TransactionListRequest extends PageRequest {
 }
 
 export interface CardStatusUpdateRequest {
-  id: string;
-  account_id: string;
+  id: number;
+  account_id: number;
   card_status: CardStatus;
 }
 
@@ -95,7 +95,7 @@ export interface ChannelAPI {
   simulateAuthorization(payload: AuthorizationSimulationRequest): Promise<void>;
 
   applyTransactionStep(
-    id: string,
+    id: number,
     action: SimulationStage,
     amount?: number,
   ): Promise<void>;

@@ -2,12 +2,13 @@ package service
 
 import (
 	"context"
-	"generic-mock/pkg/types"
 	"time"
 
 	"generic-mock/channel/paynda/biz"
-	"generic-mock/channel/paynda/pkg/idconv"
+	payndaerrors "generic-mock/channel/paynda/errors"
 	common "generic-mock/enums"
+	"generic-mock/model"
+	"generic-mock/pkg/types"
 
 	"github.com/shopspring/decimal"
 )
@@ -15,24 +16,24 @@ import (
 type ListAuthorizationBalancesRequest struct {
 	UIListTimeRange
 	Status       *common.CardTransactionStatus `form:"status" binding:"omitempty,oneof=pending authorized succeed failed void"`
-	AccountID    *string                       `form:"account_id"`
-	ID           *string                       `form:"id" binding:"omitempty,min=1"`
-	CardID       *string                       `form:"card_id" binding:"omitempty,min=1"`
+	AccountID    *model.ID                     `form:"account_id" binding:"omitempty,gt=0"`
+	ID           *model.ID                     `form:"id" binding:"omitempty,min=1"`
+	CardID       *model.ID                     `form:"card_id" binding:"omitempty,min=1"`
 	MerchantName *string                       `form:"merchant_name" binding:"omitempty,min=1"`
 }
 
 func (s *PayndaUIService) ListAuthorizationBalances(ctx context.Context, req *ListAuthorizationBalancesRequest) (*[]AuthorizationBalanceData, error) {
-	accountID, err := idconv.FromOptionalString(req.AccountID)
-	if err != nil {
-		return nil, err
+	accountID := req.AccountID
+	if accountID != nil && *accountID <= 0 {
+		return nil, payndaerrors.ErrInvalidOperation
 	}
-	id, err := idconv.FromOptionalString(req.ID)
-	if err != nil {
-		return nil, err
+	id := req.ID
+	if id != nil && *id <= 0 {
+		return nil, payndaerrors.ErrInvalidOperation
 	}
-	cardID, err := idconv.FromOptionalString(req.CardID)
-	if err != nil {
-		return nil, err
+	cardID := req.CardID
+	if cardID != nil && *cardID <= 0 {
+		return nil, payndaerrors.ErrInvalidOperation
 	}
 	items, err := s.usecase.ListAuthorizationBalances(ctx, &biz.ListAuthorizationBalancesRequest{
 		AccountID:    accountID,
@@ -58,9 +59,9 @@ type AuthorizationBalanceData struct {
 	Reversed     string                       `json:"reversed"`
 	Refunded     string                       `json:"refunded"`
 	AccountName  string                       `json:"account_name"`
-	AccountID    string                       `json:"account_id"`
-	ID           string                       `json:"id"`
-	CardID       string                       `json:"card_id"`
+	AccountID    model.ID                     `json:"account_id"`
+	ID           model.ID                     `json:"id"`
+	CardID       model.ID                     `json:"card_id"`
 	Currency     common.Currency              `json:"currency"`
 	Amount       string                       `json:"amount"`
 	Settled      string                       `json:"settled"`
@@ -70,17 +71,17 @@ type AuthorizationBalanceData struct {
 }
 
 type ClearAuthorizationRequest struct {
-	ID     string          `uri:"id" binding:"required"`
+	ID     model.ID        `uri:"id" binding:"required,gt=0"`
 	Amount decimal.Decimal `json:"amount"`
 }
 type ClearAuthorizationData struct {
-	ID string `json:"id"`
+	ID model.ID `json:"id"`
 }
 
 func (s *PayndaUIService) ClearAuthorization(ctx context.Context, req *ClearAuthorizationRequest) (*ClearAuthorizationData, error) {
-	authID, err := idconv.FromString(req.ID)
-	if err != nil {
-		return nil, err
+	authID := req.ID
+	if authID <= 0 {
+		return nil, payndaerrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.ClearAuthorization(ctx, &biz.ClearAuthorizationRequest{
 		ID:     authID,
@@ -90,16 +91,16 @@ func (s *PayndaUIService) ClearAuthorization(ctx context.Context, req *ClearAuth
 		return nil, err
 	}
 
-	return &ClearAuthorizationData{ID: idconv.ToString(item.ID)}, nil
+	return &ClearAuthorizationData{ID: item.ID}, nil
 }
 
 func authorizationBalanceData(item *biz.AuthorizationBalance) AuthorizationBalanceData {
 	auth := item.Authorization
 	return AuthorizationBalanceData{
-		AccountID:    idconv.ToString(auth.AccountID),
+		AccountID:    auth.AccountID,
 		AccountName:  uiAccountName(auth.Account),
-		ID:           idconv.ToString(auth.ID),
-		CardID:       idconv.ToString(auth.CardID),
+		ID:           auth.ID,
+		CardID:       auth.CardID,
 		Status:       auth.Status,
 		Currency:     auth.Currency,
 		Amount:       auth.Amount.String(),
