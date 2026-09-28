@@ -6,6 +6,7 @@ import (
 
 	"generic-mock/channel/paynda/biz"
 	paynda "generic-mock/channel/paynda/enums"
+	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/channel/paynda/pkg/idconv"
 	common "generic-mock/enums"
 
@@ -36,7 +37,7 @@ func (s *PayndaUIService) ListAuthorizationBalances(ctx context.Context, req *Li
 	}
 	statuses := uiAuthorizationStatuses(req.Status)
 	if req.Status != nil && len(statuses) == 0 {
-		return nil, biz.ErrInvalidOperation
+		return nil, payndaerrors.ErrInvalidOperation
 	}
 	items, err := s.usecase.ListAuthorizationBalances(ctx, &biz.ListAuthorizationBalancesRequest{
 		AccountID:    accountID,

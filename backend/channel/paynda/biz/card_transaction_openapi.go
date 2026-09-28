@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
@@ -21,16 +22,16 @@ func (u *PayndaOpenAPIUsecase) GetCardTransaction(
 	exists, err := u.cardTransactionRepository.ExistByAccountID(ctx, (*CardTransactionExistByAccountIDRequest)(req))
 	if err != nil {
 		zap.S().Errorw("check paynda card transaction", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, payndaerrors.ErrResourceNotFound
 	}
 
 	transaction, err := u.cardTransactionRepository.FindByAccountID(ctx, (*CardTransactionFindByAccountIDRequest)(req))
 	if err != nil {
 		zap.S().Errorw("find paynda card transaction", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 
 	details, err := u.cardTransactionDetails(ctx, []*model.CardTransaction{transaction})
@@ -56,7 +57,7 @@ func (u *PayndaOpenAPIUsecase) ListCardTransactions(
 	})
 	if err != nil {
 		zap.S().Errorw("list paynda card transactions", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 
 	return u.cardTransactionDetails(ctx, items)
@@ -86,7 +87,7 @@ func (u *PayndaOpenAPIUsecase) cardTransactionDetails(
 		})
 		if err != nil {
 			zap.S().Errorw("list paynda transaction authorizations", "error", err)
-			return nil, ErrDatabaseOperation
+			return nil, payndaerrors.ErrDatabaseOperation
 		}
 		for _, authorization := range authorizations {
 			authorizationsByID[authorization.ID] = authorization

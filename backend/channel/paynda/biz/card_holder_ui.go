@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -22,10 +23,10 @@ func (u *PayndaUIUsecase) CreateCardHolder(ctx context.Context, req *PayndaUICre
 	exists, err := u.accountRepository.ExistByID(ctx, req.AccountID)
 	if err != nil {
 		zap.S().Errorw("check paynda UI card holder account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, payndaerrors.ErrResourceNotFound
 	}
 	holder := &model.CardHolder{
 		AccountID:    req.AccountID,
@@ -40,7 +41,7 @@ func (u *PayndaUIUsecase) CreateCardHolder(ctx context.Context, req *PayndaUICre
 	}
 	if err := u.cardHolderRepository.Create(ctx, holder); err != nil {
 		zap.S().Errorw("create paynda UI card holder", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	return holder, nil
 }
@@ -53,7 +54,7 @@ func (u *PayndaUIUsecase) ListCardHolders(ctx context.Context, req *PayndaListRe
 	})
 	if err != nil {
 		zap.S().Errorw("list paynda UI card holders", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, payndaerrors.ErrDatabaseOperation
 	}
 
 	total, err := u.cardHolderRepository.Count(ctx, &CardHolderCountRequest{
@@ -61,7 +62,7 @@ func (u *PayndaUIUsecase) ListCardHolders(ctx context.Context, req *PayndaListRe
 	})
 	if err != nil {
 		zap.S().Errorw("count paynda UI card holders", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, payndaerrors.ErrDatabaseOperation
 	}
 
 	return items, total, nil

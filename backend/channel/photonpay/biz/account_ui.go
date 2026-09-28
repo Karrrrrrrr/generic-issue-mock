@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	photonpayerrors "generic-mock/channel/photonpay/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -26,7 +27,7 @@ func (u *PhotonPayUIUsecase) CreateAccount(ctx context.Context, req *UICreateAcc
 		}
 		if err := u.accountRepo.Create(txCtx, item); err != nil {
 			zap.S().Errorw("create photonpay UI account", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		wallet := &model.Wallet{
 			AccountID: item.ID,
@@ -36,12 +37,12 @@ func (u *PhotonPayUIUsecase) CreateAccount(ctx context.Context, req *UICreateAcc
 		}
 		if err := u.walletRepo.Create(txCtx, wallet); err != nil {
 			zap.S().Errorw("create photonpay UI account wallet", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		item.WalletID = wallet.ID
 		if err := u.accountRepo.Save(txCtx, item); err != nil {
 			zap.S().Errorw("attach photonpay UI account wallet", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		virtualWallet := &model.Wallet{
 			AccountID: item.ID,
@@ -51,7 +52,7 @@ func (u *PhotonPayUIUsecase) CreateAccount(ctx context.Context, req *UICreateAcc
 		}
 		if err := u.walletRepo.Create(txCtx, virtualWallet); err != nil {
 			zap.S().Errorw("create photonpay account virtual wallet", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		virtualAccount := &model.VirtualAccount{
 			AccountID: item.ID,
@@ -61,7 +62,7 @@ func (u *PhotonPayUIUsecase) CreateAccount(ctx context.Context, req *UICreateAcc
 		}
 		if err := u.virtualAccountRepo.Create(txCtx, virtualAccount); err != nil {
 			zap.S().Errorw("create photonpay account virtual account", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		return nil
 	})
@@ -79,14 +80,14 @@ func (u *PhotonPayUIUsecase) ListAccounts(ctx context.Context, req *ListRequest)
 	})
 	if err != nil {
 		zap.S().Errorw("list photonpay UI accounts", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, photonpayerrors.ErrDatabaseOperation
 	}
 	total, err := u.accountRepo.Count(ctx, &AccountCountRequest{
 		IDs: types.PointerSlice(req.AccountID),
 	})
 	if err != nil {
 		zap.S().Errorw("count photonpay UI accounts", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, photonpayerrors.ErrDatabaseOperation
 	}
 	return items, total, nil
 }
@@ -95,20 +96,20 @@ func (u *PhotonPayUIUsecase) UpdateAccount(ctx context.Context, req *UIUpdateAcc
 	exists, err := u.accountRepo.Exist(ctx, req.ID)
 	if err != nil {
 		zap.S().Errorw("check photonpay UI account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, photonpayerrors.ErrResourceNotFound
 	}
 	item, err := u.accountRepo.Find(ctx, req.ID)
 	if err != nil {
 		zap.S().Errorw("find photonpay UI account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	item.Name = req.Name
 	if err := u.accountRepo.Save(ctx, item); err != nil {
 		zap.S().Errorw("rename photonpay UI account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	return item, nil
 }

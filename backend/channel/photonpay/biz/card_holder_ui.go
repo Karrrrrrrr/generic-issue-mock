@@ -5,6 +5,7 @@ import (
 	"time"
 
 	photon "generic-mock/channel/photonpay/enums"
+	photonpayerrors "generic-mock/channel/photonpay/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -38,7 +39,7 @@ func (u *PhotonPayUIUsecase) CreateCardHolder(ctx context.Context, req *UICreate
 	if err := u.cardHolderRepo.Create(ctx, holder); err != nil {
 		zap.S().Errorw("create photonpay UI card holder", "error", err)
 
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 
 	return holder, nil
@@ -53,7 +54,7 @@ func (u *PhotonPayUIUsecase) ListCardHolders(ctx context.Context, req *ListReque
 	if err != nil {
 		zap.S().Errorw("list photonpay UI card holders", "error", err)
 
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, photonpayerrors.ErrDatabaseOperation
 	}
 
 	total, err := u.cardHolderRepo.Count(ctx, &CardHolderCountRequest{
@@ -61,7 +62,7 @@ func (u *PhotonPayUIUsecase) ListCardHolders(ctx context.Context, req *ListReque
 	})
 	if err != nil {
 		zap.S().Errorw("count photonpay UI card holders", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, photonpayerrors.ErrDatabaseOperation
 	}
 
 	return holders, total, nil

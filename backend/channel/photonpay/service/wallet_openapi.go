@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"generic-mock/channel/photonpay/biz"
 	photon "generic-mock/channel/photonpay/enums"
+	photonpayerrors "generic-mock/channel/photonpay/errors"
 	"generic-mock/channel/photonpay/pkg/idconv"
 	common "generic-mock/enums"
 	"generic-mock/pkg/types"
@@ -72,7 +72,7 @@ func (service *PhotonPayOpenAPIService) PreRecharge(ctx context.Context, req *Op
 		return nil, err
 	}
 	if accountID != selectedAccountID {
-		return nil, biz.ErrInvalidOperation
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	if _, err := service.CardDetail(ctx, &CardIDRequest{
 		OpenAPIAccountRequest: req.OpenAPIAccountRequest,
@@ -81,14 +81,14 @@ func (service *PhotonPayOpenAPIService) PreRecharge(ctx context.Context, req *Op
 		return nil, err
 	}
 	if (req.RechargeAmount == nil) == (req.ArrivalAmount == nil) {
-		return nil, biz.ErrInvalidOperation
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	amount := types.Value(req.RechargeAmount)
 	if req.ArrivalAmount != nil {
 		amount = *req.ArrivalAmount
 	}
 	if amount <= 0 {
-		return nil, biz.ErrInvalidOperation
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	return &OpenAPIPreRechargeData{
 		AccountID:              idconv.ToString(accountID),
@@ -146,7 +146,7 @@ func (service *PhotonPayOpenAPIService) Recharge(ctx context.Context, req *OpenA
 		result.CardID = card.CardID
 	}
 	if req.ReturnAmount != nil && *req.ReturnAmount <= 0 {
-		return nil, biz.ErrInvalidOperation
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	return result, nil
 }

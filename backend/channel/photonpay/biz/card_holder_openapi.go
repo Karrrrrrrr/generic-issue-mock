@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	photonpayerrors "generic-mock/channel/photonpay/errors"
 	common "generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -67,7 +68,7 @@ func (u *PhotonPayOpenAPIUsecase) CreateCardHolder(ctx context.Context, req *Cre
 	if err := u.cardHolderRepo.Create(ctx, holder); err != nil {
 		zap.S().Errorw("create photonpay card holder", "error", err)
 
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	return holder, nil
 }
@@ -88,7 +89,7 @@ func (u *PhotonPayOpenAPIUsecase) UpdateCardHolder(ctx context.Context, req *Upd
 		if err != nil {
 			zap.S().Errorw("find photonpay card holder", "error", err)
 
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		if req.Email != nil {
 			holder.Email = *req.Email
@@ -103,7 +104,7 @@ func (u *PhotonPayOpenAPIUsecase) UpdateCardHolder(ctx context.Context, req *Upd
 		if err := u.cardHolderRepo.Save(txCtx, holder); err != nil {
 			zap.S().Errorw("update photonpay card holder", "error", err)
 
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 
 		return nil
@@ -124,7 +125,7 @@ func (u *PhotonPayOpenAPIUsecase) ListCardHolders(ctx context.Context, req *List
 	if err != nil {
 		zap.S().Errorw("list photonpay card holders", "error", err)
 
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 
 	return holders, nil
@@ -138,10 +139,10 @@ func (u *PhotonPayOpenAPIUsecase) requireCardHolder(
 	if err != nil {
 		zap.S().Errorw("check photonpay card holder", "error", err)
 
-		return ErrDatabaseOperation
+		return photonpayerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return ErrResourceNotFound
+		return photonpayerrors.ErrResourceNotFound
 	}
 
 	return nil

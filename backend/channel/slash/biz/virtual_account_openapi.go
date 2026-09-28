@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 
@@ -35,10 +36,10 @@ func (u *SlashOpenAPIUsecase) GetVirtualAccount(ctx context.Context, req *Resour
 	})
 	if err != nil {
 		zap.S().Errorw("check slash OpenAPI virtual account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, slasherrors.ErrResourceNotFound
 	}
 	item, err := u.virtualAccountRepository.FindByAccountID(ctx, &VirtualAccountFindByAccountIDRequest{
 		AccountID: req.AccountID,
@@ -46,7 +47,7 @@ func (u *SlashOpenAPIUsecase) GetVirtualAccount(ctx context.Context, req *Resour
 	})
 	if err != nil {
 		zap.S().Errorw("find slash OpenAPI virtual account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	return item, nil
 }
@@ -65,7 +66,7 @@ func (u *SlashOpenAPIUsecase) CreateVirtualAccount(ctx context.Context, req *Ope
 		}
 		if err := u.walletRepository.Create(ctx, wallet); err != nil {
 			zap.S().Errorw("create slash OpenAPI virtual wallet", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		item = &model.VirtualAccount{
 			AccountID: req.AccountID,
@@ -76,7 +77,7 @@ func (u *SlashOpenAPIUsecase) CreateVirtualAccount(ctx context.Context, req *Ope
 		}
 		if err := u.virtualAccountRepository.CreateVirtualAccount(ctx, item); err != nil {
 			zap.S().Errorw("create slash OpenAPI virtual account", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		return nil
 	})
@@ -100,7 +101,7 @@ func (usecase *SlashOpenAPIUsecase) UpdateVirtualAccount(ctx context.Context, re
 			Name:      req.Name,
 		}); err != nil {
 			zap.S().Errorw("rename slash OpenAPI virtual account", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		item.Name = req.Name
 		return nil
@@ -114,14 +115,14 @@ func (u *SlashOpenAPIUsecase) ListVirtualAccounts(ctx context.Context, accountID
 	})
 	if err != nil {
 		zap.S().Errorw("list slash virtual accounts", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	return items, nil
 }
 
 func (u *SlashOpenAPIUsecase) TransferVirtualAccount(ctx context.Context, req *OpenAPIVirtualAccountTransferRequest) error {
 	if req.Source == req.Destination || req.AmountCents <= 0 {
-		return ErrInvalidOperation
+		return slasherrors.ErrInvalidOperation
 	}
 	return u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		for _, id := range []model.ID{req.Source, req.Destination} {
@@ -132,10 +133,10 @@ func (u *SlashOpenAPIUsecase) TransferVirtualAccount(ctx context.Context, req *O
 			exists, err := u.virtualAccountRepository.ExistByAccountID(txCtx, (*VirtualAccountExistByAccountIDRequest)(resource))
 			if err != nil {
 				zap.S().Errorw("check slash virtual account", "error", err)
-				return ErrDatabaseOperation
+				return slasherrors.ErrDatabaseOperation
 			}
 			if !exists {
-				return ErrResourceNotFound
+				return slasherrors.ErrResourceNotFound
 			}
 		}
 		source, err := u.virtualAccountRepository.FindByAccountID(txCtx, &VirtualAccountFindByAccountIDRequest{
@@ -144,7 +145,7 @@ func (u *SlashOpenAPIUsecase) TransferVirtualAccount(ctx context.Context, req *O
 		})
 		if err != nil {
 			zap.S().Errorw("find slash source account", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		destination, err := u.virtualAccountRepository.FindByAccountID(txCtx, &VirtualAccountFindByAccountIDRequest{
 			AccountID: &req.AccountID,
@@ -152,7 +153,7 @@ func (u *SlashOpenAPIUsecase) TransferVirtualAccount(ctx context.Context, req *O
 		})
 		if err != nil {
 			zap.S().Errorw("find slash destination account", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		first, second := source.WalletID, destination.WalletID
 		if first > second {
@@ -166,24 +167,24 @@ func (u *SlashOpenAPIUsecase) TransferVirtualAccount(ctx context.Context, req *O
 			})
 			if err != nil {
 				zap.S().Errorw("lock slash virtual account wallet", "error", err)
-				return ErrDatabaseOperation
+				return slasherrors.ErrDatabaseOperation
 			}
 			locked[id] = wallet
 		}
 		amount := decimal.NewFromInt(req.AmountCents).Div(decimal.NewFromInt(100))
 		sourceWallet, destinationWallet := locked[source.WalletID], locked[destination.WalletID]
 		if sourceWallet.Available.LessThan(amount) {
-			return ErrInvalidOperation
+			return slasherrors.ErrInvalidOperation
 		}
 		sourceWallet.Available = sourceWallet.Available.Sub(amount)
 		destinationWallet.Available = destinationWallet.Available.Add(amount)
 		if err := u.walletRepository.Save(txCtx, sourceWallet); err != nil {
 			zap.S().Errorw("save slash source wallet", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		if err := u.walletRepository.Save(txCtx, destinationWallet); err != nil {
 			zap.S().Errorw("save slash destination wallet", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		return nil
 	})

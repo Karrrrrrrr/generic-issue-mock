@@ -435,6 +435,7 @@ func TestSlashTransactions(testContext *testing.T) {
 		}
 	})
 	refund := suite.UI(testContext, http.MethodPost, "/simulate/refunds", map[string]any{
+		"account_id":             suite.Config.Account,
 		"card_id":                card.ID,
 		"amount":                 2,
 		"currency":               "USD",
@@ -444,6 +445,7 @@ func TestSlashTransactions(testContext *testing.T) {
 	})
 	refundID := contract.Text(testContext, refund, "id")
 	suite.UI(testContext, http.MethodPost, "/simulate/refunds", map[string]any{
+		"account_id":             suite.Config.Account,
 		"card_id":                otherCard.ID,
 		"amount":                 3,
 		"currency":               "USD",
@@ -513,6 +515,7 @@ func TestSlashAuthorizationTransactions(testContext *testing.T) {
 	suite := fixture.suite
 	card := fixture.createCard(testContext, "Authorization card")
 	authorization := suite.UI(testContext, http.MethodPost, "/simulate/authorizations", map[string]any{
+		"account_id":             suite.Config.Account,
 		"card_id":                card.ID,
 		"transaction_amount":     2,
 		"transaction_currency":   "USD",

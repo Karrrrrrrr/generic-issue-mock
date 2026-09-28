@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"generic-mock/channel/slash/biz"
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/channel/slash/pkg/idconv"
 	"generic-mock/model"
 
@@ -64,7 +65,7 @@ func (service *SlashOpenAPIService) CreateVirtualAccount(ctx context.Context, re
 			return nil, err
 		}
 		if selected != accountID {
-			return nil, biz.ErrInvalidOperation
+			return nil, slasherrors.ErrInvalidOperation
 		}
 	}
 	item, err := service.usecase.CreateVirtualAccount(ctx, &biz.OpenAPICreateVirtualAccountRequest{
@@ -83,7 +84,7 @@ func (service *SlashOpenAPIService) UpdateVirtualAccount(ctx context.Context, re
 		return nil, err
 	}
 	if req.ID == nil {
-		return nil, biz.ErrInvalidOperation
+		return nil, slasherrors.ErrInvalidOperation
 	}
 	id, err := idconv.FromUUID(*req.ID)
 	if err != nil {

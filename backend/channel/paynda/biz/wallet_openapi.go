@@ -4,6 +4,7 @@ import (
 	"context"
 
 	paynda "generic-mock/channel/paynda/enums"
+	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 
@@ -36,16 +37,16 @@ func (u *PayndaOpenAPIUsecase) GetAccountWallet(
 	exists, err := u.accountRepository.ExistByID(ctx, accountID)
 	if err != nil {
 		zap.S().Errorw("check paynda account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, payndaerrors.ErrResourceNotFound
 	}
 
 	account, err := u.accountRepository.FindByID(ctx, accountID)
 	if err != nil {
 		zap.S().Errorw("find paynda account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	wallet, err := u.walletRepository.FindByID(ctx, &WalletFindByIDRequest{
 		AccountID: &accountID,
@@ -53,7 +54,7 @@ func (u *PayndaOpenAPIUsecase) GetAccountWallet(
 	})
 	if err != nil {
 		zap.S().Errorw("find paynda account wallet", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 
 	return &PayndaAccountWallet{
@@ -78,13 +79,13 @@ func (u *PayndaOpenAPIUsecase) TransferAccountWallet(
 		})
 		if err != nil {
 			zap.S().Errorw("lock paynda account wallet", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		wallet.Available = wallet.Available.Add(req.Amount)
 		wallet.In = wallet.In.Add(req.Amount)
 		if err := u.walletRepository.Save(txCtx, wallet); err != nil {
 			zap.S().Errorw("save paynda account wallet", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		accountWallet.Wallet = wallet
 
@@ -111,7 +112,7 @@ func (u *PayndaOpenAPIUsecase) TransferCardBalance(
 			return err
 		}
 		if card.WalletID == 0 {
-			return ErrResourceNotFound
+			return payndaerrors.ErrResourceNotFound
 		}
 
 		wallet, err := u.walletRepository.FindByIDForUpdate(txCtx, &WalletFindByIDForUpdateRequest{
@@ -120,13 +121,13 @@ func (u *PayndaOpenAPIUsecase) TransferCardBalance(
 		})
 		if err != nil {
 			zap.S().Errorw("lock paynda card wallet", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		oldAmount := wallet.Available
 		transactionType := enums.CardTransactionType_FundIn
 		if req.Type == paynda.TransferType_Out {
 			if wallet.Available.LessThan(req.Amount) {
-				return ErrInvalidOperation
+				return payndaerrors.ErrInvalidOperation
 			}
 			wallet.Available = wallet.Available.Sub(req.Amount)
 			wallet.Out = wallet.Out.Add(req.Amount)
@@ -137,7 +138,7 @@ func (u *PayndaOpenAPIUsecase) TransferCardBalance(
 		}
 		if err := u.walletRepository.Save(txCtx, wallet); err != nil {
 			zap.S().Errorw("save paynda card wallet", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 
 		transaction = &model.CardTransaction{
@@ -154,7 +155,7 @@ func (u *PayndaOpenAPIUsecase) TransferCardBalance(
 		}
 		if err := u.cardTransactionRepository.Create(txCtx, transaction); err != nil {
 			zap.S().Errorw("create paynda card balance transfer", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 
 		return nil

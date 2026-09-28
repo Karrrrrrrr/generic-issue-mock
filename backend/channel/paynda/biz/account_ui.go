@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -32,7 +33,7 @@ func (u *PayndaUIUsecase) CreateAccount(
 		}
 		if err := u.accountRepository.Create(txCtx, account); err != nil {
 			zap.S().Errorw("create paynda UI account", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		wallet := &model.Wallet{
 			AccountID: account.ID,
@@ -43,12 +44,12 @@ func (u *PayndaUIUsecase) CreateAccount(
 		}
 		if err := u.walletRepository.Create(txCtx, wallet); err != nil {
 			zap.S().Errorw("create paynda UI account wallet", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		account.WalletID = wallet.ID
 		if err := u.accountRepository.Save(txCtx, account); err != nil {
 			zap.S().Errorw("attach paynda UI account wallet", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		result = &PayndaAccountWallet{
 			Account: account,
@@ -74,7 +75,7 @@ func (u *PayndaUIUsecase) ListAccounts(
 	})
 	if err != nil {
 		zap.S().Errorw("list paynda UI accounts", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, payndaerrors.ErrDatabaseOperation
 	}
 
 	total, err := u.accountRepository.Count(ctx, &AccountCountRequest{
@@ -82,7 +83,7 @@ func (u *PayndaUIUsecase) ListAccounts(
 	})
 	if err != nil {
 		zap.S().Errorw("count paynda UI accounts", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, payndaerrors.ErrDatabaseOperation
 	}
 
 	return items, total, nil
@@ -95,21 +96,21 @@ func (u *PayndaUIUsecase) UpdateAccount(
 	exists, err := u.accountRepository.ExistByID(ctx, req.ID)
 	if err != nil {
 		zap.S().Errorw("check paynda UI account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, payndaerrors.ErrResourceNotFound
 	}
 
 	item, err := u.accountRepository.FindByID(ctx, req.ID)
 	if err != nil {
 		zap.S().Errorw("find paynda UI account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	item.Name = req.Name
 	if err := u.accountRepository.Save(ctx, item); err != nil {
 		zap.S().Errorw("update paynda UI account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 
 	return item, nil

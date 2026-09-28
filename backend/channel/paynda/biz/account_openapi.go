@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 
@@ -23,7 +24,7 @@ func (usecase *PayndaOpenAPIUsecase) CreateAccount(ctx context.Context, req *Ope
 	err := usecase.transaction.InTx(ctx, func(ctx context.Context) error {
 		if err := usecase.accountRepository.Create(ctx, account); err != nil {
 			zap.S().Errorw("create paynda OpenAPI account", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		wallet := &model.Wallet{
 			AccountID: account.ID,
@@ -33,12 +34,12 @@ func (usecase *PayndaOpenAPIUsecase) CreateAccount(ctx context.Context, req *Ope
 		}
 		if err := usecase.walletRepository.Create(ctx, wallet); err != nil {
 			zap.S().Errorw("create paynda OpenAPI account wallet", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		account.WalletID = wallet.ID
 		if err := usecase.accountRepository.Save(ctx, account); err != nil {
 			zap.S().Errorw("attach paynda OpenAPI account wallet", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		return nil
 	})
@@ -56,7 +57,7 @@ func (usecase *PayndaOpenAPIUsecase) UpdateAccount(ctx context.Context, req *Ope
 		account.Name = req.Name
 		if err := usecase.accountRepository.Save(ctx, account); err != nil {
 			zap.S().Errorw("rename paynda OpenAPI account", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		return nil
 	})

@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
@@ -28,7 +29,7 @@ func (u *SlashOpenAPIUsecase) ListTransactions(ctx context.Context, req *OpenAPI
 	if err != nil {
 		zap.S().Errorw("list slash openapi transactions", "error", err)
 
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 
 	return items, nil
@@ -39,17 +40,17 @@ func (u *SlashOpenAPIUsecase) GetTransaction(ctx context.Context, req *ResourceR
 	if err != nil {
 		zap.S().Errorw("check slash openapi transaction", "error", err)
 
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, slasherrors.ErrResourceNotFound
 	}
 
 	item, err := u.cardTransactionRepository.FindByAccountID(ctx, (*CardTransactionFindByAccountIDRequest)(req))
 	if err != nil {
 		zap.S().Errorw("find slash openapi transaction", "error", err)
 
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 
 	return item, nil

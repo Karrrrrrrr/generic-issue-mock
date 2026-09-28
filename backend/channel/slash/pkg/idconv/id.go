@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"math"
 
-	"generic-mock/channel/slash/biz"
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/model"
 
 	"github.com/google/uuid"
@@ -27,12 +27,12 @@ func FromUUID(value string) (model.ID, error) {
 	parsed, err := uuid.Parse(value)
 	if err != nil || parsed.String() != value || parsed[0] != 0 || parsed[1] != 0 || parsed[2] != 0 || parsed[3] != 0 ||
 		parsed[4] != 0 || parsed[5] != 0 || parsed[6] != 0 || parsed[7] != 0 {
-		return 0, biz.ErrResourceNotFound
+		return 0, slasherrors.ErrResourceNotFound
 	}
 
 	id := binary.BigEndian.Uint64(parsed[8:])
 	if id == 0 || id > math.MaxInt64 {
-		return 0, biz.ErrResourceNotFound
+		return 0, slasherrors.ErrResourceNotFound
 	}
 	return model.ID(id), nil
 }
@@ -50,20 +50,4 @@ func FromOptionalUUID(value *string) (*model.ID, error) {
 
 func FromAccountUUID(value string) (model.ID, error) {
 	return FromUUID(value)
-}
-
-// FromRefundAuthorizationUUID permits the channel-formatted zero ID for an independent refund.
-func FromRefundAuthorizationUUID(value *string) (*model.ID, error) {
-	if value == nil {
-		return nil, nil
-	}
-	var id model.ID
-	if *value == ToUUID(0) {
-		return &id, nil
-	}
-	id, err := FromUUID(*value)
-	if err != nil {
-		return nil, err
-	}
-	return &id, nil
 }

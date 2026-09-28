@@ -63,8 +63,9 @@ async function loadCards() {
 }
 
 async function submit() {
+  const card = cards.value.find((item) => item.id === form.value.cardID);
   if (
-    !form.value.cardID ||
+    !card ||
     !form.value.merchantName ||
     !form.value.merchantMCC ||
     form.value.amount <= 0
@@ -75,7 +76,10 @@ async function submit() {
   loading.value = true;
   result.value = "";
   try {
-    await api.simulateAuthorization(form.value);
+    await api.simulateAuthorization({
+      ...form.value,
+      accountID: card.account_id,
+    });
     result.value = "授权已创建，可在交易处理查看并清算或撤销。";
     emit("completed");
   } catch (error) {
@@ -86,8 +90,9 @@ async function submit() {
 }
 
 async function submitRefund() {
+  const card = cards.value.find((item) => item.id === refundForm.value.card_id);
   if (
-    !refundForm.value.card_id ||
+    !card ||
     !refundForm.value.merchant_name ||
     !refundForm.value.merchant_category_code ||
     !refundForm.value.merchant_country ||
@@ -101,6 +106,7 @@ async function submitRefund() {
   try {
     const refund = await refundApi.simulate({
       ...refundForm.value,
+      account_id: card.account_id,
       authorization_id: refundForm.value.authorization_id || undefined,
     });
     refundResult.value = `退款交易已创建：${refund.id}`;

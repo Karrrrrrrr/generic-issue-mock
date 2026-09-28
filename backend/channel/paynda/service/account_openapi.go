@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"generic-mock/channel/paynda/biz"
+	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/channel/paynda/pkg/idconv"
 	"generic-mock/model"
 	timeTypes "generic-mock/pkg/types/time"
@@ -71,7 +72,7 @@ func (service *PayndaOpenAPIService) ListBalanceAccounts(ctx context.Context, re
 
 func (service *PayndaOpenAPIService) CreateBalanceAccount(ctx context.Context, req *OpenAPIBalanceAccountRequest) (*OpenAPIBalanceAccountData, error) {
 	if req.Name == nil || *req.Name == "" {
-		return nil, biz.ErrInvalidOperation
+		return nil, payndaerrors.ErrInvalidOperation
 	}
 	if _, err := idconv.FromAccountString(req.AppID); err != nil {
 		return nil, err
@@ -85,7 +86,7 @@ func (service *PayndaOpenAPIService) CreateBalanceAccount(ctx context.Context, r
 
 func (service *PayndaOpenAPIService) UpdateBalanceAccount(ctx context.Context, req *OpenAPIBalanceAccountRequest) (*OpenAPIBalanceAccountData, error) {
 	if req.Name == nil || req.BalanceAccountID == nil {
-		return nil, biz.ErrInvalidOperation
+		return nil, payndaerrors.ErrInvalidOperation
 	}
 	id, err := idconv.FromAccountString(*req.BalanceAccountID)
 	if err != nil {

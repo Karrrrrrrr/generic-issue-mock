@@ -77,7 +77,7 @@ func (s *PingPongUIService) SimulateAuthorization(ctx context.Context, req *Simu
 		Amount:       req.Amount.Decimal,
 		Currency:     req.Currency,
 		RequestID:    req.RequestID,
-		MerchantName: req.MerchantName,
+		MerchantName: &req.MerchantName,
 	})
 	if err != nil {
 		return nil, err

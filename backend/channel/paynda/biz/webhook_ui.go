@@ -4,6 +4,7 @@ import (
 	"context"
 
 	paynda "generic-mock/channel/paynda/enums"
+	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -30,20 +31,20 @@ type PayndaUIUpdateWebhookRequest struct {
 
 func (u *PayndaUIUsecase) CreateWebhook(ctx context.Context, req *PayndaUICreateWebhookRequest) (*model.WebhookConfig, error) {
 	if !req.Event.Valid() {
-		return nil, ErrInvalidOperation
+		return nil, payndaerrors.ErrInvalidOperation
 	}
 	exists, err := u.accountRepository.ExistByID(ctx, req.AccountID)
 	if err != nil {
 		zap.S().Errorw("check paynda webhook account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, payndaerrors.ErrResourceNotFound
 	}
 	account, err := u.accountRepository.FindByID(ctx, req.AccountID)
 	if err != nil {
 		zap.S().Errorw("find paynda webhook account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	item := &model.WebhookConfig{
 		Account:   account,
@@ -55,7 +56,7 @@ func (u *PayndaUIUsecase) CreateWebhook(ctx context.Context, req *PayndaUICreate
 	}
 	if err := u.webhookConfigRepository.Create(ctx, item); err != nil {
 		zap.S().Errorw("create paynda UI webhook", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	return item, nil
 }
@@ -66,7 +67,7 @@ func (u *PayndaUIUsecase) ListWebhooks(ctx context.Context, req *PayndaListWebho
 	})
 	if err != nil {
 		zap.S().Errorw("list paynda UI webhooks", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	result := make([]*model.WebhookConfig, 0, len(items))
 	for _, item := range items {
@@ -81,20 +82,20 @@ func (u *PayndaUIUsecase) UpdateWebhook(ctx context.Context, req *PayndaUIUpdate
 	exists, err := u.webhookConfigRepository.ExistByID(ctx, req.ID)
 	if err != nil {
 		zap.S().Errorw("check paynda UI webhook", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, payndaerrors.ErrResourceNotFound
 	}
 	item, err := u.webhookConfigRepository.FindByID(ctx, req.ID)
 	if err != nil {
 		zap.S().Errorw("find paynda UI webhook", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	item.TargetURL, item.Enabled = req.TargetURL, req.Enabled
 	if err := u.webhookConfigRepository.Save(ctx, item); err != nil {
 		zap.S().Errorw("update paynda UI webhook", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	return item, nil
 }
@@ -103,14 +104,14 @@ func (u *PayndaUIUsecase) DeleteWebhook(ctx context.Context, id model.ID) error 
 	exists, err := u.webhookConfigRepository.ExistByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check paynda UI webhook", "error", err)
-		return ErrDatabaseOperation
+		return payndaerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return ErrResourceNotFound
+		return payndaerrors.ErrResourceNotFound
 	}
 	if err := u.webhookConfigRepository.Delete(ctx, id); err != nil {
 		zap.S().Errorw("delete paynda UI webhook", "error", err)
-		return ErrDatabaseOperation
+		return payndaerrors.ErrDatabaseOperation
 	}
 	return nil
 }

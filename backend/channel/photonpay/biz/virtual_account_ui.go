@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	photonpayerrors "generic-mock/channel/photonpay/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -30,16 +31,16 @@ func (u *PhotonPayUIUsecase) CreateVirtualAccount(
 		exists, err := u.accountRepo.Exist(txCtx, req.AccountID)
 		if err != nil {
 			zap.S().Errorw("check photonpay virtual account", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		if !exists {
-			return ErrResourceNotFound
+			return photonpayerrors.ErrResourceNotFound
 		}
 
 		account, err := u.accountRepo.Find(txCtx, req.AccountID)
 		if err != nil {
 			zap.S().Errorw("find photonpay virtual account owner", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		wallet := &model.Wallet{
 			AccountID: req.AccountID,
@@ -49,7 +50,7 @@ func (u *PhotonPayUIUsecase) CreateVirtualAccount(
 		}
 		if err := u.walletRepo.Create(txCtx, wallet); err != nil {
 			zap.S().Errorw("create photonpay virtual account wallet", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 
 		item = &model.VirtualAccount{
@@ -62,7 +63,7 @@ func (u *PhotonPayUIUsecase) CreateVirtualAccount(
 		}
 		if err := u.virtualAccountRepo.Create(txCtx, item); err != nil {
 			zap.S().Errorw("create photonpay virtual account", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		return nil
 	})
@@ -76,7 +77,7 @@ func (u *PhotonPayUIUsecase) ListVirtualAccounts(ctx context.Context) ([]*model.
 	items, err := u.virtualAccountRepo.ListVirtualAccounts(ctx, &VirtualAccountListRequest{})
 	if err != nil {
 		zap.S().Errorw("list photonpay virtual accounts", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	return items, nil
 }
@@ -87,7 +88,7 @@ func (u *PhotonPayUIUsecase) ListManagedVirtualAccounts(ctx context.Context, acc
 	})
 	if err != nil {
 		zap.S().Errorw("list photonpay virtual accounts", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	return items, nil
 }
@@ -98,15 +99,15 @@ func (u *PhotonPayUIUsecase) CreateManagedVirtualAccount(ctx context.Context, re
 		exists, err := u.accountRepo.Exist(ctx, req.AccountID)
 		if err != nil {
 			zap.S().Errorw("check photonpay virtual account owner", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		if !exists {
-			return ErrResourceNotFound
+			return photonpayerrors.ErrResourceNotFound
 		}
 		account, err := u.accountRepo.Find(ctx, req.AccountID)
 		if err != nil {
 			zap.S().Errorw("find photonpay virtual account owner", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		wallet := &model.Wallet{
 			AccountID: req.AccountID,
@@ -116,7 +117,7 @@ func (u *PhotonPayUIUsecase) CreateManagedVirtualAccount(ctx context.Context, re
 		}
 		if err := u.walletRepo.Create(ctx, wallet); err != nil {
 			zap.S().Errorw("create photonpay virtual wallet", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		item = &model.VirtualAccount{
 			Account:   account,
@@ -127,7 +128,7 @@ func (u *PhotonPayUIUsecase) CreateManagedVirtualAccount(ctx context.Context, re
 		}
 		if err := u.virtualAccountRepo.Create(ctx, item); err != nil {
 			zap.S().Errorw("create photonpay virtual account", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		return nil
 	})

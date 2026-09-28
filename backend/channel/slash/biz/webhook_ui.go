@@ -4,6 +4,7 @@ import (
 	"context"
 
 	slash "generic-mock/channel/slash/enums"
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -30,21 +31,21 @@ type UpdateWebhookRequest struct {
 
 func (u *SlashUIUsecase) CreateWebhook(ctx context.Context, req *CreateWebhookRequest) (*model.WebhookConfig, error) {
 	if !req.Event.Valid() {
-		return nil, ErrInvalidOperation
+		return nil, slasherrors.ErrInvalidOperation
 	}
 	exists, err := u.accountRepository.Exist(ctx, req.AccountID)
 	if err != nil {
 		zap.S().Errorw("check slash webhook account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, slasherrors.ErrResourceNotFound
 	}
 
 	account, err := u.accountRepository.Find(ctx, req.AccountID)
 	if err != nil {
 		zap.S().Errorw("find slash webhook account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	item := &model.WebhookConfig{
 		Account:   account,
@@ -56,7 +57,7 @@ func (u *SlashUIUsecase) CreateWebhook(ctx context.Context, req *CreateWebhookRe
 	}
 	if err := u.webhookConfigRepository.Create(ctx, item); err != nil {
 		zap.S().Errorw("create slash webhook", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	return item, nil
 }
@@ -70,7 +71,7 @@ func (u *SlashUIUsecase) ListWebhooks(
 	})
 	if err != nil {
 		zap.S().Errorw("list slash webhooks", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	return items, nil
 }
@@ -79,21 +80,21 @@ func (u *SlashUIUsecase) UpdateWebhook(ctx context.Context, req *UpdateWebhookRe
 	exists, err := u.webhookConfigRepository.ExistByID(ctx, req.ID)
 	if err != nil {
 		zap.S().Errorw("check slash webhook", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, slasherrors.ErrResourceNotFound
 	}
 	item, err := u.webhookConfigRepository.FindByID(ctx, req.ID)
 	if err != nil {
 		zap.S().Errorw("find slash webhook", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	item.TargetURL = req.TargetURL
 	item.Enabled = req.Enabled
 	if err := u.webhookConfigRepository.Save(ctx, item); err != nil {
 		zap.S().Errorw("update slash webhook", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	return item, nil
 }
@@ -102,14 +103,14 @@ func (u *SlashUIUsecase) DeleteWebhook(ctx context.Context, id model.ID) error {
 	exists, err := u.webhookConfigRepository.ExistByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check slash webhook", "error", err)
-		return ErrDatabaseOperation
+		return slasherrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return ErrResourceNotFound
+		return slasherrors.ErrResourceNotFound
 	}
 	if err := u.webhookConfigRepository.Delete(ctx, id); err != nil {
 		zap.S().Errorw("delete slash webhook", "error", err)
-		return ErrDatabaseOperation
+		return slasherrors.ErrDatabaseOperation
 	}
 	return nil
 }

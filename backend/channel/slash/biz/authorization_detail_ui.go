@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/model"
 
 	"go.uber.org/zap"
@@ -21,7 +22,7 @@ type AuthorizationDetail struct {
 
 func (u *SlashUIUsecase) GetAuthorizationDetail(ctx context.Context, req *GetAuthorizationDetailRequest) (*AuthorizationDetail, error) {
 	if req.AccountID <= 0 || req.ID <= 0 {
-		return nil, ErrInvalidOperation
+		return nil, slasherrors.ErrInvalidOperation
 	}
 	exists, err := u.authorizationRepository.AuthorizationExists(ctx, &ExistAuthorizationRequest{
 		AccountID: req.AccountID,
@@ -29,10 +30,10 @@ func (u *SlashUIUsecase) GetAuthorizationDetail(ctx context.Context, req *GetAut
 	})
 	if err != nil {
 		zap.S().Errorw("check slash authorization detail", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, slasherrors.ErrResourceNotFound
 	}
 	auth, err := u.authorizationRepository.FindAuthorizationDetail(ctx, &FindAuthorizationDetailRequest{
 		AccountID: req.AccountID,
@@ -40,7 +41,7 @@ func (u *SlashUIUsecase) GetAuthorizationDetail(ctx context.Context, req *GetAut
 	})
 	if err != nil {
 		zap.S().Errorw("find slash authorization detail", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	stages, err := u.cardTransactionRepository.ListStages(ctx, &ListAuthorizationStagesRequest{
 		AccountID: req.AccountID,
@@ -48,7 +49,7 @@ func (u *SlashUIUsecase) GetAuthorizationDetail(ctx context.Context, req *GetAut
 	})
 	if err != nil {
 		zap.S().Errorw("list slash authorization detail stages", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	card, err := u.cardRepository.FindCard(ctx, &FindCardRequest{
 		AccountID: req.AccountID,
@@ -56,7 +57,7 @@ func (u *SlashUIUsecase) GetAuthorizationDetail(ctx context.Context, req *GetAut
 	})
 	if err != nil {
 		zap.S().Errorw("find slash authorization detail card", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	return &AuthorizationDetail{
 		Balance: authorizationBalance(&authorizationBalanceRequest{

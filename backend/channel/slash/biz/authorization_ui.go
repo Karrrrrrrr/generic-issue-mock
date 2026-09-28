@@ -4,10 +4,11 @@ import (
 	"context"
 	"time"
 
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
-	"generic-mock/pkg/randomx"
 	"generic-mock/pkg/types"
+	sharedbiz "generic-mock/shared/biz"
 
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
@@ -33,12 +34,14 @@ type ListAuthorizationsRequest struct {
 }
 
 type SimulateAuthorizationRequest struct {
+	AccountID       model.ID
 	CardID          model.ID
 	Amount          decimal.Decimal
 	Currency        enums.Currency
-	MerchantName    string
-	MerchantCountry string
-	MerchantMCC     string
+	MerchantName    *string
+	MerchantCountry *string
+	MerchantMCC     *string
+	Notificator     sharedbiz.CardTransactionNotificator
 }
 
 type SimulateAuthorizationResult struct {
@@ -47,28 +50,32 @@ type SimulateAuthorizationResult struct {
 }
 
 type ClearAuthorizationRequest struct {
-	AccountID model.ID
-	ID        model.ID
-	Amount    decimal.Decimal
+	AccountID   model.ID
+	ID          model.ID
+	Amount      decimal.Decimal
+	Notificator sharedbiz.CardTransactionNotificator
 }
 
 type ReverseAuthorizationRequest struct {
-	AccountID model.ID
-	ID        model.ID
-	Amount    decimal.Decimal
+	AccountID   model.ID
+	ID          model.ID
+	Amount      decimal.Decimal
+	Notificator sharedbiz.CardTransactionNotificator
 }
 
 type RefundAuthorizationRequest struct {
-	AccountID model.ID
-	ID        model.ID
-	Amount    decimal.Decimal
+	AccountID   model.ID
+	ID          model.ID
+	Amount      decimal.Decimal
+	Notificator sharedbiz.CardTransactionNotificator
 }
 
 type applyAuthorizationStepRequest struct {
-	AccountID model.ID
-	ID        model.ID
-	Amount    decimal.Decimal
-	Type      enums.CardTransactionType
+	AccountID   model.ID
+	ID          model.ID
+	Amount      decimal.Decimal
+	Type        enums.CardTransactionType
+	Notificator sharedbiz.CardTransactionNotificator
 }
 
 type AuthorizationBalance struct {
@@ -112,81 +119,27 @@ func authorizationBalance(req *authorizationBalanceRequest) *AuthorizationBalanc
 }
 
 func (u *SlashUIUsecase) SimulateAuthorization(ctx context.Context, req *SimulateAuthorizationRequest) (*SimulateAuthorizationResult, error) {
-	if !req.Amount.IsPositive() {
-		return nil, ErrInvalidOperation
+	if req == nil {
+		return nil, slasherrors.ErrInvalidOperation
 	}
-	var result *SimulateAuthorizationResult
-	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		card, err := u.GetCard(txCtx, req.CardID)
-		if err != nil {
-			return err
-		}
-		if card.Status != enums.CardStatus_Active {
-			return ErrInvalidOperation
-		}
-		walletID := card.WalletID
-		if walletID == 0 {
-			return ErrResourceNotFound
-		}
-		wallet, err := u.walletRepository.LockWallet(txCtx, &LockWalletRequest{
-			AccountID: card.AccountID,
-			ID:        walletID,
-		})
-		if err != nil {
-			zap.S().Errorw("lock slash UI authorization wallet", "error", err)
-			return ErrDatabaseOperation
-		}
-		if wallet.Currency != req.Currency {
-			return ErrInvalidOperation
-		}
-		authorization := &model.Authorization{
-			Account:           card.Account,
-			AccountID:         card.AccountID,
-			Channel:           enums.Channel_Slash,
-			CardID:            card.ID,
-			Currency:          req.Currency,
-			Amount:            req.Amount,
-			MerchantName:      req.MerchantName,
-			MerchantCountry:   req.MerchantCountry,
-			MerchantMCC:       req.MerchantMCC,
-			AuthorizationCode: randomx.Digits(6),
-			Status:            enums.TransactionStatus_AUTHORIZED,
-		}
-		if err := u.authorizationRepository.Create(txCtx, authorization); err != nil {
-			zap.S().Errorw("create slash authorization", "error", err)
-			return ErrDatabaseOperation
-		}
-		transaction := &model.CardTransaction{
-			Account:           card.Account,
-			AccountID:         card.AccountID,
-			Channel:           enums.Channel_Slash,
-			AuthorizationID:   authorization.ID,
-			CardID:            card.ID,
-			Status:            enums.TransactionStatus_AUTHORIZED,
-			Type:              enums.CardTransactionType_AUTH,
-			Currency:          req.Currency,
-			TxAmount:          req.Amount,
-			TxCurrency:        req.Currency,
-			MerchantName:      req.MerchantName,
-			MerchantCountry:   req.MerchantCountry,
-			MerchantMCC:       req.MerchantMCC,
-			AuthorizationCode: authorization.AuthorizationCode,
-		}
-		if err := u.cardTransactionRepository.Create(txCtx, transaction); err != nil {
-			zap.S().Errorw("create slash authorization transaction", "error", err)
-			return ErrDatabaseOperation
-		}
-		result = &SimulateAuthorizationResult{
-			Authorization:   authorization,
-			CardTransaction: transaction,
-		}
-		return nil
+	result, err := u.simulator.SimulateAuthorization(ctx, &sharedbiz.SimulateAuthorizationReq{
+		AccountID:       req.AccountID,
+		Channel:         enums.Channel_Slash,
+		CardID:          req.CardID,
+		Amount:          req.Amount,
+		Currency:        req.Currency,
+		MerchantName:    req.MerchantName,
+		MerchantCountry: req.MerchantCountry,
+		MerchantMCC:     req.MerchantMCC,
+		Notificator:     req.Notificator,
 	})
 	if err != nil {
-		return nil, err
+		return nil, slasherrors.FromSimulation(err)
 	}
-
-	return result, nil
+	return &SimulateAuthorizationResult{
+		Authorization:   result.Authorization,
+		CardTransaction: result.CardTransaction,
+	}, nil
 }
 
 func (u *SlashUIUsecase) ListAuthorizations(ctx context.Context, req *ListAuthorizationsRequest) ([]*model.Authorization, int64, error) {
@@ -200,7 +153,7 @@ func (u *SlashUIUsecase) ListAuthorizations(ctx context.Context, req *ListAuthor
 	})
 	if err != nil {
 		zap.S().Errorw("list slash authorizations", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, slasherrors.ErrDatabaseOperation
 	}
 	total, err := u.authorizationRepository.Count(ctx, &AuthorizationCountRequest{
 		AccountIDs: types.PointerSlice(req.AccountID),
@@ -212,7 +165,7 @@ func (u *SlashUIUsecase) ListAuthorizations(ctx context.Context, req *ListAuthor
 	})
 	if err != nil {
 		zap.S().Errorw("count slash authorizations", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, slasherrors.ErrDatabaseOperation
 	}
 
 	return items, total, nil
@@ -225,7 +178,7 @@ func (u *SlashUIUsecase) GetAuthorization(ctx context.Context, id model.ID) (*mo
 	item, err := u.authorizationRepository.FindByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("find slash authorization", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 
 	return item, nil
@@ -235,10 +188,10 @@ func (u *SlashUIUsecase) requireAuthorization(ctx context.Context, id model.ID) 
 	exists, err := u.authorizationRepository.ExistByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check slash authorization", "error", err)
-		return ErrDatabaseOperation
+		return slasherrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return ErrResourceNotFound
+		return slasherrors.ErrResourceNotFound
 	}
 	return nil
 }
@@ -247,7 +200,7 @@ func (u *SlashUIUsecase) ListAuthorizationBalances(ctx context.Context, req *Lis
 	if (req.CreatedFrom != nil && req.CreatedFrom.IsZero()) ||
 		(req.CreatedTo != nil && req.CreatedTo.IsZero()) ||
 		(req.CreatedFrom != nil && req.CreatedTo != nil && req.CreatedFrom.After(*req.CreatedTo)) {
-		return nil, ErrInvalidOperation
+		return nil, slasherrors.ErrInvalidOperation
 	}
 	items, err := u.authorizationRepository.ListAuthorizations(ctx, &AuthorizationListBalancesRequest{
 		AccountIDs:   types.PointerSlice(req.AccountID),
@@ -260,7 +213,7 @@ func (u *SlashUIUsecase) ListAuthorizationBalances(ctx context.Context, req *Lis
 	})
 	if err != nil {
 		zap.S().Errorw("list slash authorization balances", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	results := make([]*AuthorizationBalance, 0, len(items))
 	for _, item := range items {
@@ -270,7 +223,7 @@ func (u *SlashUIUsecase) ListAuthorizationBalances(ctx context.Context, req *Lis
 		})
 		if err != nil {
 			zap.S().Errorw("list slash authorization stages", "error", err)
-			return nil, ErrDatabaseOperation
+			return nil, slasherrors.ErrDatabaseOperation
 		}
 		results = append(results, authorizationBalance(&authorizationBalanceRequest{
 			Authorization: item,
@@ -282,132 +235,93 @@ func (u *SlashUIUsecase) ListAuthorizationBalances(ctx context.Context, req *Lis
 
 func (u *SlashUIUsecase) ClearAuthorization(ctx context.Context, req *ClearAuthorizationRequest) (*model.CardTransaction, error) {
 	return u.applyAuthorizationStep(ctx, &applyAuthorizationStepRequest{
-		AccountID: req.AccountID,
-		ID:        req.ID,
-		Amount:    req.Amount,
-		Type:      enums.CardTransactionType_CLEAR,
+		AccountID:   req.AccountID,
+		ID:          req.ID,
+		Amount:      req.Amount,
+		Type:        enums.CardTransactionType_CLEAR,
+		Notificator: req.Notificator,
 	})
 }
 
 func (u *SlashUIUsecase) ReverseAuthorization(ctx context.Context, req *ReverseAuthorizationRequest) (*model.CardTransaction, error) {
 	return u.applyAuthorizationStep(ctx, &applyAuthorizationStepRequest{
-		AccountID: req.AccountID,
-		ID:        req.ID,
-		Amount:    req.Amount,
-		Type:      enums.CardTransactionType_VOID,
+		AccountID:   req.AccountID,
+		ID:          req.ID,
+		Amount:      req.Amount,
+		Type:        enums.CardTransactionType_VOID,
+		Notificator: req.Notificator,
 	})
 }
 
 func (u *SlashUIUsecase) RefundAuthorization(ctx context.Context, req *RefundAuthorizationRequest) (*model.CardTransaction, error) {
 	return u.applyAuthorizationStep(ctx, &applyAuthorizationStepRequest{
-		AccountID: req.AccountID,
-		ID:        req.ID,
-		Amount:    req.Amount,
-		Type:      enums.CardTransactionType_REFUND,
+		AccountID:   req.AccountID,
+		ID:          req.ID,
+		Amount:      req.Amount,
+		Type:        enums.CardTransactionType_REFUND,
+		Notificator: req.Notificator,
 	})
 }
 
 func (u *SlashUIUsecase) applyAuthorizationStep(ctx context.Context, req *applyAuthorizationStepRequest) (*model.CardTransaction, error) {
-	if req.ID <= 0 || req.AccountID <= 0 || !req.Amount.IsPositive() {
-		return nil, ErrInvalidOperation
+	if req.AccountID <= 0 || req.ID <= 0 || !req.Amount.IsPositive() {
+		return nil, slasherrors.ErrInvalidOperation
 	}
-	var result *model.CardTransaction
-	err := u.transaction.InTx(ctx, func(ctx context.Context) error {
-		exists, err := u.authorizationRepository.AuthorizationExists(ctx, &ExistAuthorizationRequest{
-			AccountID: req.AccountID,
-			ID:        req.ID,
-		})
-		if err != nil {
-			zap.S().Errorw("check slash authorization for operation", "error", err)
-			return ErrDatabaseOperation
-		}
-		if !exists {
-			return ErrResourceNotFound
-		}
-		auth, err := u.authorizationRepository.LockAuthorization(ctx, &LockAuthorizationRequest{
-			AccountID: req.AccountID,
-			ID:        req.ID,
-		})
-		if err != nil {
-			zap.S().Errorw("lock slash authorization for operation", "error", err)
-			return ErrDatabaseOperation
-		}
-		stages, err := u.cardTransactionRepository.ListStages(ctx, &ListAuthorizationStagesRequest{
-			AccountID: req.AccountID,
-			ID:        req.ID,
-		})
-		if err != nil {
-			zap.S().Errorw("list slash authorization operation stages", "error", err)
-			return ErrDatabaseOperation
-		}
-		if req.Type != enums.CardTransactionType_VOID {
-			card, err := u.cardRepository.FindCard(ctx, &FindCardRequest{
-				AccountID: req.AccountID,
-				ID:        auth.CardID,
-			})
-			if err != nil {
-				zap.S().Errorw("find slash authorization operation card", "error", err)
-				return ErrDatabaseOperation
-			}
-			wallet, err := u.walletRepository.LockWallet(ctx, &LockWalletRequest{
-				AccountID: req.AccountID,
-				ID:        card.WalletID,
-			})
-			if err != nil {
-				zap.S().Errorw("lock slash authorization operation wallet", "error", err)
-				return ErrDatabaseOperation
-			}
-			if wallet.Currency != auth.Currency {
-				return ErrInvalidOperation
-			}
-			if req.Type == enums.CardTransactionType_REFUND {
-				wallet.Available = wallet.Available.Add(req.Amount)
-				wallet.In = wallet.In.Add(req.Amount)
-			} else {
-				wallet.Available = wallet.Available.Sub(req.Amount)
-				wallet.Out = wallet.Out.Add(req.Amount)
-			}
-			if err := u.walletRepository.SaveWallet(ctx, wallet); err != nil {
-				zap.S().Errorw("save slash authorization operation wallet", "error", err)
-				return ErrDatabaseOperation
-			}
-		}
-		var originID model.ID
-		for _, stage := range stages {
-			if stage.Type == enums.CardTransactionType_AUTH {
-				originID = stage.ID
-				break
-			}
-		}
-		status := enums.TransactionStatus_SUCCEED
-		if req.Type == enums.CardTransactionType_VOID {
-			status = enums.TransactionStatus_VOID
-		}
-		result = &model.CardTransaction{
-			AccountID:               req.AccountID,
-			Channel:                 enums.Channel_Slash,
-			AuthorizationID:         auth.ID,
-			OriginCardTransactionID: originID,
-			CardID:                  auth.CardID,
-			Type:                    req.Type,
-			Status:                  status,
-			Currency:                auth.Currency,
-			TxCurrency:              auth.Currency,
-			TxAmount:                req.Amount,
-			MerchantName:            auth.MerchantName,
-			MerchantCountry:         auth.MerchantCountry,
-			MerchantMCC:             auth.MerchantMCC,
-			AuthorizationCode:       auth.AuthorizationCode,
-		}
-		if err := u.cardTransactionRepository.Create(ctx, result); err != nil {
-			zap.S().Errorw("create slash authorization operation stage", "error", err)
-			return ErrDatabaseOperation
-		}
-		return nil
+	exists, err := u.authorizationRepository.AuthorizationExists(ctx, &ExistAuthorizationRequest{
+		AccountID: req.AccountID,
+		ID:        req.ID,
 	})
 	if err != nil {
-		return nil, err
+		zap.S().Errorw("check slash simulation authorization", "error", err)
+		return nil, slasherrors.ErrDatabaseOperation
 	}
-
-	return result, nil
+	if !exists {
+		return nil, slasherrors.ErrResourceNotFound
+	}
+	auth, err := u.authorizationRepository.FindAuthorizationDetail(ctx, &FindAuthorizationDetailRequest{
+		AccountID: req.AccountID,
+		ID:        req.ID,
+	})
+	if err != nil {
+		zap.S().Errorw("find slash simulation authorization", "error", err)
+		return nil, slasherrors.ErrDatabaseOperation
+	}
+	var result *sharedbiz.CardTransactionSimulationResult
+	switch req.Type {
+	case enums.CardTransactionType_CLEAR:
+		result, err = u.simulator.SimulateClearing(ctx, &sharedbiz.SimulateClearingReq{
+			AccountID:       req.AccountID,
+			Channel:         enums.Channel_Slash,
+			CardID:          auth.CardID,
+			Amount:          req.Amount,
+			Notificator:     req.Notificator,
+			AuthorizationID: auth.ID,
+		})
+	case enums.CardTransactionType_VOID:
+		result, err = u.simulator.SimulateReversal(ctx, &sharedbiz.SimulateReversalReq{
+			AccountID:       req.AccountID,
+			Channel:         enums.Channel_Slash,
+			CardID:          auth.CardID,
+			Amount:          req.Amount,
+			Notificator:     req.Notificator,
+			AuthorizationID: auth.ID,
+			Status:          enums.TransactionStatus_VOID,
+		})
+	case enums.CardTransactionType_REFUND:
+		result, err = u.simulator.SimulateRefund(ctx, &sharedbiz.SimulateRefundReq{
+			AccountID:       req.AccountID,
+			Channel:         enums.Channel_Slash,
+			CardID:          auth.CardID,
+			Amount:          req.Amount,
+			Notificator:     req.Notificator,
+			AuthorizationID: &auth.ID,
+			Currency:        auth.Currency,
+		})
+	default:
+		return nil, slasherrors.ErrInvalidOperation
+	}
+	if err != nil {
+		return nil, slasherrors.FromSimulation(err)
+	}
+	return result.CardTransaction, nil
 }

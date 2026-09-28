@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -20,7 +21,7 @@ func (u *SlashUIUsecase) ListVirtualAccounts(ctx context.Context) ([]*model.Virt
 	items, err := u.virtualAccountRepository.ListVirtualAccounts(ctx, &VirtualAccountListRequest{})
 	if err != nil {
 		zap.S().Errorw("list slash virtual accounts", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	return items, nil
 }
@@ -31,7 +32,7 @@ func (u *SlashUIUsecase) ListManagedVirtualAccounts(ctx context.Context, account
 	})
 	if err != nil {
 		zap.S().Errorw("list slash virtual accounts", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	return items, nil
 }
@@ -42,15 +43,15 @@ func (u *SlashUIUsecase) CreateManagedVirtualAccount(ctx context.Context, req *C
 		exists, err := u.accountRepository.Exist(ctx, req.AccountID)
 		if err != nil {
 			zap.S().Errorw("check slash virtual account owner", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		if !exists {
-			return ErrResourceNotFound
+			return slasherrors.ErrResourceNotFound
 		}
 		account, err := u.accountRepository.Find(ctx, req.AccountID)
 		if err != nil {
 			zap.S().Errorw("find slash virtual account owner", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		wallet := &model.Wallet{
 			AccountID: req.AccountID,
@@ -60,7 +61,7 @@ func (u *SlashUIUsecase) CreateManagedVirtualAccount(ctx context.Context, req *C
 		}
 		if err := u.walletRepository.Create(ctx, wallet); err != nil {
 			zap.S().Errorw("create slash virtual wallet", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		item = &model.VirtualAccount{
 			Account:   account,
@@ -71,7 +72,7 @@ func (u *SlashUIUsecase) CreateManagedVirtualAccount(ctx context.Context, req *C
 		}
 		if err := u.virtualAccountRepository.CreateVirtualAccount(ctx, item); err != nil {
 			zap.S().Errorw("create slash virtual account", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		return nil
 	})

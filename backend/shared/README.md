@@ -2,7 +2,17 @@
 
 `shared/biz` 处理已经归一化的开卡、模拟授权、清算、退款和撤销请求，不解释任何渠道协议，也不在内部查找“默认渠道账户”。渠道层负责解析外部 ID、选择产品/虚拟账户、校验协议参数，以及将共享错误映射为渠道错误码。
 
-本次组件没有自动替换现有渠道 usecase，也没有合并 UI/OpenAPI 的业务入口。接入时由具体 usecase 明确调用；UI 和 OpenAPI 仍各自拥有协议适配、操作日志及差异化规则。
+Slash、Paynda、PhotonPay、PingPong 的 UI 模拟授权、清算、退款和撤销，以及 PhotonPay 的 OpenAPI sandbox 已接入 `CardTransactionSimulator`。各渠道不再自行写入模拟授权、交易阶段或修改钱包；UI 和 OpenAPI 仍各自拥有请求、协议适配、操作日志及通知适配，不互相调用。`CardIssuer` 尚未替换各渠道开卡入口。
+
+## 渠道接入约定
+
+- Slash、Paynda、PhotonPay 的 `/ui/simulate/authorizations`、`/ui/simulate/refunds` 和交易阶段操作必须显式传入 `account_id`；授权详情上的阶段操作和 PingPong 原有入口保留其账户参数。前端直接使用所选卡/交易返回的账户 ID，不额外查询账户列表。
+- 授权详情操作先按账户读取授权以取得卡 ID，交易操作先按账户读取原交易；共享模拟器在自己的事务内再次锁定并验证账户、卡、授权、币种及钱包。渠道不得在外层再包事务。
+- UI 独立退款省略 `authorization_id`，关联退款传正数渠道 ID；显式零值、空字符串和跨账户/跨卡引用不能当成独立退款。
+- Slash 由 service 实现 `CardTransactionNotificator`，在边界转换 UUID 后交给原 webhook 投递器；Paynda、PhotonPay UI 的通知适配器按账户读取已提交交易并调用原投递流程。原来 service/渠道流程末尾的重复发送已移除。
+- PingPong 明确传入 `NoopNotificator`，保持 `contract_pending`，不虚构投递记录。PhotonPay sandbox 保留原来不发送 UI webhook 的行为，也显式使用 `NoopNotificator`；没有借迁移新增同步授权回调。
+- PingPong 和 PhotonPay sandbox 将必填 `request_id` / `requestId` 交给共享模拟器处理幂等，重放不重复记账或通知。三个其他 UI 协议原来没有请求 ID，此次不新增。
+- 所有渠道通过各自独立 `errors` 包把共享错误转为已有渠道错误。Slash、Paynda、PhotonPay 的旧业务错误从 `biz` 迁入 `errors`，不保留别名，不改变状态码、reason 或 message。
 
 ## 依赖与注册
 
@@ -229,7 +239,7 @@ if err != nil {
 - 总是使用 `Card.WalletID` 对应的钱包。`single`、`virtual_account_single` 使用卡钱包，`share` 使用虚拟账户钱包；不会因为卡关联 VA 就改扣 VA 或根账户的钱包。
 - 账户行锁串行化同账户的共享模拟请求；授权、卡及钱包按需加行锁。账户、授权、卡、钱包和历史阶段查询均明确限制归属。
 - 授权记录、AUTH/CLEAR/REFUND/VOID 阶段和钱包变更在各自操作的同一事务内提交，任一步失败全部回滚。关联操作保留授权交易关联，剩余金额扣除成功清算及已撤销金额，不受退款或失败阶段影响。
-- 清算不会以剩余金额大于零作为前提，也不会把负剩余金额截成零。模型和现有渠道协议没有变更；四种模拟能力均已提供，共享组件尚未替换各渠道调用入口。
+- 清算不会以剩余金额大于零作为前提，也不会把负剩余金额截成零。四种模拟能力均由共享组件执行；渠道仅保留入口转换和通知适配。重放授权返回当前阶段记录，PingPong 的剩余金额展示不会恢复为原始授权金额。
 
 ### 请求重放与通知
 

@@ -514,6 +514,16 @@ func TestPhotonTransactions(testContext *testing.T) {
 	token := fixture.token
 	card := fixture.createCard(testContext)
 	cardID := card.CardDetail.CardID
+	cards := suite.UI(testContext, http.MethodGet, "/cards?account_id="+suite.Config.Account+"&id="+cardID, nil)
+	if actual := contract.Text(testContext, cards, "data.0.id"); actual != cardID {
+		testContext.Fatalf("unexpected funding card: %s", actual)
+	}
+	suite.UI(testContext, http.MethodPost, "/funds/transfer", map[string]any{
+		"account_id": suite.Config.Account,
+		"source_id":  suite.Config.Wallet,
+		"target_id":  contract.Text(testContext, cards, "data.0.wallet_id"),
+		"amount":     "10",
+	})
 	testContext.Run("PagingVccTradeOrder/empty", func(testContext *testing.T) {
 		items, err := client.PagingVccTradeOrder(suite.Context, token, &PagingVccTradeOrderRequest{CardID: &cardID})
 		if err != nil || items == nil || len(items) != 0 {
@@ -521,19 +531,18 @@ func TestPhotonTransactions(testContext *testing.T) {
 		}
 	})
 	request := &SandBoxTransactionRequest{
-		OriginTransactionID: "0",
-		RequestID:           contract.Unique(),
-		CardID:              cardID,
-		Cvv:                 card.CardDetail.CVV,
-		ExpirationDate:      card.CardDetail.ExpirationDate,
-		TxnCurrency:         "USD",
-		TxnAmount:           2,
-		TxnType:             "auth",
-		Mcc:                 "5411",
-		MerchantName:        "SDK merchant",
-		MerchantCountry:     "US",
-		MerchantCity:        "Boston",
-		MerchantPostcode:    "02101",
+		RequestID:        contract.Unique(),
+		CardID:           cardID,
+		Cvv:              card.CardDetail.CVV,
+		ExpirationDate:   card.CardDetail.ExpirationDate,
+		TxnCurrency:      "USD",
+		TxnAmount:        2,
+		TxnType:          "auth",
+		Mcc:              "5411",
+		MerchantName:     "SDK merchant",
+		MerchantCountry:  "US",
+		MerchantCity:     "Boston",
+		MerchantPostcode: "02101",
 	}
 	testContext.Run("SandBoxTransaction/authorization", func(testContext *testing.T) {
 		if err := client.SandBoxTransaction(suite.Context, token, request); err != nil {
@@ -602,13 +611,13 @@ func TestPhotonTransactions(testContext *testing.T) {
 			testContext.Fatal("void without authorization accepted")
 		}
 	})
-	testContext.Run("SandBoxTransaction/empty-origin", func(testContext *testing.T) {
+	testContext.Run("SandBoxTransaction/zero-origin", func(testContext *testing.T) {
 		invalid := *request
 		invalid.RequestID = contract.Unique()
 		invalid.TxnType = "refund"
-		invalid.OriginTransactionID = ""
+		invalid.OriginTransactionID = "0"
 		if err := client.SandBoxTransaction(suite.Context, token, &invalid); err == nil {
-			testContext.Fatal("explicit empty origin ID accepted")
+			testContext.Fatal("zero origin ID accepted")
 		}
 	})
 	testContext.Run("SandBoxTransaction/other-card-authorization", func(testContext *testing.T) {

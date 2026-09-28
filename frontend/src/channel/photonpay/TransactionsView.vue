@@ -111,9 +111,9 @@ async function load() {
   }
 }
 
-async function apply(id: string, action: "clear" | "reverse" | "refund") {
+async function apply(transaction: Transaction, action: "clear" | "reverse" | "refund") {
   try {
-    await api.applyTransactionStep(id, action);
+    await api.applyTransactionStep(transaction, action);
     await load();
   } catch (e) {
     message.error(e instanceof Error ? e.message : "操作失败");
@@ -125,7 +125,7 @@ function actions(r: Transaction) {
     return [
       h(
         NButton,
-        { size: "small", onClick: () => apply(r.id, "reverse") },
+        { size: "small", onClick: () => apply(r, "reverse") },
         { default: () => "撤销" },
       ),
     ];
@@ -133,7 +133,7 @@ function actions(r: Transaction) {
     return [
       h(
         NButton,
-        { size: "small", onClick: () => apply(r.id, "refund") },
+        { size: "small", onClick: () => apply(r, "refund") },
         { default: () => "退款" },
       ),
     ];

@@ -535,12 +535,13 @@ type UIAuthorizationData struct {
 }
 
 type UISimulateAuthorizationRequest struct {
+	ManagementAccountRequest
 	CardID               string  `json:"card_id" binding:"required"`
 	TransactionAmount    float64 `json:"transaction_amount" binding:"required"`
 	TransactionCurrency  string  `json:"transaction_currency" binding:"required"`
 	MerchantName         string  `json:"merchant_name" binding:"required"`
 	MerchantCategoryCode string  `json:"merchant_category_code" binding:"required"`
-	MerchantCountry      string  `json:"merchant_country"`
+	MerchantCountry      *string `json:"merchant_country" binding:"omitempty,min=1"`
 	MerchantCity         string  `json:"merchant_city"` // Invalid: generic model has no merchant city field.
 }
 
@@ -552,6 +553,7 @@ type UISimulateAuthorizationData struct {
 }
 
 type UISimulateRefundRequest struct {
+	ManagementAccountRequest
 	AuthorizationID      *string `json:"authorization_id"`
 	CardID               string  `json:"card_id" binding:"required"`
 	Amount               float64 `json:"amount" binding:"required,gt=0"`
@@ -563,7 +565,11 @@ type UISimulateRefundRequest struct {
 }
 
 func (s *PhotonPayUIService) SimulateRefund(ctx context.Context, req *UISimulateRefundRequest) (*UITransactionData, error) {
-	authorizationID, err := idconv.FromRefundAuthorizationString(req.AuthorizationID)
+	accountID, err := idconv.FromAccountString(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	authorizationID, err := idconv.FromOptionalString(req.AuthorizationID)
 	if err != nil {
 		return nil, err
 	}
@@ -572,13 +578,14 @@ func (s *PhotonPayUIService) SimulateRefund(ctx context.Context, req *UISimulate
 		return nil, err
 	}
 	item, err := s.usecase.SimulateRefund(ctx, &biz.UISimulateRefundRequest{
+		AccountID:       accountID,
 		AuthorizationID: authorizationID,
 		CardID:          cardID,
 		Amount:          decimal.NewFromFloat(req.Amount),
 		Currency:        common.Currency(req.Currency),
-		MerchantName:    req.MerchantName,
-		MerchantCountry: req.MerchantCountry,
-		MerchantMCC:     req.MerchantCategoryCode,
+		MerchantName:    &req.MerchantName,
+		MerchantCountry: &req.MerchantCountry,
+		MerchantMCC:     &req.MerchantCategoryCode,
 	})
 	if err != nil {
 		return nil, err
@@ -587,17 +594,22 @@ func (s *PhotonPayUIService) SimulateRefund(ctx context.Context, req *UISimulate
 }
 
 func (s *PhotonPayUIService) SimulateAuthorization(ctx context.Context, req *UISimulateAuthorizationRequest) (*UISimulateAuthorizationData, error) {
+	accountID, err := idconv.FromAccountString(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := idconv.FromString(req.CardID)
 	if err != nil {
 		return nil, err
 	}
 	result, err := s.usecase.SimulateAuthorization(ctx, &biz.UISimulateAuthorizationRequest{
+		AccountID:       accountID,
 		CardID:          cardID,
 		Amount:          decimal.NewFromFloat(req.TransactionAmount),
 		Currency:        common.Currency(req.TransactionCurrency),
-		MerchantName:    req.MerchantName,
+		MerchantName:    &req.MerchantName,
 		MerchantCountry: req.MerchantCountry,
-		MerchantMCC:     req.MerchantCategoryCode,
+		MerchantMCC:     &req.MerchantCategoryCode,
 	})
 	if err != nil {
 		return nil, err
@@ -612,6 +624,7 @@ func (s *PhotonPayUIService) SimulateAuthorization(ctx context.Context, req *UIS
 }
 
 type UIApplyTransactionStepRequest struct {
+	ManagementAccountRequest
 	ID     string           `uri:"id" binding:"required"`
 	Amount *decimal.Decimal `json:"amount"`
 }
@@ -629,11 +642,16 @@ func (s *PhotonPayUIService) RefundTransaction(ctx context.Context, req *UIApply
 }
 
 func (s *PhotonPayUIService) applyTransactionStep(ctx context.Context, req *UIApplyTransactionStepRequest, transactionType common.CardTransactionType) (*UITransactionData, error) {
+	accountID, err := idconv.FromAccountString(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
 	transactionID, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.ApplyTransactionStep(ctx, &biz.UIApplyTransactionStepRequest{
+		AccountID:         accountID,
 		CardTransactionID: transactionID,
 		Type:              transactionType,
 		Amount:            req.Amount,

@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -24,31 +25,31 @@ func (u *PayndaUIUsecase) ListFunds(ctx context.Context, accountID *model.ID) ([
 	})
 	if err != nil {
 		zap.S().Errorw("list paynda wallets", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	return items, nil
 }
 
 func (u *PayndaUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsRequest) error {
 	if req.AccountID == 0 || !req.Amount.IsPositive() || req.SourceID == req.TargetID {
-		return ErrInvalidOperation
+		return payndaerrors.ErrInvalidOperation
 	}
 	return u.transaction.InTx(ctx, func(ctx context.Context) error {
 		exists, err := u.accountRepository.ExistByID(ctx, req.AccountID)
 		if err != nil {
 			zap.S().Errorw("check paynda funding account", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		if !exists {
-			return ErrResourceNotFound
+			return payndaerrors.ErrResourceNotFound
 		}
 		account, err := u.accountRepository.FindByID(ctx, req.AccountID)
 		if err != nil {
 			zap.S().Errorw("find paynda funding account", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		if account.WalletID == 0 || (req.SourceID != account.WalletID && req.TargetID != account.WalletID) {
-			return ErrInvalidOperation
+			return payndaerrors.ErrInvalidOperation
 		}
 		wallets := make(map[model.ID]*model.Wallet)
 		ids := []model.ID{
@@ -68,10 +69,10 @@ func (u *PayndaUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsRequest) 
 			})
 			if err != nil {
 				zap.S().Errorw("check paynda transfer wallet", "error", err)
-				return ErrDatabaseOperation
+				return payndaerrors.ErrDatabaseOperation
 			}
 			if !exists {
-				return ErrResourceNotFound
+				return payndaerrors.ErrResourceNotFound
 			}
 			wallet, err := u.walletRepository.LockWallet(ctx, &LockWalletRequest{
 				AccountID: req.AccountID,
@@ -79,29 +80,29 @@ func (u *PayndaUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsRequest) 
 			})
 			if err != nil {
 				zap.S().Errorw("lock paynda transfer wallet", "error", err)
-				return ErrDatabaseOperation
+				return payndaerrors.ErrDatabaseOperation
 			}
 			wallets[walletID] = wallet
 			if wallet.Type != enums.WalletType_Account && wallet.Type != enums.WalletType_Card {
-				return ErrInvalidOperation
+				return payndaerrors.ErrInvalidOperation
 			}
 		}
 		source, target := wallets[req.SourceID], wallets[req.TargetID]
 		if source == nil && target.Type != enums.WalletType_Account || target == nil && source.Type != enums.WalletType_Account {
-			return ErrInvalidOperation
+			return payndaerrors.ErrInvalidOperation
 		}
 		if source != nil && target != nil && source.Currency != target.Currency {
-			return ErrInvalidOperation
+			return payndaerrors.ErrInvalidOperation
 		}
 		if source != nil {
 			if source.Available.LessThan(req.Amount) {
-				return ErrInvalidOperation
+				return payndaerrors.ErrInvalidOperation
 			}
 			source.Available = source.Available.Sub(req.Amount)
 			source.Out = source.Out.Add(req.Amount)
 			if err := u.walletRepository.SaveWallet(ctx, source); err != nil {
 				zap.S().Errorw("debit paynda wallet", "error", err)
-				return ErrDatabaseOperation
+				return payndaerrors.ErrDatabaseOperation
 			}
 		}
 		if target != nil {
@@ -109,7 +110,7 @@ func (u *PayndaUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsRequest) 
 			target.In = target.In.Add(req.Amount)
 			if err := u.walletRepository.SaveWallet(ctx, target); err != nil {
 				zap.S().Errorw("credit paynda wallet", "error", err)
-				return ErrDatabaseOperation
+				return payndaerrors.ErrDatabaseOperation
 			}
 		}
 		return nil

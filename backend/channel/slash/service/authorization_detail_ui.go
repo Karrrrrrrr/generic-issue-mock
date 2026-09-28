@@ -104,14 +104,14 @@ func (s *SlashUIService) ReverseAuthorization(ctx context.Context, req *ReverseA
 		return nil, err
 	}
 	item, err := s.usecase.ReverseAuthorization(ctx, &biz.ReverseAuthorizationRequest{
-		AccountID: accountID,
-		ID:        id,
-		Amount:    req.Amount,
+		Notificator: s,
+		AccountID:   accountID,
+		ID:          id,
+		Amount:      req.Amount,
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(item.AccountID, channelEnums.WebhookEventTransactionCreate, item.ID))
 	return &ClearAuthorizationData{ID: idconv.ToUUID(item.ID)}, nil
 }
 
@@ -125,13 +125,13 @@ func (s *SlashUIService) RefundAuthorization(ctx context.Context, req *RefundAut
 		return nil, err
 	}
 	item, err := s.usecase.RefundAuthorization(ctx, &biz.RefundAuthorizationRequest{
-		AccountID: accountID,
-		ID:        id,
-		Amount:    req.Amount,
+		Notificator: s,
+		AccountID:   accountID,
+		ID:          id,
+		Amount:      req.Amount,
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(item.AccountID, channelEnums.WebhookEventTransactionCreate, item.ID))
 	return &ClearAuthorizationData{ID: idconv.ToUUID(item.ID)}, nil
 }

@@ -1,4 +1,4 @@
-package biz
+package errors
 
 import kratosErrors "github.com/go-kratos/kratos/v2/errors"
 

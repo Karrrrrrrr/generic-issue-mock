@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -34,7 +35,7 @@ func (u *SlashUIUsecase) CreateAccount(ctx context.Context, req *CreateAccountRe
 		}
 		if err := u.accountRepository.Create(txCtx, item); err != nil {
 			zap.S().Errorw("create slash UI account", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		wallet := &model.Wallet{
 			AccountID: item.ID,
@@ -44,12 +45,12 @@ func (u *SlashUIUsecase) CreateAccount(ctx context.Context, req *CreateAccountRe
 		}
 		if err := u.walletRepository.Create(txCtx, wallet); err != nil {
 			zap.S().Errorw("create slash UI account wallet", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		item.WalletID = wallet.ID
 		if err := u.accountRepository.Save(txCtx, item); err != nil {
 			zap.S().Errorw("attach slash UI account wallet", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		return nil
 	})
@@ -70,7 +71,7 @@ func (u *SlashUIUsecase) ListAccounts(
 	})
 	if err != nil {
 		zap.S().Errorw("list slash UI accounts", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, slasherrors.ErrDatabaseOperation
 	}
 
 	total, err := u.accountRepository.Count(ctx, &AccountCountRequest{
@@ -78,7 +79,7 @@ func (u *SlashUIUsecase) ListAccounts(
 	})
 	if err != nil {
 		zap.S().Errorw("count slash UI accounts", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, slasherrors.ErrDatabaseOperation
 	}
 
 	return items, total, nil
@@ -91,21 +92,21 @@ func (u *SlashUIUsecase) UpdateAccount(
 	exists, err := u.accountRepository.Exist(ctx, req.ID)
 	if err != nil {
 		zap.S().Errorw("check slash UI account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, slasherrors.ErrResourceNotFound
 	}
 
 	item, err := u.accountRepository.Find(ctx, req.ID)
 	if err != nil {
 		zap.S().Errorw("find slash UI account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	item.Name = req.Name
 	if err := u.accountRepository.Save(ctx, item); err != nil {
 		zap.S().Errorw("update slash UI account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 
 	return item, nil

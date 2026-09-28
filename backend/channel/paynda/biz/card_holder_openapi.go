@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -62,7 +63,7 @@ func (u *PayndaOpenAPIUsecase) CreateCardHolder(
 	}
 	if err := u.cardHolderRepository.Create(ctx, holder); err != nil {
 		zap.S().Errorw("create paynda card holder", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 
 	return holder, nil
@@ -79,7 +80,7 @@ func (u *PayndaOpenAPIUsecase) GetCardHolder(
 	holder, err := u.cardHolderRepository.FindByAccountID(ctx, (*CardHolderFindByAccountIDRequest)(req))
 	if err != nil {
 		zap.S().Errorw("find paynda card holder", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 
 	return holder, nil
@@ -103,7 +104,7 @@ func (u *PayndaOpenAPIUsecase) UpdateCardHolder(
 		holder, err = u.cardHolderRepository.FindByAccountID(txCtx, (*CardHolderFindByAccountIDRequest)(resource))
 		if err != nil {
 			zap.S().Errorw("find paynda card holder for update", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		holder.FirstName = req.FirstName
 		holder.LastName = req.LastName
@@ -117,7 +118,7 @@ func (u *PayndaOpenAPIUsecase) UpdateCardHolder(
 		holder.ResidentialState = req.ResidentialState
 		if err := u.cardHolderRepository.Save(txCtx, holder); err != nil {
 			zap.S().Errorw("update paynda card holder", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 
 		return nil
@@ -140,7 +141,7 @@ func (u *PayndaOpenAPIUsecase) ListCardHolders(
 	})
 	if err != nil {
 		zap.S().Errorw("list paynda card holders", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 
 	return items, nil
@@ -153,10 +154,10 @@ func (u *PayndaOpenAPIUsecase) requireCardHolder(
 	exists, err := u.cardHolderRepository.ExistByAccountID(ctx, (*CardHolderExistByAccountIDRequest)(req))
 	if err != nil {
 		zap.S().Errorw("check paynda card holder", "error", err)
-		return ErrDatabaseOperation
+		return payndaerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return ErrResourceNotFound
+		return payndaerrors.ErrResourceNotFound
 	}
 
 	return nil

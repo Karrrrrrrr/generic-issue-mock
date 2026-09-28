@@ -2,15 +2,17 @@ package biz
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
 	"time"
 
 	photon "generic-mock/channel/photonpay/enums"
+	photonpayerrors "generic-mock/channel/photonpay/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
+	sharedbiz "generic-mock/shared/biz"
 
-	"encoding/json"
 	"go.uber.org/zap"
 )
 
@@ -69,7 +71,7 @@ func (u *PhotonPayUIUsecase) ListWebhookRecords(
 	})
 	if err != nil {
 		zap.S().Errorw("list photonpay webhook records", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, photonpayerrors.ErrDatabaseOperation
 	}
 
 	total, err := u.webhookRecordRepo.Count(ctx, &WebhookRecordCountRequest{
@@ -77,7 +79,7 @@ func (u *PhotonPayUIUsecase) ListWebhookRecords(
 	})
 	if err != nil {
 		zap.S().Errorw("count photonpay webhook records", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, photonpayerrors.ErrDatabaseOperation
 	}
 
 	return items, total, nil
@@ -90,16 +92,16 @@ func (u *PhotonPayUIUsecase) ReplayWebhookRecord(
 	exists, err := u.webhookRecordRepo.Exist(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check photonpay webhook record", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, photonpayerrors.ErrResourceNotFound
 	}
 
 	original, err := u.webhookRecordRepo.Find(ctx, id)
 	if err != nil {
 		zap.S().Errorw("find photonpay webhook record", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	replay := &model.WebhookRecord{
 		Account:         original.Account,
@@ -116,7 +118,7 @@ func (u *PhotonPayUIUsecase) ReplayWebhookRecord(
 	}
 	if err := u.webhookRecordRepo.Create(ctx, replay); err != nil {
 		zap.S().Errorw("create photonpay webhook replay record", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 
 	startedAt := time.Now()
@@ -179,14 +181,27 @@ func (u *PhotonPayUIUsecase) ReplayWebhookRecord(
 	}
 	if err := u.webhookRecordRepo.Save(ctx, replay); err != nil {
 		zap.S().Errorw("save photonpay webhook replay record", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 
 	return replay, nil
 }
 
-func (u *PhotonPayUIUsecase) dispatchTransaction(ctx context.Context, transaction *model.CardTransaction) {
+var _ sharedbiz.CardTransactionNotificator = (*PhotonPayUIUsecase)(nil)
+
+func (u *PhotonPayUIUsecase) NotifyCardTransaction(ctx context.Context, req *sharedbiz.NotifyCardTransactionReq) error {
+	if req == nil || req.Channel != enums.Channel_PhotonPay || req.AccountID <= 0 || req.CardTransactionID <= 0 {
+		return photonpayerrors.ErrInvalidOperation
+	}
+	transaction, err := u.cardTransactionRepo.FindByAccountID(ctx, &CardTransactionFindByAccountIDRequest{
+		AccountID: &req.AccountID,
+		ID:        req.CardTransactionID,
+	})
+	if err != nil {
+		return err
+	}
 	u.dispatch(ctx, photon.WebhookEventFromGenericTransactionType(transaction.Type), transaction.ID, transaction)
+	return nil
 }
 
 func (u *PhotonPayUIUsecase) dispatchCardStatus(ctx context.Context, card *model.Card) {
@@ -395,7 +410,7 @@ func (u *PhotonPayUIUsecase) photonPayWebhookPayload(ctx context.Context, transa
 	card, err := u.cardRepo.FindCardByID(ctx, transaction.CardID)
 	if err != nil {
 		zap.S().Errorw("find photonpay webhook card", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	payload := photonPayEventPayload{
 		MemberID:                   photon.MemberID,

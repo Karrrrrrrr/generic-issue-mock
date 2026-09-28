@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/cardnumber"
@@ -47,16 +48,16 @@ func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest)
 		holder, err := u.cardHolderRepository.FindByID(txCtx, req.CardHolderID)
 		if err != nil {
 			zap.S().Errorw("find slash card holder", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 
 		if holder.AccountID != req.AccountID {
-			return ErrResourceNotFound
+			return slasherrors.ErrResourceNotFound
 		}
 		products, err := u.cardProductRepository.List(txCtx)
 		if err != nil {
 			zap.S().Errorw("list slash channel products", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		productID := types.Value(req.CardProductID)
 		if req.CardProductID == nil {
@@ -70,15 +71,15 @@ func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest)
 		exists, err := u.cardProductRepository.ExistByID(txCtx, productID)
 		if err != nil {
 			zap.S().Errorw("check slash channel product", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		if !exists {
-			return ErrResourceNotFound
+			return slasherrors.ErrResourceNotFound
 		}
 		product, err := u.cardProductRepository.FindByIDForUpdate(txCtx, productID)
 		if err != nil {
 			zap.S().Errorw("lock slash channel product", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 
 		product.NextCardNumber++
@@ -88,11 +89,11 @@ func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest)
 			Sequence: product.NextCardNumber,
 		})
 		if !ok {
-			return ErrInvalidOperation
+			return slasherrors.ErrInvalidOperation
 		}
 		if err := u.cardProductRepository.Save(txCtx, product); err != nil {
 			zap.S().Errorw("advance slash card product sequence", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		assignment, ok := cardwallet.Prepare(cardwallet.PrepareRequest{
 			AccountID: req.AccountID,
@@ -101,12 +102,12 @@ func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest)
 			Currency:  req.Currency,
 		})
 		if !ok {
-			return ErrInvalidOperation
+			return slasherrors.ErrInvalidOperation
 		}
 		wallet := assignment.Wallet
 		if err := u.walletRepository.Create(txCtx, wallet); err != nil {
 			zap.S().Errorw("create slash card wallet", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 
 		card = &model.Card{
@@ -129,7 +130,7 @@ func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest)
 		}
 		if err := u.cardRepository.Create(txCtx, card); err != nil {
 			zap.S().Errorw("create slash card", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 
 		return nil
@@ -145,7 +146,7 @@ func (u *SlashUIUsecase) ListCards(ctx context.Context, req *ListCardsRequest) (
 	if (req.CreatedFrom != nil && req.CreatedFrom.IsZero()) ||
 		(req.CreatedTo != nil && req.CreatedTo.IsZero()) ||
 		(req.CreatedFrom != nil && req.CreatedTo != nil && req.CreatedFrom.After(*req.CreatedTo)) {
-		return nil, 0, ErrInvalidOperation
+		return nil, 0, slasherrors.ErrInvalidOperation
 	}
 	items, err := u.cardRepository.List(ctx, &CardListRequest{
 		AccountIDs:  types.PointerSlice(req.AccountID),
@@ -159,7 +160,7 @@ func (u *SlashUIUsecase) ListCards(ctx context.Context, req *ListCardsRequest) (
 	})
 	if err != nil {
 		zap.S().Errorw("list slash cards", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, slasherrors.ErrDatabaseOperation
 	}
 	total, err := u.cardRepository.Count(ctx, &CardCountRequest{
 		AccountIDs:  types.PointerSlice(req.AccountID),
@@ -173,7 +174,7 @@ func (u *SlashUIUsecase) ListCards(ctx context.Context, req *ListCardsRequest) (
 	})
 	if err != nil {
 		zap.S().Errorw("count slash cards", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, slasherrors.ErrDatabaseOperation
 	}
 
 	return items, total, nil
@@ -186,7 +187,7 @@ func (u *SlashUIUsecase) GetCard(ctx context.Context, id model.ID) (*model.Card,
 	card, err := u.cardRepository.FindByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("find slash card", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 
 	return card, nil
@@ -194,7 +195,7 @@ func (u *SlashUIUsecase) GetCard(ctx context.Context, id model.ID) (*model.Card,
 
 func (u *SlashUIUsecase) UpdateCardStatus(ctx context.Context, req *UpdateCardStatusRequest) (*model.Card, error) {
 	if req.AccountID <= 0 || req.ID <= 0 {
-		return nil, ErrInvalidOperation
+		return nil, slasherrors.ErrInvalidOperation
 	}
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
@@ -204,10 +205,10 @@ func (u *SlashUIUsecase) UpdateCardStatus(ctx context.Context, req *UpdateCardSt
 		})
 		if err != nil {
 			zap.S().Errorw("check slash card status change", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		if !exists {
-			return ErrResourceNotFound
+			return slasherrors.ErrResourceNotFound
 		}
 		card, err = u.cardRepository.LockForStatusChange(txCtx, &CardStatusLockRequest{
 			AccountID: req.AccountID,
@@ -215,12 +216,12 @@ func (u *SlashUIUsecase) UpdateCardStatus(ctx context.Context, req *UpdateCardSt
 		})
 		if err != nil {
 			zap.S().Errorw("lock slash card status change", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		nextStatus := req.Status
 		if (card.Status == enums.CardStatus_Deleted && nextStatus != enums.CardStatus_Deleted) ||
 			(card.Status == enums.CardStatus_Deleteing && nextStatus != enums.CardStatus_Deleteing && nextStatus != enums.CardStatus_Deleted) {
-			return ErrCardClosed
+			return slasherrors.ErrCardClosed
 		}
 		card.Status = nextStatus
 		if err := u.cardRepository.SaveStatus(txCtx, &CardStatusSaveRequest{
@@ -229,7 +230,7 @@ func (u *SlashUIUsecase) UpdateCardStatus(ctx context.Context, req *UpdateCardSt
 			Status:    card.Status,
 		}); err != nil {
 			zap.S().Errorw("update slash card status", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		return nil
 	})
@@ -244,10 +245,10 @@ func (u *SlashUIUsecase) requireCard(ctx context.Context, id model.ID) error {
 	exists, err := u.cardRepository.ExistByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check slash card", "error", err)
-		return ErrDatabaseOperation
+		return slasherrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return ErrResourceNotFound
+		return slasherrors.ErrResourceNotFound
 	}
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 
 	"generic-mock/channel/photonpay/biz"
 	photon "generic-mock/channel/photonpay/enums"
+	photonpayerrors "generic-mock/channel/photonpay/errors"
 	"generic-mock/channel/photonpay/pkg/idconv"
 	common "generic-mock/enums"
 
@@ -36,7 +37,7 @@ func (s *PhotonPayUIService) ListAuthorizationBalances(ctx context.Context, req 
 	}
 	statuses := uiAuthorizationStatuses(req.Status)
 	if req.Status != nil && len(statuses) == 0 {
-		return nil, biz.ErrInvalidOperation
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	items, err := s.usecase.ListAuthorizationBalances(ctx, &biz.ListAuthorizationBalancesRequest{
 		AccountID:    accountID,

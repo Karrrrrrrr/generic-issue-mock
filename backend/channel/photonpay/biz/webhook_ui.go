@@ -4,6 +4,7 @@ import (
 	"context"
 
 	photon "generic-mock/channel/photonpay/enums"
+	photonpayerrors "generic-mock/channel/photonpay/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -30,21 +31,21 @@ type UIUpdateWebhookRequest struct {
 
 func (u *PhotonPayUIUsecase) CreateWebhook(ctx context.Context, req *UICreateWebhookRequest) (*model.WebhookConfig, error) {
 	if !req.Event.Valid() {
-		return nil, ErrInvalidOperation
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	exists, err := u.accountRepo.Exist(ctx, req.AccountID)
 	if err != nil {
 		zap.S().Errorw("check photonpay webhook account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, photonpayerrors.ErrResourceNotFound
 	}
 
 	account, err := u.accountRepo.Find(ctx, req.AccountID)
 	if err != nil {
 		zap.S().Errorw("find photonpay webhook account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	item := &model.WebhookConfig{
 		Account:   account,
@@ -56,7 +57,7 @@ func (u *PhotonPayUIUsecase) CreateWebhook(ctx context.Context, req *UICreateWeb
 	}
 	if err := u.webhookRepo.Create(ctx, item); err != nil {
 		zap.S().Errorw("create photonpay UI webhook", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	return item, nil
 }
@@ -70,7 +71,7 @@ func (u *PhotonPayUIUsecase) ListWebhooks(
 	})
 	if err != nil {
 		zap.S().Errorw("list photonpay UI webhooks", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	result := make([]*model.WebhookConfig, 0, len(items))
 	for _, item := range items {
@@ -85,20 +86,20 @@ func (u *PhotonPayUIUsecase) UpdateWebhook(ctx context.Context, req *UIUpdateWeb
 	exists, err := u.webhookRepo.ExistByID(ctx, req.ID)
 	if err != nil {
 		zap.S().Errorw("check photonpay UI webhook", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, photonpayerrors.ErrResourceNotFound
 	}
 	item, err := u.webhookRepo.FindByID(ctx, req.ID)
 	if err != nil {
 		zap.S().Errorw("find photonpay UI webhook", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	item.TargetURL, item.Enabled = req.TargetURL, req.Enabled
 	if err := u.webhookRepo.Save(ctx, item); err != nil {
 		zap.S().Errorw("update photonpay UI webhook", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	return item, nil
 }
@@ -107,14 +108,14 @@ func (u *PhotonPayUIUsecase) DeleteWebhook(ctx context.Context, id model.ID) err
 	exists, err := u.webhookRepo.ExistByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check photonpay UI webhook", "error", err)
-		return ErrDatabaseOperation
+		return photonpayerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return ErrResourceNotFound
+		return photonpayerrors.ErrResourceNotFound
 	}
 	if err := u.webhookRepo.Delete(ctx, id); err != nil {
 		zap.S().Errorw("delete photonpay UI webhook", "error", err)
-		return ErrDatabaseOperation
+		return photonpayerrors.ErrDatabaseOperation
 	}
 	return nil
 }

@@ -511,12 +511,13 @@ func (s *SlashUIService) UpdateCardStatus(ctx context.Context, req *UpdateCardRe
 }
 
 type SimulateAuthorizationRequest struct {
+	ManagementAccountRequest
 	CardID               string  `json:"card_id" binding:"required"`
 	TransactionAmount    float64 `json:"transaction_amount" binding:"required"`
 	TransactionCurrency  string  `json:"transaction_currency" binding:"required"`
 	MerchantName         string  `json:"merchant_name" binding:"required"`
 	MerchantCategoryCode string  `json:"merchant_category_code" binding:"required"`
-	MerchantCountry      string  `json:"merchant_country"`
+	MerchantCountry      *string `json:"merchant_country" binding:"omitempty,min=1"`
 	MerchantCity         string  `json:"merchant_city"` // Invalid: generic model has no merchant city field.
 }
 
@@ -528,6 +529,7 @@ type SimulateAuthorizationData struct {
 }
 
 type SimulateRefundRequest struct {
+	ManagementAccountRequest
 	AuthorizationID      *string `json:"authorization_id"`
 	CardID               string  `json:"card_id" binding:"required"`
 	Amount               float64 `json:"amount" binding:"required,gt=0"`
@@ -539,7 +541,11 @@ type SimulateRefundRequest struct {
 }
 
 func (s *SlashUIService) SimulateRefund(ctx context.Context, req *SimulateRefundRequest) (*TransactionData, error) {
-	authorizationID, err := idconv.FromRefundAuthorizationUUID(req.AuthorizationID)
+	accountID, err := idconv.FromAccountUUID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	authorizationID, err := idconv.FromOptionalUUID(req.AuthorizationID)
 	if err != nil {
 		return nil, err
 	}
@@ -548,46 +554,44 @@ func (s *SlashUIService) SimulateRefund(ctx context.Context, req *SimulateRefund
 		return nil, err
 	}
 	item, err := s.usecase.SimulateRefund(ctx, &biz.SimulateRefundRequest{
+		Notificator:     s,
+		AccountID:       accountID,
 		AuthorizationID: authorizationID,
 		CardID:          cardID,
 		Amount:          decimal.NewFromFloat(req.Amount),
 		Currency:        common.Currency(req.Currency),
-		MerchantName:    req.MerchantName,
-		MerchantCountry: req.MerchantCountry,
-		MerchantMCC:     req.MerchantCategoryCode,
+		MerchantName:    &req.MerchantName,
+		MerchantCountry: &req.MerchantCountry,
+		MerchantMCC:     &req.MerchantCategoryCode,
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(
-		item.AccountID,
-		slash.WebhookEventTransactionCreate,
-		item.ID,
-	))
 	return transactionData(item), nil
 }
 
 func (s *SlashUIService) SimulateAuthorization(ctx context.Context, req *SimulateAuthorizationRequest) (*SimulateAuthorizationData, error) {
+	accountID, err := idconv.FromAccountUUID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
 	cardID, err := idconv.FromUUID(req.CardID)
 	if err != nil {
 		return nil, err
 	}
 	result, err := s.usecase.SimulateAuthorization(ctx, &biz.SimulateAuthorizationRequest{
+		Notificator:     s,
+		AccountID:       accountID,
 		CardID:          cardID,
 		Amount:          decimal.NewFromFloat(req.TransactionAmount),
 		Currency:        common.Currency(req.TransactionCurrency),
-		MerchantName:    req.MerchantName,
+		MerchantName:    &req.MerchantName,
 		MerchantCountry: req.MerchantCountry,
-		MerchantMCC:     req.MerchantCategoryCode,
+		MerchantMCC:     &req.MerchantCategoryCode,
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(
-		result.CardTransaction.AccountID,
-		slash.WebhookEventTransactionCreate,
-		result.CardTransaction.ID,
-	))
 	return &SimulateAuthorizationData{
 		Approved:      true,
 		Status:        slash.TransactionStatusFromGeneric(result.Authorization.Status),
@@ -692,6 +696,7 @@ func (s *SlashUIService) GetTransaction(ctx context.Context, req *IDRequest) (*T
 }
 
 type ApplyTransactionStepRequest struct {
+	ManagementAccountRequest
 	IDRequest
 	Amount *decimal.Decimal `json:"amount"`
 }
@@ -709,11 +714,17 @@ func (s *SlashUIService) RefundTransaction(ctx context.Context, req *ApplyTransa
 }
 
 func (s *SlashUIService) applyTransactionStep(ctx context.Context, req *ApplyTransactionStepRequest, transactionType common.CardTransactionType) (*TransactionData, error) {
+	accountID, err := idconv.FromAccountUUID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
 	id, err := idconv.FromUUID(req.ID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.ApplyTransactionStep(ctx, &biz.ApplyTransactionStepRequest{
+		Notificator:       s,
+		AccountID:         accountID,
 		CardTransactionID: id,
 		Type:              transactionType,
 		Amount:            req.Amount,
@@ -721,11 +732,6 @@ func (s *SlashUIService) applyTransactionStep(ctx context.Context, req *ApplyTra
 	if err != nil {
 		return nil, err
 	}
-	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(
-		item.AccountID,
-		slash.WebhookEventTransactionCreate,
-		item.ID,
-	))
 	return transactionData(item), nil
 }
 

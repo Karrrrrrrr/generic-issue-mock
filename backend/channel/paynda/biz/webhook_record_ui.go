@@ -2,15 +2,17 @@ package biz
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
 	"time"
 
 	paynda "generic-mock/channel/paynda/enums"
+	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
+	sharedbiz "generic-mock/shared/biz"
 
-	"encoding/json"
 	"go.uber.org/zap"
 )
 
@@ -82,7 +84,7 @@ func (u *PayndaUIUsecase) ListWebhookRecords(
 	})
 	if err != nil {
 		zap.S().Errorw("list paynda webhook records", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, payndaerrors.ErrDatabaseOperation
 	}
 
 	total, err := u.webhookRecordRepository.Count(ctx, &WebhookRecordCountRequest{
@@ -90,7 +92,7 @@ func (u *PayndaUIUsecase) ListWebhookRecords(
 	})
 	if err != nil {
 		zap.S().Errorw("count paynda webhook records", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, payndaerrors.ErrDatabaseOperation
 	}
 
 	return items, total, nil
@@ -103,16 +105,16 @@ func (u *PayndaUIUsecase) ReplayWebhookRecord(
 	exists, err := u.webhookRecordRepository.Exist(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check paynda webhook record", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, payndaerrors.ErrResourceNotFound
 	}
 
 	original, err := u.webhookRecordRepository.Find(ctx, id)
 	if err != nil {
 		zap.S().Errorw("find paynda webhook record", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	replay := &model.WebhookRecord{
 		Account:         original.Account,
@@ -129,7 +131,7 @@ func (u *PayndaUIUsecase) ReplayWebhookRecord(
 	}
 	if err := u.webhookRecordRepository.Create(ctx, replay); err != nil {
 		zap.S().Errorw("create paynda webhook replay record", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 
 	startedAt := time.Now()
@@ -192,14 +194,27 @@ func (u *PayndaUIUsecase) ReplayWebhookRecord(
 	}
 	if err := u.webhookRecordRepository.Save(ctx, replay); err != nil {
 		zap.S().Errorw("save paynda webhook replay record", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 
 	return replay, nil
 }
 
-func (u *PayndaUIUsecase) dispatchTransaction(ctx context.Context, transaction *model.CardTransaction) {
+var _ sharedbiz.CardTransactionNotificator = (*PayndaUIUsecase)(nil)
+
+func (u *PayndaUIUsecase) NotifyCardTransaction(ctx context.Context, req *sharedbiz.NotifyCardTransactionReq) error {
+	if req == nil || req.Channel != enums.Channel_Paynda || req.AccountID <= 0 || req.CardTransactionID <= 0 {
+		return payndaerrors.ErrInvalidOperation
+	}
+	transaction, err := u.cardTransactionRepository.FindByAccountID(ctx, &CardTransactionFindByAccountIDRequest{
+		AccountID: req.AccountID,
+		ID:        req.CardTransactionID,
+	})
+	if err != nil {
+		return err
+	}
 	u.dispatch(ctx, paynda.WebhookEventCardTransaction, transaction.ID, transaction)
+	return nil
 }
 
 func (u *PayndaUIUsecase) dispatch(ctx context.Context, event paynda.WebhookEvent, sourceID model.ID, transaction *model.CardTransaction) {
@@ -413,15 +428,15 @@ func (u *PayndaUIUsecase) payndaWebhookPayload(ctx context.Context, transaction 
 	})
 	if err != nil {
 		zap.S().Errorw("find paynda webhook card", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	holder, err := u.cardHolderRepository.FindByID(ctx, card.CardHolderID)
 	if err != nil {
 		zap.S().Errorw("find paynda webhook card holder", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	if card.WalletID == 0 {
-		return nil, ErrResourceNotFound
+		return nil, payndaerrors.ErrResourceNotFound
 	}
 	wallet, err := u.walletRepository.FindByID(ctx, &WalletFindByIDRequest{
 		AccountID: &card.AccountID,
@@ -429,12 +444,12 @@ func (u *PayndaUIUsecase) payndaWebhookPayload(ctx context.Context, transaction 
 	})
 	if err != nil {
 		zap.S().Errorw("find paynda webhook wallet", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	account, err := u.accountRepository.FindByChannel(ctx)
 	if err != nil {
 		zap.S().Errorw("find paynda webhook account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, payndaerrors.ErrDatabaseOperation
 	}
 	authorizationTime := ""
 	if transaction.AuthorizationID != 0 {
@@ -443,7 +458,7 @@ func (u *PayndaUIUsecase) payndaWebhookPayload(ctx context.Context, transaction 
 		})
 		if err != nil {
 			zap.S().Errorw("find paynda webhook transaction authorization", "error", err)
-			return nil, ErrDatabaseOperation
+			return nil, payndaerrors.ErrDatabaseOperation
 		}
 		authorizationTime = authorization.CreatedAt.UTC().Format(time.RFC3339)
 	}

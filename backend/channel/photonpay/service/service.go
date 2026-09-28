@@ -9,6 +9,7 @@ import (
 
 	"generic-mock/channel/photonpay/biz"
 	photon "generic-mock/channel/photonpay/enums"
+	photonpayerrors "generic-mock/channel/photonpay/errors"
 	"generic-mock/channel/photonpay/pkg/idconv"
 	common "generic-mock/enums"
 	"generic-mock/model"
@@ -53,15 +54,15 @@ func (s *PhotonPayOpenAPIService) AccessToken(_ context.Context, req *AccessToke
 	if req.AppID == nil && req.Authorization != nil {
 		scheme, credentials, valid := strings.Cut(*req.Authorization, " ")
 		if !valid || !strings.EqualFold(scheme, "basic") {
-			return nil, biz.ErrInvalidOperation
+			return nil, photonpayerrors.ErrInvalidOperation
 		}
 		decoded, err := base64.StdEncoding.DecodeString(credentials)
 		if err != nil {
-			return nil, biz.ErrInvalidOperation
+			return nil, photonpayerrors.ErrInvalidOperation
 		}
 		selector, _, valid = strings.Cut(string(decoded), "/")
 		if !valid {
-			return nil, biz.ErrInvalidOperation
+			return nil, photonpayerrors.ErrInvalidOperation
 		}
 	}
 	accountID, err := idconv.FromAccountString(selector)
@@ -154,7 +155,7 @@ func (s *PhotonPayOpenAPIService) CreateCardHolder(ctx context.Context, req *Cre
 	}
 	dateOfBirth, err := timeparse.ParseDate(req.DateOfBirth)
 	if err != nil {
-		return nil, biz.ErrInvalidDateOfBirth
+		return nil, photonpayerrors.ErrInvalidDateOfBirth
 	}
 
 	holder, err := s.usecase.CreateCardHolder(ctx, &biz.CreateCardHolderRequest{
@@ -522,7 +523,7 @@ func (s *PhotonPayOpenAPIService) RequestResult(ctx context.Context, req *Reques
 	})
 	if err != nil {
 		if kratosErrors.IsNotFound(err) {
-			return nil, biz.ErrRequestResultNotFound
+			return nil, photonpayerrors.ErrRequestResultNotFound
 		}
 		return nil, err
 	}
@@ -676,7 +677,7 @@ func (s *PhotonPayOpenAPIService) SandboxTransaction(ctx context.Context, req *S
 	if err != nil {
 		return nil, err
 	}
-	originTransactionID, err := idconv.FromRefundAuthorizationString(req.OriginTransactionID)
+	originTransactionID, err := idconv.FromSandboxOriginTransactionString(req.OriginTransactionID)
 	if err != nil {
 		return nil, err
 	}
@@ -701,7 +702,7 @@ func (s *PhotonPayOpenAPIService) SandboxTransaction(ctx context.Context, req *S
 
 func (s *PhotonPayOpenAPIService) Upload(_ context.Context, req *UploadRequest) (*string, error) {
 	if req.File == nil {
-		return nil, biz.ErrInvalidOperation
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	fileURL := "mock://photonpay/" + req.BusinessKey + "/" + req.File.Filename
 	return &fileURL, nil

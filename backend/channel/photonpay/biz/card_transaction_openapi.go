@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	photonpayerrors "generic-mock/channel/photonpay/errors"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
@@ -18,7 +19,7 @@ func (u *PhotonPayOpenAPIUsecase) ListTransactions(ctx context.Context, req *Lis
 	if err != nil {
 		zap.S().Errorw("list photonpay card transactions", "error", err)
 
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 
 	return transactions, nil

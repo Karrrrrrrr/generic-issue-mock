@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -28,10 +29,10 @@ func (u *SlashUIUsecase) CreateCardHolder(ctx context.Context, req *CreateCardHo
 	exists, err := u.accountRepository.Exist(ctx, req.AccountID)
 	if err != nil {
 		zap.S().Errorw("check slash holder account", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, slasherrors.ErrResourceNotFound
 	}
 	holder := &model.CardHolder{
 		AccountID:    req.AccountID,
@@ -46,7 +47,7 @@ func (u *SlashUIUsecase) CreateCardHolder(ctx context.Context, req *CreateCardHo
 	}
 	if err := u.cardHolderRepository.Create(ctx, holder); err != nil {
 		zap.S().Errorw("create slash card holder", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 
 	return holder, nil
@@ -60,7 +61,7 @@ func (u *SlashUIUsecase) ListCardHolders(ctx context.Context, req *ListCardHolde
 	})
 	if err != nil {
 		zap.S().Errorw("list slash card holders", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, slasherrors.ErrDatabaseOperation
 	}
 	total, err := u.cardHolderRepository.Count(ctx, &CardHolderCountRequest{
 		AccountIDs: types.PointerSlice(req.AccountID),
@@ -69,7 +70,7 @@ func (u *SlashUIUsecase) ListCardHolders(ctx context.Context, req *ListCardHolde
 	})
 	if err != nil {
 		zap.S().Errorw("count slash card holders", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, slasherrors.ErrDatabaseOperation
 	}
 
 	return items, total, nil
@@ -79,10 +80,10 @@ func (u *SlashUIUsecase) requireCardHolder(ctx context.Context, id model.ID) err
 	exists, err := u.cardHolderRepository.ExistByID(ctx, id)
 	if err != nil {
 		zap.S().Errorw("check slash card holder", "error", err)
-		return ErrDatabaseOperation
+		return slasherrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return ErrResourceNotFound
+		return slasherrors.ErrResourceNotFound
 	}
 	return nil
 }

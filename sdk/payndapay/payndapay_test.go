@@ -757,6 +757,7 @@ func TestPayndaAuthorizationTransactions(testContext *testing.T) {
 	suite := fixture.suite
 	card, _ := fixture.createCard(testContext)
 	authorization := suite.UI(testContext, http.MethodPost, "/simulate/authorizations", map[string]any{
+		"account_id":             suite.Config.Account,
 		"card_id":                card.Card.ID,
 		"transaction_amount":     "2",
 		"transaction_currency":   "USD",

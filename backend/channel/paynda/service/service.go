@@ -7,6 +7,7 @@ import (
 
 	"generic-mock/channel/paynda/biz"
 	paynda "generic-mock/channel/paynda/enums"
+	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/channel/paynda/pkg/idconv"
 	common "generic-mock/enums"
 	"generic-mock/model"
@@ -279,7 +280,7 @@ func (s *PayndaOpenAPIService) CreateCard(ctx context.Context, req *PayndaCreate
 	if req.ExpirationDate != "" {
 		value, err := time.Parse("01/06", req.ExpirationDate)
 		if err != nil {
-			return nil, biz.ErrInvalidOperation
+			return nil, payndaerrors.ErrInvalidOperation
 		}
 		expireAt = value.UTC()
 	}
@@ -501,11 +502,11 @@ func (s *PayndaOpenAPIService) TransferBalanceAccountWallet(
 		return nil, err
 	}
 	if req.Type != paynda.TransferType_In || req.Currency != common.Currency_USD {
-		return nil, biz.ErrInvalidOperation
+		return nil, payndaerrors.ErrInvalidOperation
 	}
 	amount, err := decimal.NewFromString(req.Amount)
 	if err != nil || !amount.IsPositive() {
-		return nil, biz.ErrInvalidOperation
+		return nil, payndaerrors.ErrInvalidOperation
 	}
 	accountWallet, err := s.usecase.TransferAccountWallet(ctx, &biz.PayndaAccountWalletTransferRequest{
 		AccountID: accountID,
@@ -584,7 +585,7 @@ func (s *PayndaOpenAPIService) RequestResult(
 		Data:    payload,
 	})
 	if err != nil {
-		return nil, biz.ErrInvalidOperation
+		return nil, payndaerrors.ErrInvalidOperation
 	}
 	return &PayndaRequestResultData{
 		ID:         idconv.ToString(base.ID),
@@ -691,10 +692,10 @@ func (s *PayndaOpenAPIService) TransferCardBalance(
 	}
 	amount, err := decimal.NewFromString(req.Amount)
 	if err != nil || !amount.IsPositive() {
-		return nil, biz.ErrInvalidOperation
+		return nil, payndaerrors.ErrInvalidOperation
 	}
 	if req.Type != paynda.TransferType_In && req.Type != paynda.TransferType_Out {
-		return nil, biz.ErrInvalidOperation
+		return nil, payndaerrors.ErrInvalidOperation
 	}
 	transaction, err := s.usecase.TransferCardBalance(ctx, &biz.PayndaTransferRequest{
 		AccountID: accountID,
@@ -742,7 +743,7 @@ func (s *PayndaOpenAPIService) ListCardBalanceUpdates(
 	for _, item := range items {
 		oldAmount, err := decimal.NewFromString(string(item.RawPayload))
 		if err != nil {
-			return nil, biz.ErrInvalidOperation
+			return nil, payndaerrors.ErrInvalidOperation
 		}
 		newAmount := oldAmount
 		if item.Type == common.CardTransactionType_FundIn {
@@ -812,7 +813,7 @@ func (s *PayndaOpenAPIService) ListCardTransactions(
 	start := (*time.Time)(req.TransactionTimeStart)
 	end := (*time.Time)(req.TransactionTimeEnd)
 	if start != nil && end != nil && start.After(*end) {
-		return nil, biz.ErrInvalidOperation
+		return nil, payndaerrors.ErrInvalidOperation
 	}
 	cardID, err := idconv.FromOptionalString(req.CardID)
 	if err != nil {

@@ -2,6 +2,7 @@ package biz
 
 import (
 	"generic-mock/model"
+	sharedbiz "generic-mock/shared/biz"
 
 	"github.com/samber/do"
 )
@@ -18,6 +19,7 @@ type PayndaListRequest struct {
 }
 
 type PayndaUIUsecase struct {
+	simulator                 sharedbiz.CardTransactionSimulator
 	transaction               PayndaTransaction
 	cardRepository            PayndaCardRepository
 	cardHolderRepository      PayndaCardHolderRepository
@@ -33,6 +35,7 @@ type PayndaUIUsecase struct {
 
 func NewPayndaUIUsecase(injector *do.Injector) (*PayndaUIUsecase, error) {
 	return &PayndaUIUsecase{
+		simulator:                 do.MustInvoke[sharedbiz.CardTransactionSimulator](injector),
 		transaction:               do.MustInvoke[PayndaTransaction](injector),
 		cardRepository:            do.MustInvoke[PayndaCardRepository](injector),
 		cardHolderRepository:      do.MustInvoke[PayndaCardHolderRepository](injector),

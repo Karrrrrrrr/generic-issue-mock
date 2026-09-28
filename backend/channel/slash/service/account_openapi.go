@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"generic-mock/channel/slash/biz"
 	slash "generic-mock/channel/slash/enums"
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/channel/slash/pkg/idconv"
 	"generic-mock/model"
 
@@ -56,7 +56,7 @@ func (service *SlashOpenAPIService) protocolAccount(ctx context.Context, req *Op
 			return nil, err
 		}
 		if id != accountID {
-			return nil, biz.ErrResourceNotFound
+			return nil, slasherrors.ErrResourceNotFound
 		}
 	}
 	return service.usecase.GetAccount(ctx, accountID)

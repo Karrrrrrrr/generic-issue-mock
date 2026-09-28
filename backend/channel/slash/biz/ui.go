@@ -2,6 +2,7 @@ package biz
 
 import (
 	"generic-mock/model"
+	sharedbiz "generic-mock/shared/biz"
 
 	"github.com/samber/do"
 )
@@ -12,6 +13,7 @@ type ResourceRequest struct {
 }
 
 type SlashUIUsecase struct {
+	simulator                 sharedbiz.CardTransactionSimulator
 	transaction               SlashTransaction
 	cardHolderRepository      SlashCardHolderRepository
 	cardRepository            SlashCardRepository
@@ -27,6 +29,7 @@ type SlashUIUsecase struct {
 
 func NewSlashUIUsecase(injector *do.Injector) (*SlashUIUsecase, error) {
 	return &SlashUIUsecase{
+		simulator:                 do.MustInvoke[sharedbiz.CardTransactionSimulator](injector),
 		transaction:               do.MustInvoke[SlashTransaction](injector),
 		cardHolderRepository:      do.MustInvoke[SlashCardHolderRepository](injector),
 		cardRepository:            do.MustInvoke[SlashCardRepository](injector),

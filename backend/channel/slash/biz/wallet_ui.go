@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
@@ -24,31 +25,31 @@ func (u *SlashUIUsecase) ListFunds(ctx context.Context, accountID *model.ID) ([]
 	})
 	if err != nil {
 		zap.S().Errorw("list slash wallets", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	return items, nil
 }
 
 func (u *SlashUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsRequest) error {
 	if req.AccountID == 0 || !req.Amount.IsPositive() || req.SourceID == req.TargetID {
-		return ErrInvalidOperation
+		return slasherrors.ErrInvalidOperation
 	}
 	return u.transaction.InTx(ctx, func(ctx context.Context) error {
 		exists, err := u.accountRepository.Exist(ctx, req.AccountID)
 		if err != nil {
 			zap.S().Errorw("check slash funding account", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		if !exists {
-			return ErrResourceNotFound
+			return slasherrors.ErrResourceNotFound
 		}
 		account, err := u.accountRepository.Find(ctx, req.AccountID)
 		if err != nil {
 			zap.S().Errorw("find slash funding account", "error", err)
-			return ErrDatabaseOperation
+			return slasherrors.ErrDatabaseOperation
 		}
 		if account.WalletID == 0 || (req.SourceID != account.WalletID && req.TargetID != account.WalletID) {
-			return ErrInvalidOperation
+			return slasherrors.ErrInvalidOperation
 		}
 		wallets := make(map[model.ID]*model.Wallet)
 		ids := []model.ID{
@@ -68,10 +69,10 @@ func (u *SlashUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsRequest) e
 			})
 			if err != nil {
 				zap.S().Errorw("check slash transfer wallet", "error", err)
-				return ErrDatabaseOperation
+				return slasherrors.ErrDatabaseOperation
 			}
 			if !exists {
-				return ErrResourceNotFound
+				return slasherrors.ErrResourceNotFound
 			}
 			wallet, err := u.walletRepository.LockWallet(ctx, &LockWalletRequest{
 				AccountID: req.AccountID,
@@ -79,26 +80,26 @@ func (u *SlashUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsRequest) e
 			})
 			if err != nil {
 				zap.S().Errorw("lock slash transfer wallet", "error", err)
-				return ErrDatabaseOperation
+				return slasherrors.ErrDatabaseOperation
 			}
 			wallets[walletID] = wallet
 		}
 		source, target := wallets[req.SourceID], wallets[req.TargetID]
 		if source == nil && target.Type != enums.WalletType_Account || target == nil && source.Type != enums.WalletType_Account {
-			return ErrInvalidOperation
+			return slasherrors.ErrInvalidOperation
 		}
 		if source != nil && target != nil && source.Currency != target.Currency {
-			return ErrInvalidOperation
+			return slasherrors.ErrInvalidOperation
 		}
 		if source != nil {
 			if source.Available.LessThan(req.Amount) {
-				return ErrInvalidOperation
+				return slasherrors.ErrInvalidOperation
 			}
 			source.Available = source.Available.Sub(req.Amount)
 			source.Out = source.Out.Add(req.Amount)
 			if err := u.walletRepository.SaveWallet(ctx, source); err != nil {
 				zap.S().Errorw("debit slash wallet", "error", err)
-				return ErrDatabaseOperation
+				return slasherrors.ErrDatabaseOperation
 			}
 		}
 		if target != nil {
@@ -106,7 +107,7 @@ func (u *SlashUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsRequest) e
 			target.In = target.In.Add(req.Amount)
 			if err := u.walletRepository.SaveWallet(ctx, target); err != nil {
 				zap.S().Errorw("credit slash wallet", "error", err)
-				return ErrDatabaseOperation
+				return slasherrors.ErrDatabaseOperation
 			}
 		}
 		return nil

@@ -2,14 +2,15 @@ package biz
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	slash "generic-mock/channel/slash/enums"
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
-	"encoding/json"
 	"github.com/samber/do"
 	"go.uber.org/zap"
 )
@@ -54,7 +55,7 @@ func (u *SlashWebhookUsecase) ListRecords(ctx context.Context, req *ListWebhookR
 	if (req.CreatedFrom != nil && req.CreatedFrom.IsZero()) ||
 		(req.CreatedTo != nil && req.CreatedTo.IsZero()) ||
 		(req.CreatedFrom != nil && req.CreatedTo != nil && req.CreatedFrom.After(*req.CreatedTo)) {
-		return nil, 0, ErrInvalidOperation
+		return nil, 0, slasherrors.ErrInvalidOperation
 	}
 	filters := WebhookRecordFilters{
 		AccountIDs:  types.PointerSlice(req.AccountID),
@@ -72,14 +73,14 @@ func (u *SlashWebhookUsecase) ListRecords(ctx context.Context, req *ListWebhookR
 	})
 	if err != nil {
 		zap.S().Errorw("list slash webhook records", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, slasherrors.ErrDatabaseOperation
 	}
 	total, err := u.webhookRecordRepository.Count(ctx, &WebhookRecordCountRequest{
 		WebhookRecordFilters: filters,
 	})
 	if err != nil {
 		zap.S().Errorw("count slash webhook records", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, slasherrors.ErrDatabaseOperation
 	}
 	return items, total, nil
 }
@@ -91,10 +92,10 @@ func (u *SlashWebhookUsecase) ReplayRecord(ctx context.Context, req *ReplayWebho
 	})
 	if err != nil {
 		zap.S().Errorw("check slash webhook replay record", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, slasherrors.ErrResourceNotFound
 	}
 	original, err := u.webhookRecordRepository.Find(ctx, &WebhookRecordFindRequest{
 		AccountID: req.AccountID,
@@ -102,7 +103,7 @@ func (u *SlashWebhookUsecase) ReplayRecord(ctx context.Context, req *ReplayWebho
 	})
 	if err != nil {
 		zap.S().Errorw("find slash webhook replay record", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	replay := &model.WebhookRecord{
 		Account:         original.Account,
@@ -119,7 +120,7 @@ func (u *SlashWebhookUsecase) ReplayRecord(ctx context.Context, req *ReplayWebho
 	}
 	if err := u.webhookRecordRepository.Create(ctx, replay); err != nil {
 		zap.S().Errorw("create slash webhook replay record", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	startedAt := time.Now()
 	zap.S().Infow("webhook delivery started",
@@ -181,7 +182,7 @@ func (u *SlashWebhookUsecase) ReplayRecord(ctx context.Context, req *ReplayWebho
 	}
 	if err := u.webhookRecordRepository.Save(ctx, replay); err != nil {
 		zap.S().Errorw("save slash webhook replay record", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, slasherrors.ErrDatabaseOperation
 	}
 	return replay, nil
 }

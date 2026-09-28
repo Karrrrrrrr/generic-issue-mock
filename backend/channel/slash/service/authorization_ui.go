@@ -6,6 +6,7 @@ import (
 
 	"generic-mock/channel/slash/biz"
 	slash "generic-mock/channel/slash/enums"
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/channel/slash/pkg/idconv"
 	common "generic-mock/enums"
 
@@ -36,7 +37,7 @@ func (s *SlashUIService) ListAuthorizationBalances(ctx context.Context, req *Lis
 	}
 	statuses := uiAuthorizationStatuses(req.Status)
 	if req.Status != nil && len(statuses) == 0 {
-		return nil, biz.ErrInvalidOperation
+		return nil, slasherrors.ErrInvalidOperation
 	}
 	items, err := s.usecase.ListAuthorizationBalances(ctx, &biz.ListAuthorizationBalancesRequest{
 		AccountID:    accountID,
@@ -92,14 +93,14 @@ func (s *SlashUIService) ClearAuthorization(ctx context.Context, req *ClearAutho
 		return nil, err
 	}
 	item, err := s.usecase.ClearAuthorization(ctx, &biz.ClearAuthorizationRequest{
-		AccountID: accountID,
-		ID:        authID,
-		Amount:    req.Amount,
+		Notificator: s,
+		AccountID:   accountID,
+		ID:          authID,
+		Amount:      req.Amount,
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(item.AccountID, slash.WebhookEventTransactionCreate, item.ID))
 	return &ClearAuthorizationData{ID: idconv.ToUUID(item.ID)}, nil
 }
 

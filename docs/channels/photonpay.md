@@ -4,7 +4,9 @@
 
 已实现持卡人、虚拟账户卡开卡、同步 sandbox 授权/冲正/退款、交易列表、卡状态更新和管理 UI。Webhook 已支持 PhotonPay `ds-event` 的授权、验卡、冲正、退款和卡状态投递及记录；账户级同步授权配置由 `AuthorizationConfig` 管理，自动重试仍待实现。
 
-PhotonPay SDK 当前没有被 Marxo 调用的授权配置 OpenAPI。mock 因此只在管理面提供 `GET/PUT /photonpay/ui/authorization-config`，请求按 `account_id` 选择配置；它持久化同步授权目标 URL、启用状态和超时，不伪造尚无调用点的 PhotonPay OpenAPI 路径。回调连接失败时，模拟授权直接失败。
+PhotonPay SDK 当前没有被 Marxo 调用的授权配置 OpenAPI。mock 因此只在管理面提供 `GET/PUT /photonpay/ui/authorization-config`，请求按 `account_id` 选择配置；它持久化同步授权目标 URL、启用状态和超时，不伪造尚无调用点的 PhotonPay OpenAPI 路径。当前模拟入口执行本地共享模拟器，不读取该配置或新增同步回调。
+
+UI 授权、清算、退款和撤销以及 OpenAPI sandbox 均已接入 `shared/biz.CardTransactionSimulator`，不再自行创建阶段或记账。授权需要先给 `Card.WalletID` 对应钱包充值；余额不足会拒绝，清算仍允许超额和负余额。UI 模拟授权、退款及交易阶段操作显式传 `account_id`；独立退款省略 `authorization_id`，拒绝空值或 `"0"`。UI 的 `ds-event` 在提交后沿用原通知适配器，sandbox 保留原来的不投递 webhook 行为，不调用 UI usecase。
 
 ## 字段映射
 
@@ -85,7 +87,9 @@ curl -X POST http://127.0.0.1:8000/photonpay/vcc/openApi/v4/openCard \
 curl 'http://127.0.0.1:8000/photonpay/vcc/openApi/v4/pagingVccTradeOrder?pageIndex=1&pageSize=50'
 ```
 
-同步交易模拟的 `txnType` 为 `auth`、`void` 或 `refund`；退款/冲正使用原交易 ID。
+同步交易模拟的 `txnType` 为 `auth`、`void` 或 `refund`，HTTP 方法、路径、字段和空成功 DTO 不变。`requestId` 交由共享模拟器按账户幂等；冲正必须引用同一卡的 AUTH 交易，关联退款也使用该交易 ID，不是授权记录 ID，不需要先清算。
+
+已核对 Marxo 的 SDK DTO、发送方法及 `TestPhotonPaySDK_SandBoxTransaction` 调用示例；未发现生产业务调用点。SDK 的 `originTransactionId` 是没有 `omitempty` 的普通字符串，授权示例未赋值时实际发送 `""`，因此 sandbox 专用 ID 边界把该协议空值转换为无引用，mock 的独立退款也使用该约定；UI 可选 ID 不接受空字符串。原来测试夹具使用的 `"0"` 并非真实资源 ID，不再接受。调用方提供正数原交易 ID 后必须验证归属、卡、币种和授权关系。
 
 ```bash
 curl -X POST http://127.0.0.1:8000/photonpay/vcc/open/v2/sandBoxTransaction \

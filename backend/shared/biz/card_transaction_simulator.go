@@ -897,6 +897,7 @@ func (simulator *cardTransactionSimulator) loadAuthorization(ctx context.Context
 		Authorization: authorization,
 		Remaining:     authorization.Amount,
 	}
+	authorization.CardTransactions = stages
 	for _, stage := range stages {
 		switch stage.Type {
 		case enums.CardTransactionType_AUTH:

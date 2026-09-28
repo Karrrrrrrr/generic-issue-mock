@@ -5,6 +5,7 @@ import (
 	"time"
 
 	photon "generic-mock/channel/photonpay/enums"
+	photonpayerrors "generic-mock/channel/photonpay/errors"
 	common "generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/cardnumber"
@@ -66,17 +67,17 @@ func (u *PhotonPayOpenAPIUsecase) OpenCard(ctx context.Context, req *OpenCardReq
 			Sequence: product.NextCardNumber,
 		})
 		if !ok {
-			return ErrInvalidOperation
+			return photonpayerrors.ErrInvalidOperation
 		}
 		if err := u.cardProductRepo.Save(txCtx, product); err != nil {
 			zap.S().Errorw("advance photonpay card product sequence", "error", err)
 
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		virtualAccount, err := u.virtualAccountRepo.FindByAccountID(txCtx, req.AccountID)
 		if err != nil {
 			zap.S().Errorw("find photonpay account virtual account", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 
 		months := req.ExpirationMonths
@@ -108,7 +109,7 @@ func (u *PhotonPayOpenAPIUsecase) OpenCard(ctx context.Context, req *OpenCardReq
 		if err := u.cardRepo.CreateCard(txCtx, card); err != nil {
 			zap.S().Errorw("create photonpay card", "error", err)
 
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 
 		return nil
@@ -129,7 +130,7 @@ func (u *PhotonPayOpenAPIUsecase) GetCard(ctx context.Context, req *ResourceRequ
 	if err != nil {
 		zap.S().Errorw("find photonpay card", "error", err)
 
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 
 	return card, nil
@@ -144,7 +145,7 @@ func (u *PhotonPayOpenAPIUsecase) ListCards(ctx context.Context, req *ListReques
 	if err != nil {
 		zap.S().Errorw("list photonpay cards", "error", err)
 
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 
 	return cards, nil
@@ -155,14 +156,14 @@ func (u *PhotonPayOpenAPIUsecase) GetRequestResult(ctx context.Context, req *Req
 	if err != nil {
 		zap.S().Errorw("check photonpay card request", "error", err)
 
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	if exists {
 		card, err := u.cardRepo.FindCardByRequestIDForAccount(ctx, (*CardFindCardByRequestIDForAccountRequest)(req))
 		if err != nil {
 			zap.S().Errorw("find photonpay card request", "error", err)
 
-			return nil, ErrDatabaseOperation
+			return nil, photonpayerrors.ErrDatabaseOperation
 		}
 
 		return card, nil
@@ -172,17 +173,17 @@ func (u *PhotonPayOpenAPIUsecase) GetRequestResult(ctx context.Context, req *Req
 	if err != nil {
 		zap.S().Errorw("check photonpay card operation request", "error", err)
 
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, photonpayerrors.ErrResourceNotFound
 	}
 
 	card, err := u.cardRepo.FindCardByLastOperationRequestIDForAccount(ctx, (*CardFindCardByLastOperationRequestIDForAccountRequest)(req))
 	if err != nil {
 		zap.S().Errorw("find photonpay card operation request", "error", err)
 
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 
 	return card, nil
@@ -190,7 +191,7 @@ func (u *PhotonPayOpenAPIUsecase) GetRequestResult(ctx context.Context, req *Req
 
 func (u *PhotonPayOpenAPIUsecase) ChangeCardStatus(ctx context.Context, req *ChangeCardStatusRequest) (*model.Card, error) {
 	if req.AccountID <= 0 || req.CardID <= 0 {
-		return nil, ErrInvalidOperation
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
@@ -200,10 +201,10 @@ func (u *PhotonPayOpenAPIUsecase) ChangeCardStatus(ctx context.Context, req *Cha
 		})
 		if err != nil {
 			zap.S().Errorw("check photonpay card status change", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		if !exists {
-			return ErrResourceNotFound
+			return photonpayerrors.ErrResourceNotFound
 		}
 		card, err = u.cardRepo.LockForStatusChange(txCtx, &CardStatusLockRequest{
 			AccountID: req.AccountID,
@@ -211,12 +212,12 @@ func (u *PhotonPayOpenAPIUsecase) ChangeCardStatus(ctx context.Context, req *Cha
 		})
 		if err != nil {
 			zap.S().Errorw("lock photonpay card status change", "error", err)
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 		nextStatus := req.Status
 		if (card.Status == common.CardStatus_Deleted && nextStatus != common.CardStatus_Deleted) ||
 			(card.Status == common.CardStatus_Deleteing && nextStatus != common.CardStatus_Deleteing && nextStatus != common.CardStatus_Deleted) {
-			return ErrCardClosed
+			return photonpayerrors.ErrCardClosed
 		}
 		card.Status = nextStatus
 		if req.RequestID != "" {
@@ -237,7 +238,7 @@ func (u *PhotonPayOpenAPIUsecase) ChangeCardStatus(ctx context.Context, req *Cha
 		}); err != nil {
 			zap.S().Errorw("update photonpay card status", "error", err)
 
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 
 		return nil
@@ -251,7 +252,7 @@ func (u *PhotonPayOpenAPIUsecase) ChangeCardStatus(ctx context.Context, req *Cha
 
 func (u *PhotonPayOpenAPIUsecase) UpdateCard(ctx context.Context, req *UpdateCardRequest) (*model.Card, error) {
 	if req.AccountID <= 0 || req.CardID <= 0 {
-		return nil, ErrInvalidOperation
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
@@ -270,7 +271,7 @@ func (u *PhotonPayOpenAPIUsecase) UpdateCard(ctx context.Context, req *UpdateCar
 		if err != nil {
 			zap.S().Errorw("find photonpay card for update", "error", err)
 
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 
 		card.LastOperationRequestID = req.RequestID
@@ -285,7 +286,7 @@ func (u *PhotonPayOpenAPIUsecase) UpdateCard(ctx context.Context, req *UpdateCar
 		}); err != nil {
 			zap.S().Errorw("update photonpay card", "error", err)
 
-			return ErrDatabaseOperation
+			return photonpayerrors.ErrDatabaseOperation
 		}
 
 		return nil
@@ -302,10 +303,10 @@ func (u *PhotonPayOpenAPIUsecase) requireCard(ctx context.Context, req *Resource
 	if err != nil {
 		zap.S().Errorw("check photonpay card", "error", err)
 
-		return ErrDatabaseOperation
+		return photonpayerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return ErrResourceNotFound
+		return photonpayerrors.ErrResourceNotFound
 	}
 
 	return nil

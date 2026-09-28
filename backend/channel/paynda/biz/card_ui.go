@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/cardnumber"
@@ -43,10 +44,10 @@ func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCar
 		exists, err := u.accountRepository.ExistByID(txCtx, req.AccountID)
 		if err != nil {
 			zap.S().Errorw("check paynda UI card account", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		if !exists {
-			return ErrResourceNotFound
+			return payndaerrors.ErrResourceNotFound
 		}
 		exists, err = u.cardHolderRepository.ExistByAccountID(txCtx, &CardHolderExistByAccountIDRequest{
 			AccountID: req.AccountID,
@@ -54,18 +55,18 @@ func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCar
 		})
 		if err != nil {
 			zap.S().Errorw("check paynda UI card holder", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		if !exists {
-			return ErrResourceNotFound
+			return payndaerrors.ErrResourceNotFound
 		}
 		products, err := u.cardProductRepository.List(txCtx)
 		if err != nil {
 			zap.S().Errorw("list paynda UI card products", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		if len(products) == 0 {
-			return ErrResourceNotFound
+			return payndaerrors.ErrResourceNotFound
 		}
 
 		var defaultProduct *model.CardProduct
@@ -76,13 +77,13 @@ func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCar
 			}
 		}
 		if defaultProduct == nil {
-			return ErrResourceNotFound
+			return payndaerrors.ErrResourceNotFound
 		}
 
 		product, err := u.cardProductRepository.FindByIDForUpdate(txCtx, defaultProduct.ID)
 		if err != nil {
 			zap.S().Errorw("lock paynda UI card product", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		product.NextCardNumber++
 		generatedCard, ok := cardnumber.Generate(cardnumber.GenerateRequest{
@@ -91,11 +92,11 @@ func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCar
 			Sequence: product.NextCardNumber,
 		})
 		if !ok {
-			return ErrInvalidOperation
+			return payndaerrors.ErrInvalidOperation
 		}
 		if err := u.cardProductRepository.Save(txCtx, product); err != nil {
 			zap.S().Errorw("advance paynda UI card product sequence", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		wallet := &model.Wallet{
 			AccountID: req.AccountID,
@@ -106,7 +107,7 @@ func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCar
 		}
 		if err := u.walletRepository.Create(txCtx, wallet); err != nil {
 			zap.S().Errorw("create paynda UI card wallet", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		card = &model.Card{
 			AccountID:     req.AccountID,
@@ -126,7 +127,7 @@ func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCar
 		}
 		if err := u.cardRepository.Create(txCtx, card); err != nil {
 			zap.S().Errorw("create paynda UI card", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		return nil
 	})
@@ -139,7 +140,7 @@ func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCar
 
 func (u *PayndaUIUsecase) UpdateCardStatus(ctx context.Context, req *PayndaUIUpdateCardStatusRequest) (*model.Card, error) {
 	if req.AccountID <= 0 || req.CardID <= 0 {
-		return nil, ErrInvalidOperation
+		return nil, payndaerrors.ErrInvalidOperation
 	}
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
@@ -149,10 +150,10 @@ func (u *PayndaUIUsecase) UpdateCardStatus(ctx context.Context, req *PayndaUIUpd
 		})
 		if err != nil {
 			zap.S().Errorw("check paynda card status change", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		if !exists {
-			return ErrResourceNotFound
+			return payndaerrors.ErrResourceNotFound
 		}
 		card, err = u.cardRepository.LockForStatusChange(txCtx, &CardStatusLockRequest{
 			AccountID: req.AccountID,
@@ -160,12 +161,12 @@ func (u *PayndaUIUsecase) UpdateCardStatus(ctx context.Context, req *PayndaUIUpd
 		})
 		if err != nil {
 			zap.S().Errorw("lock paynda card status change", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		nextStatus := req.Status
 		if (card.Status == enums.CardStatus_Deleted && nextStatus != enums.CardStatus_Deleted) ||
 			(card.Status == enums.CardStatus_Deleteing && nextStatus != enums.CardStatus_Deleteing && nextStatus != enums.CardStatus_Deleted) {
-			return ErrCardClosed
+			return payndaerrors.ErrCardClosed
 		}
 		card.Status = nextStatus
 		if err := u.cardRepository.SaveStatus(txCtx, &CardStatusSaveRequest{
@@ -177,7 +178,7 @@ func (u *PayndaUIUsecase) UpdateCardStatus(ctx context.Context, req *PayndaUIUpd
 			LastOperationStatus:    card.LastOperationStatus,
 		}); err != nil {
 			zap.S().Errorw("update paynda UI card status", "error", err)
-			return ErrDatabaseOperation
+			return payndaerrors.ErrDatabaseOperation
 		}
 		return nil
 	})
@@ -191,7 +192,7 @@ func (u *PayndaUIUsecase) ListCards(ctx context.Context, req *ListUICardsRequest
 	if (req.CreatedFrom != nil && req.CreatedFrom.IsZero()) ||
 		(req.CreatedTo != nil && req.CreatedTo.IsZero()) ||
 		(req.CreatedFrom != nil && req.CreatedTo != nil && req.CreatedFrom.After(*req.CreatedTo)) {
-		return nil, 0, ErrInvalidOperation
+		return nil, 0, payndaerrors.ErrInvalidOperation
 	}
 	items, err := u.cardRepository.List(ctx, &CardListRequest{
 		AccountIDs:  types.PointerSlice(req.AccountID),
@@ -205,7 +206,7 @@ func (u *PayndaUIUsecase) ListCards(ctx context.Context, req *ListUICardsRequest
 	})
 	if err != nil {
 		zap.S().Errorw("list paynda UI cards", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, payndaerrors.ErrDatabaseOperation
 	}
 
 	total, err := u.cardRepository.Count(ctx, &CardCountRequest{
@@ -218,7 +219,7 @@ func (u *PayndaUIUsecase) ListCards(ctx context.Context, req *ListUICardsRequest
 	})
 	if err != nil {
 		zap.S().Errorw("count paynda UI cards", "error", err)
-		return nil, 0, ErrDatabaseOperation
+		return nil, 0, payndaerrors.ErrDatabaseOperation
 	}
 
 	return items, total, nil

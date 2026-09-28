@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	photonpayerrors "generic-mock/channel/photonpay/errors"
 	"generic-mock/model"
 
 	"go.uber.org/zap"
@@ -21,7 +22,7 @@ type AuthorizationDetail struct {
 
 func (u *PhotonPayUIUsecase) GetAuthorizationDetail(ctx context.Context, req *GetAuthorizationDetailRequest) (*AuthorizationDetail, error) {
 	if req.AccountID <= 0 || req.ID <= 0 {
-		return nil, ErrInvalidOperation
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	exists, err := u.authorizationRepo.AuthorizationExists(ctx, &ExistAuthorizationRequest{
 		AccountID: req.AccountID,
@@ -29,10 +30,10 @@ func (u *PhotonPayUIUsecase) GetAuthorizationDetail(ctx context.Context, req *Ge
 	})
 	if err != nil {
 		zap.S().Errorw("check photonpay authorization detail", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, ErrResourceNotFound
+		return nil, photonpayerrors.ErrResourceNotFound
 	}
 	auth, err := u.authorizationRepo.FindAuthorizationDetail(ctx, &FindAuthorizationDetailRequest{
 		AccountID: req.AccountID,
@@ -40,7 +41,7 @@ func (u *PhotonPayUIUsecase) GetAuthorizationDetail(ctx context.Context, req *Ge
 	})
 	if err != nil {
 		zap.S().Errorw("find photonpay authorization detail", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	stages, err := u.cardTransactionRepo.ListStages(ctx, &ListAuthorizationStagesRequest{
 		AccountID: req.AccountID,
@@ -48,7 +49,7 @@ func (u *PhotonPayUIUsecase) GetAuthorizationDetail(ctx context.Context, req *Ge
 	})
 	if err != nil {
 		zap.S().Errorw("list photonpay authorization detail stages", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	card, err := u.cardRepo.FindCard(ctx, &FindCardRequest{
 		AccountID: req.AccountID,
@@ -56,7 +57,7 @@ func (u *PhotonPayUIUsecase) GetAuthorizationDetail(ctx context.Context, req *Ge
 	})
 	if err != nil {
 		zap.S().Errorw("find photonpay authorization detail card", "error", err)
-		return nil, ErrDatabaseOperation
+		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	return &AuthorizationDetail{
 		Balance: authorizationBalance(&authorizationBalanceRequest{
