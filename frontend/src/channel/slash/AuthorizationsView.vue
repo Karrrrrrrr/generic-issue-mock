@@ -376,7 +376,6 @@ async function submit(operation: Operation) {
   saving.value = operation;
   try {
     await request.post(`${baseURL}/authorizations/${row.id}/${operation}`, {
-      account_id: row.account_id,
       amount: String(amounts[operation]),
     });
     amounts[operation] = null;

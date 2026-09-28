@@ -76,10 +76,7 @@ async function submit() {
   loading.value = true;
   result.value = "";
   try {
-    await api.simulateAuthorization({
-      ...form.value,
-      accountID: card.account_id,
-    });
+    await api.simulateAuthorization(form.value);
     result.value = "授权已创建，可在交易处理查看并清算或撤销。";
     emit("completed");
   } catch (error) {
@@ -90,15 +87,16 @@ async function submit() {
 }
 
 async function submitRefund() {
+  const authorizationID = refundForm.value.authorization_id || undefined;
   const card = cards.value.find((item) => item.id === refundForm.value.card_id);
   if (
-    !card ||
+    (!authorizationID && !card) ||
     !refundForm.value.merchant_name ||
     !refundForm.value.merchant_category_code ||
     !refundForm.value.merchant_country ||
     refundForm.value.amount <= 0
   ) {
-    message.warning("请选择卡，并填写正数金额、商户名称、MCC 和国家");
+    message.warning("独立退款请选择卡，并填写正数金额、商户名称、MCC 和国家");
     return;
   }
   refundLoading.value = true;
@@ -106,8 +104,9 @@ async function submitRefund() {
   try {
     const refund = await refundApi.simulate({
       ...refundForm.value,
-      account_id: card.account_id,
-      authorization_id: refundForm.value.authorization_id || undefined,
+      authorization_id: authorizationID,
+      card_id: authorizationID ? undefined : refundForm.value.card_id,
+      currency: authorizationID ? undefined : refundForm.value.currency,
     });
     refundResult.value = `退款交易已创建：${refund.id}`;
     emit("completed");
@@ -184,7 +183,7 @@ onMounted(() => {
           <n-card title="退款配置" hover style="max-width: 720px">
             <n-form label-placement="top">
               <div class="form-grid">
-                <n-form-item class="form-wide" label="卡" required>
+                <n-form-item v-if="!refundForm.authorization_id" class="form-wide" label="卡" required>
                   <n-select
                     v-model:value="refundForm.card_id"
                     :options="options"
@@ -203,7 +202,7 @@ onMounted(() => {
                     style="width: 100%"
                   />
                 </n-form-item>
-                <n-form-item label="币种">
+                <n-form-item v-if="!refundForm.authorization_id" label="币种">
                   <n-select
                     v-model:value="refundForm.currency"
                     :options="[

@@ -14,7 +14,6 @@ import (
 )
 
 type SimulateAuthorizationRequest struct {
-	AccountID    model.ID
 	CardID       model.ID
 	Amount       decimal.Decimal
 	Currency     common.Currency
@@ -23,7 +22,6 @@ type SimulateAuthorizationRequest struct {
 }
 
 type AuthorizationStageRequest struct {
-	AccountID model.ID
 	ID        model.ID
 	Amount    decimal.Decimal
 	RequestID string
@@ -42,7 +40,6 @@ func (uc *PingPongUIUsecase) SimulateAuthorization(ctx context.Context, req *Sim
 		return nil, pingerrors.ErrInvalid
 	}
 	result, err := uc.simulator.SimulateAuthorization(ctx, &sharedbiz.SimulateAuthorizationReq{
-		AccountID:    req.AccountID,
 		Channel:      common.Channel_PingPong,
 		CardID:       req.CardID,
 		Amount:       req.Amount,
@@ -57,80 +54,36 @@ func (uc *PingPongUIUsecase) SimulateAuthorization(ctx context.Context, req *Sim
 	return result.Authorization, nil
 }
 
-type authorizationReference struct {
-	AccountID model.ID
-	ID        model.ID
-}
-
-func (uc *PingPongUIUsecase) authorization(ctx context.Context, req *authorizationReference) (*model.Authorization, error) {
-	if req.AccountID <= 0 || req.ID <= 0 {
-		return nil, pingerrors.ErrInvalid
-	}
-	exists, err := uc.authorizationRepo.Exists(ctx, &AuthorizationExistsRequest{
-		AccountID: req.AccountID,
-		ID:        req.ID,
-	})
-	if err != nil {
-		zap.S().Errorw("check pingpong authorization", "error", err)
-		return nil, pingerrors.ErrDatabase
-	}
-	if !exists {
-		return nil, pingerrors.ErrNotFound
-	}
-	item, err := uc.authorizationRepo.Find(ctx, &AuthorizationFindRequest{
-		AccountID: req.AccountID,
-		ID:        req.ID,
-	})
-	if err != nil {
-		zap.S().Errorw("find pingpong authorization", "error", err)
-		return nil, pingerrors.ErrDatabase
-	}
-	return item, nil
-}
-
 func (uc *PingPongUIUsecase) Stage(ctx context.Context, req *AuthorizationStageRequest) error {
-	if req == nil || req.AccountID <= 0 || req.ID <= 0 || !req.Amount.IsPositive() || req.RequestID == "" {
+	if req == nil || req.ID <= 0 || !req.Amount.IsPositive() || req.RequestID == "" {
 		return pingerrors.ErrInvalid
 	}
-	auth, err := uc.authorization(ctx, &authorizationReference{
-		AccountID: req.AccountID,
-		ID:        req.ID,
-	})
-	if err != nil {
-		return err
-	}
+	var err error
 	switch req.Kind {
 	case common.CardTransactionType_CLEAR:
 		_, err = uc.simulator.SimulateClearing(ctx, &sharedbiz.SimulateClearingReq{
-			AccountID:       req.AccountID,
 			Channel:         common.Channel_PingPong,
-			CardID:          auth.CardID,
 			Amount:          req.Amount,
 			Notificator:     sharedbiz.NoopNotificator{},
 			RequestID:       &req.RequestID,
-			AuthorizationID: auth.ID,
+			AuthorizationID: req.ID,
 		})
 	case common.CardTransactionType_VOID:
 		_, err = uc.simulator.SimulateReversal(ctx, &sharedbiz.SimulateReversalReq{
-			AccountID:       req.AccountID,
 			Channel:         common.Channel_PingPong,
-			CardID:          auth.CardID,
 			Amount:          req.Amount,
 			Notificator:     sharedbiz.NoopNotificator{},
 			RequestID:       &req.RequestID,
-			AuthorizationID: auth.ID,
+			AuthorizationID: req.ID,
 			Status:          common.TransactionStatus_SUCCEED,
 		})
 	case common.CardTransactionType_REFUND:
 		_, err = uc.simulator.SimulateRefund(ctx, &sharedbiz.SimulateRefundReq{
-			AccountID:       req.AccountID,
 			Channel:         common.Channel_PingPong,
-			CardID:          auth.CardID,
 			Amount:          req.Amount,
 			Notificator:     sharedbiz.NoopNotificator{},
 			RequestID:       &req.RequestID,
-			AuthorizationID: &auth.ID,
-			Currency:        auth.Currency,
+			AuthorizationID: &req.ID,
 		})
 	default:
 		return pingerrors.ErrInvalid

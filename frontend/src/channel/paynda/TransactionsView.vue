@@ -113,7 +113,7 @@ async function load() {
 
 async function apply(transaction: Transaction, action: "clear" | "reverse" | "refund") {
   try {
-    await api.applyTransactionStep(transaction, action);
+    await api.applyTransactionStep(transaction.id, action);
     await load();
   } catch (e) {
     message.error(e instanceof Error ? e.message : "操作失败");

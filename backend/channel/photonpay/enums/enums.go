@@ -144,25 +144,6 @@ const (
 	RequestResultType_CardFreeze RequestResultType = "card_freeze"
 )
 
-type SandboxTransactionType string
-
-const (
-	SandboxTransactionType_Auth   SandboxTransactionType = "auth"
-	SandboxTransactionType_Void   SandboxTransactionType = "void"
-	SandboxTransactionType_Refund SandboxTransactionType = "refund"
-)
-
-func SandboxTransactionTypeToGeneric(value SandboxTransactionType) generic.CardTransactionType {
-	switch value {
-	case SandboxTransactionType_Void:
-		return generic.CardTransactionType_VOID
-	case SandboxTransactionType_Refund:
-		return generic.CardTransactionType_REFUND
-	default:
-		return generic.CardTransactionType_AUTH
-	}
-}
-
 type OperationStatus string
 
 const (

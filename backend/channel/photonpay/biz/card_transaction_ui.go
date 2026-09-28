@@ -28,18 +28,16 @@ type ListUITransactionsRequest struct {
 }
 
 type UISimulateRefundRequest struct {
-	AccountID       model.ID
 	AuthorizationID *model.ID
-	CardID          model.ID
+	CardID          *model.ID
 	Amount          decimal.Decimal
-	Currency        enums.Currency
+	Currency        *enums.Currency
 	MerchantName    *string
 	MerchantCountry *string
 	MerchantMCC     *string
 }
 
 type UIApplyTransactionStepRequest struct {
-	AccountID         model.ID
 	CardTransactionID model.ID
 	Type              enums.CardTransactionType
 	Amount            *decimal.Decimal
@@ -92,7 +90,6 @@ func (u *PhotonPayUIUsecase) SimulateRefund(ctx context.Context, req *UISimulate
 		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	result, err := u.simulator.SimulateRefund(ctx, &sharedbiz.SimulateRefundReq{
-		AccountID:       req.AccountID,
 		Channel:         enums.Channel_PhotonPay,
 		CardID:          req.CardID,
 		AuthorizationID: req.AuthorizationID,
@@ -110,13 +107,10 @@ func (u *PhotonPayUIUsecase) SimulateRefund(ctx context.Context, req *UISimulate
 }
 
 func (u *PhotonPayUIUsecase) ApplyTransactionStep(ctx context.Context, req *UIApplyTransactionStepRequest) (*model.CardTransaction, error) {
-	if req == nil || req.AccountID <= 0 || req.CardTransactionID <= 0 {
+	if req == nil || req.CardTransactionID <= 0 {
 		return nil, photonpayerrors.ErrInvalidOperation
 	}
-	exists, err := u.cardTransactionRepo.ExistByAccountID(ctx, &CardTransactionExistByAccountIDRequest{
-		AccountID: &req.AccountID,
-		ID:        req.CardTransactionID,
-	})
+	exists, err := u.cardTransactionRepo.ExistByID(ctx, req.CardTransactionID)
 	if err != nil {
 		zap.S().Errorw("check photonpay simulation transaction", "error", err)
 		return nil, photonpayerrors.ErrDatabaseOperation
@@ -124,10 +118,7 @@ func (u *PhotonPayUIUsecase) ApplyTransactionStep(ctx context.Context, req *UIAp
 	if !exists {
 		return nil, photonpayerrors.ErrResourceNotFound
 	}
-	origin, err := u.cardTransactionRepo.FindByAccountID(ctx, &CardTransactionFindByAccountIDRequest{
-		AccountID: &req.AccountID,
-		ID:        req.CardTransactionID,
-	})
+	origin, err := u.cardTransactionRepo.FindByID(ctx, req.CardTransactionID)
 	if err != nil {
 		zap.S().Errorw("find photonpay simulation transaction", "error", err)
 		return nil, photonpayerrors.ErrDatabaseOperation
@@ -147,18 +138,14 @@ func (u *PhotonPayUIUsecase) ApplyTransactionStep(ctx context.Context, req *UIAp
 	switch req.Type {
 	case enums.CardTransactionType_CLEAR:
 		result, err = u.simulator.SimulateClearing(ctx, &sharedbiz.SimulateClearingReq{
-			AccountID:       req.AccountID,
 			Channel:         enums.Channel_PhotonPay,
-			CardID:          origin.CardID,
 			Amount:          amount,
 			Notificator:     u,
 			AuthorizationID: origin.AuthorizationID,
 		})
 	case enums.CardTransactionType_VOID:
 		result, err = u.simulator.SimulateReversal(ctx, &sharedbiz.SimulateReversalReq{
-			AccountID:       req.AccountID,
 			Channel:         enums.Channel_PhotonPay,
-			CardID:          origin.CardID,
 			Amount:          amount,
 			Notificator:     u,
 			AuthorizationID: origin.AuthorizationID,
@@ -166,13 +153,10 @@ func (u *PhotonPayUIUsecase) ApplyTransactionStep(ctx context.Context, req *UIAp
 		})
 	case enums.CardTransactionType_REFUND:
 		result, err = u.simulator.SimulateRefund(ctx, &sharedbiz.SimulateRefundReq{
-			AccountID:       req.AccountID,
 			Channel:         enums.Channel_PhotonPay,
-			CardID:          origin.CardID,
 			Amount:          amount,
 			Notificator:     u,
 			AuthorizationID: &origin.AuthorizationID,
-			Currency:        origin.Currency,
 		})
 	default:
 		return nil, photonpayerrors.ErrInvalidOperation

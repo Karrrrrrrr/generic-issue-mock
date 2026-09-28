@@ -105,13 +105,12 @@ export const managementApi = {
 };
 
 export async function applyTransactionAmount(
-  transaction: Pick<Transaction, "id" | "account_id">,
+  id: string,
   action: "clear" | "reverse" | "refund",
   amount: number,
 ) {
   return (
-    await request.post<Transaction>(`${baseURL}/transactions/${transaction.id}/${action}`, {
-      account_id: transaction.account_id,
+    await request.post<Transaction>(`${baseURL}/transactions/${id}/${action}`, {
       amount,
     })
   ).data;
@@ -119,11 +118,10 @@ export async function applyTransactionAmount(
 
 export const refundApi = {
   async simulate(payload: {
-    account_id: string;
     authorization_id?: string;
-    card_id: string;
+    card_id?: string;
     amount: number;
-    currency: string;
+    currency?: string;
     merchant_name: string;
     merchant_category_code: string;
     merchant_country: string;
@@ -166,9 +164,8 @@ export const api: ChannelAPI = {
   async simulateAuthorization(payload) {
     await request.post(`${baseURL}/simulate/authorizations`, authorizationPayload(payload));
   },
-  async applyTransactionStep(transaction, action, amount) {
-    await request.post(`${baseURL}/transactions/${transaction.id}/${action}`, {
-      account_id: transaction.account_id,
+  async applyTransactionStep(id, action, amount) {
+    await request.post(`${baseURL}/transactions/${id}/${action}`, {
       amount,
     });
   },

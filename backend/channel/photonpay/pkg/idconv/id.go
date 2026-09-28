@@ -33,10 +33,3 @@ func FromOptionalString(value *string) (*model.ID, error) {
 	}
 	return &id, nil
 }
-
-func FromSandboxOriginTransactionString(value *string) (*model.ID, error) {
-	if value != nil && *value == "" {
-		return nil, nil
-	}
-	return FromOptionalString(value)
-}

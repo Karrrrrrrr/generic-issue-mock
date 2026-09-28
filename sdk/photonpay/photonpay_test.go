@@ -530,113 +530,53 @@ func TestPhotonTransactions(testContext *testing.T) {
 			testContext.Fatalf("want empty trades, got %+v %v", items, err)
 		}
 	})
-	request := &SandBoxTransactionRequest{
-		RequestID:        contract.Unique(),
-		CardID:           cardID,
-		Cvv:              card.CardDetail.CVV,
-		ExpirationDate:   card.CardDetail.ExpirationDate,
-		TxnCurrency:      "USD",
-		TxnAmount:        2,
-		TxnType:          "auth",
-		Mcc:              "5411",
-		MerchantName:     "SDK merchant",
-		MerchantCountry:  "US",
-		MerchantCity:     "Boston",
-		MerchantPostcode: "02101",
-	}
-	testContext.Run("SandBoxTransaction/authorization", func(testContext *testing.T) {
-		if err := client.SandBoxTransaction(suite.Context, token, request); err != nil {
-			testContext.Fatal(err)
-		}
+	authorization := suite.UI(testContext, http.MethodPost, "/simulate/authorizations", map[string]any{
+		"card_id":                cardID,
+		"transaction_amount":     2,
+		"transaction_currency":   "USD",
+		"merchant_name":          "SDK merchant",
+		"merchant_country":       "US",
+		"merchant_category_code": "5411",
 	})
-	var authorizationID string
+	authorizationID := contract.Text(testContext, authorization, "authorization.id")
+	authorizationTransactionID := contract.Text(testContext, authorization, "transaction.id")
 	testContext.Run("PagingVccTradeOrder/authorization", func(testContext *testing.T) {
 		items, err := client.PagingVccTradeOrder(suite.Context, token, &PagingVccTradeOrderRequest{CardID: &cardID})
 		if err != nil || len(items) != 1 {
 			testContext.Fatalf("want one authorization, got %+v %v", items, err)
 		}
 		item := items[0]
-		if item.CardID != cardID || item.TransactionID == "" || item.TransactionType != "auth" || item.TransactionCurrency != "USD" {
+		if item.CardID != cardID || item.TransactionID != authorizationTransactionID || item.TransactionType != "auth" || item.TransactionCurrency != "USD" {
 			testContext.Fatalf("invalid trade: %+v", item)
 		}
 		if _, err := time.Parse("2006-01-02T15:04:05", item.CreatedAt); err != nil {
 			testContext.Fatal(err)
 		}
-		authorizationID = item.TransactionID
 	})
-	if authorizationID == "" {
-		testContext.Fatal("authorization setup failed")
-	}
-	testContext.Run("SandBoxTransaction/linked-refund", func(testContext *testing.T) {
-		refund := *request
-		refund.RequestID = contract.Unique()
-		refund.TxnType = "refund"
-		refund.TxnAmount = 1
-		refund.OriginTransactionID = authorizationID
-		if err := client.SandBoxTransaction(suite.Context, token, &refund); err != nil {
-			testContext.Fatal(err)
-		}
+	linkedRefund := suite.UI(testContext, http.MethodPost, "/authorizations/"+authorizationID+"/refund", map[string]any{
+		"amount": 1,
 	})
-	testContext.Run("SandBoxTransaction/independent-refund", func(testContext *testing.T) {
-		refund := *request
-		refund.RequestID = contract.Unique()
-		refund.TxnType = "refund"
-		refund.TxnAmount = 3
-		if err := client.SandBoxTransaction(suite.Context, token, &refund); err != nil {
-			testContext.Fatal(err)
-		}
+	linkedRefundID := contract.Text(testContext, linkedRefund, "id")
+	independentRefund := suite.UI(testContext, http.MethodPost, "/simulate/refunds", map[string]any{
+		"card_id":                cardID,
+		"amount":                 3,
+		"currency":               "USD",
+		"merchant_name":          "SDK merchant",
+		"merchant_country":       "US",
+		"merchant_category_code": "5411",
 	})
-	testContext.Run("SandBoxTransaction/void", func(testContext *testing.T) {
-		void := *request
-		void.RequestID = contract.Unique()
-		void.TxnType = "void"
-		void.OriginTransactionID = authorizationID
-		if err := client.SandBoxTransaction(suite.Context, token, &void); err != nil {
-			testContext.Fatal(err)
-		}
+	independentRefundID := contract.Text(testContext, independentRefund, "id")
+	reversal := suite.UI(testContext, http.MethodPost, "/authorizations/"+authorizationID+"/reverse", map[string]any{
+		"amount": 2,
 	})
-	testContext.Run("SandBoxTransaction/negative-amount", func(testContext *testing.T) {
-		invalid := *request
-		invalid.RequestID = contract.Unique()
-		invalid.TxnAmount = -1
-		if err := client.SandBoxTransaction(suite.Context, token, &invalid); err == nil {
-			testContext.Fatal("negative transaction amount accepted")
-		}
-	})
-	testContext.Run("SandBoxTransaction/missing-authorization", func(testContext *testing.T) {
-		invalid := *request
-		invalid.RequestID = contract.Unique()
-		invalid.TxnType = "void"
-		if err := client.SandBoxTransaction(suite.Context, token, &invalid); err == nil {
-			testContext.Fatal("void without authorization accepted")
-		}
-	})
-	testContext.Run("SandBoxTransaction/zero-origin", func(testContext *testing.T) {
-		invalid := *request
-		invalid.RequestID = contract.Unique()
-		invalid.TxnType = "refund"
-		invalid.OriginTransactionID = "0"
-		if err := client.SandBoxTransaction(suite.Context, token, &invalid); err == nil {
-			testContext.Fatal("zero origin ID accepted")
-		}
-	})
-	testContext.Run("SandBoxTransaction/other-card-authorization", func(testContext *testing.T) {
-		otherCard := fixture.createCard(testContext)
-		invalid := *request
-		invalid.RequestID = contract.Unique()
-		invalid.CardID = otherCard.CardDetail.CardID
-		invalid.Cvv = otherCard.CardDetail.CVV
-		invalid.ExpirationDate = otherCard.CardDetail.ExpirationDate
-		invalid.TxnType = "refund"
-		invalid.OriginTransactionID = authorizationID
-		if err := client.SandBoxTransaction(suite.Context, token, &invalid); err == nil {
-			testContext.Fatal("another card's authorization accepted")
-		}
-	})
+	reversalID := contract.Text(testContext, reversal, "id")
 	testContext.Run("PagingVccTradeOrder/refunds-and-void", func(testContext *testing.T) {
 		items, err := client.PagingVccTradeOrder(suite.Context, token, &PagingVccTradeOrderRequest{CardID: &cardID})
 		if err != nil || len(items) != 4 {
 			testContext.Fatalf("invalid transaction list: %+v %v", items, err)
+		}
+		if items[0].TransactionID != reversalID || items[1].TransactionID != independentRefundID || items[2].TransactionID != linkedRefundID || items[3].TransactionID != authorizationTransactionID {
+			testContext.Fatalf("wrong transaction IDs or order: %+v", items)
 		}
 		if items[0].TransactionType != "void" || items[1].TransactionType != "refund" || items[2].TransactionType != "refund" || items[3].TransactionType != "auth" {
 			testContext.Fatalf("wrong transaction types: %+v", items)

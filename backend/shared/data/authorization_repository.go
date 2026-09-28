@@ -46,3 +46,22 @@ func (repo *authorizationRepository) FindByIDWithLock(ctx context.Context, req *
 			table.CardID.Eq(req.CardID),
 		).First()
 }
+
+func (repo *authorizationRepository) ExistForSimulation(ctx context.Context, req *biz.AuthorizationSimulationExistRequest) (bool, error) {
+	table := repo.DB(ctx).Authorization
+	count, err := table.WithContext(ctx).
+		Where(
+			table.ID.Eq(req.ID),
+			table.Channel.Eq(string(req.Channel)),
+		).Count()
+	return count > 0, err
+}
+
+func (repo *authorizationRepository) FindForSimulation(ctx context.Context, req *biz.AuthorizationSimulationFindRequest) (*model.Authorization, error) {
+	table := repo.DB(ctx).Authorization
+	return table.WithContext(ctx).
+		Where(
+			table.ID.Eq(req.ID),
+			table.Channel.Eq(string(req.Channel)),
+		).First()
+}

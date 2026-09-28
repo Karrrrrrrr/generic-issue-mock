@@ -19,7 +19,6 @@ import (
 
 	kratosErrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/samber/do"
-	"github.com/shopspring/decimal"
 )
 
 type PhotonPayOpenAPIService struct {
@@ -647,57 +646,6 @@ type UploadRequest struct {
 	OpenAPIAccountRequest
 	BusinessKey string                `uri:"businessKey" binding:"required"`
 	File        *multipart.FileHeader `form:"file" binding:"required"`
-}
-
-type SandboxTransactionRequest struct {
-	OpenAPIAccountRequest
-	RequestID           string                        `json:"requestId" binding:"required"`
-	CardID              string                        `json:"cardID" binding:"required"`
-	Cvv                 string                        `json:"cvv" binding:"required"`            // Invalid: the mock does not verify card security codes.
-	ExpirationDate      string                        `json:"expirationDate" binding:"required"` // Invalid: the mock does not verify card expiry.
-	OriginTransactionID *string                       `json:"originTransactionId"`
-	TxnCurrency         common.Currency               `json:"txnCurrency" binding:"required"`
-	TxnAmount           float64                       `json:"txnAmount" binding:"required,gt=0"`
-	TxnType             photon.SandboxTransactionType `json:"txnType" binding:"required,oneof=auth void refund"`
-	Mcc                 string                        `json:"mcc" binding:"required"`
-	MerchantName        string                        `json:"merchantName" binding:"required"`
-	MerchantCountry     string                        `json:"merchantCountry" binding:"required"`
-	MerchantCity        string                        `json:"merchantCity" binding:"required"`     // Invalid: merchant city is not persisted by the generic model.
-	MerchantPostcode    string                        `json:"merchantPostcode" binding:"required"` // Invalid: merchant postcode is not persisted by the generic model.
-}
-
-type SandboxTransactionData struct{}
-
-func (s *PhotonPayOpenAPIService) SandboxTransaction(ctx context.Context, req *SandboxTransactionRequest) (*SandboxTransactionData, error) {
-	accountID, err := idconv.FromAccountString(req.Token)
-	if err != nil {
-		return nil, err
-	}
-	cardID, err := idconv.FromString(req.CardID)
-	if err != nil {
-		return nil, err
-	}
-	originTransactionID, err := idconv.FromSandboxOriginTransactionString(req.OriginTransactionID)
-	if err != nil {
-		return nil, err
-	}
-	err = s.usecase.SandboxTransaction(ctx, &biz.SandboxTransactionRequest{
-		AccountID:           accountID,
-		RequestID:           req.RequestID,
-		CardID:              cardID,
-		OriginTransactionID: originTransactionID,
-		Currency:            req.TxnCurrency,
-		Amount:              decimal.NewFromFloat(req.TxnAmount),
-		Type:                req.TxnType,
-		MerchantName:        req.MerchantName,
-		MerchantCountry:     req.MerchantCountry,
-		MerchantMCC:         req.Mcc,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &SandboxTransactionData{}, nil
 }
 
 func (s *PhotonPayOpenAPIService) Upload(_ context.Context, req *UploadRequest) (*string, error) {

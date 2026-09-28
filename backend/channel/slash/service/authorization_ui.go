@@ -75,7 +75,6 @@ type AuthorizationBalanceData struct {
 }
 
 type ClearAuthorizationRequest struct {
-	ManagementAccountRequest
 	ID     string          `uri:"id" binding:"required"`
 	Amount decimal.Decimal `json:"amount"`
 }
@@ -84,17 +83,12 @@ type ClearAuthorizationData struct {
 }
 
 func (s *SlashUIService) ClearAuthorization(ctx context.Context, req *ClearAuthorizationRequest) (*ClearAuthorizationData, error) {
-	accountID, err := idconv.FromAccountUUID(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
 	authID, err := idconv.FromUUID(req.ID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.ClearAuthorization(ctx, &biz.ClearAuthorizationRequest{
 		Notificator: s,
-		AccountID:   accountID,
 		ID:          authID,
 		Amount:      req.Amount,
 	})

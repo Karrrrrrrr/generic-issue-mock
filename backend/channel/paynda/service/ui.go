@@ -385,7 +385,6 @@ func (s *PayndaUIService) UpdateCardStatus(ctx context.Context, req *PayndaUIUpd
 }
 
 type PayndaUISimulateAuthorizationRequest struct {
-	ManagementAccountRequest
 	CardID          string          `json:"card_id" binding:"required"`
 	Amount          decimal.Decimal `json:"transaction_amount" binding:"required"`
 	Currency        common.Currency `json:"transaction_currency" binding:"required"`
@@ -401,32 +400,26 @@ type PayndaUISimulateAuthorizationData struct {
 }
 
 type PayndaUISimulateRefundRequest struct {
-	ManagementAccountRequest
-	AuthorizationID      *string         `json:"authorization_id"`
-	CardID               string          `json:"card_id" binding:"required"`
-	Amount               decimal.Decimal `json:"amount" binding:"required"`
-	Currency             common.Currency `json:"currency" binding:"required"`
-	MerchantName         string          `json:"merchant_name" binding:"required"`
-	MerchantCategoryCode string          `json:"merchant_category_code" binding:"required"`
-	MerchantCountry      string          `json:"merchant_country" binding:"required"`
-	MerchantCity         string          `json:"merchant_city"` // Invalid: generic model has no merchant city field.
+	AuthorizationID      *string          `json:"authorization_id"`
+	CardID               *string          `json:"card_id"`
+	Amount               decimal.Decimal  `json:"amount" binding:"required"`
+	Currency             *common.Currency `json:"currency"`
+	MerchantName         string           `json:"merchant_name" binding:"required"`
+	MerchantCategoryCode string           `json:"merchant_category_code" binding:"required"`
+	MerchantCountry      string           `json:"merchant_country" binding:"required"`
+	MerchantCity         string           `json:"merchant_city"` // Invalid: generic model has no merchant city field.
 }
 
 func (s *PayndaUIService) SimulateRefund(ctx context.Context, req *PayndaUISimulateRefundRequest) (*PayndaUITransactionData, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
 	authorizationID, err := idconv.FromOptionalString(req.AuthorizationID)
 	if err != nil {
 		return nil, err
 	}
-	cardID, err := idconv.FromString(req.CardID)
+	cardID, err := idconv.FromOptionalString(req.CardID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.SimulateRefund(ctx, &biz.PayndaSimulateRefundRequest{
-		AccountID:       accountID,
 		AuthorizationID: authorizationID,
 		CardID:          cardID,
 		Amount:          req.Amount,
@@ -472,16 +465,11 @@ func (s *PayndaUIService) SimulateAuthorization(
 	ctx context.Context,
 	req *PayndaUISimulateAuthorizationRequest,
 ) (*PayndaUISimulateAuthorizationData, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
 	cardID, err := idconv.FromString(req.CardID)
 	if err != nil {
 		return nil, err
 	}
 	result, err := s.usecase.SimulateAuthorization(ctx, &biz.PayndaSimulateAuthorizationRequest{
-		AccountID:       accountID,
 		CardID:          cardID,
 		Amount:          req.Amount,
 		Currency:        req.Currency,
@@ -500,7 +488,6 @@ func (s *PayndaUIService) SimulateAuthorization(
 }
 
 type PayndaUIApplyTransactionStepRequest struct {
-	ManagementAccountRequest
 	ID     string           `uri:"id" binding:"required"`
 	Amount *decimal.Decimal `json:"amount"`
 }
@@ -520,16 +507,11 @@ func (s *PayndaUIService) applyTransactionStep(
 	req *PayndaUIApplyTransactionStepRequest,
 	kind common.CardTransactionType,
 ) (*PayndaUITransactionData, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
 	id, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.ApplyTransactionStep(ctx, &biz.PayndaUIApplyTransactionStepRequest{
-		AccountID:         accountID,
 		CardTransactionID: id,
 		Type:              kind,
 		Amount:            req.Amount,

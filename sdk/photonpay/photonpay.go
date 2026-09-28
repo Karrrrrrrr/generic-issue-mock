@@ -696,27 +696,6 @@ func (pp *PhotonPaySDK) PagingVccTradeOrder(ctx context.Context, token string, p
 	return result, nil
 }
 
-// 交易模拟
-// path: /vcc/open/v2/sandBoxTransaction
-// method: POST
-func (pp *PhotonPaySDK) SandBoxTransaction(ctx context.Context, token string, param *SandBoxTransactionRequest) error {
-	apiPath := "/vcc/open/v2/sandBoxTransaction"
-	if err := param.Validate(); err != nil {
-		return err
-	}
-	err := pp.RestyRequest(ctx, &RestyRequestOptions{
-		Method: http.MethodPost,
-		Path:   apiPath,
-		Token:  token,
-		Params: param,
-		Result: nil,
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // ApiUploadFile 文件上传
 func (pp *PhotonPaySDK) ApiUploadFile(ctx context.Context, token string, param *ApiUploadFileRequest) (string, error) {
 	apiPath := fmt.Sprintf("/file/apiUpload/%s", param.BusinessKey)

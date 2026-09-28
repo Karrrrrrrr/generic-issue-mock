@@ -88,7 +88,6 @@ export interface ChannelAPI {
   listTransactions(query?: TransactionListRequest): Promise<ListResponse<Transaction>>;
 
   simulateAuthorization(payload: {
-    accountID: string;
     cardID: string;
     amount: number;
     currency: string;
@@ -99,7 +98,7 @@ export interface ChannelAPI {
   }): Promise<void>;
 
   applyTransactionStep(
-    transaction: Pick<Transaction, "id" | "account_id">,
+    id: string,
     action: "clear" | "reverse" | "refund",
     amount?: number,
   ): Promise<void>;

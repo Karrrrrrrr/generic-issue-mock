@@ -2,16 +2,16 @@
 
 `shared/biz` 处理已经归一化的开卡、模拟授权、清算、退款和撤销请求，不解释任何渠道协议，也不在内部查找“默认渠道账户”。渠道层负责解析外部 ID、选择产品/虚拟账户、校验协议参数，以及将共享错误映射为渠道错误码。
 
-Slash、Paynda、PhotonPay、PingPong 的 UI 模拟授权、清算、退款和撤销，以及 PhotonPay 的 OpenAPI sandbox 已接入 `CardTransactionSimulator`。各渠道不再自行写入模拟授权、交易阶段或修改钱包；UI 和 OpenAPI 仍各自拥有请求、协议适配、操作日志及通知适配，不互相调用。`CardIssuer` 尚未替换各渠道开卡入口。
+Slash、Paynda、PhotonPay、PingPong 的 UI 模拟授权、清算、退款和撤销已接入 `CardTransactionSimulator`。各渠道不再自行写入模拟授权、交易阶段或修改钱包。模拟操作仅通过 UI 管理接口提供，不向 OpenAPI 暴露，也不在 OpenAPI usecase 中注入模拟器；OpenAPI 仍通过原查询协议读取 UI 创建的交易。`CardIssuer` 尚未替换各渠道开卡入口。
 
 ## 渠道接入约定
 
-- Slash、Paynda、PhotonPay 的 `/ui/simulate/authorizations`、`/ui/simulate/refunds` 和交易阶段操作必须显式传入 `account_id`；授权详情上的阶段操作和 PingPong 原有入口保留其账户参数。前端直接使用所选卡/交易返回的账户 ID，不额外查询账户列表。
-- 授权详情操作先按账户读取授权以取得卡 ID，交易操作先按账户读取原交易；共享模拟器在自己的事务内再次锁定并验证账户、卡、授权、币种及钱包。渠道不得在外层再包事务。
+- 所有渠道的模拟请求均不传 `account_id`。模拟授权传卡 ID；清算、撤销、关联退款只需授权 ID 和金额，账户、卡和币种由共享模拟器从授权记录读取。独立退款没有授权，必须提供卡 ID 和币种。
+- 模拟器在自己的事务内先按渠道和资源主键确认存在并读取归属，再按派生出的账户/渠道锁定并验证账户、卡、授权、币种及钱包；归属解析查询是显式的例外，后续查询不省略账户条件。交易入口先按渠道读取原交易，再传授权 ID。渠道不得在外层再包事务，也不再为了调用模拟器重复读取授权。
 - UI 独立退款省略 `authorization_id`，关联退款传正数渠道 ID；显式零值、空字符串和跨账户/跨卡引用不能当成独立退款。
 - Slash 由 service 实现 `CardTransactionNotificator`，在边界转换 UUID 后交给原 webhook 投递器；Paynda、PhotonPay UI 的通知适配器按账户读取已提交交易并调用原投递流程。原来 service/渠道流程末尾的重复发送已移除。
-- PingPong 明确传入 `NoopNotificator`，保持 `contract_pending`，不虚构投递记录。PhotonPay sandbox 保留原来不发送 UI webhook 的行为，也显式使用 `NoopNotificator`；没有借迁移新增同步授权回调。
-- PingPong 和 PhotonPay sandbox 将必填 `request_id` / `requestId` 交给共享模拟器处理幂等，重放不重复记账或通知。三个其他 UI 协议原来没有请求 ID，此次不新增。
+- PingPong 明确传入 `NoopNotificator`，保持 `contract_pending`，不虚构投递记录；没有借迁移新增同步授权回调。
+- PingPong 将必填 `request_id` 交给共享模拟器处理幂等，重放不重复记账或通知。三个其他 UI 协议原来没有请求 ID，此次不新增。
 - 所有渠道通过各自独立 `errors` 包把共享错误转为已有渠道错误。Slash、Paynda、PhotonPay 的旧业务错误从 `biz` 迁入 `errors`，不保留别名，不改变状态码、reason 或 message。
 
 ## 依赖与注册
@@ -148,7 +148,6 @@ authorizationRequestID := "authorization-001"
 clearingRequestID := "clearing-001"
 
 authorizationResult, err := simulator.SimulateAuthorization(ctx, &biz.SimulateAuthorizationReq{
-	AccountID:   accountID,
 	Channel:     channel,
 	CardID:      cardID,
 	Currency:    currency,
@@ -161,9 +160,7 @@ if err != nil {
 }
 
 clearingResult, err := simulator.SimulateClearing(ctx, &biz.SimulateClearingReq{
-	AccountID:       accountID,
 	Channel:         channel,
-	CardID:          cardID,
 	AuthorizationID: authorizationResult.Authorization.ID,
 	Amount:          decimal.NewFromInt(12),
 	RequestID:       &clearingRequestID,
@@ -181,10 +178,9 @@ if err != nil {
 ```go
 refundRequestID := "refund-001"
 refundResult, err := simulator.SimulateRefund(ctx, &biz.SimulateRefundReq{
-	AccountID:   accountID,
 	Channel:     channel,
-	CardID:      cardID,
-	Currency:    currency,
+	CardID:      &cardID,
+	Currency:    &currency,
 	Amount:      decimal.NewFromInt(3),
 	RequestID:   &refundRequestID,
 	Notificator: notificator,
@@ -195,9 +191,7 @@ if err != nil {
 
 reversalRequestID := "reversal-001"
 reversalResult, err := simulator.SimulateReversal(ctx, &biz.SimulateReversalReq{
-	AccountID:       accountID,
 	Channel:         channel,
-	CardID:          cardID,
 	AuthorizationID: authorizationResult.Authorization.ID,
 	Amount:          decimal.NewFromInt(2),
 	Status:          enums.TransactionStatus_VOID,
@@ -209,9 +203,9 @@ if err != nil {
 }
 ```
 
-- 退款的 `AuthorizationID` 是可选指针。nil 表示独立退款，持久化为 0，不创建或查找虚构授权；非 nil 必须是同账户、同渠道、同一卡的正数授权 ID，传入 0 不会被当作省略。
+- 退款的 `AuthorizationID` 是可选指针。nil 表示独立退款，持久化为 0，不创建或查找虚构授权，此时 `CardID` 和 `Currency` 指针必须提供；非 nil 时从授权解析账户、卡和币种，不需要重复提供这些字段。显式传入的卡或币种必须与授权匹配，传入零 ID 不会被当作省略。
 - 独立退款要求卡处于有效状态；关联已有授权的退款与撤销不因卡被冻结而拒绝。两种退款均不要求存在先前清算，也不限制为已清算金额。
-- 关联退款的请求币种必须与授权一致；未提供的商户字段继承授权，明确提供的字段按请求记录。独立退款使用请求的币种和商户字段。
+- 关联退款的币种从授权继承，明确提供时必须与授权一致；未提供的商户字段继承授权，明确提供的字段按请求记录。独立退款使用请求的币种和商户字段。
 - 退款增加卡实际消费钱包的 `Available` 和 `In`，不释放占款、不增加或扣减授权剩余金额。
 - 撤销的 `AuthorizationID` 必填，币种、商户信息及原授权交易关联从授权继承。撤销扣减授权剩余金额，保留负数，将实际释放的冻结金额转回可用余额，不增加总余额。
 - 撤销请求的 `Status` 必填，仅允许 `TransactionStatus_VOID` 或 `TransactionStatus_SUCCEED`。上层按已有渠道约定传入：Slash、Paynda、PhotonPay 使用 VOID，PingPong 使用 SUCCEED。交易 `Type` 始终为 VOID，共享层不硬编码渠道判断。
@@ -234,7 +228,7 @@ if err != nil {
 
 ### 数据与事务边界
 
-- 四种模拟金额均必须为正数。账户、卡 ID 必填且为正数；清算和撤销的授权 ID 必填，退款的授权 ID 可选。可选请求 ID 和商户字段使用指针，非 nil 的空字符串会被拒绝。
+- 四种模拟金额均必须为正数，渠道由调用方指定。授权的卡 ID 必填，清算和撤销的授权 ID 必填；退款的授权 ID 可选，独立退款的卡 ID 和币种必填。资源 ID 必须为正数，所有账户归属由后端读取。可选请求 ID 和商户字段使用指针，非 nil 的空字符串会被拒绝。
 - 授权要求卡有效，卡、钱包和请求币种一致。清算必须引用同一账户、同一渠道、同一卡的有效授权，币种和商户信息从授权继承；卡被冻结后仍可清算已有授权。
 - 总是使用 `Card.WalletID` 对应的钱包。`single`、`virtual_account_single` 使用卡钱包，`share` 使用虚拟账户钱包；不会因为卡关联 VA 就改扣 VA 或根账户的钱包。
 - 账户行锁串行化同账户的共享模拟请求；授权、卡及钱包按需加行锁。账户、授权、卡、钱包和历史阶段查询均明确限制归属。

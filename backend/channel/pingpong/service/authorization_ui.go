@@ -12,7 +12,6 @@ import (
 )
 
 type SimulateAuthorizationRequest struct {
-	AccountID    string          `json:"account_id" binding:"required"`
 	CardID       string          `json:"card_id" binding:"required"`
 	Amount       Number          `json:"amount"`
 	Currency     common.Currency `json:"currency" binding:"required,oneof=USD"`
@@ -40,7 +39,7 @@ type UIListAuthorizationsRequest struct {
 }
 
 type UIStageRequest struct {
-	UIResourceRequest
+	ID        string     `uri:"id" binding:"required"`
 	Stage     ping.Stage `json:"stage" binding:"required,oneof=clear reverse refund"`
 	Amount    Number     `json:"amount"`
 	RequestID string     `json:"request_id" binding:"required"`
@@ -63,16 +62,11 @@ func toAuthorizationData(item *model.Authorization) AuthorizationData {
 }
 
 func (s *PingPongUIService) SimulateAuthorization(ctx context.Context, req *SimulateAuthorizationRequest) (*AuthorizationData, error) {
-	accountID, err := idconv.FromString(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
 	cardID, err := idconv.FromString(req.CardID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.uc.SimulateAuthorization(ctx, &biz.SimulateAuthorizationRequest{
-		AccountID:    accountID,
 		CardID:       cardID,
 		Amount:       req.Amount.Decimal,
 		Currency:     req.Currency,
@@ -119,7 +113,7 @@ func (s *PingPongUIService) ListAuthorizations(ctx context.Context, req *UIListA
 }
 
 func (s *PingPongUIService) ApplyAuthorizationStage(ctx context.Context, req *UIStageRequest) (*Empty, error) {
-	accountID, id, err := req.UIResourceRequest.ParseAccountAndResourceIDs()
+	id, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +125,6 @@ func (s *PingPongUIService) ApplyAuthorizationStage(ctx context.Context, req *UI
 		kind = common.CardTransactionType_REFUND
 	}
 	if err := s.uc.Stage(ctx, &biz.AuthorizationStageRequest{
-		AccountID: accountID,
 		ID:        id,
 		Kind:      kind,
 		Amount:    req.Amount.Decimal,

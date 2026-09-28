@@ -34,7 +34,6 @@ type ListAuthorizationsRequest struct {
 }
 
 type SimulateAuthorizationRequest struct {
-	AccountID       model.ID
 	CardID          model.ID
 	Amount          decimal.Decimal
 	Currency        enums.Currency
@@ -50,28 +49,24 @@ type SimulateAuthorizationResult struct {
 }
 
 type ClearAuthorizationRequest struct {
-	AccountID   model.ID
 	ID          model.ID
 	Amount      decimal.Decimal
 	Notificator sharedbiz.CardTransactionNotificator
 }
 
 type ReverseAuthorizationRequest struct {
-	AccountID   model.ID
 	ID          model.ID
 	Amount      decimal.Decimal
 	Notificator sharedbiz.CardTransactionNotificator
 }
 
 type RefundAuthorizationRequest struct {
-	AccountID   model.ID
 	ID          model.ID
 	Amount      decimal.Decimal
 	Notificator sharedbiz.CardTransactionNotificator
 }
 
 type applyAuthorizationStepRequest struct {
-	AccountID   model.ID
 	ID          model.ID
 	Amount      decimal.Decimal
 	Type        enums.CardTransactionType
@@ -123,7 +118,6 @@ func (u *SlashUIUsecase) SimulateAuthorization(ctx context.Context, req *Simulat
 		return nil, slasherrors.ErrInvalidOperation
 	}
 	result, err := u.simulator.SimulateAuthorization(ctx, &sharedbiz.SimulateAuthorizationReq{
-		AccountID:       req.AccountID,
 		Channel:         enums.Channel_Slash,
 		CardID:          req.CardID,
 		Amount:          req.Amount,
@@ -235,7 +229,6 @@ func (u *SlashUIUsecase) ListAuthorizationBalances(ctx context.Context, req *Lis
 
 func (u *SlashUIUsecase) ClearAuthorization(ctx context.Context, req *ClearAuthorizationRequest) (*model.CardTransaction, error) {
 	return u.applyAuthorizationStep(ctx, &applyAuthorizationStepRequest{
-		AccountID:   req.AccountID,
 		ID:          req.ID,
 		Amount:      req.Amount,
 		Type:        enums.CardTransactionType_CLEAR,
@@ -245,7 +238,6 @@ func (u *SlashUIUsecase) ClearAuthorization(ctx context.Context, req *ClearAutho
 
 func (u *SlashUIUsecase) ReverseAuthorization(ctx context.Context, req *ReverseAuthorizationRequest) (*model.CardTransaction, error) {
 	return u.applyAuthorizationStep(ctx, &applyAuthorizationStepRequest{
-		AccountID:   req.AccountID,
 		ID:          req.ID,
 		Amount:      req.Amount,
 		Type:        enums.CardTransactionType_VOID,
@@ -255,7 +247,6 @@ func (u *SlashUIUsecase) ReverseAuthorization(ctx context.Context, req *ReverseA
 
 func (u *SlashUIUsecase) RefundAuthorization(ctx context.Context, req *RefundAuthorizationRequest) (*model.CardTransaction, error) {
 	return u.applyAuthorizationStep(ctx, &applyAuthorizationStepRequest{
-		AccountID:   req.AccountID,
 		ID:          req.ID,
 		Amount:      req.Amount,
 		Type:        enums.CardTransactionType_REFUND,
@@ -264,58 +255,33 @@ func (u *SlashUIUsecase) RefundAuthorization(ctx context.Context, req *RefundAut
 }
 
 func (u *SlashUIUsecase) applyAuthorizationStep(ctx context.Context, req *applyAuthorizationStepRequest) (*model.CardTransaction, error) {
-	if req.AccountID <= 0 || req.ID <= 0 || !req.Amount.IsPositive() {
+	if req == nil {
 		return nil, slasherrors.ErrInvalidOperation
 	}
-	exists, err := u.authorizationRepository.AuthorizationExists(ctx, &ExistAuthorizationRequest{
-		AccountID: req.AccountID,
-		ID:        req.ID,
-	})
-	if err != nil {
-		zap.S().Errorw("check slash simulation authorization", "error", err)
-		return nil, slasherrors.ErrDatabaseOperation
-	}
-	if !exists {
-		return nil, slasherrors.ErrResourceNotFound
-	}
-	auth, err := u.authorizationRepository.FindAuthorizationDetail(ctx, &FindAuthorizationDetailRequest{
-		AccountID: req.AccountID,
-		ID:        req.ID,
-	})
-	if err != nil {
-		zap.S().Errorw("find slash simulation authorization", "error", err)
-		return nil, slasherrors.ErrDatabaseOperation
-	}
+	var err error
 	var result *sharedbiz.CardTransactionSimulationResult
 	switch req.Type {
 	case enums.CardTransactionType_CLEAR:
 		result, err = u.simulator.SimulateClearing(ctx, &sharedbiz.SimulateClearingReq{
-			AccountID:       req.AccountID,
 			Channel:         enums.Channel_Slash,
-			CardID:          auth.CardID,
 			Amount:          req.Amount,
 			Notificator:     req.Notificator,
-			AuthorizationID: auth.ID,
+			AuthorizationID: req.ID,
 		})
 	case enums.CardTransactionType_VOID:
 		result, err = u.simulator.SimulateReversal(ctx, &sharedbiz.SimulateReversalReq{
-			AccountID:       req.AccountID,
 			Channel:         enums.Channel_Slash,
-			CardID:          auth.CardID,
 			Amount:          req.Amount,
 			Notificator:     req.Notificator,
-			AuthorizationID: auth.ID,
+			AuthorizationID: req.ID,
 			Status:          enums.TransactionStatus_VOID,
 		})
 	case enums.CardTransactionType_REFUND:
 		result, err = u.simulator.SimulateRefund(ctx, &sharedbiz.SimulateRefundReq{
-			AccountID:       req.AccountID,
 			Channel:         enums.Channel_Slash,
-			CardID:          auth.CardID,
 			Amount:          req.Amount,
 			Notificator:     req.Notificator,
-			AuthorizationID: &auth.ID,
-			Currency:        auth.Currency,
+			AuthorizationID: &req.ID,
 		})
 	default:
 		return nil, slasherrors.ErrInvalidOperation

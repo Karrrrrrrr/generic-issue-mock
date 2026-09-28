@@ -25,7 +25,6 @@ type ListAuthorizationBalancesRequest struct {
 }
 
 type PayndaSimulateAuthorizationRequest struct {
-	AccountID       model.ID
 	CardID          model.ID
 	Amount          decimal.Decimal
 	Currency        enums.Currency
@@ -40,28 +39,24 @@ type PayndaSimulateAuthorizationResult struct {
 }
 
 type ClearAuthorizationRequest struct {
-	AccountID model.ID
-	ID        model.ID
-	Amount    decimal.Decimal
+	ID     model.ID
+	Amount decimal.Decimal
 }
 
 type ReverseAuthorizationRequest struct {
-	AccountID model.ID
-	ID        model.ID
-	Amount    decimal.Decimal
+	ID     model.ID
+	Amount decimal.Decimal
 }
 
 type RefundAuthorizationRequest struct {
-	AccountID model.ID
-	ID        model.ID
-	Amount    decimal.Decimal
+	ID     model.ID
+	Amount decimal.Decimal
 }
 
 type applyAuthorizationStepRequest struct {
-	AccountID model.ID
-	ID        model.ID
-	Amount    decimal.Decimal
-	Type      enums.CardTransactionType
+	ID     model.ID
+	Amount decimal.Decimal
+	Type   enums.CardTransactionType
 }
 
 type AuthorizationBalance struct {
@@ -122,7 +117,6 @@ func (u *PayndaUIUsecase) SimulateAuthorization(ctx context.Context, req *Paynda
 		return nil, payndaerrors.ErrInvalidOperation
 	}
 	result, err := u.simulator.SimulateAuthorization(ctx, &sharedbiz.SimulateAuthorizationReq{
-		AccountID:       req.AccountID,
 		Channel:         enums.Channel_Paynda,
 		CardID:          req.CardID,
 		Amount:          req.Amount,
@@ -180,84 +174,56 @@ func (u *PayndaUIUsecase) ListAuthorizationBalances(ctx context.Context, req *Li
 
 func (u *PayndaUIUsecase) ClearAuthorization(ctx context.Context, req *ClearAuthorizationRequest) (*model.CardTransaction, error) {
 	return u.applyAuthorizationStep(ctx, &applyAuthorizationStepRequest{
-		AccountID: req.AccountID,
-		ID:        req.ID,
-		Amount:    req.Amount,
-		Type:      enums.CardTransactionType_CLEAR,
+		ID:     req.ID,
+		Amount: req.Amount,
+		Type:   enums.CardTransactionType_CLEAR,
 	})
 }
 
 func (u *PayndaUIUsecase) ReverseAuthorization(ctx context.Context, req *ReverseAuthorizationRequest) (*model.CardTransaction, error) {
 	return u.applyAuthorizationStep(ctx, &applyAuthorizationStepRequest{
-		AccountID: req.AccountID,
-		ID:        req.ID,
-		Amount:    req.Amount,
-		Type:      enums.CardTransactionType_VOID,
+		ID:     req.ID,
+		Amount: req.Amount,
+		Type:   enums.CardTransactionType_VOID,
 	})
 }
 
 func (u *PayndaUIUsecase) RefundAuthorization(ctx context.Context, req *RefundAuthorizationRequest) (*model.CardTransaction, error) {
 	return u.applyAuthorizationStep(ctx, &applyAuthorizationStepRequest{
-		AccountID: req.AccountID,
-		ID:        req.ID,
-		Amount:    req.Amount,
-		Type:      enums.CardTransactionType_REFUND,
+		ID:     req.ID,
+		Amount: req.Amount,
+		Type:   enums.CardTransactionType_REFUND,
 	})
 }
 
 func (u *PayndaUIUsecase) applyAuthorizationStep(ctx context.Context, req *applyAuthorizationStepRequest) (*model.CardTransaction, error) {
-	if req.AccountID <= 0 || req.ID <= 0 || !req.Amount.IsPositive() {
+	if req == nil {
 		return nil, payndaerrors.ErrInvalidOperation
 	}
-	exists, err := u.authorizationRepository.AuthorizationExists(ctx, &ExistAuthorizationRequest{
-		AccountID: req.AccountID,
-		ID:        req.ID,
-	})
-	if err != nil {
-		zap.S().Errorw("check paynda simulation authorization", "error", err)
-		return nil, payndaerrors.ErrDatabaseOperation
-	}
-	if !exists {
-		return nil, payndaerrors.ErrResourceNotFound
-	}
-	auth, err := u.authorizationRepository.FindAuthorizationDetail(ctx, &FindAuthorizationDetailRequest{
-		AccountID: req.AccountID,
-		ID:        req.ID,
-	})
-	if err != nil {
-		zap.S().Errorw("find paynda simulation authorization", "error", err)
-		return nil, payndaerrors.ErrDatabaseOperation
-	}
+	var err error
 	var result *sharedbiz.CardTransactionSimulationResult
 	switch req.Type {
 	case enums.CardTransactionType_CLEAR:
 		result, err = u.simulator.SimulateClearing(ctx, &sharedbiz.SimulateClearingReq{
-			AccountID:       req.AccountID,
 			Channel:         enums.Channel_Paynda,
-			CardID:          auth.CardID,
 			Amount:          req.Amount,
 			Notificator:     u,
-			AuthorizationID: auth.ID,
+			AuthorizationID: req.ID,
 		})
 	case enums.CardTransactionType_VOID:
 		result, err = u.simulator.SimulateReversal(ctx, &sharedbiz.SimulateReversalReq{
-			AccountID:       req.AccountID,
 			Channel:         enums.Channel_Paynda,
-			CardID:          auth.CardID,
 			Amount:          req.Amount,
 			Notificator:     u,
-			AuthorizationID: auth.ID,
+			AuthorizationID: req.ID,
 			Status:          enums.TransactionStatus_VOID,
 		})
 	case enums.CardTransactionType_REFUND:
 		result, err = u.simulator.SimulateRefund(ctx, &sharedbiz.SimulateRefundReq{
-			AccountID:       req.AccountID,
 			Channel:         enums.Channel_Paynda,
-			CardID:          auth.CardID,
 			Amount:          req.Amount,
 			Notificator:     u,
-			AuthorizationID: &auth.ID,
-			Currency:        auth.Currency,
+			AuthorizationID: &req.ID,
 		})
 	default:
 		return nil, payndaerrors.ErrInvalidOperation

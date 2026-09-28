@@ -36,7 +36,6 @@ func Register(
 		openAPIRoutes.POST("/vcc/openApi/v4/recharge", bind(openAPIService.Recharge))
 		openAPIRoutes.POST("/vcc/openApi/v4/rechargeReturn", bind(openAPIService.Recharge))
 		openAPIRoutes.POST("/vcc/openApi/v4/updateCard", bind(openAPIService.UpdateCard))
-		openAPIRoutes.POST("/vcc/open/v2/sandBoxTransaction", bind(openAPIService.SandboxTransaction))
 		openAPIRoutes.GET("/exchange-center/open/api/v1/webhook/notification", bind(openAPIService.WebhookNotifications))
 		openAPIRoutes.PUT("/exchange-center/open/api/v1/webhook/notification", bind(openAPIService.WebhookNotifications))
 		openAPIRoutes.DELETE("/exchange-center/open/api/v1/webhook/notification", bind(openAPIService.WebhookNotifications))

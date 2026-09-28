@@ -36,18 +36,16 @@ type PayndaListTransactionsRequest struct {
 }
 
 type PayndaSimulateRefundRequest struct {
-	AccountID       model.ID
 	AuthorizationID *model.ID
-	CardID          model.ID
+	CardID          *model.ID
 	Amount          decimal.Decimal
-	Currency        enums.Currency
+	Currency        *enums.Currency
 	MerchantName    *string
 	MerchantCountry *string
 	MerchantMCC     *string
 }
 
 type PayndaUIApplyTransactionStepRequest struct {
-	AccountID         model.ID
 	CardTransactionID model.ID
 	Type              enums.CardTransactionType
 	Amount            *decimal.Decimal
@@ -98,7 +96,6 @@ func (u *PayndaUIUsecase) SimulateRefund(ctx context.Context, req *PayndaSimulat
 		return nil, payndaerrors.ErrInvalidOperation
 	}
 	result, err := u.simulator.SimulateRefund(ctx, &sharedbiz.SimulateRefundReq{
-		AccountID:       req.AccountID,
 		Channel:         enums.Channel_Paynda,
 		CardID:          req.CardID,
 		AuthorizationID: req.AuthorizationID,
@@ -116,13 +113,10 @@ func (u *PayndaUIUsecase) SimulateRefund(ctx context.Context, req *PayndaSimulat
 }
 
 func (u *PayndaUIUsecase) ApplyTransactionStep(ctx context.Context, req *PayndaUIApplyTransactionStepRequest) (*model.CardTransaction, error) {
-	if req == nil || req.AccountID <= 0 || req.CardTransactionID <= 0 {
+	if req == nil || req.CardTransactionID <= 0 {
 		return nil, payndaerrors.ErrInvalidOperation
 	}
-	exists, err := u.cardTransactionRepository.ExistByAccountID(ctx, &CardTransactionExistByAccountIDRequest{
-		AccountID: req.AccountID,
-		ID:        req.CardTransactionID,
-	})
+	exists, err := u.cardTransactionRepository.ExistByID(ctx, req.CardTransactionID)
 	if err != nil {
 		zap.S().Errorw("check paynda simulation transaction", "error", err)
 		return nil, payndaerrors.ErrDatabaseOperation
@@ -130,10 +124,7 @@ func (u *PayndaUIUsecase) ApplyTransactionStep(ctx context.Context, req *PayndaU
 	if !exists {
 		return nil, payndaerrors.ErrResourceNotFound
 	}
-	origin, err := u.cardTransactionRepository.FindByAccountID(ctx, &CardTransactionFindByAccountIDRequest{
-		AccountID: req.AccountID,
-		ID:        req.CardTransactionID,
-	})
+	origin, err := u.cardTransactionRepository.FindByID(ctx, req.CardTransactionID)
 	if err != nil {
 		zap.S().Errorw("find paynda simulation transaction", "error", err)
 		return nil, payndaerrors.ErrDatabaseOperation
@@ -153,18 +144,14 @@ func (u *PayndaUIUsecase) ApplyTransactionStep(ctx context.Context, req *PayndaU
 	switch req.Type {
 	case enums.CardTransactionType_CLEAR:
 		result, err = u.simulator.SimulateClearing(ctx, &sharedbiz.SimulateClearingReq{
-			AccountID:       req.AccountID,
 			Channel:         enums.Channel_Paynda,
-			CardID:          origin.CardID,
 			Amount:          amount,
 			Notificator:     u,
 			AuthorizationID: origin.AuthorizationID,
 		})
 	case enums.CardTransactionType_VOID:
 		result, err = u.simulator.SimulateReversal(ctx, &sharedbiz.SimulateReversalReq{
-			AccountID:       req.AccountID,
 			Channel:         enums.Channel_Paynda,
-			CardID:          origin.CardID,
 			Amount:          amount,
 			Notificator:     u,
 			AuthorizationID: origin.AuthorizationID,
@@ -172,13 +159,10 @@ func (u *PayndaUIUsecase) ApplyTransactionStep(ctx context.Context, req *PayndaU
 		})
 	case enums.CardTransactionType_REFUND:
 		result, err = u.simulator.SimulateRefund(ctx, &sharedbiz.SimulateRefundReq{
-			AccountID:       req.AccountID,
 			Channel:         enums.Channel_Paynda,
-			CardID:          origin.CardID,
 			Amount:          amount,
 			Notificator:     u,
 			AuthorizationID: &origin.AuthorizationID,
-			Currency:        origin.Currency,
 		})
 	default:
 		return nil, payndaerrors.ErrInvalidOperation

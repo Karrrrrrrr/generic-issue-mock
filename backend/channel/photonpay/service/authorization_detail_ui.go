@@ -19,13 +19,11 @@ type GetAuthorizationDetailRequest struct {
 }
 
 type ReverseAuthorizationRequest struct {
-	ManagementAccountRequest
 	ID     string          `uri:"id" binding:"required"`
 	Amount decimal.Decimal `json:"amount"`
 }
 
 type RefundAuthorizationRequest struct {
-	ManagementAccountRequest
 	ID     string          `uri:"id" binding:"required"`
 	Amount decimal.Decimal `json:"amount"`
 }
@@ -95,18 +93,13 @@ func (s *PhotonPayUIService) GetAuthorizationDetail(ctx context.Context, req *Ge
 }
 
 func (s *PhotonPayUIService) ReverseAuthorization(ctx context.Context, req *ReverseAuthorizationRequest) (*ClearAuthorizationData, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
 	id, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.ReverseAuthorization(ctx, &biz.ReverseAuthorizationRequest{
-		AccountID: accountID,
-		ID:        id,
-		Amount:    req.Amount,
+		ID:     id,
+		Amount: req.Amount,
 	})
 	if err != nil {
 		return nil, err
@@ -116,18 +109,13 @@ func (s *PhotonPayUIService) ReverseAuthorization(ctx context.Context, req *Reve
 }
 
 func (s *PhotonPayUIService) RefundAuthorization(ctx context.Context, req *RefundAuthorizationRequest) (*ClearAuthorizationData, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
 	id, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.RefundAuthorization(ctx, &biz.RefundAuthorizationRequest{
-		AccountID: accountID,
-		ID:        id,
-		Amount:    req.Amount,
+		ID:     id,
+		Amount: req.Amount,
 	})
 	if err != nil {
 		return nil, err

@@ -124,7 +124,7 @@ async function load() {
 
 async function apply(transaction: Transaction, action: "clear" | "reverse" | "refund") {
   try {
-    await api.applyTransactionStep(transaction, action);
+    await api.applyTransactionStep(transaction.id, action);
     await load();
   } catch (e) {
     message.error(e instanceof Error ? e.message : "操作失败");
@@ -139,7 +139,7 @@ function openRefund(row: Transaction) {
 async function submitRefund() {
   if (!refunding.value || !refundAmount.value || refundAmount.value <= 0) return;
   try {
-    await applyTransactionAmount(refunding.value, "refund", refundAmount.value);
+    await applyTransactionAmount(refunding.value.id, "refund", refundAmount.value);
     refunding.value = null;
     await load();
   } catch (e) {

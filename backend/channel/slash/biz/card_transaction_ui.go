@@ -28,11 +28,10 @@ type ListCardTransactionsRequest struct {
 }
 
 type SimulateRefundRequest struct {
-	AccountID       model.ID
 	AuthorizationID *model.ID
-	CardID          model.ID
+	CardID          *model.ID
 	Amount          decimal.Decimal
-	Currency        enums.Currency
+	Currency        *enums.Currency
 	MerchantName    *string
 	MerchantCountry *string
 	MerchantMCC     *string
@@ -40,7 +39,6 @@ type SimulateRefundRequest struct {
 }
 
 type ApplyTransactionStepRequest struct {
-	AccountID         model.ID
 	CardTransactionID model.ID
 	Type              enums.CardTransactionType
 	Amount            *decimal.Decimal
@@ -52,7 +50,6 @@ func (u *SlashUIUsecase) SimulateRefund(ctx context.Context, req *SimulateRefund
 		return nil, slasherrors.ErrInvalidOperation
 	}
 	result, err := u.simulator.SimulateRefund(ctx, &sharedbiz.SimulateRefundReq{
-		AccountID:       req.AccountID,
 		Channel:         enums.Channel_Slash,
 		CardID:          req.CardID,
 		AuthorizationID: req.AuthorizationID,
@@ -125,13 +122,10 @@ func (u *SlashUIUsecase) GetCardTransaction(ctx context.Context, id model.ID) (*
 }
 
 func (u *SlashUIUsecase) ApplyTransactionStep(ctx context.Context, req *ApplyTransactionStepRequest) (*model.CardTransaction, error) {
-	if req == nil || req.AccountID <= 0 || req.CardTransactionID <= 0 {
+	if req == nil || req.CardTransactionID <= 0 {
 		return nil, slasherrors.ErrInvalidOperation
 	}
-	exists, err := u.cardTransactionRepository.ExistByAccountID(ctx, &CardTransactionExistByAccountIDRequest{
-		AccountID: &req.AccountID,
-		ID:        req.CardTransactionID,
-	})
+	exists, err := u.cardTransactionRepository.ExistByID(ctx, req.CardTransactionID)
 	if err != nil {
 		zap.S().Errorw("check slash simulation transaction", "error", err)
 		return nil, slasherrors.ErrDatabaseOperation
@@ -139,10 +133,7 @@ func (u *SlashUIUsecase) ApplyTransactionStep(ctx context.Context, req *ApplyTra
 	if !exists {
 		return nil, slasherrors.ErrResourceNotFound
 	}
-	origin, err := u.cardTransactionRepository.FindByAccountID(ctx, &CardTransactionFindByAccountIDRequest{
-		AccountID: &req.AccountID,
-		ID:        req.CardTransactionID,
-	})
+	origin, err := u.cardTransactionRepository.FindByID(ctx, req.CardTransactionID)
 	if err != nil {
 		zap.S().Errorw("find slash simulation transaction", "error", err)
 		return nil, slasherrors.ErrDatabaseOperation
@@ -162,18 +153,14 @@ func (u *SlashUIUsecase) ApplyTransactionStep(ctx context.Context, req *ApplyTra
 	switch req.Type {
 	case enums.CardTransactionType_CLEAR:
 		result, err = u.simulator.SimulateClearing(ctx, &sharedbiz.SimulateClearingReq{
-			AccountID:       req.AccountID,
 			Channel:         enums.Channel_Slash,
-			CardID:          origin.CardID,
 			Amount:          amount,
 			Notificator:     req.Notificator,
 			AuthorizationID: origin.AuthorizationID,
 		})
 	case enums.CardTransactionType_VOID:
 		result, err = u.simulator.SimulateReversal(ctx, &sharedbiz.SimulateReversalReq{
-			AccountID:       req.AccountID,
 			Channel:         enums.Channel_Slash,
-			CardID:          origin.CardID,
 			Amount:          amount,
 			Notificator:     req.Notificator,
 			AuthorizationID: origin.AuthorizationID,
@@ -181,13 +168,10 @@ func (u *SlashUIUsecase) ApplyTransactionStep(ctx context.Context, req *ApplyTra
 		})
 	case enums.CardTransactionType_REFUND:
 		result, err = u.simulator.SimulateRefund(ctx, &sharedbiz.SimulateRefundReq{
-			AccountID:       req.AccountID,
 			Channel:         enums.Channel_Slash,
-			CardID:          origin.CardID,
 			Amount:          amount,
 			Notificator:     req.Notificator,
 			AuthorizationID: &origin.AuthorizationID,
-			Currency:        origin.Currency,
 		})
 	default:
 		return nil, slasherrors.ErrInvalidOperation

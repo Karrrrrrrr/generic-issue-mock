@@ -141,7 +141,6 @@ async function submit() {
     return;
   }
   const common = {
-    account_id: card.account_id,
     amount: amount.value,
     request_id: orderID.value,
   };
@@ -152,6 +151,7 @@ async function submit() {
     merchant_name: merchant.value,
   }) : api.post(`cards/${card.id}/fund`, {
     ...common,
+    account_id: card.account_id,
     action: operation.value,
   }));
   if (done) {

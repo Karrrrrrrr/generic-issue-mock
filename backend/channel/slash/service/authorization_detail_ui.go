@@ -19,13 +19,11 @@ type GetAuthorizationDetailRequest struct {
 }
 
 type ReverseAuthorizationRequest struct {
-	ManagementAccountRequest
 	ID     string          `uri:"id" binding:"required"`
 	Amount decimal.Decimal `json:"amount"`
 }
 
 type RefundAuthorizationRequest struct {
-	ManagementAccountRequest
 	ID     string          `uri:"id" binding:"required"`
 	Amount decimal.Decimal `json:"amount"`
 }
@@ -95,17 +93,12 @@ func (s *SlashUIService) GetAuthorizationDetail(ctx context.Context, req *GetAut
 }
 
 func (s *SlashUIService) ReverseAuthorization(ctx context.Context, req *ReverseAuthorizationRequest) (*ClearAuthorizationData, error) {
-	accountID, err := idconv.FromAccountUUID(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
 	id, err := idconv.FromUUID(req.ID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.ReverseAuthorization(ctx, &biz.ReverseAuthorizationRequest{
 		Notificator: s,
-		AccountID:   accountID,
 		ID:          id,
 		Amount:      req.Amount,
 	})
@@ -116,17 +109,12 @@ func (s *SlashUIService) ReverseAuthorization(ctx context.Context, req *ReverseA
 }
 
 func (s *SlashUIService) RefundAuthorization(ctx context.Context, req *RefundAuthorizationRequest) (*ClearAuthorizationData, error) {
-	accountID, err := idconv.FromAccountUUID(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
 	id, err := idconv.FromUUID(req.ID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.RefundAuthorization(ctx, &biz.RefundAuthorizationRequest{
 		Notificator: s,
-		AccountID:   accountID,
 		ID:          id,
 		Amount:      req.Amount,
 	})

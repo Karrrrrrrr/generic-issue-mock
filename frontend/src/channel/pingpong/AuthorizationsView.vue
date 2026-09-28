@@ -119,7 +119,6 @@ async function submit() {
     return;
   }
   if (await perform(() => api.post(`authorizations/${authorization.id}/stages`, {
-    account_id: authorization.account_id,
     amount: amount.value,
     stage: action.value,
     request_id: orderID.value,

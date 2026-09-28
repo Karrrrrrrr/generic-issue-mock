@@ -11,7 +11,6 @@ request.interceptors.response.use(
 );
 
 export function authorizationPayload(payload: {
-  accountID: string;
   cardID: string;
   amount: number;
   currency: string;
@@ -21,7 +20,6 @@ export function authorizationPayload(payload: {
   merchantCity: string;
 }) {
   return {
-    account_id: payload.accountID,
     card_id: payload.cardID,
     transaction_amount: payload.amount,
     transaction_currency: payload.currency,

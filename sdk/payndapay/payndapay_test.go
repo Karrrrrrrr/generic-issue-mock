@@ -651,7 +651,6 @@ func TestPayndaTransactions(testContext *testing.T) {
 		}
 	})
 	first := suite.UI(testContext, http.MethodPost, "/simulate/refunds", map[string]any{
-		"account_id":             suite.Config.Account,
 		"card_id":                card.Card.ID,
 		"amount":                 2,
 		"currency":               "USD",
@@ -661,7 +660,6 @@ func TestPayndaTransactions(testContext *testing.T) {
 	})
 	transactionID := contract.Text(testContext, first, "id")
 	suite.UI(testContext, http.MethodPost, "/simulate/refunds", map[string]any{
-		"account_id":             suite.Config.Account,
 		"card_id":                card.Card.ID,
 		"amount":                 3,
 		"currency":               "USD",
@@ -757,7 +755,6 @@ func TestPayndaAuthorizationTransactions(testContext *testing.T) {
 	suite := fixture.suite
 	card, _ := fixture.createCard(testContext)
 	authorization := suite.UI(testContext, http.MethodPost, "/simulate/authorizations", map[string]any{
-		"account_id":             suite.Config.Account,
 		"card_id":                card.Card.ID,
 		"transaction_amount":     "2",
 		"transaction_currency":   "USD",
@@ -801,8 +798,7 @@ func TestPayndaAuthorizationTransactions(testContext *testing.T) {
 		}
 	})
 	clearing := suite.UI(testContext, http.MethodPost, "/authorizations/"+authorizationID+"/clear", map[string]any{
-		"account_id": suite.Config.Account,
-		"amount":     "3",
+		"amount": "3",
 	})
 	clearingID := contract.Text(testContext, clearing, "id")
 	testContext.Run("QueryCardTransaction/over-clearing", func(testContext *testing.T) {

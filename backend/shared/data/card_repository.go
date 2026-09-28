@@ -49,3 +49,22 @@ func (repo *cardRepository) FindByIDWithLock(ctx context.Context, req *biz.CardF
 			table.Channel.Eq(string(req.Channel)),
 		).First()
 }
+
+func (repo *cardRepository) ExistForSimulation(ctx context.Context, req *biz.CardSimulationExistRequest) (bool, error) {
+	table := repo.DB(ctx).Card
+	count, err := table.WithContext(ctx).
+		Where(
+			table.ID.Eq(req.ID),
+			table.Channel.Eq(string(req.Channel)),
+		).Count()
+	return count > 0, err
+}
+
+func (repo *cardRepository) FindForSimulation(ctx context.Context, req *biz.CardSimulationFindRequest) (*model.Card, error) {
+	table := repo.DB(ctx).Card
+	return table.WithContext(ctx).
+		Where(
+			table.ID.Eq(req.ID),
+			table.Channel.Eq(string(req.Channel)),
+		).First()
+}

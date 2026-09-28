@@ -75,7 +75,6 @@ type AuthorizationBalanceData struct {
 }
 
 type ClearAuthorizationRequest struct {
-	ManagementAccountRequest
 	ID     string          `uri:"id" binding:"required"`
 	Amount decimal.Decimal `json:"amount"`
 }
@@ -84,18 +83,13 @@ type ClearAuthorizationData struct {
 }
 
 func (s *PhotonPayUIService) ClearAuthorization(ctx context.Context, req *ClearAuthorizationRequest) (*ClearAuthorizationData, error) {
-	accountID, err := idconv.FromAccountString(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
 	authID, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
 	}
 	item, err := s.usecase.ClearAuthorization(ctx, &biz.ClearAuthorizationRequest{
-		AccountID: accountID,
-		ID:        authID,
-		Amount:    req.Amount,
+		ID:     authID,
+		Amount: req.Amount,
 	})
 	if err != nil {
 		return nil, err
