@@ -31,9 +31,32 @@ type WalletUpdateBalanceRequest struct {
 	Out        decimal.Decimal
 }
 
+type WalletFilters struct {
+	Channel    enums.Channel
+	IDs        []model.ID
+	AccountIDs []model.ID
+	Types      []enums.WalletType
+}
+
+type WalletListRequest struct {
+	WalletFilters
+	Offset int
+	Limit  int
+}
+
+type WalletCountRequest struct {
+	WalletFilters
+}
+
+type WalletCreateRequest struct {
+	Wallet *model.Wallet
+}
+
 type WalletRepo interface {
-	Create(context.Context, *model.Wallet) error
+	Create(context.Context, *WalletCreateRequest) error
 	Exist(context.Context, *WalletExistRequest) (bool, error)
 	FindByIDWithLock(context.Context, *WalletFindByIDWithLockRequest) (*model.Wallet, error)
 	UpdateBalance(context.Context, *WalletUpdateBalanceRequest) error
+	List(context.Context, *WalletListRequest) ([]*model.Wallet, error)
+	Count(context.Context, *WalletCountRequest) (int64, error)
 }

@@ -1,5 +1,7 @@
 # 通用卡业务组件
 
+共享仓储按资源定义，供 UI 和 OpenAPI 复用，不区分入口协议。新增的 Shared UI service 尚未接入现有路由，构造方式与能力边界见 [UI.md](UI.md)。
+
 `shared/biz` 处理已经归一化的开卡、模拟授权、清算、退款和撤销请求，不解释任何渠道协议，也不在内部查找“默认渠道账户”。渠道层负责解析外部 ID、选择产品/虚拟账户、校验协议参数，以及将共享错误映射为渠道错误码。
 
 Slash、Paynda、PhotonPay、PingPong 的 UI 模拟授权、清算、退款和撤销已接入 `CardTransactionSimulator`。各渠道不再自行写入模拟授权、交易阶段或修改钱包。模拟操作仅通过 UI 管理接口提供，不向 OpenAPI 暴露，也不在 OpenAPI usecase 中注入模拟器；OpenAPI 仍通过原查询协议读取 UI 创建的交易。`CardIssuer` 尚未替换各渠道开卡入口。
@@ -8,7 +10,7 @@ Slash、Paynda、PhotonPay、PingPong 的 UI 模拟授权、清算、退款和�
 
 - 所有渠道的模拟请求均不传 `account_id`。模拟授权传卡 ID；清算、撤销、关联退款只需授权 ID 和金额，账户、卡和币种由共享模拟器从授权记录读取。独立退款没有授权，必须提供卡 ID 和币种。
 - 模拟器在自己的事务内先按渠道和资源主键确认存在并读取归属，再按派生出的账户/渠道锁定并验证账户、卡、授权、币种及钱包；归属解析查询是显式的例外，后续查询不省略账户条件。交易入口先按渠道读取原交易，再传授权 ID。渠道不得在外层再包事务，也不再为了调用模拟器重复读取授权。
-- UI 独立退款省略 `authorization_id`，关联退款传正数渠道 ID；显式零值、空字符串和跨账户/跨卡引用不能当成独立退款。
+- UI 独立退款省略 `authorization_id`，关联退款传正数内部 `model.ID`，JSON 使用数字；显式零值、空字符串和跨账户/跨卡引用不能当成独立退款。
 - Slash 由 service 实现 `CardTransactionNotificator`，在边界转换 UUID 后交给原 webhook 投递器；Paynda、PhotonPay UI 的通知适配器按账户读取已提交交易并调用原投递流程。原来 service/渠道流程末尾的重复发送已移除。
 - PingPong 明确传入 `NoopNotificator`，保持 `contract_pending`，不虚构投递记录；没有借迁移新增同步授权回调。
 - PingPong 将必填 `request_id` 交给共享模拟器处理幂等，重放不重复记账或通知。三个其他 UI 协议原来没有请求 ID，此次不新增。
@@ -19,7 +21,7 @@ Slash、Paynda、PhotonPay、PingPong 的 UI 模拟授权、清算、退款和�
 - `CardIssuer`：通用开卡入口。
 - `CardTransactionSimulator`：仅暴露模拟授权、清算、退款和撤销四个方法的接口；具体实现 `cardTransactionSimulator` 不导出。请求、`Validate`、实现和复用的私有方法集中在 `biz/card_transaction_simulator.go`，不再拆出只有一次调用的流程方法。
 - `BalanceChanger`：通用余额变更接口，具体实现 `balanceChanger` 不导出，编译期断言保证接口实现完整。请求、`Validate` 和实现集中在 `biz/balance_changer.go`。
-- `AccountRepo`、`CardRepo`、`CardHolderRepo`、`CardProductRepo`、`VirtualAccountRepo`、`WalletRepo`、`AuthorizationRepo`、`CardTransactionRepo`：按资源拆分，只包含当前共享业务需要的仓储操作。
+- `AccountRepo`、`CardRepo`、`CardHolderRepo`、`CardProductRepo`、`VirtualAccountRepo`、`WalletRepo`、`AuthorizationRepo`、`CardTransactionRepo`、`WalletTransferRepo`、`WebhookConfigRepo`、`WebhookRecordRepo`：按资源拆分，提供当前已实现的查询、写入及锁定操作。接口、操作请求和实现均不限定 UI/OpenAPI；不为未来需求预设尚未使用的操作。
 - `Transaction`：`InTx` 管理真实提交边界，`IsInTx` 判断当前 context 是否已经携带事务。
 - 四个渠道的 UI/OpenAPI usecase 直接注入 `shared/biz.Transaction`，只由 `shared.RegisterProviders` 注册一次；不再定义渠道事务接口、别名或私有实现。各渠道仓储仍通过 `gormx.DB(ctx, db)` 使用同一个 context 事务。`InTx` 拒绝嵌套事务，需要加入已有事务的共享余额组件通过 `IsInTx` 判断后直接执行。
 - `Notificator`：由上层实现并在每次开卡请求中传入。通用层不负责 webhook DTO、签名、HTTP 调用、队列或重试策略。

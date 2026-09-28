@@ -236,7 +236,7 @@ func (issuer *CardIssuer) issueCard(ctx context.Context, req *IssueCardReq) (*mo
 		return nil, err
 	}
 	if assignment.CreateWallet {
-		if err := issuer.walletRepo.Create(ctx, assignment.Wallet); err != nil {
+		if err := issuer.walletRepo.Create(ctx, &WalletCreateRequest{Wallet: assignment.Wallet}); err != nil {
 			zap.S().Errorw(
 				"create shared card wallet",
 				"account_id", req.AccountID,
@@ -287,7 +287,7 @@ func (issuer *CardIssuer) issueCard(ctx context.Context, req *IssueCardReq) (*mo
 		RawRequest:             rawRequest,
 		Wallet:                 assignment.Wallet,
 	}
-	if err := issuer.cardRepo.Create(ctx, card); err != nil {
+	if err := issuer.cardRepo.Create(ctx, &CardCreateRequest{Card: card}); err != nil {
 		zap.S().Errorw(
 			"create shared card",
 			"account_id", req.AccountID,
@@ -337,7 +337,7 @@ func (issuer *CardIssuer) resolveCardHolderID(ctx context.Context, req *IssueCar
 		ReviewStatus: enums.CardHolderReviewStatus_Approved,
 		Shared:       false,
 	}
-	if err := issuer.cardHolderRepo.Create(ctx, item); err != nil {
+	if err := issuer.cardHolderRepo.Create(ctx, &CardHolderCreateRequest{CardHolder: item}); err != nil {
 		zap.S().Errorw(
 			"create shared card holder",
 			"account_id", req.AccountID,

@@ -7,6 +7,7 @@ import (
 	"generic-mock/shared/biz"
 
 	"github.com/samber/do/v2"
+	"gorm.io/gen"
 	"gorm.io/gorm/clause"
 )
 
@@ -14,12 +15,14 @@ type walletRepository struct {
 	*Repository
 }
 
+var _ biz.WalletRepo = (*walletRepository)(nil)
+
 func NewWalletRepository(injector do.Injector) (biz.WalletRepo, error) {
 	return &walletRepository{Repository: do.MustInvoke[*Repository](injector)}, nil
 }
 
-func (repo *walletRepository) Create(ctx context.Context, wallet *model.Wallet) error {
-	return repo.DB(ctx).Wallet.WithContext(ctx).Create(wallet)
+func (repo *walletRepository) Create(ctx context.Context, req *biz.WalletCreateRequest) error {
+	return repo.DB(ctx).Wallet.WithContext(ctx).Create(req.Wallet)
 }
 
 func (repo *walletRepository) Exist(ctx context.Context, req *biz.WalletExistRequest) (bool, error) {
@@ -59,4 +62,43 @@ func (repo *walletRepository) UpdateBalance(ctx context.Context, req *biz.Wallet
 			table.Out.Value(req.Out),
 		)
 	return err
+}
+
+func (repo *walletRepository) List(ctx context.Context, req *biz.WalletListRequest) ([]*model.Wallet, error) {
+	db := repo.DB(ctx)
+	table := db.Wallet
+	return table.WithContext(ctx).
+		Preload(table.Account).
+		Where(repo.buildPredicates(ctx, &req.WalletFilters)...).
+		Order(table.ID.Desc()).
+		Offset(req.Offset).
+		Limit(req.Limit).
+		Find()
+}
+
+func (repo *walletRepository) Count(ctx context.Context, req *biz.WalletCountRequest) (int64, error) {
+	db := repo.DB(ctx)
+	return db.Wallet.WithContext(ctx).
+		Where(repo.buildPredicates(ctx, &req.WalletFilters)...).
+		Count()
+}
+
+func (repo *walletRepository) buildPredicates(ctx context.Context, req *biz.WalletFilters) []gen.Condition {
+	db := repo.DB(ctx)
+	table := db.Wallet
+	predicates := []gen.Condition{table.Channel.Eq(string(req.Channel))}
+	if len(req.IDs) != 0 {
+		predicates = append(predicates, table.ID.In(req.IDs...))
+	}
+	if len(req.AccountIDs) != 0 {
+		predicates = append(predicates, table.AccountID.In(req.AccountIDs...))
+	}
+	if len(req.Types) != 0 {
+		values := make([]string, 0, len(req.Types))
+		for _, value := range req.Types {
+			values = append(values, string(value))
+		}
+		predicates = append(predicates, table.Type.In(values...))
+	}
+	return predicates
 }

@@ -23,8 +23,25 @@ type CardProductUpdateSeqRequest struct {
 	NextSequence int64
 }
 
+type CardProductFilters struct {
+	Channel enums.Channel
+	IDs     []model.ID
+}
+
+type CardProductListRequest struct {
+	CardProductFilters
+	Offset int
+	Limit  int
+}
+
+type CardProductCountRequest struct {
+	CardProductFilters
+}
+
 type CardProductRepo interface {
 	Exist(context.Context, *CardProductExistRequest) (bool, error)
 	FindByIDWithLock(context.Context, *CardProductFindByIDWithLockRequest) (*model.CardProduct, error)
 	UpdateSeq(context.Context, *CardProductUpdateSeqRequest) error
+	List(context.Context, *CardProductListRequest) ([]*model.CardProduct, error)
+	Count(context.Context, *CardProductCountRequest) (int64, error)
 }

@@ -310,7 +310,7 @@ func (simulator *cardTransactionSimulator) SimulateAuthorization(ctx context.Con
 			AuthorizationCode: randomx.Digits(6),
 			Status:            enums.TransactionStatus_AUTHORIZED,
 		}
-		if err := simulator.authorizationRepo.Create(ctx, authorization); err != nil {
+		if err := simulator.authorizationRepo.Create(ctx, &AuthorizationCreateRequest{Authorization: authorization}); err != nil {
 			zap.S().Errorw("create shared simulated authorization",
 				"account_id", accountID,
 				"channel", req.Channel,
@@ -336,7 +336,7 @@ func (simulator *cardTransactionSimulator) SimulateAuthorization(ctx context.Con
 			MerchantMCC:       authorization.MerchantMCC,
 			AuthorizationCode: authorization.AuthorizationCode,
 		}
-		if err := simulator.cardTransactionRepo.Create(ctx, transaction); err != nil {
+		if err := simulator.cardTransactionRepo.Create(ctx, &CardTransactionCreateRequest{CardTransaction: transaction}); err != nil {
 			zap.S().Errorw("create shared simulated authorization transaction",
 				"account_id", accountID,
 				"channel", req.Channel,
@@ -472,7 +472,7 @@ func (simulator *cardTransactionSimulator) SimulateClearing(ctx context.Context,
 			MerchantMCC:             authorization.MerchantMCC,
 			AuthorizationCode:       authorization.AuthorizationCode,
 		}
-		if err := simulator.cardTransactionRepo.Create(ctx, transaction); err != nil {
+		if err := simulator.cardTransactionRepo.Create(ctx, &CardTransactionCreateRequest{CardTransaction: transaction}); err != nil {
 			zap.S().Errorw("create shared simulated clearing transaction",
 				"account_id", accountID,
 				"channel", req.Channel,
@@ -665,7 +665,7 @@ func (simulator *cardTransactionSimulator) SimulateRefund(ctx context.Context, r
 			MerchantMCC:             merchantMCC,
 			AuthorizationCode:       authorizationCode,
 		}
-		if err := simulator.cardTransactionRepo.Create(ctx, transaction); err != nil {
+		if err := simulator.cardTransactionRepo.Create(ctx, &CardTransactionCreateRequest{CardTransaction: transaction}); err != nil {
 			zap.S().Errorw("create shared simulated refund transaction",
 				"account_id", accountID,
 				"channel", req.Channel,
@@ -803,7 +803,7 @@ func (simulator *cardTransactionSimulator) SimulateReversal(ctx context.Context,
 			MerchantMCC:             authorization.MerchantMCC,
 			AuthorizationCode:       authorization.AuthorizationCode,
 		}
-		if err := simulator.cardTransactionRepo.Create(ctx, transaction); err != nil {
+		if err := simulator.cardTransactionRepo.Create(ctx, &CardTransactionCreateRequest{CardTransaction: transaction}); err != nil {
 			zap.S().Errorw("create shared simulated reversal transaction",
 				"account_id", accountID,
 				"channel", req.Channel,
@@ -910,7 +910,7 @@ func (simulator *cardTransactionSimulator) loadAuthorization(ctx context.Context
 	if req.AuthorizationID <= 0 {
 		return nil, sharederrors.ErrInvalidAuthorization
 	}
-	exists, err := simulator.authorizationRepo.Exist(ctx, &AuthorizationExistRequest{
+	exists, err := simulator.authorizationRepo.ExistForCard(ctx, &AuthorizationExistForCardRequest{
 		ID:        req.AuthorizationID,
 		AccountID: req.AccountID,
 		Channel:   req.Channel,
