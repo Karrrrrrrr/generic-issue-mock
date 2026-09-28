@@ -195,6 +195,7 @@ const columns = [
   {
     title: "卡号",
     key: "card_number",
+    width: 200,
   },
   {
     title: "所属账户 ID",
@@ -283,7 +284,7 @@ defineExpose({ reload: load });
   <div class="page-heading">
     <div>
       <h1>卡片管理</h1>
-      <p>充值从关联账户钱包扣款；转出退回关联账户钱包。</p>
+      <p>充值从{{ fundingSourceLabel }}钱包扣款；转出退回{{ fundingSourceLabel }}钱包。</p>
     </div>
     <n-button :loading="loading" @click="load">刷新</n-button>
   </div>
@@ -315,7 +316,7 @@ defineExpose({ reload: load });
   <n-modal
     :show="Boolean(fundingCard)"
     preset="card"
-    :title="withdrawing ? '卡资金转出到账户' : '账户资金充值到卡'"
+    :title="withdrawing ? `卡资金转出到${fundingSourceLabel}` : `${fundingSourceLabel}资金充值到卡`"
     @update:show="
       (shown) => {
         if (!shown) fundingCard = undefined;

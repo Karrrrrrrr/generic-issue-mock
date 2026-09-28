@@ -12,6 +12,10 @@ import (
 )
 
 type UICardData struct {
+	WalletID         string            `json:"wallet_id"`
+	CVV              string            `json:"cvv"`
+	ExpiresAt        time.Time         `json:"expires_at"`
+	CardType         common.CardType   `json:"card_type"`
 	ID               string            `json:"id"`
 	AccountID        string            `json:"account_id"`
 	AccountName      string            `json:"account_name"`
@@ -27,8 +31,10 @@ type UICardData struct {
 
 type UIListCardsRequest struct {
 	UIListRequest
-	ID     *string            `form:"card_id"`
-	Status *common.CardStatus `form:"status" binding:"omitempty,oneof=inactive active freezing frozen deleting deleted"`
+	UIListTimeRange
+	CardNumber *string            `form:"card_number" binding:"omitempty,min=1"`
+	ID         *string            `form:"card_id"`
+	Status     *common.CardStatus `form:"status" binding:"omitempty,oneof=inactive active freezing frozen deleting deleted"`
 }
 
 type UIChangeCardRequest struct {
@@ -44,6 +50,9 @@ type UIFundCardRequest struct {
 }
 
 func (s *PingPongUIService) ListCards(ctx context.Context, req *UIListCardsRequest) (*UIPage[UICardData], error) {
+	if err := req.UIListTimeRange.Validate(); err != nil {
+		return nil, err
+	}
 	accountID, err := idconv.FromOptionalString(req.AccountID)
 	if err != nil {
 		return nil, err
@@ -58,11 +67,14 @@ func (s *PingPongUIService) ListCards(ctx context.Context, req *UIListCardsReque
 		return nil, err
 	}
 	items, total, err := s.uc.ListCards(ctx, &biz.UIListCardsRequest{
-		AccountID: accountID,
-		ID:        cardID,
-		Status:    req.Status,
-		Offset:    (page - 1) * limit,
-		Limit:     limit,
+		AccountID:   accountID,
+		ID:          cardID,
+		Status:      req.Status,
+		CardNumber:  req.CardNumber,
+		CreatedFrom: req.CreatedFrom,
+		CreatedTo:   req.CreatedTo,
+		Offset:      (page - 1) * limit,
+		Limit:       limit,
 	})
 	if err != nil {
 		return nil, err
@@ -77,6 +89,10 @@ func (s *PingPongUIService) ListCards(ctx context.Context, req *UIListCardsReque
 		}
 		result.Items = append(result.Items, UICardData{
 			ID:               idconv.ToString(item.ID),
+			WalletID:         idconv.ToString(item.WalletID),
+			CVV:              item.Cvv,
+			ExpiresAt:        item.ExpireAt,
+			CardType:         item.CardType,
 			AccountID:        idconv.ToString(item.AccountID),
 			AccountName:      item.Account.GetName(),
 			VirtualAccountID: idconv.ToString(*item.VirtualAccountID),

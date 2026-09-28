@@ -10,7 +10,6 @@ import { requestID } from "./api";
     :account-api="accountApi"
     :api="virtualAccountApi"
     :currency-options="['USD']"
-    :show-wallet-i-d="false"
     :new-request-i-d="requestID"
   >
     <template #description>

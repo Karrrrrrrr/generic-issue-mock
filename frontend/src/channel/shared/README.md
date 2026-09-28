@@ -14,8 +14,8 @@ UI 使用项目内部枚举，不使用第三方状态值：卡状态为 `inacti
 - `CardProductsView.vue`：Slash、PingPong 共用只读产品列表，候选 BIN 文案和说明由上层提供。
 - `VirtualAccountsView.vue`：Slash、PhotonPay、PingPong 共用列表、创建和充值。未提供 `withdraw` 时不展示转出；币种选择、钱包 ID 列和说明可配置。
 - `CardsView.vue`：四渠道共用卡列表、内部状态筛选、冻结/恢复和资金操作。可选到期日、冻结余额、虚拟账户列及模拟授权入口；不按虚拟账户关联关系猜测钱包。PingPong 的卡资金操作仍只在卡钱包与所属虚拟账户之间进行。
-- `AuthorizationsView.vue`：四渠道共用列表及清算/撤销/退款。仅在提供 `api.detail` 时展示关联交易、原始报文等详情；不为 PingPong 补造不存在的汇总字段。PingPong 仍展示 `contract_pending`，不伪造通知已投递。
-- `TransactionsView.vue`：三个渠道共用内部交易枚举、操作条件及退款表单。PingPong 没有该 UI 接口，不新增入口。
+- `AuthorizationsView.vue`：四渠道共用列表及清算/撤销/退款。仅在提供 `api.detail` 时展示关联交易、原始报文等详情；PingPong 从本地授权与阶段记录返回真实汇总、卡信息和关联交易。PingPong 仍展示 `contract_pending`，不伪造通知已投递。
+- `TransactionsView.vue`：四渠道共用内部交易枚举、操作条件及退款表单。PingPong 查询本地交易记录，不依赖第三方 OpenAPI 交易报表。
 - `WebhooksView.vue`、`WebhookRecordsView.vue`：三个渠道共用配置、投递详情和重放。事件选项由接口提供，筛选能力按现有接口开放；PingPong 不开放未实现的通知能力。
 
 领域数据契约定义在 `contracts.ts`。差异通过 typed API、可选操作、少量展示属性和说明 slot 提供，不设计万能 CRUD 组件。账户名称使用原响应的 `account_name`；只有账户选择表单加载账户选项。
@@ -32,4 +32,4 @@ UI 使用项目内部枚举，不使用第三方状态值：卡状态为 `inacti
 
 共享组件不判断渠道、不拼接渠道 URL、不生成外部 ID 或幂等键。调用方负责字段映射及协议差异，例如金额的字符串/数值类型和 PingPong 的 `request_id`。适配函数必须在请求失败时抛出错误，不得吞掉错误后当作提交成功。
 
-模拟请求不传账户 ID。授权使用卡 ID；清算、撤销和关联退款使用授权 ID；独立退款才传卡 ID 和币种。已有交易入口传原交易 ID，由后端定位授权。PingPong 仅复用已有的授权及后续交易能力，不增加独立退款入口，也不改变 `contract_pending` 通知语义。
+模拟请求不传账户 ID。授权使用卡 ID；清算、撤销和关联退款使用授权 ID；独立退款才传卡 ID 和币种。已有交易入口传原交易 ID，由后端定位授权。PingPong 也接入授权、独立退款和关联退款；授权详情与交易页面提供后续阶段操作，不改变 `contract_pending` 通知语义。

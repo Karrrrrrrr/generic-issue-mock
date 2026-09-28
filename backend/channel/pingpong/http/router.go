@@ -40,6 +40,7 @@ func Register(req RegisterRequest) {
 		ui := router.Group("/ui")
 		ui.GET("/accounts", bindUI(req.UI.ListAccounts))
 		ui.POST("/accounts", bindUI(req.UI.CreateAccount))
+		ui.PUT("/accounts/:id", bindUI(req.UI.UpdateAccount))
 		ui.POST("/accounts/:id/balance", bindUI(req.UI.AdjustAccountBalance))
 		ui.GET("/virtual-accounts", bindUI(req.UI.ListVirtualAccounts))
 		ui.POST("/virtual-accounts", bindUI(req.UI.CreateVirtualAccount))
@@ -50,6 +51,10 @@ func Register(req RegisterRequest) {
 		ui.POST("/cards/:id/fund", bindUI(req.UI.FundCard))
 		ui.GET("/transfers", bindUI(req.UI.ListTransfers))
 		ui.GET("/authorizations", bindUI(req.UI.ListAuthorizations))
+		ui.GET("/authorizations/:id", bindUI(req.UI.GetAuthorization))
+		ui.GET("/transactions", bindUI(req.UI.ListCardTransactions))
+		ui.POST("/transactions/:id/stages", bindUI(req.UI.ApplyTransactionStage))
+		ui.POST("/simulate/refunds", bindUI(req.UI.SimulateRefund))
 		ui.POST("/simulate/authorizations", bindUI(req.UI.SimulateAuthorization))
 		ui.POST("/authorizations/:id/stages", bindUI(req.UI.ApplyAuthorizationStage))
 	}

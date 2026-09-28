@@ -47,10 +47,8 @@ function closeAuthorization(shown: boolean) {
     :account-api="accountApi"
     :fund-card="fundCard"
     :authorize-card="openAuthorization"
-    :show-expiry="false"
     show-reserved
     show-virtual-account
-    :detailed-filters="false"
     :new-request-i-d="requestID"
     funding-source-label="所属虚拟账户"
   >
@@ -79,7 +77,6 @@ function closeAuthorization(shown: boolean) {
       :cards="simulationCards"
       :authorize="authorize"
       :select-card="false"
-      :merchant-details="false"
       @busy="busy = $event"
       @completed="completeAuthorization"
     />

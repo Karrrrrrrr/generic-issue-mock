@@ -13,6 +13,32 @@ import (
 )
 
 type CreateAccountRequest struct{ Name string }
+type UpdateAccountRequest struct {
+	AccountID model.ID
+	Name      string
+}
+
+func (uc *PingPongUIUsecase) UpdateAccount(ctx context.Context, req *UpdateAccountRequest) (*model.Account, error) {
+	if req == nil || strings.TrimSpace(req.Name) == "" {
+		return nil, pingerrors.ErrInvalid
+	}
+	var result *model.Account
+	err := uc.tx.InTx(ctx, func(ctx context.Context) error {
+		account, err := uc.lockAccount(ctx, req.AccountID)
+		if err != nil {
+			return err
+		}
+		account.Name = strings.TrimSpace(req.Name)
+		if err := uc.accountRepo.Save(ctx, account); err != nil {
+			zap.S().Errorw("update pingpong UI account", "error", err)
+			return pingerrors.ErrDatabase
+		}
+		result = account
+		return nil
+	})
+	return result, err
+}
+
 type AdjustAccountRequest struct {
 	AccountID model.ID
 	Amount    decimal.Decimal

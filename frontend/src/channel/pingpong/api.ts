@@ -1,9 +1,11 @@
 import type { CardStatus, TransactionStatus, WalletTransferKind } from "@/channel/enums";
+import type { AuthorizationTransaction } from "@/channel/shared/contracts";
 export interface Page<Item> {
   items: Item[];
   total: number;
 }
 export interface Account {
+  wallet_id: string;
   id: string;
   name: string;
   balance: number;
@@ -17,11 +19,16 @@ export interface Owned {
   created_at: string;
 }
 export interface VirtualAccount extends Owned {
+  wallet_id: string;
   name: string;
   balance: number;
   currency: string;
 }
 export interface Card extends Owned {
+  wallet_id: string;
+  cvv: string;
+  expires_at: string;
+  card_type: "single" | "share" | "virtual_account_single";
   virtual_account_id: string;
   card_number: string;
   card_bin: string;
@@ -34,10 +41,21 @@ export interface Authorization extends Owned {
   card_id: string;
   amount: number;
   remaining: number;
+  settled: number;
+  reversed: number;
+  refunded: number;
   currency: string;
   merchant_name: string;
   status: TransactionStatus;
   notification_status: "contract_pending";
+}
+export interface AuthorizationDetail extends Authorization {
+  card_number: string;
+  authorization_code: string;
+  merchant_country: string;
+  merchant_mcc: string;
+  raw_payload: unknown;
+  transactions: AuthorizationTransaction[];
 }
 export interface Transfer extends Owned {
   request_id: string;

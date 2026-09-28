@@ -10,6 +10,8 @@ import (
 	"github.com/samber/do/v2"
 )
 
+var _ biz.PingPongAuthorizationRepository = (*authorizationRepository)(nil)
+
 type authorizationRepository struct{ *PingPongRepository }
 
 func NewAuthorizationRepository(injector do.Injector) (biz.PingPongAuthorizationRepository, error) {
@@ -46,6 +48,22 @@ func (repo *authorizationRepository) Create(ctx context.Context, item *model.Aut
 func (repo *authorizationRepository) List(ctx context.Context, req *biz.AuthorizationListRequest) ([]*model.Authorization, error) {
 	table := repo.DB(ctx).Authorization
 	statement := table.WithContext(ctx).Where(table.Channel.Eq(string(common.Channel_PingPong)))
+	if req.MerchantName != nil {
+		statement = statement.Where(table.MerchantName.Like("%" + *req.MerchantName + "%"))
+	}
+	if req.CreatedFrom != nil {
+		statement = statement.Where(table.CreatedAt.Gte(*req.CreatedFrom))
+	}
+	if req.CreatedTo != nil {
+		statement = statement.Where(table.CreatedAt.Lte(*req.CreatedTo))
+	}
+	if len(req.Statuses) != 0 {
+		values := make([]string, 0, len(req.Statuses))
+		for _, value := range req.Statuses {
+			values = append(values, string(value))
+		}
+		statement = statement.Where(table.Status.In(values...))
+	}
 	if len(req.IDs) != 0 {
 		statement = statement.Where(table.ID.In(req.IDs...))
 	}
@@ -66,6 +84,22 @@ func (repo *authorizationRepository) List(ctx context.Context, req *biz.Authoriz
 func (repo *authorizationRepository) Count(ctx context.Context, req *biz.AuthorizationCountRequest) (int64, error) {
 	table := repo.DB(ctx).Authorization
 	statement := table.WithContext(ctx).Where(table.Channel.Eq(string(common.Channel_PingPong)))
+	if req.MerchantName != nil {
+		statement = statement.Where(table.MerchantName.Like("%" + *req.MerchantName + "%"))
+	}
+	if req.CreatedFrom != nil {
+		statement = statement.Where(table.CreatedAt.Gte(*req.CreatedFrom))
+	}
+	if req.CreatedTo != nil {
+		statement = statement.Where(table.CreatedAt.Lte(*req.CreatedTo))
+	}
+	if len(req.Statuses) != 0 {
+		values := make([]string, 0, len(req.Statuses))
+		for _, value := range req.Statuses {
+			values = append(values, string(value))
+		}
+		statement = statement.Where(table.Status.In(values...))
+	}
 	if len(req.IDs) != 0 {
 		statement = statement.Where(table.ID.In(req.IDs...))
 	}

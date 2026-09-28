@@ -10,6 +10,8 @@ import (
 	"github.com/samber/do/v2"
 )
 
+var _ biz.PingPongCardRepository = (*cardRepository)(nil)
+
 type cardRepository struct{ *PingPongRepository }
 
 func NewCardRepository(injector do.Injector) (biz.PingPongCardRepository, error) {
@@ -68,6 +70,15 @@ func (repo *cardRepository) List(ctx context.Context, req *biz.CardListRequest) 
 	if len(req.RequestIDs) != 0 {
 		statement = statement.Where(table.RequestID.In(req.RequestIDs...))
 	}
+	if req.CardNumber != nil {
+		statement = statement.Where(table.CardNumber.Like("%" + *req.CardNumber + "%"))
+	}
+	if req.CreatedFrom != nil {
+		statement = statement.Where(table.CreatedAt.Gte(*req.CreatedFrom))
+	}
+	if req.CreatedTo != nil {
+		statement = statement.Where(table.CreatedAt.Lte(*req.CreatedTo))
+	}
 	if len(req.Statuses) != 0 {
 		values := make([]string, 0, len(req.Statuses))
 		for _, value := range req.Statuses {
@@ -95,6 +106,15 @@ func (repo *cardRepository) Count(ctx context.Context, req *biz.CardCountRequest
 	}
 	if len(req.RequestIDs) != 0 {
 		statement = statement.Where(table.RequestID.In(req.RequestIDs...))
+	}
+	if req.CardNumber != nil {
+		statement = statement.Where(table.CardNumber.Like("%" + *req.CardNumber + "%"))
+	}
+	if req.CreatedFrom != nil {
+		statement = statement.Where(table.CreatedAt.Gte(*req.CreatedFrom))
+	}
+	if req.CreatedTo != nil {
+		statement = statement.Where(table.CreatedAt.Lte(*req.CreatedTo))
 	}
 	if len(req.Statuses) != 0 {
 		values := make([]string, 0, len(req.Statuses))

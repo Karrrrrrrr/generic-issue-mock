@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"time"
 
 	common "generic-mock/enums"
 	"generic-mock/model"
@@ -18,19 +19,25 @@ type CardFindRequest struct {
 }
 
 type CardListRequest struct {
-	IDs        []model.ID
-	AccountIDs []model.ID
-	RequestIDs []string
-	Statuses   []common.CardStatus
-	Offset     int
-	Limit      *int
+	IDs         []model.ID
+	AccountIDs  []model.ID
+	RequestIDs  []string
+	Statuses    []common.CardStatus
+	CardNumber  *string
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
+	Offset      int
+	Limit       *int
 }
 
 type CardCountRequest struct {
-	IDs        []model.ID
-	AccountIDs []model.ID
-	RequestIDs []string
-	Statuses   []common.CardStatus
+	IDs         []model.ID
+	AccountIDs  []model.ID
+	RequestIDs  []string
+	Statuses    []common.CardStatus
+	CardNumber  *string
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
 }
 
 type CardRequestExistsRequest struct {

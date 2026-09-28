@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"time"
 
 	pingerrors "generic-mock/channel/pingpong/errors"
 	common "generic-mock/enums"
@@ -12,11 +13,14 @@ import (
 )
 
 type UIListCardsRequest struct {
-	AccountID *model.ID
-	ID        *model.ID
-	Status    *common.CardStatus
-	Offset    int
-	Limit     int
+	AccountID   *model.ID
+	ID          *model.ID
+	Status      *common.CardStatus
+	CardNumber  *string
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
+	Offset      int
+	Limit       int
 }
 
 type UIChangeCardRequest struct {
@@ -32,20 +36,26 @@ type uiCardReference struct {
 
 func (uc *PingPongUIUsecase) ListCards(ctx context.Context, req *UIListCardsRequest) ([]*model.Card, int64, error) {
 	items, err := uc.cardRepo.List(ctx, &CardListRequest{
-		AccountIDs: types.PointerSlice(req.AccountID),
-		IDs:        types.PointerSlice(req.ID),
-		Statuses:   types.PointerSlice(req.Status),
-		Offset:     req.Offset,
-		Limit:      &req.Limit,
+		AccountIDs:  types.PointerSlice(req.AccountID),
+		IDs:         types.PointerSlice(req.ID),
+		Statuses:    types.PointerSlice(req.Status),
+		CardNumber:  req.CardNumber,
+		CreatedFrom: req.CreatedFrom,
+		CreatedTo:   req.CreatedTo,
+		Offset:      req.Offset,
+		Limit:       &req.Limit,
 	})
 	if err != nil {
 		zap.S().Errorw("list pingpong UI cards", "error", err)
 		return nil, 0, pingerrors.ErrDatabase
 	}
 	total, err := uc.cardRepo.Count(ctx, &CardCountRequest{
-		AccountIDs: types.PointerSlice(req.AccountID),
-		IDs:        types.PointerSlice(req.ID),
-		Statuses:   types.PointerSlice(req.Status),
+		AccountIDs:  types.PointerSlice(req.AccountID),
+		IDs:         types.PointerSlice(req.ID),
+		Statuses:    types.PointerSlice(req.Status),
+		CardNumber:  req.CardNumber,
+		CreatedFrom: req.CreatedFrom,
+		CreatedTo:   req.CreatedTo,
 	})
 	if err != nil {
 		zap.S().Errorw("count pingpong UI cards", "error", err)

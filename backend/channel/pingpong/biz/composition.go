@@ -17,15 +17,16 @@ type PingPongOpenAPIUsecase struct {
 }
 
 type PingPongUIUsecase struct {
-	simulator          sharedbiz.CardTransactionSimulator
-	tx                 sharedbiz.Transaction
-	accountRepo        PingPongAccountRepository
-	virtualAccountRepo PingPongVirtualAccountRepository
-	cardRepo           PingPongCardRepository
-	cardProductRepo    PingPongProductRepository
-	walletRepo         PingPongWalletRepository
-	walletTransferRepo PingPongTransferRepository
-	authorizationRepo  PingPongAuthorizationRepository
+	simulator           sharedbiz.CardTransactionSimulator
+	tx                  sharedbiz.Transaction
+	accountRepo         PingPongAccountRepository
+	virtualAccountRepo  PingPongVirtualAccountRepository
+	cardRepo            PingPongCardRepository
+	cardProductRepo     PingPongProductRepository
+	walletRepo          PingPongWalletRepository
+	walletTransferRepo  PingPongTransferRepository
+	authorizationRepo   PingPongAuthorizationRepository
+	cardTransactionRepo PingPongCardTransactionRepository
 }
 
 func NewOpenAPIUsecase(injector do.Injector) (*PingPongOpenAPIUsecase, error) {
@@ -42,14 +43,15 @@ func NewOpenAPIUsecase(injector do.Injector) (*PingPongOpenAPIUsecase, error) {
 
 func NewUIUsecase(injector do.Injector) (*PingPongUIUsecase, error) {
 	return &PingPongUIUsecase{
-		simulator:          do.MustInvoke[sharedbiz.CardTransactionSimulator](injector),
-		tx:                 do.MustInvoke[sharedbiz.Transaction](injector),
-		accountRepo:        do.MustInvoke[PingPongAccountRepository](injector),
-		virtualAccountRepo: do.MustInvoke[PingPongVirtualAccountRepository](injector),
-		cardRepo:           do.MustInvoke[PingPongCardRepository](injector),
-		cardProductRepo:    do.MustInvoke[PingPongProductRepository](injector),
-		walletRepo:         do.MustInvoke[PingPongWalletRepository](injector),
-		walletTransferRepo: do.MustInvoke[PingPongTransferRepository](injector),
-		authorizationRepo:  do.MustInvoke[PingPongAuthorizationRepository](injector),
+		simulator:           do.MustInvoke[sharedbiz.CardTransactionSimulator](injector),
+		tx:                  do.MustInvoke[sharedbiz.Transaction](injector),
+		accountRepo:         do.MustInvoke[PingPongAccountRepository](injector),
+		virtualAccountRepo:  do.MustInvoke[PingPongVirtualAccountRepository](injector),
+		cardRepo:            do.MustInvoke[PingPongCardRepository](injector),
+		cardProductRepo:     do.MustInvoke[PingPongProductRepository](injector),
+		walletRepo:          do.MustInvoke[PingPongWalletRepository](injector),
+		walletTransferRepo:  do.MustInvoke[PingPongTransferRepository](injector),
+		authorizationRepo:   do.MustInvoke[PingPongAuthorizationRepository](injector),
+		cardTransactionRepo: do.MustInvoke[PingPongCardTransactionRepository](injector),
 	}, nil
 }

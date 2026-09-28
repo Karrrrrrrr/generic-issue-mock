@@ -9,7 +9,6 @@ import { requestID } from "./api";
   <SharedView
     :account-api="accountApi"
     :api="authorizationApi"
-    :detailed-filters="false"
     show-notification-status
     :new-request-i-d="requestID"
   >

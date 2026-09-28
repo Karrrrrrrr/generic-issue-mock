@@ -35,6 +35,14 @@ export const router = createRouter({
           path: "transfers",
           component: () => import("@/channel/pingpong/TransfersView.vue"),
         },
+        {
+          path: "transactions",
+          component: () => import("@/channel/pingpong/TransactionsView.vue"),
+        },
+        {
+          path: "simulation",
+          component: () => import("@/channel/pingpong/SimulationView.vue"),
+        },
       ],
     },
     {

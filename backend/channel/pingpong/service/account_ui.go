@@ -11,11 +11,33 @@ import (
 )
 
 type AccountData struct {
+	WalletID  string          `json:"wallet_id"`
 	ID        string          `json:"id"`
 	Name      string          `json:"name"`
 	Balance   Number          `json:"balance"`
 	Currency  common.Currency `json:"currency"`
 	CreatedAt time.Time       `json:"created_at"`
+}
+
+type UIUpdateAccountRequest struct {
+	ID   string `uri:"id" binding:"required"`
+	Name string `json:"name" binding:"required"`
+}
+
+func (s *PingPongUIService) UpdateAccount(ctx context.Context, req *UIUpdateAccountRequest) (*AccountData, error) {
+	accountID, err := idconv.FromString(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.uc.UpdateAccount(ctx, &biz.UpdateAccountRequest{
+		AccountID: accountID,
+		Name:      req.Name,
+	})
+	if err != nil {
+		return nil, err
+	}
+	result := toAccountData(item)
+	return &result, nil
 }
 
 type UICreateAccountRequest struct {
@@ -35,6 +57,7 @@ type UIResourceRequest struct {
 func toAccountData(item *model.Account) AccountData {
 	result := AccountData{
 		ID:        idconv.ToString(item.ID),
+		WalletID:  idconv.ToString(item.WalletID),
 		Name:      item.Name,
 		CreatedAt: item.CreatedAt,
 	}

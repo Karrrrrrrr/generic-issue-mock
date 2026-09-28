@@ -156,6 +156,10 @@ const enumLabels: Record<string, Record<string, EnumLabel>> = {
       label: "虚拟账户共享资金",
       type: "info",
     },
+    虚拟账户供资独立卡: {
+      label: "虚拟账户供资独立卡",
+      type: "info",
+    },
   },
   enabled: {
     true: {

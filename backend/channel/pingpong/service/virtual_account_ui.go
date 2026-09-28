@@ -15,6 +15,7 @@ type UIVirtualAccountIDData struct {
 }
 
 type UIVirtualAccountData struct {
+	WalletID    string          `json:"wallet_id"`
 	ID          string          `json:"id"`
 	AccountID   string          `json:"account_id"`
 	AccountName string          `json:"account_name"`
@@ -62,6 +63,7 @@ func (s *PingPongUIService) ListVirtualAccounts(ctx context.Context, req *UIList
 		}
 		result.Items = append(result.Items, UIVirtualAccountData{
 			ID:          idconv.ToString(item.ID),
+			WalletID:    idconv.ToString(item.WalletID),
 			AccountID:   idconv.ToString(item.AccountID),
 			AccountName: item.Account.GetName(),
 			Name:        item.Name,

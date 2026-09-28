@@ -1,29 +1,60 @@
 <script setup lang="ts">
+import type { MenuOption } from "naive-ui";
 import ChannelShell from "@/channel/shared/ChannelShell.vue";
-const items = [
+
+const items: MenuOption[] = [
   {
+    type: "group",
     label: "账户",
-    key: "/pingpong/accounts"
+    key: "accounts",
+    children: [
+      {
+        label: "账户",
+        key: "/pingpong/accounts",
+      },
+      {
+        label: "虚拟账户",
+        key: "/pingpong/virtual-accounts",
+      },
+    ],
   },
   {
-    label: "虚拟账户",
-    key: "/pingpong/virtual-accounts"
+    type: "group",
+    label: "卡",
+    key: "cards",
+    children: [
+      {
+        label: "卡管理",
+        key: "/pingpong/cards",
+      },
+      {
+        label: "卡产品",
+        key: "/pingpong/products",
+      },
+    ],
   },
   {
-    label: "卡产品",
-    key: "/pingpong/products"
-  },
-  {
-    label: "卡管理",
-    key: "/pingpong/cards"
-  },
-  {
-    label: "授权管理",
-    key: "/pingpong/authorizations"
-  },
-  {
-    label: "资金订单",
-    key: "/pingpong/transfers"
+    type: "group",
+    label: "交易",
+    key: "transactions",
+    children: [
+      {
+        label: "授权管理",
+        key: "/pingpong/authorizations",
+      },
+      {
+        label: "交易处理",
+        key: "/pingpong/transactions",
+      },
+      {
+        label: "交易模拟",
+        key: "/pingpong/simulation",
+      },
+      {
+        label: "资金订单",
+        key: "/pingpong/transfers",
+      },
+    ],
   },
 ];
 </script>
