@@ -2,9 +2,18 @@
 
 ## 接入边界
 
-`shared/service` 提供独立的浏览器管理 DTO 和 service，`shared/biz/ui_*.go` 实现 UI 业务。已通过 `main` 注册工厂，并由四个渠道的 `SharedUIService` 按渠道构造，注册到 `/<channel>/ui`。前端通过统一管理 API 调用。原渠道 UI service/usecase 文件未删除；Slash、PhotonPay 的授权回调配置仍使用原渠道实现，Webhook 投递与重放继续委托原渠道实现。
+`shared/service` 提供独立的浏览器管理 DTO 和 service，`shared/biz/ui_*.go` 实现 UI 业务。已通过 `main` 注册工厂，并由四个渠道保留的 `SlashUIService`、`PayndaUIService`、`PhotonPayUIService`、`PingPongUIService` 按渠道构造，注册到 `/<channel>/ui`。前端通过统一管理 API 调用。已删除渠道 service 中被 Shared 接管的重复 handler、DTO 和私有转换函数，渠道 UI Service 结构体和构造函数保留；现有渠道 biz/repo 不在本轮清理范围。Slash、PhotonPay 的授权回调配置仍使用原渠道实现，Webhook 投递与重放继续委托原渠道实现。
 
 `shared/biz/*_repository.go` 和 `shared/data/*_repository.go` 是按资源划分的通用持久化接口与实现，不属于 UI。UI、OpenAPI 和共享卡组件均可注入同一套 Repo；OpenAPI 不应为了复用仓储而调用 UI service/usecase。
+
+## 渠道 UI Service 的职责
+
+- 每个渠道只注册原有的 UI Service 构造函数，不再额外定义或注册 `SharedUIService` 包装。
+- Channel UI Service 通过显式的 `Shared *sharedservice.Service` 字段持有通用服务，不通过嵌入或代理方法重复暴露通用 handler。
+- 渠道路由调用 `shared/http.Register` 时传入 `req.UI.Shared`；新增的渠道独有接口直接定义在原 UI Service 上并单独注册。
+- Slash、PhotonPay 保留授权回调配置 handler，按领域放在 `authorization_config_ui.go`；渠道事件目录和重放适配在 `webhook_ui_adapter.go`，Slash 交易通知适配保留编译期接口断言。
+- Paynda、PingPong 当前不保留重复的资源管理 handler，但 UI Service 结构体仍作为后续特殊能力的扩展位置。可复用的能力统一加到 Shared，不复制回渠道。
+- OpenAPI 仍需要的转换保留在 OpenAPI 文件中，不因删除 UI 文件而一起删除。
 
 ## Repo 设计约定
 
@@ -105,7 +114,7 @@ POST /slash/ui/simulate/clearings
 | `/webhooks`、`/webhooks/update`、`/webhooks/delete` | 配置 CRUD，PingPong 除外 |
 | `/webhook-records/replay` | 重放投递，PingPong 除外 |
 
-Slash、PhotonPay 另外保留 GET/POST `/authorization-config`，同样只用 query/body。旧 UI 的 `/:id`、PUT/DELETE 以及重复管理列表路径不再注册；旧渠道实现代码暂时保留，前端已切换至新契约。独立脚本或 SDK 测试中准备 UI 数据的调用方也需使用上述新路径和字段，OpenAPI 调用不受影响。
+Slash、PhotonPay 另外保留 GET/POST `/authorization-config`，同样只用 query/body。旧 UI 的 `/:id`、PUT/DELETE 以及重复管理列表路径不再注册；重复的渠道 service handler 已清理，渠道特殊实现保留，前端已切换至新契约。独立脚本或 SDK 测试中准备 UI 数据的调用方也需使用上述新路径和字段，OpenAPI 调用不受影响。
 
 ## 当前验证范围
 

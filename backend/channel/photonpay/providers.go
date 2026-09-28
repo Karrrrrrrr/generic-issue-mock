@@ -26,5 +26,4 @@ func RegisterProviders(injector do.Injector) {
 	do.Provide(injector, biz.NewPhotonPayUIUsecase)
 	do.Provide(injector, service.NewPhotonPayOpenAPIService)
 	do.Provide(injector, service.NewPhotonPayUIService)
-	do.Provide(injector, service.NewSharedUIService)
 }

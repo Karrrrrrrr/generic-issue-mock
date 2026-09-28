@@ -12,10 +12,9 @@ import (
 )
 
 type RegisterRequest struct {
-	Router   *gin.RouterGroup
-	OpenAPI  *service.SlashOpenAPIService
-	UI       *service.SlashUIService
-	SharedUI *service.SharedUIService
+	Router  *gin.RouterGroup
+	OpenAPI *service.SlashOpenAPIService
+	UI      *service.SlashUIService
 }
 
 func Register(req RegisterRequest) {
@@ -66,7 +65,7 @@ func Register(req RegisterRequest) {
 	uiRoutes := router.Group("/ui")
 	sharedhttp.Register(sharedhttp.RegisterRequest{
 		Router:                uiRoutes,
-		Service:               req.SharedUI.Service,
+		Service:               req.UI.Shared,
 		EnableVirtualAccounts: true,
 		EnableWebhooks:        true,
 	})

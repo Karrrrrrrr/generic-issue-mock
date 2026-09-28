@@ -59,28 +59,24 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
 	pingHTTP.Register(pingHTTP.RegisterRequest{
-		Router:   router.Group("/pingpong"),
-		OpenAPI:  do.MustInvoke[*pingService.PingPongOpenAPIService](injector),
-		UI:       do.MustInvoke[*pingService.PingPongUIService](injector),
-		SharedUI: do.MustInvoke[*pingService.SharedUIService](injector),
+		Router:  router.Group("/pingpong"),
+		OpenAPI: do.MustInvoke[*pingService.PingPongOpenAPIService](injector),
+		UI:      do.MustInvoke[*pingService.PingPongUIService](injector),
 	})
 	photonHTTP.Register(photonHTTP.RegisterRequest{
-		Router:   router.Group("/photonpay"),
-		OpenAPI:  do.MustInvoke[*photonService.PhotonPayOpenAPIService](injector),
-		UI:       do.MustInvoke[*photonService.PhotonPayUIService](injector),
-		SharedUI: do.MustInvoke[*photonService.SharedUIService](injector),
+		Router:  router.Group("/photonpay"),
+		OpenAPI: do.MustInvoke[*photonService.PhotonPayOpenAPIService](injector),
+		UI:      do.MustInvoke[*photonService.PhotonPayUIService](injector),
 	})
 	payndaHTTP.Register(payndaHTTP.RegisterRequest{
-		Router:   router.Group("/paynda"),
-		OpenAPI:  do.MustInvoke[*payndaService.PayndaOpenAPIService](injector),
-		UI:       do.MustInvoke[*payndaService.PayndaUIService](injector),
-		SharedUI: do.MustInvoke[*payndaService.SharedUIService](injector),
+		Router:  router.Group("/paynda"),
+		OpenAPI: do.MustInvoke[*payndaService.PayndaOpenAPIService](injector),
+		UI:      do.MustInvoke[*payndaService.PayndaUIService](injector),
 	})
 	slashHTTP.Register(slashHTTP.RegisterRequest{
-		Router:   router.Group("/slash"),
-		OpenAPI:  do.MustInvoke[*slashService.SlashOpenAPIService](injector),
-		UI:       do.MustInvoke[*slashService.SlashUIService](injector),
-		SharedUI: do.MustInvoke[*slashService.SharedUIService](injector),
+		Router:  router.Group("/slash"),
+		OpenAPI: do.MustInvoke[*slashService.SlashOpenAPIService](injector),
+		UI:      do.MustInvoke[*slashService.SlashUIService](injector),
 	})
 	addr := os.Getenv("HTTP_ADDR")
 	if addr == "" {

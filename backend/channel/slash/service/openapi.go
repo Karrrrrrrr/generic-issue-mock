@@ -227,11 +227,11 @@ func (s *SlashOpenAPIService) CreateCard(ctx context.Context, req *OpenAPICreate
 	if err != nil {
 		return nil, err
 	}
-	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(
-		item.AccountID,
-		slash.WebhookEventCardCreate,
-		item.ID,
-	))
+	s.webhookUsecase.Dispatch(ctx, toWebhookDispatchRequest(&webhookDispatchRequest{
+		AccountID:  item.AccountID,
+		Event:      slash.WebhookEventCardCreate,
+		ResourceID: item.ID,
+	}))
 
 	return openAPICard(item), nil
 }
@@ -291,11 +291,11 @@ func (s *SlashOpenAPIService) UpdateCard(ctx context.Context, req *OpenAPIUpdate
 	if req.Status == slash.CardStatus_Closed {
 		event = slash.WebhookEventCardDelete
 	}
-	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(
-		item.AccountID,
-		event,
-		item.ID,
-	))
+	s.webhookUsecase.Dispatch(ctx, toWebhookDispatchRequest(&webhookDispatchRequest{
+		AccountID:  item.AccountID,
+		Event:      event,
+		ResourceID: item.ID,
+	}))
 
 	return openAPICard(item), nil
 }

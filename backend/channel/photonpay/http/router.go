@@ -8,10 +8,9 @@ import (
 )
 
 type RegisterRequest struct {
-	Router   *gin.RouterGroup
-	OpenAPI  *service.PhotonPayOpenAPIService
-	UI       *service.PhotonPayUIService
-	SharedUI *service.SharedUIService
+	Router  *gin.RouterGroup
+	OpenAPI *service.PhotonPayOpenAPIService
+	UI      *service.PhotonPayUIService
 }
 
 func Register(req RegisterRequest) {
@@ -52,7 +51,7 @@ func Register(req RegisterRequest) {
 	uiRoutes := router.Group("/ui")
 	sharedhttp.Register(sharedhttp.RegisterRequest{
 		Router:                uiRoutes,
-		Service:               req.SharedUI.Service,
+		Service:               req.UI.Shared,
 		EnableVirtualAccounts: true,
 		EnableWebhooks:        true,
 	})

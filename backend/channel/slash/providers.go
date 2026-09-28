@@ -27,5 +27,4 @@ func RegisterProviders(injector do.Injector) {
 	do.Provide(injector, biz.NewSlashOpenAPIUsecase)
 	do.Provide(injector, service.NewSlashUIService)
 	do.Provide(injector, service.NewSlashOpenAPIService)
-	do.Provide(injector, service.NewSharedUIService)
 }

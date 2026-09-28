@@ -11,10 +11,9 @@ import (
 )
 
 type RegisterRequest struct {
-	Router   *gin.RouterGroup
-	OpenAPI  *service.PingPongOpenAPIService
-	UI       *service.PingPongUIService
-	SharedUI *service.SharedUIService
+	Router  *gin.RouterGroup
+	OpenAPI *service.PingPongOpenAPIService
+	UI      *service.PingPongUIService
 }
 
 func Register(req RegisterRequest) {
@@ -41,7 +40,7 @@ func Register(req RegisterRequest) {
 	}
 	sharedhttp.Register(sharedhttp.RegisterRequest{
 		Router:                router.Group("/ui"),
-		Service:               req.SharedUI.Service,
+		Service:               req.UI.Shared,
 		EnableVirtualAccounts: true,
 	})
 }

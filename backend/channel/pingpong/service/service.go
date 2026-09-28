@@ -21,8 +21,6 @@ type PingPongOpenAPIService struct {
 	apps map[string]string
 }
 
-type PingPongUIService struct{ uc *biz.PingPongUIUsecase }
-
 func NewOpenAPIService(injector do.Injector) (*PingPongOpenAPIService, error) {
 	apps := make(map[string]string)
 	if value, exists := os.LookupEnv("PINGPONG_APP_ACCOUNTS"); exists {
@@ -42,10 +40,6 @@ func NewOpenAPIService(injector do.Injector) (*PingPongOpenAPIService, error) {
 		uc:   do.MustInvoke[*biz.PingPongOpenAPIUsecase](injector),
 		apps: apps,
 	}, nil
-}
-
-func NewUIService(injector do.Injector) (*PingPongUIService, error) {
-	return &PingPongUIService{uc: do.MustInvoke[*biz.PingPongUIUsecase](injector)}, nil
 }
 
 type OpenAPIRequest struct {
@@ -96,6 +90,7 @@ type UIListRequest struct {
 }
 
 type Empty struct{}
+
 type UIPage[Item any] struct {
 	Items []Item `json:"items"`
 	Total int64  `json:"total"`

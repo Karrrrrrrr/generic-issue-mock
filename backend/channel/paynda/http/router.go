@@ -77,10 +77,9 @@ func uiFailure(err error) (int, any) {
 }
 
 type RegisterRequest struct {
-	Router   *gin.RouterGroup
-	OpenAPI  *service.PayndaOpenAPIService
-	UI       *service.PayndaUIService
-	SharedUI *service.SharedUIService
+	Router  *gin.RouterGroup
+	OpenAPI *service.PayndaOpenAPIService
+	UI      *service.PayndaUIService
 }
 
 func Register(req RegisterRequest) {
@@ -125,7 +124,7 @@ func Register(req RegisterRequest) {
 	uiRoutes := router.Group("/ui")
 	sharedhttp.Register(sharedhttp.RegisterRequest{
 		Router:                uiRoutes,
-		Service:               req.SharedUI.Service,
+		Service:               req.UI.Shared,
 		EnableVirtualAccounts: false,
 		EnableWebhooks:        true,
 	})

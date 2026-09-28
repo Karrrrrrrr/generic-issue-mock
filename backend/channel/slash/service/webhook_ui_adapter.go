@@ -8,27 +8,7 @@ import (
 	"generic-mock/enums"
 	sharedbiz "generic-mock/shared/biz"
 	sharederrors "generic-mock/shared/errors"
-	sharedservice "generic-mock/shared/service"
-
-	"github.com/samber/do/v2"
 )
-
-type SharedUIService struct{ *sharedservice.Service }
-
-func NewSharedUIService(injector do.Injector) (*SharedUIService, error) {
-	factory := do.MustInvoke[*sharedservice.Factory](injector)
-	adapter := &sharedUIWebhookAdapter{webhookUsecase: do.MustInvoke[*biz.SlashWebhookUsecase](injector)}
-	management, err := factory.New(&sharedservice.NewRequest{
-		Channel:             enums.Channel_Slash,
-		Notificator:         do.MustInvoke[*SlashUIService](injector),
-		WebhookEventCatalog: adapter,
-		WebhookReplayer:     adapter,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &SharedUIService{Service: management}, nil
-}
 
 type sharedUIWebhookAdapter struct{ webhookUsecase *biz.SlashWebhookUsecase }
 

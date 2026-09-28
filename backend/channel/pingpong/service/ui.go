@@ -8,11 +8,13 @@ import (
 	"github.com/samber/do/v2"
 )
 
-type SharedUIService struct{ *sharedservice.Service }
+type PingPongUIService struct {
+	Shared *sharedservice.Service
+}
 
-func NewSharedUIService(injector do.Injector) (*SharedUIService, error) {
+func NewUIService(injector do.Injector) (*PingPongUIService, error) {
 	factory := do.MustInvoke[*sharedservice.Factory](injector)
-
+	s := &PingPongUIService{}
 	management, err := factory.New(&sharedservice.NewRequest{
 		Channel:     enums.Channel_PingPong,
 		Notificator: sharedbiz.NoopNotificator{},
@@ -20,5 +22,6 @@ func NewSharedUIService(injector do.Injector) (*SharedUIService, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &SharedUIService{Service: management}, nil
+	s.Shared = management
+	return s, nil
 }
