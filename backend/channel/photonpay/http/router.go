@@ -53,6 +53,7 @@ func Register(
 		uiRoutes.POST("/managed-virtual-accounts", bindUI(uiService.CreateManagedVirtualAccount))
 		uiRoutes.GET("/virtual-accounts", bindUI(uiService.ListVirtualAccounts))
 		uiRoutes.POST("/virtual-accounts", bindUI(uiService.CreateVirtualAccount))
+		uiRoutes.GET("/card-products", bindUI(uiService.ListCardProducts))
 		uiRoutes.GET("/cardholders", bindUI(uiService.ListCardHolders))
 		uiRoutes.GET("/cards", bindUI(uiService.ListCards))
 		uiRoutes.POST("/cards/:id/fund", bindUI(uiService.FundCard))

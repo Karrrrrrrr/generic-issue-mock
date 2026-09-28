@@ -397,10 +397,11 @@ func (s *PhotonPayUIService) ListCardHolders(ctx context.Context, req *UIListReq
 }
 
 type UICreateCardRequest struct {
-	AccountID    string `json:"account_id" binding:"required"`
-	CardHolderID string `json:"cardholder_id" binding:"required"`
-	CardCurrency string `json:"card_currency" binding:"required"`
-	RequestID    string `json:"request_id" binding:"required"`
+	CardProductID string `json:"card_product_id" binding:"required"`
+	AccountID     string `json:"account_id" binding:"required"`
+	CardHolderID  string `json:"cardholder_id" binding:"required"`
+	CardCurrency  string `json:"card_currency" binding:"required"`
+	RequestID     string `json:"request_id" binding:"required"`
 }
 
 type UICardData struct {
@@ -429,11 +430,16 @@ func (s *PhotonPayUIService) CreateCard(ctx context.Context, req *UICreateCardRe
 	if err != nil {
 		return nil, err
 	}
+	productID, err := idconv.FromString(req.CardProductID)
+	if err != nil {
+		return nil, err
+	}
 	card, err := s.usecase.OpenCard(ctx, &biz.UIOpenCardRequest{
-		AccountID:    accountID,
-		CardHolderID: cardHolderID,
-		Currency:     common.Currency(req.CardCurrency),
-		RequestID:    req.RequestID,
+		CardProductID: productID,
+		AccountID:     accountID,
+		CardHolderID:  cardHolderID,
+		Currency:      common.Currency(req.CardCurrency),
+		RequestID:     req.RequestID,
 	})
 	if err != nil {
 		return nil, err

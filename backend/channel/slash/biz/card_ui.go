@@ -29,7 +29,7 @@ type ListCardsRequest struct {
 type CreateCardRequest struct {
 	AccountID     model.ID
 	CardHolderID  model.ID
-	CardProductID *model.ID
+	CardProductID model.ID
 	Currency      enums.Currency
 }
 
@@ -39,7 +39,17 @@ type UpdateCardStatusRequest struct {
 	Status    enums.CardStatus
 }
 
+func (req *CreateCardRequest) Validate() error {
+	if req == nil || req.CardProductID <= 0 {
+		return slasherrors.ErrInvalidOperation
+	}
+	return nil
+}
+
 func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest) (*model.Card, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		if err := u.requireCardHolder(txCtx, req.CardHolderID); err != nil {
@@ -54,21 +64,7 @@ func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest)
 		if holder.AccountID != req.AccountID {
 			return slasherrors.ErrResourceNotFound
 		}
-		products, err := u.cardProductRepository.List(txCtx)
-		if err != nil {
-			zap.S().Errorw("list slash channel products", "error", err)
-			return slasherrors.ErrDatabaseOperation
-		}
-		productID := types.Value(req.CardProductID)
-		if req.CardProductID == nil {
-			for _, candidate := range products {
-				if candidate.IsDefault {
-					productID = candidate.ID
-					break
-				}
-			}
-		}
-		exists, err := u.cardProductRepository.ExistByID(txCtx, productID)
+		exists, err := u.cardProductRepository.ExistByID(txCtx, req.CardProductID)
 		if err != nil {
 			zap.S().Errorw("check slash channel product", "error", err)
 			return slasherrors.ErrDatabaseOperation
@@ -76,7 +72,7 @@ func (u *SlashUIUsecase) CreateCard(ctx context.Context, req *CreateCardRequest)
 		if !exists {
 			return slasherrors.ErrResourceNotFound
 		}
-		product, err := u.cardProductRepository.FindByIDForUpdate(txCtx, productID)
+		product, err := u.cardProductRepository.FindByIDForUpdate(txCtx, req.CardProductID)
 		if err != nil {
 			zap.S().Errorw("lock slash channel product", "error", err)
 			return slasherrors.ErrDatabaseOperation

@@ -56,3 +56,23 @@ func (r *cardProductRepository) Save(ctx context.Context, item *model.CardProduc
 }
 
 var _ biz.CardProductRepository = (*cardProductRepository)(nil)
+
+func (r *cardProductRepository) ExistByID(ctx context.Context, req *biz.CardProductExistByIDRequest) (bool, error) {
+	db := r.repository.DB(ctx)
+	count, err := db.CardProduct.WithContext(ctx).Where(
+		db.CardProduct.Channel.Eq(string(enums.Channel_PhotonPay)),
+		db.CardProduct.ID.Eq(req.ID),
+	).Count()
+	return count > 0, err
+}
+
+func (r *cardProductRepository) FindByIDForUpdate(ctx context.Context, req *biz.CardProductFindByIDForUpdateRequest) (*model.CardProduct, error) {
+	db := r.repository.DB(ctx)
+	return db.CardProduct.WithContext(ctx).Clauses(clause.Locking{
+		Strength: "UPDATE",
+		Table:    clause.Table{Name: clause.CurrentTable},
+	}).Where(
+		db.CardProduct.Channel.Eq(string(enums.Channel_PhotonPay)),
+		db.CardProduct.ID.Eq(req.ID),
+	).First()
+}

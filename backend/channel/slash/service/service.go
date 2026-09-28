@@ -276,9 +276,8 @@ type ListResponse[T any] struct {
 }
 
 type CardProductData struct {
-	ID        string `json:"id"`
-	Prefix    string `json:"prefix"`
-	IsDefault bool   `json:"is_default"`
+	ID     string `json:"id"`
+	Prefix string `json:"prefix"`
 }
 
 type ListCardProductsData struct {
@@ -296,9 +295,8 @@ func (s *SlashUIService) ListCardProducts(ctx context.Context, _ *ListCardProduc
 	return &ListCardProductsData{
 		Items: types.BulkConvertSlice(items, func(item *biz.CardProductInfo) CardProductData {
 			return CardProductData{
-				ID:        idconv.ToUUID(item.Product.ID),
-				Prefix:    item.Product.Prefix,
-				IsDefault: item.Product.IsDefault,
+				ID:     idconv.ToUUID(item.Product.ID),
+				Prefix: item.Product.Prefix,
 			}
 		}),
 	}, nil
@@ -396,10 +394,10 @@ func (s *SlashUIService) ListCardHolders(ctx context.Context, req *ListRequest) 
 }
 
 type CreateCardRequest struct {
-	AccountID     string  `json:"account_id" binding:"required"`
-	CardHolderID  string  `json:"cardholder_id" binding:"required"`
-	CardProductID *string `json:"card_product_id"`
-	CardCurrency  string  `json:"card_currency" binding:"required"`
+	AccountID     string `json:"account_id" binding:"required"`
+	CardHolderID  string `json:"cardholder_id" binding:"required"`
+	CardProductID string `json:"card_product_id" binding:"required"`
+	CardCurrency  string `json:"card_currency" binding:"required"`
 }
 
 type UpdateCardStatusRequest struct {
@@ -439,7 +437,7 @@ func (s *SlashUIService) CreateCard(ctx context.Context, req *CreateCardRequest)
 	if err != nil {
 		return nil, err
 	}
-	cardProductID, err := idconv.FromOptionalUUID(req.CardProductID)
+	cardProductID, err := idconv.FromUUID(req.CardProductID)
 	if err != nil {
 		return nil, err
 	}

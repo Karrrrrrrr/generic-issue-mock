@@ -121,6 +121,7 @@ func Register(router *gin.RouterGroup, openapi *service.PayndaOpenAPIService, ui
 		uiRoutes.PUT("/accounts/:id", bindUI(ui.UpdateAccount))
 		uiRoutes.GET("/funds", bindUI(ui.ListFunds))
 		uiRoutes.POST("/funds/transfer", bindUI(ui.MoveFunds))
+		uiRoutes.GET("/card-products", bindUI(ui.ListCardProducts))
 		uiRoutes.GET("/cardholders", bindUI(ui.ListCardHolders))
 		uiRoutes.GET("/cards", bindUI(ui.ListCards))
 		uiRoutes.PUT("/cards/:id/status", bindUI(ui.UpdateCardStatus))

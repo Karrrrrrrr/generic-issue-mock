@@ -27,9 +27,10 @@ type ListUICardsRequest struct {
 }
 
 type PayndaUICreateCardRequest struct {
-	AccountID    model.ID
-	CardHolderID model.ID
-	Currency     enums.Currency
+	CardProductID model.ID
+	AccountID     model.ID
+	CardHolderID  model.ID
+	Currency      enums.Currency
 }
 
 type PayndaUIUpdateCardStatusRequest struct {
@@ -38,7 +39,17 @@ type PayndaUIUpdateCardStatusRequest struct {
 	Status    enums.CardStatus
 }
 
+func (req *PayndaUICreateCardRequest) Validate() error {
+	if req == nil || req.CardProductID <= 0 {
+		return payndaerrors.ErrInvalidOperation
+	}
+	return nil
+}
+
 func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCardRequest) (*model.Card, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		exists, err := u.accountRepository.ExistByID(txCtx, req.AccountID)
@@ -60,27 +71,16 @@ func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCar
 		if !exists {
 			return payndaerrors.ErrResourceNotFound
 		}
-		products, err := u.cardProductRepository.List(txCtx)
+		productExists, err := u.cardProductRepository.ExistByID(txCtx, req.CardProductID)
 		if err != nil {
-			zap.S().Errorw("list paynda UI card products", "error", err)
+			zap.S().Errorw("check paynda UI card product", "error", err)
 			return payndaerrors.ErrDatabaseOperation
 		}
-		if len(products) == 0 {
+		if !productExists {
 			return payndaerrors.ErrResourceNotFound
 		}
 
-		var defaultProduct *model.CardProduct
-		for _, item := range products {
-			if item.IsDefault {
-				defaultProduct = item
-				break
-			}
-		}
-		if defaultProduct == nil {
-			return payndaerrors.ErrResourceNotFound
-		}
-
-		product, err := u.cardProductRepository.FindByIDForUpdate(txCtx, defaultProduct.ID)
+		product, err := u.cardProductRepository.FindByIDForUpdate(txCtx, req.CardProductID)
 		if err != nil {
 			zap.S().Errorw("lock paynda UI card product", "error", err)
 			return payndaerrors.ErrDatabaseOperation

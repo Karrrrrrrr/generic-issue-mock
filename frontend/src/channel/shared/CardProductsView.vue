@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { useClientPagination } from "@/channel/pagination";
-import { renderEnumTag } from "@/channel/tableTags";
 import { onMounted, ref } from "vue";
 import { NCard, NDataTable, useMessage } from "naive-ui";
 import type { CardProduct } from "./api";
@@ -32,7 +31,7 @@ onMounted(() => void load());
     <div class="page-heading">
       <div>
         <h1>卡产品</h1>
-        <slot name="description"><p>渠道可用 BIN 与默认开卡产品。</p></slot>
+        <slot name="description"><p>渠道共享的卡产品与 BIN；开卡必须显式指定产品。</p></slot>
       </div>
     </div>
     <n-card :bordered="false">
@@ -45,11 +44,6 @@ onMounted(() => void load());
         :data="rows"
         :columns="[
           { title: prefixLabel, key: 'prefix' },
-          {
-            title: '默认产品',
-            key: 'is_default',
-            render: (row: CardProduct) => renderEnumTag(row.is_default, 'defaultProduct'),
-          },
           { title: 'ID', key: 'id' },
         ]"
       />

@@ -69,7 +69,6 @@ export interface Transfer extends Owned {
 export interface Product {
   id: string;
   prefix: string;
-  is_default: boolean;
 }
 async function request<Item>(path: string, options?: RequestInit): Promise<Item> {
   const response = await fetch(`/pingpong/ui/${path}`, options);

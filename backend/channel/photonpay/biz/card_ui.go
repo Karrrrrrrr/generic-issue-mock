@@ -27,10 +27,11 @@ type ListUICardsRequest struct {
 }
 
 type UIOpenCardRequest struct {
-	AccountID    model.ID
-	CardHolderID model.ID
-	Currency     enums.Currency
-	RequestID    string
+	CardProductID model.ID
+	AccountID     model.ID
+	CardHolderID  model.ID
+	Currency      enums.Currency
+	RequestID     string
 }
 
 type UIChangeCardStatusRequest struct {
@@ -39,7 +40,17 @@ type UIChangeCardStatusRequest struct {
 	Status    enums.CardStatus
 }
 
+func (req *UIOpenCardRequest) Validate() error {
+	if req == nil || req.CardProductID <= 0 {
+		return photonpayerrors.ErrInvalidOperation
+	}
+	return nil
+}
+
 func (u *PhotonPayUIUsecase) OpenCard(ctx context.Context, req *UIOpenCardRequest) (*model.Card, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
 		exists, err := u.cardHolderRepo.ExistCardHolderByAccountID(txCtx, &CardHolderExistCardHolderByAccountIDRequest{
@@ -55,7 +66,7 @@ func (u *PhotonPayUIUsecase) OpenCard(ctx context.Context, req *UIOpenCardReques
 			return photonpayerrors.ErrResourceNotFound
 		}
 
-		productExists, err := u.cardProductRepo.ExistByPrefix(txCtx, photon.DefaultCardBin)
+		productExists, err := u.cardProductRepo.ExistByID(txCtx, &CardProductExistByIDRequest{ID: req.CardProductID})
 		if err != nil {
 			zap.S().Errorw("check photonpay UI card product", "error", err)
 
@@ -65,7 +76,7 @@ func (u *PhotonPayUIUsecase) OpenCard(ctx context.Context, req *UIOpenCardReques
 			return photonpayerrors.ErrResourceNotFound
 		}
 
-		product, err := u.cardProductRepo.FindByPrefixForUpdate(txCtx, photon.DefaultCardBin)
+		product, err := u.cardProductRepo.FindByIDForUpdate(txCtx, &CardProductFindByIDForUpdateRequest{ID: req.CardProductID})
 		if err != nil {
 			zap.S().Errorw("lock photonpay UI card product", "error", err)
 

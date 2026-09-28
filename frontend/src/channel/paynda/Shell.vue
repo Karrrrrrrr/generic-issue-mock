@@ -14,6 +14,10 @@ const items = [
     children: [
       { label: "持卡人", key: "/paynda/cardholders" },
       { label: "卡片管理", key: "/paynda/cards" },
+      {
+        label: "卡产品管理",
+        key: "/paynda/card-products",
+      },
     ],
   },
   {

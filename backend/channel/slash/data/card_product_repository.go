@@ -43,28 +43,6 @@ func (r *cardProductRepository) FindByIDForUpdate(ctx context.Context, id model.
 	).First()
 }
 
-func (r *cardProductRepository) ExistDefault(ctx context.Context) (bool, error) {
-	db := r.repository.DB(ctx)
-	count, err := db.CardProduct.WithContext(ctx).Where(
-		db.CardProduct.Channel.Eq(string(enums.Channel_Slash)),
-		db.CardProduct.IsDefault.Is(true),
-	).Count()
-
-	return count > 0, err
-}
-
-func (r *cardProductRepository) FindDefaultForUpdate(ctx context.Context) (*model.CardProduct, error) {
-	db := r.repository.DB(ctx)
-
-	return db.CardProduct.WithContext(ctx).Clauses(clause.Locking{
-		Strength: "UPDATE",
-		Table:    clause.Table{Name: clause.CurrentTable},
-	}).Where(
-		db.CardProduct.Channel.Eq(string(enums.Channel_Slash)),
-		db.CardProduct.IsDefault.Is(true),
-	).Order(db.CardProduct.ID.Desc()).First()
-}
-
 func (r *cardProductRepository) List(ctx context.Context) ([]*model.CardProduct, error) {
 	db := r.repository.DB(ctx)
 

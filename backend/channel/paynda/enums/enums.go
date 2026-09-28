@@ -104,7 +104,6 @@ func TransactionTypeFromGeneric(value common.CardTransactionType) TransactionTyp
 }
 
 const (
-	DefaultCardBin       = "523456"
 	SuccessCode    int64 = 200
 	SuccessMessage       = "success"
 )

@@ -15,8 +15,9 @@ import (
 	"gorm.io/gorm"
 )
 
-const slashDefaultCardProductPrefix = "424242"
-const payndaDefaultCardProductPrefix = "523456"
+const slashSeedCardProductPrefix = "424242"
+const payndaSeedCardProductPrefix = "523456"
+const photonSeedCardProductPrefix = "543210"
 
 func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 	accounts, err := seedChannelAccounts(ctx, db)
@@ -31,24 +32,20 @@ func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 	}
 	items := []*model.CardProduct{
 		{
-			Channel:   enums.Channel_Slash,
-			Prefix:    slashDefaultCardProductPrefix,
-			IsDefault: true,
+			Channel: enums.Channel_Slash,
+			Prefix:  slashSeedCardProductPrefix,
 		},
 		{
-			Channel:   enums.Channel_PhotonPay,
-			Prefix:    photon.DefaultCardBin,
-			IsDefault: true,
+			Channel: enums.Channel_PhotonPay,
+			Prefix:  photonSeedCardProductPrefix,
 		},
 		{
-			Channel:   enums.Channel_Paynda,
-			Prefix:    payndaDefaultCardProductPrefix,
-			IsDefault: true,
+			Channel: enums.Channel_Paynda,
+			Prefix:  payndaSeedCardProductPrefix,
 		},
 		{
-			Channel:   enums.Channel_PingPong,
-			Prefix:    "424242,424243",
-			IsDefault: true,
+			Channel: enums.Channel_PingPong,
+			Prefix:  "424242,424243",
 		},
 	}
 

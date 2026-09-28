@@ -270,9 +270,10 @@ type PayndaUICardHolderData struct {
 	CreatedAt   time.Time               `json:"created_at"`
 }
 type PayndaUICreateCardRequest struct {
-	AccountID    string          `json:"account_id" binding:"required"`
-	CardHolderID string          `json:"cardholder_id" binding:"required"`
-	CardCurrency common.Currency `json:"card_currency" binding:"required"`
+	CardProductID string          `json:"card_product_id" binding:"required"`
+	AccountID     string          `json:"account_id" binding:"required"`
+	CardHolderID  string          `json:"cardholder_id" binding:"required"`
+	CardCurrency  common.Currency `json:"card_currency" binding:"required"`
 }
 type PayndaUICardData struct {
 	AccountName   string            `json:"account_name"`
@@ -353,10 +354,15 @@ func (s *PayndaUIService) CreateCard(ctx context.Context, req *PayndaUICreateCar
 	if err != nil {
 		return nil, err
 	}
+	productID, err := idconv.FromString(req.CardProductID)
+	if err != nil {
+		return nil, err
+	}
 	item, err := s.usecase.CreateCard(ctx, &biz.PayndaUICreateCardRequest{
-		AccountID:    accountID,
-		CardHolderID: holderID,
-		Currency:     req.CardCurrency,
+		CardProductID: productID,
+		AccountID:     accountID,
+		CardHolderID:  holderID,
+		Currency:      req.CardCurrency,
 	})
 	if err != nil {
 		return nil, err

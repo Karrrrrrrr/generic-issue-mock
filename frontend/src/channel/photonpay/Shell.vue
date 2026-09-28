@@ -17,6 +17,10 @@ const items = [
     children: [
       { label: "持卡人", key: "/photonpay/cardholders" },
       { label: "卡片管理", key: "/photonpay/cards" },
+      {
+        label: "卡产品管理",
+        key: "/photonpay/card-products",
+      },
     ],
   },
   {

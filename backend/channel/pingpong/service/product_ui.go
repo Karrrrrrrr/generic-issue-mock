@@ -7,9 +7,8 @@ import (
 )
 
 type UIProductData struct {
-	ID      string `json:"id"`
-	Prefix  string `json:"prefix"`
-	Default bool   `json:"is_default"`
+	ID     string `json:"id"`
+	Prefix string `json:"prefix"`
 }
 
 func (s *PingPongUIService) ListCardProducts(ctx context.Context, req *Empty) (*UIPage[UIProductData], error) {
@@ -23,9 +22,8 @@ func (s *PingPongUIService) ListCardProducts(ctx context.Context, req *Empty) (*
 	}
 	for _, item := range items {
 		result.Items = append(result.Items, UIProductData{
-			ID:      idconv.ToString(item.ID),
-			Prefix:  item.Prefix,
-			Default: item.IsDefault,
+			ID:     idconv.ToString(item.ID),
+			Prefix: item.Prefix,
 		})
 	}
 	return result, nil

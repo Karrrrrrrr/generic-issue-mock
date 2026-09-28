@@ -153,7 +153,6 @@ const (
 const (
 	MemberID                        = "photonpay-mock-member"
 	AccountNumber                   = "photonpay-mock-account"
-	DefaultCardBin                  = "543210"
 	CardScheme                      = generic.CardScheme_MasterCard
 	DefaultMobilePrefix             = "+1"
 	DefaultNationalityCountryCode   = "US"

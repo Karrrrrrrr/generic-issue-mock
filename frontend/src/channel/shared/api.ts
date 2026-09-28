@@ -35,7 +35,6 @@ export type WebhookEvent = string;
 export interface CardProduct {
   id: string;
   prefix: string;
-  is_default: boolean;
 }
 
 export interface VirtualAccount {

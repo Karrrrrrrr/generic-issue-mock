@@ -171,19 +171,10 @@ const enumLabels: Record<string, Record<string, EnumLabel>> = {
       type: "default",
     },
   },
-  defaultProduct: {
-    true: {
-      label: "是",
-      type: "success",
-    },
-    false: {
-      label: "否",
-      type: "default",
-    },
-  },
+
 };
 
-type EnumCategory = "notification" | "walletTransfer" | "status" | "transaction" | "event" | "funding" | "enabled" | "defaultProduct";
+type EnumCategory = "notification" | "walletTransfer" | "status" | "transaction" | "event" | "funding" | "enabled";
 
 export function formatEnumLabel(value: string | boolean, category: EnumCategory) {
   return enumLabels[category]?.[String(value)]?.label ?? "未知";

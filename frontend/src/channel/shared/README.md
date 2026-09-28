@@ -11,7 +11,7 @@ UI 使用项目内部枚举，不使用第三方状态值：卡状态为 `inacti
 - `ChannelShell.vue`：四渠道共用布局，菜单、标题和当前渠道由上层传入。
 - `AccountsView.vue`：账户列表、创建、调整余额；仅在提供 `accountApi.update` 时展示改名。账户/资金账户标题、钱包 ID 列和说明可配置。
 - `CardholdersView.vue`：共用持卡人列表与远程分页，仅接入已有此能力的三个渠道。
-- `CardProductsView.vue`：Slash、PingPong 共用只读产品列表，候选 BIN 文案和说明由上层提供。
+- `CardProductsView.vue`：四渠道共用只读产品列表，展示渠道级产品 ID 与 BIN；候选 BIN 文案和说明由上层提供。开卡必须指定产品，不提供默认产品标记或兜底选择。
 - `VirtualAccountsView.vue`：Slash、PhotonPay、PingPong 共用列表、创建和充值。未提供 `withdraw` 时不展示转出；币种选择、钱包 ID 列和说明可配置。
 - `CardsView.vue`：四渠道共用卡列表、内部状态筛选、冻结/恢复和资金操作。可选到期日、冻结余额、虚拟账户列及模拟授权入口；不按虚拟账户关联关系猜测钱包。PingPong 的卡资金操作仍只在卡钱包与所属虚拟账户之间进行。
 - `AuthorizationsView.vue`：四渠道共用列表及清算/撤销/退款。仅在提供 `api.detail` 时展示关联交易、原始报文等详情；PingPong 从本地授权与阶段记录返回真实汇总、卡信息和关联交易。PingPong 仍展示 `contract_pending`，不伪造通知已投递。

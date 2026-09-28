@@ -108,6 +108,10 @@ export const router = createRouter({
           component: () => import("@/channel/photonpay/CardsView.vue"),
         },
         {
+          path: "card-products",
+          component: () => import("@/channel/photonpay/CardProductsView.vue"),
+        },
+        {
           path: "transactions",
           component: () => import("@/channel/photonpay/TransactionsView.vue"),
         },
@@ -138,6 +142,10 @@ export const router = createRouter({
         {
           path: "cards",
           component: () => import("@/channel/paynda/CardsView.vue"),
+        },
+        {
+          path: "card-products",
+          component: () => import("@/channel/paynda/CardProductsView.vue"),
         },
         {
           path: "transactions",
