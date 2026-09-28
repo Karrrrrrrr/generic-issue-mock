@@ -86,7 +86,7 @@ func (s *PingPongUIService) SimulateAuthorization(ctx context.Context, req *Simu
 	return &result, nil
 }
 
-func (s *PingPongUIService) Authorizations(ctx context.Context, req *UIListAuthorizationsRequest) (*UIPage[AuthorizationData], error) {
+func (s *PingPongUIService) ListAuthorizations(ctx context.Context, req *UIListAuthorizationsRequest) (*UIPage[AuthorizationData], error) {
 	accountID, err := idconv.FromOptionalString(req.AccountID)
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func (s *PingPongUIService) Authorizations(ctx context.Context, req *UIListAutho
 	return result, nil
 }
 
-func (s *PingPongUIService) Stage(ctx context.Context, req *UIStageRequest) (*Empty, error) {
+func (s *PingPongUIService) ApplyAuthorizationStage(ctx context.Context, req *UIStageRequest) (*Empty, error) {
 	accountID, id, err := req.UIResourceRequest.ParseAccountAndResourceIDs()
 	if err != nil {
 		return nil, err

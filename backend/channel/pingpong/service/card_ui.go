@@ -43,7 +43,7 @@ type UIFundCardRequest struct {
 	RequestID string             `json:"request_id" binding:"required"`
 }
 
-func (s *PingPongUIService) Cards(ctx context.Context, req *UIListCardsRequest) (*UIPage[UICardData], error) {
+func (s *PingPongUIService) ListCards(ctx context.Context, req *UIListCardsRequest) (*UIPage[UICardData], error) {
 	accountID, err := idconv.FromOptionalString(req.AccountID)
 	if err != nil {
 		return nil, err
@@ -96,7 +96,7 @@ func (s *PingPongUIService) Cards(ctx context.Context, req *UIListCardsRequest) 
 	return result, nil
 }
 
-func (s *PingPongUIService) ChangeCard(ctx context.Context, req *UIChangeCardRequest) (*Empty, error) {
+func (s *PingPongUIService) ChangeCardStatus(ctx context.Context, req *UIChangeCardRequest) (*Empty, error) {
 	accountID, id, err := req.UIResourceRequest.ParseAccountAndResourceIDs()
 	if err != nil {
 		return nil, err

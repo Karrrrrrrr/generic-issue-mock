@@ -17,7 +17,7 @@ type TokenData struct {
 	ExpiresIn   int    `json:"expires_in"`
 }
 
-func (s *PingPongOpenAPIService) Token(ctx context.Context, req *TokenRequest) (*TokenData, error) {
+func (s *PingPongOpenAPIService) GetAccessToken(ctx context.Context, req *TokenRequest) (*TokenData, error) {
 	value, exists := s.apps[req.AppID]
 	if !exists {
 		return nil, pingerrors.ErrAppMapping

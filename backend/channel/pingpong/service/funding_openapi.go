@@ -83,7 +83,7 @@ type CardOrdersData struct {
 	List     []CardOrderData `json:"list"`
 }
 
-func (s *PingPongOpenAPIService) CardFunding(ctx context.Context, req *CardFundingRequest) (*CardFundingData, error) {
+func (s *PingPongOpenAPIService) FundCard(ctx context.Context, req *CardFundingRequest) (*CardFundingData, error) {
 	accountID, err := s.resolveAccountID(ctx, &req.OpenAPIRequest)
 	if err != nil {
 		return nil, err
@@ -110,7 +110,7 @@ func (s *PingPongOpenAPIService) CardFunding(ctx context.Context, req *CardFundi
 	}, nil
 }
 
-func (s *PingPongOpenAPIService) BudgetFunding(ctx context.Context, req *BudgetFundingRequest) (*RecordData, error) {
+func (s *PingPongOpenAPIService) FundBudget(ctx context.Context, req *BudgetFundingRequest) (*RecordData, error) {
 	accountID, err := s.resolveAccountID(ctx, &req.OpenAPIRequest)
 	if err != nil {
 		return nil, err
@@ -140,7 +140,7 @@ func (s *PingPongOpenAPIService) BudgetFunding(ctx context.Context, req *BudgetF
 	return &RecordData{RecordID: idconv.ToString(item.ID)}, nil
 }
 
-func (s *PingPongOpenAPIService) BudgetOrder(ctx context.Context, req *BudgetOrderRequest) (*BudgetOrderData, error) {
+func (s *PingPongOpenAPIService) GetBudgetFundingOrder(ctx context.Context, req *BudgetOrderRequest) (*BudgetOrderData, error) {
 	accountID, err := s.resolveAccountID(ctx, &req.OpenAPIRequest)
 	if err != nil {
 		return nil, err
@@ -168,7 +168,7 @@ func (s *PingPongOpenAPIService) BudgetOrder(ctx context.Context, req *BudgetOrd
 	}, nil
 }
 
-func (s *PingPongOpenAPIService) CardOrders(ctx context.Context, req *CardOrdersRequest) (*CardOrdersData, error) {
+func (s *PingPongOpenAPIService) ListCardFundingOrders(ctx context.Context, req *CardOrdersRequest) (*CardOrdersData, error) {
 	accountID, err := s.resolveAccountID(ctx, &req.OpenAPIRequest)
 	if err != nil {
 		return nil, err

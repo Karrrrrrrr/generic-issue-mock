@@ -25,7 +25,7 @@ type ProductsData struct {
 	ProductList []ProductData `json:"product_list"`
 }
 
-func (s *PingPongOpenAPIService) Products(ctx context.Context, req *OpenAPIRequest) (*ProductsData, error) {
+func (s *PingPongOpenAPIService) ListCardProducts(ctx context.Context, req *OpenAPIRequest) (*ProductsData, error) {
 	if _, err := s.resolveAccountID(ctx, req); err != nil {
 		return nil, err
 	}

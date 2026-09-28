@@ -128,7 +128,7 @@ func (s *PingPongOpenAPIService) CreateCard(ctx context.Context, req *CreateCard
 	return &CardIDData{CardID: idconv.ToString(card.ID)}, nil
 }
 
-func (s *PingPongOpenAPIService) CardDetails(ctx context.Context, req *CardRequest) (*CardDetails, error) {
+func (s *PingPongOpenAPIService) GetCardDetails(ctx context.Context, req *CardRequest) (*CardDetails, error) {
 	accountID, err := s.resolveAccountID(ctx, &req.OpenAPIRequest)
 	if err != nil {
 		return nil, err
@@ -161,7 +161,7 @@ func (s *PingPongOpenAPIService) CardDetails(ctx context.Context, req *CardReque
 	}, nil
 }
 
-func (s *PingPongOpenAPIService) CardBalance(ctx context.Context, req *CardRequest) (*CardBalance, error) {
+func (s *PingPongOpenAPIService) GetCardBalance(ctx context.Context, req *CardRequest) (*CardBalance, error) {
 	accountID, err := s.resolveAccountID(ctx, &req.OpenAPIRequest)
 	if err != nil {
 		return nil, err
@@ -187,7 +187,7 @@ func (s *PingPongOpenAPIService) CardBalance(ctx context.Context, req *CardReque
 	}, nil
 }
 
-func (s *PingPongOpenAPIService) CardAction(ctx context.Context, req *CardActionRequest) (*Empty, error) {
+func (s *PingPongOpenAPIService) ApplyCardAction(ctx context.Context, req *CardActionRequest) (*Empty, error) {
 	accountID, err := s.resolveAccountID(ctx, &req.OpenAPIRequest)
 	if err != nil {
 		return nil, err

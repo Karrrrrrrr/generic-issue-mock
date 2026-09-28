@@ -35,7 +35,7 @@ type UIFundVirtualAccountRequest struct {
 	RequestID string `json:"request_id" binding:"required,max=36"`
 }
 
-func (s *PingPongUIService) VirtualAccounts(ctx context.Context, req *UIListRequest) (*UIPage[UIVirtualAccountData], error) {
+func (s *PingPongUIService) ListVirtualAccounts(ctx context.Context, req *UIListRequest) (*UIPage[UIVirtualAccountData], error) {
 	accountID, err := idconv.FromOptionalString(req.AccountID)
 	if err != nil {
 		return nil, err

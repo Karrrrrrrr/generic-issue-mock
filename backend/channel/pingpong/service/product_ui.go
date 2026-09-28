@@ -12,7 +12,7 @@ type UIProductData struct {
 	Default bool   `json:"is_default"`
 }
 
-func (s *PingPongUIService) Products(ctx context.Context, req *Empty) (*UIPage[UIProductData], error) {
+func (s *PingPongUIService) ListCardProducts(ctx context.Context, req *Empty) (*UIPage[UIProductData], error) {
 	items, err := s.uc.Products(ctx)
 	if err != nil {
 		return nil, err

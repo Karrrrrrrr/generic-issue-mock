@@ -100,7 +100,7 @@ type UIPage[Item any] struct {
 	Total int64  `json:"total"`
 }
 
-func (s *PingPongOpenAPIService) Unsupported(ctx context.Context, req *OpenAPIRequest) (*Empty, error) {
+func (s *PingPongOpenAPIService) RejectUnsupportedOperation(ctx context.Context, req *OpenAPIRequest) (*Empty, error) {
 	if _, err := s.resolveAccountID(ctx, req); err != nil {
 		return nil, err
 	}

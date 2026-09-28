@@ -24,7 +24,7 @@ type UITransferData struct {
 	CreatedAt      time.Time          `json:"created_at"`
 }
 
-func (s *PingPongUIService) Transfers(ctx context.Context, req *UIListRequest) (*UIPage[UITransferData], error) {
+func (s *PingPongUIService) ListTransfers(ctx context.Context, req *UIListRequest) (*UIPage[UITransferData], error) {
 	accountID, err := idconv.FromOptionalString(req.AccountID)
 	if err != nil {
 		return nil, err

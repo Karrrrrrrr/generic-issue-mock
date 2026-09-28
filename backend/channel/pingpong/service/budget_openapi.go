@@ -49,7 +49,7 @@ func (s *PingPongOpenAPIService) CreateBudget(ctx context.Context, req *CreateBu
 	return &BudgetIDData{BudgetID: idconv.ToString(item.ID)}, nil
 }
 
-func (s *PingPongOpenAPIService) BudgetBalances(ctx context.Context, req *BudgetBalanceRequest) (*BudgetBalancesData, error) {
+func (s *PingPongOpenAPIService) ListBudgetBalances(ctx context.Context, req *BudgetBalanceRequest) (*BudgetBalancesData, error) {
 	accountID, err := s.resolveAccountID(ctx, &req.OpenAPIRequest)
 	if err != nil {
 		return nil, err

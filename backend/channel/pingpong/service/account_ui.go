@@ -45,7 +45,7 @@ func toAccountData(item *model.Account) AccountData {
 	return result
 }
 
-func (s *PingPongUIService) Accounts(ctx context.Context, req *PageRequest) (*UIPage[AccountData], error) {
+func (s *PingPongUIService) ListAccounts(ctx context.Context, req *PageRequest) (*UIPage[AccountData], error) {
 	page, limit, err := req.resolvePagination()
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (s *PingPongUIService) CreateAccount(ctx context.Context, req *UICreateAcco
 	return &result, nil
 }
 
-func (s *PingPongUIService) AdjustAccount(ctx context.Context, req *UIAccountBalanceRequest) (*Empty, error) {
+func (s *PingPongUIService) AdjustAccountBalance(ctx context.Context, req *UIAccountBalanceRequest) (*Empty, error) {
 	id, err := idconv.FromString(req.ID)
 	if err != nil {
 		return nil, err
