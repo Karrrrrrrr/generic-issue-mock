@@ -12,28 +12,28 @@ import (
 )
 
 type UICardData struct {
-	ID               string          `json:"id"`
-	AccountID        string          `json:"account_id"`
-	AccountName      string          `json:"account_name"`
-	VirtualAccountID string          `json:"virtual_account_id"`
-	CardNumber       string          `json:"card_number"`
-	CardBin          string          `json:"card_bin"`
-	Status           ping.CardStatus `json:"status"`
-	Balance          Number          `json:"balance"`
-	Reserved         Number          `json:"reserved"`
-	Currency         common.Currency `json:"currency"`
-	CreatedAt        time.Time       `json:"created_at"`
+	ID               string            `json:"id"`
+	AccountID        string            `json:"account_id"`
+	AccountName      string            `json:"account_name"`
+	VirtualAccountID string            `json:"virtual_account_id"`
+	CardNumber       string            `json:"card_number"`
+	CardBin          string            `json:"card_bin"`
+	Status           common.CardStatus `json:"status"`
+	Balance          Number            `json:"balance"`
+	Reserved         Number            `json:"reserved"`
+	Currency         common.Currency   `json:"currency"`
+	CreatedAt        time.Time         `json:"created_at"`
 }
 
 type UIListCardsRequest struct {
 	UIListRequest
-	ID     *string          `form:"card_id"`
-	Status *ping.CardStatus `form:"status" binding:"omitempty,oneof=ACTIVE REVOKED CANCELLED"`
+	ID     *string            `form:"card_id"`
+	Status *common.CardStatus `form:"status" binding:"omitempty,oneof=inactive active freezing frozen deleting deleted"`
 }
 
 type UIChangeCardRequest struct {
 	UIResourceRequest
-	Status ping.CardStatus `json:"status" binding:"required,oneof=ACTIVE REVOKED CANCELLED"`
+	Status common.CardStatus `json:"status" binding:"required,oneof=active frozen deleted"`
 }
 
 type UIFundCardRequest struct {
@@ -52,11 +52,7 @@ func (s *PingPongUIService) ListCards(ctx context.Context, req *UIListCardsReque
 	if err != nil {
 		return nil, err
 	}
-	var status *common.CardStatus
-	if req.Status != nil {
-		value := ping.ToGenericCardStatus(*req.Status)
-		status = &value
-	}
+
 	page, limit, err := req.PageRequest.resolvePagination()
 	if err != nil {
 		return nil, err
@@ -64,7 +60,7 @@ func (s *PingPongUIService) ListCards(ctx context.Context, req *UIListCardsReque
 	items, total, err := s.uc.ListCards(ctx, &biz.UIListCardsRequest{
 		AccountID: accountID,
 		ID:        cardID,
-		Status:    status,
+		Status:    req.Status,
 		Offset:    (page - 1) * limit,
 		Limit:     limit,
 	})
@@ -86,7 +82,7 @@ func (s *PingPongUIService) ListCards(ctx context.Context, req *UIListCardsReque
 			VirtualAccountID: idconv.ToString(*item.VirtualAccountID),
 			CardNumber:       item.CardNumber,
 			CardBin:          item.CardBin,
-			Status:           ping.FromGenericCardStatus(item.Status),
+			Status:           item.Status,
 			Balance:          Number{item.Wallet.Available},
 			Reserved:         Number{item.Wallet.PendingOut},
 			Currency:         item.CardCurrency,
@@ -104,7 +100,7 @@ func (s *PingPongUIService) ChangeCardStatus(ctx context.Context, req *UIChangeC
 	if err := s.uc.ChangeCard(ctx, &biz.UIChangeCardRequest{
 		AccountID: accountID,
 		ID:        id,
-		Status:    ping.ToGenericCardStatus(req.Status),
+		Status:    req.Status,
 	}); err != nil {
 		return nil, err
 	}

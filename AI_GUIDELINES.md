@@ -68,7 +68,7 @@ When a downstream DTO has mixed ID field types, apply the row's webhook rule per
 
 - Define typed request and response structs with `json`, `form`, `uri`, and `binding` tags as appropriate. Never use `gin.H`.
 - Prefer a generic helper when identical behavior applies to multiple types; for example, use `pkg/types.Value[T]` for pointer value defaults.
-- Use generic enums internally. A channel service converts them to the channel enum and declares its DTO field with that enum type directly. Do not declare a service enum field as `string` and cast between strings at a later layer.
+- UI DTOs use project enums directly for statuses, transaction types and transfer kinds in both requests and responses. UI filters preserve the exact supplied enum instead of converting through third-party enums or broadening to equivalent states. Only OpenAPI and webhook protocol DTOs convert to channel enums. Declare each DTO field with its enum type, not an intermediate `string`. Frontend business-page components are shared by module, with typed API adapters and explicit capabilities for channel differences; keep webhook event choices channel-specific and load them from the backend.
 - Use GORM Gen query objects for data access. Do not write literal SQL predicates such as `Where("field = ?")`.
 - If a flow allows a resource to be absent, use a separate one-query `Exist` repository method before `Find`. Do not convert or inspect `RecordNotFound` to implement optional-resource behavior.
 - In biz, log an unexpected repository error exactly once at its first handling point with direct `zap.S().Errorw`, then return a Kratos error. Do not hide logging behind a private error helper. Expected `Exist=false` results do not need error logs.

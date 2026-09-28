@@ -19,10 +19,6 @@ const statusLabels: Record<string, EnumLabel> = {
     label: "未激活",
     type: "default",
   },
-  paused: {
-    label: "已冻结",
-    type: "warning",
-  },
   freezing: {
     label: "冻结中",
     type: "warning",
@@ -31,13 +27,9 @@ const statusLabels: Record<string, EnumLabel> = {
     label: "已冻结",
     type: "warning",
   },
-  closed: {
-    label: "已关闭",
-    type: "default",
-  },
-  cancelled: {
-    label: "已注销",
-    type: "default",
+  deleting: {
+    label: "删除中",
+    type: "warning",
   },
   deleted: {
     label: "已删除",
@@ -51,10 +43,6 @@ const statusLabels: Record<string, EnumLabel> = {
     label: "已授权",
     type: "info",
   },
-  posted: {
-    label: "已入账",
-    type: "success",
-  },
   succeed: {
     label: "成功",
     type: "success",
@@ -62,10 +50,6 @@ const statusLabels: Record<string, EnumLabel> = {
   succeeded: {
     label: "成功",
     type: "success",
-  },
-  declined: {
-    label: "已拒绝",
-    type: "error",
   },
   failed: {
     label: "失败",
@@ -78,6 +62,14 @@ const statusLabels: Record<string, EnumLabel> = {
 };
 
 const transactionLabels: Record<string, EnumLabel> = {
+  fund_in: {
+    label: "资金转入",
+    type: "success",
+  },
+  fund_out: {
+    label: "资金转出",
+    type: "warning",
+  },
   auth: {
     label: "授权",
     type: "info",
@@ -97,22 +89,6 @@ const transactionLabels: Record<string, EnumLabel> = {
   verification: {
     label: "验证",
     type: "info",
-  },
-  "transaction.authentication.approved": {
-    label: "授权",
-    type: "info",
-  },
-  "transaction.authentication.settled": {
-    label: "清算",
-    type: "success",
-  },
-  "transaction.authentication.reversal.settled": {
-    label: "撤销",
-    type: "warning",
-  },
-  "transaction.refund.settled": {
-    label: "退款",
-    type: "warning",
   },
 };
 
@@ -160,6 +136,15 @@ const eventLabels: Record<string, EnumLabel> = {
 
 const enumLabels: Record<string, Record<string, EnumLabel>> = {
   status: statusLabels,
+  notification: {
+    contract_pending: { label: "协议待补齐 · 未投递", type: "warning" },
+  },
+  walletTransfer: {
+    card_top_up: { label: "卡充值" },
+    card_withdraw: { label: "卡转出" },
+    virtual_account_top_up: { label: "虚拟账户充值" },
+    virtual_account_transfer: { label: "虚拟账户划转" },
+  },
   transaction: transactionLabels,
   event: eventLabels,
   funding: {
@@ -194,10 +179,10 @@ const enumLabels: Record<string, Record<string, EnumLabel>> = {
   },
 };
 
-type EnumCategory = "status" | "transaction" | "event" | "funding" | "enabled" | "defaultProduct";
+type EnumCategory = "notification" | "walletTransfer" | "status" | "transaction" | "event" | "funding" | "enabled" | "defaultProduct";
 
 export function formatEnumLabel(value: string | boolean, category: EnumCategory) {
-  return enumLabels[category]?.[String(value).toLowerCase()]?.label ?? "未知";
+  return enumLabels[category]?.[String(value)]?.label ?? "未知";
 }
 
 export function renderEnumTag(
@@ -205,7 +190,7 @@ export function renderEnumTag(
   category: EnumCategory,
 ) {
   const rawValue = String(value);
-  const entry = enumLabels[category]?.[rawValue.toLowerCase()];
+  const entry = enumLabels[category]?.[rawValue];
 
   return h(
     NTag,

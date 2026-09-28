@@ -20,17 +20,17 @@ type SimulateAuthorizationRequest struct {
 }
 
 type AuthorizationData struct {
-	ID                 string                   `json:"id"`
-	AccountID          string                   `json:"account_id"`
-	AccountName        string                   `json:"account_name"`
-	CardID             string                   `json:"card_id"`
-	Amount             Number                   `json:"amount"`
-	Remaining          Number                   `json:"remaining"`
-	Currency           common.Currency          `json:"currency"`
-	MerchantName       string                   `json:"merchant_name"`
-	Status             ping.AuthorizationStatus `json:"status"`
-	NotificationStatus ping.NotificationStatus  `json:"notification_status"`
-	CreatedAt          time.Time                `json:"created_at"`
+	ID                 string                       `json:"id"`
+	AccountID          string                       `json:"account_id"`
+	AccountName        string                       `json:"account_name"`
+	CardID             string                       `json:"card_id"`
+	Amount             Number                       `json:"amount"`
+	Remaining          Number                       `json:"remaining"`
+	Currency           common.Currency              `json:"currency"`
+	MerchantName       string                       `json:"merchant_name"`
+	Status             common.CardTransactionStatus `json:"status"`
+	NotificationStatus common.NotificationStatus    `json:"notification_status"`
+	CreatedAt          time.Time                    `json:"created_at"`
 }
 
 type UIListAuthorizationsRequest struct {
@@ -55,8 +55,8 @@ func toAuthorizationData(item *model.Authorization) AuthorizationData {
 		Remaining:          Number{biz.CalculateRemainingAuthorization(item)},
 		Currency:           item.Currency,
 		MerchantName:       item.MerchantName,
-		Status:             ping.Authorized,
-		NotificationStatus: ping.NotificationPendingContract,
+		Status:             item.Status,
+		NotificationStatus: common.NotificationStatus_ContractPending,
 		CreatedAt:          item.CreatedAt,
 	}
 }

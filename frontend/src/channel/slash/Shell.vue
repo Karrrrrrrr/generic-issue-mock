@@ -1,11 +1,5 @@
 <script setup lang="ts">
-import { NLayout, NLayoutContent, NLayoutHeader, NLayoutSider, NMenu } from "naive-ui";
-import { useRoute, useRouter } from "vue-router";
-import ChannelSwitcher from "@/channel/ChannelSwitcher.vue";
-import ThemeToggle from "@/channel/ThemeToggle.vue";
-
-const route = useRoute();
-const router = useRouter();
+import ChannelShell from "@/channel/shared/ChannelShell.vue";
 const items = [
   {
     type: "group",
@@ -49,32 +43,5 @@ const items = [
 </script>
 
 <template>
-  <n-layout class="app-shell" has-sider native-scrollbar>
-    <n-layout-sider class="sidebar" :width="208" bordered native-scrollbar>
-      <div class="channel-logo">Slash Mock</div>
-      <n-menu
-        :value="route.path"
-        :options="items"
-        @update:value="(path) => router.push(String(path))"
-      />
-    </n-layout-sider>
-    <n-layout class="main-layout" native-scrollbar>
-      <n-layout-header class="app-header">
-        <span></span>
-        <div class="header-actions">
-          <ThemeToggle />
-          <ChannelSwitcher current="slash" />
-        </div>
-      </n-layout-header>
-      <n-layout-content class="content" native-scrollbar>
-        <router-view v-slot="{ Component, route: currentRoute }">
-          <transition name="slide" mode="out-in">
-            <div :key="currentRoute.path" class="route-page">
-              <component :is="Component" />
-            </div>
-          </transition>
-        </router-view>
-      </n-layout-content>
-    </n-layout>
-  </n-layout>
+  <ChannelShell channel="slash" title="Slash Mock" :items="items" />
 </template>

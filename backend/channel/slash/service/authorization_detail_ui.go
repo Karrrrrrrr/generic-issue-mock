@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"generic-mock/channel/slash/biz"
-	channelEnums "generic-mock/channel/slash/enums"
 	"generic-mock/channel/slash/pkg/idconv"
 	common "generic-mock/enums"
 
@@ -39,14 +38,14 @@ type AuthorizationDetailData struct {
 }
 
 type AuthorizationTransactionData struct {
-	ID              string                         `json:"id"`
-	AccountID       string                         `json:"account_id"`
-	AccountName     string                         `json:"account_name"`
-	TransactionType channelEnums.TransactionType   `json:"transaction_type"`
-	Status          channelEnums.TransactionStatus `json:"status"`
-	Amount          string                         `json:"amount"`
-	Currency        common.Currency                `json:"currency"`
-	CreatedAt       time.Time                      `json:"created_at"`
+	ID              string                       `json:"id"`
+	AccountID       string                       `json:"account_id"`
+	AccountName     string                       `json:"account_name"`
+	TransactionType common.CardTransactionType   `json:"transaction_type"`
+	Status          common.CardTransactionStatus `json:"status"`
+	Amount          string                       `json:"amount"`
+	Currency        common.Currency              `json:"currency"`
+	CreatedAt       time.Time                    `json:"created_at"`
 }
 
 func (s *SlashUIService) GetAuthorizationDetail(ctx context.Context, req *GetAuthorizationDetailRequest) (*AuthorizationDetailData, error) {
@@ -82,8 +81,8 @@ func (s *SlashUIService) GetAuthorizationDetail(ctx context.Context, req *GetAut
 			ID:              idconv.ToUUID(transaction.ID),
 			AccountID:       idconv.ToUUID(auth.AccountID),
 			AccountName:     uiAccountName(auth.Account),
-			TransactionType: channelEnums.TransactionTypeFromGeneric(transaction.Type),
-			Status:          channelEnums.TransactionStatusFromGeneric(transaction.Status),
+			TransactionType: transaction.Type,
+			Status:          transaction.Status,
 			Amount:          transaction.TxAmount.String(),
 			Currency:        transaction.TxCurrency,
 			CreatedAt:       transaction.CreatedAt,

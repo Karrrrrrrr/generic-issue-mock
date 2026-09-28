@@ -345,16 +345,16 @@ type CardHolderRequest struct {
 }
 
 type CardHolderData struct {
-	AccountName string                 `json:"account_name"`
-	AccountID   string                 `json:"account_id"`
-	ID          string                 `json:"id"`
-	FirstName   string                 `json:"first_name"`
-	LastName    string                 `json:"last_name"`
-	Email       string                 `json:"email"`
-	Mobile      string                 `json:"phone_number"`
-	Status      slash.CardHolderStatus `json:"status"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
+	AccountName string                  `json:"account_name"`
+	AccountID   string                  `json:"account_id"`
+	ID          string                  `json:"id"`
+	FirstName   string                  `json:"first_name"`
+	LastName    string                  `json:"last_name"`
+	Email       string                  `json:"email"`
+	Mobile      string                  `json:"phone_number"`
+	Status      common.CardHolderStatus `json:"status"`
+	CreatedAt   time.Time               `json:"created_at"`
+	UpdatedAt   time.Time               `json:"updated_at"`
 }
 
 func (s *SlashUIService) CreateCardHolder(ctx context.Context, req *CardHolderRequest) (*CardHolderData, error) {
@@ -403,8 +403,8 @@ type CreateCardRequest struct {
 }
 
 type UpdateCardStatusRequest struct {
-	AccountID  string           `json:"account_id" binding:"required"`
-	CardStatus slash.CardStatus `json:"card_status" binding:"required,oneof=active paused inactive closed"`
+	AccountID  string            `json:"account_id" binding:"required"`
+	CardStatus common.CardStatus `json:"card_status" binding:"required,oneof=active frozen deleted"`
 }
 
 type CardData struct {
@@ -420,8 +420,8 @@ type CardData struct {
 	CardScheme    common.CardScheme `json:"card_scheme"`
 	CardCurrency  string            `json:"card_currency"`
 	FormFactor    string            `json:"form_factor"`
-	CardStatus    slash.CardStatus  `json:"card_status"`
-	Status        slash.CardStatus  `json:"status"`
+	CardStatus    common.CardStatus `json:"card_status"`
+	Status        common.CardStatus `json:"status"`
 	ExpiresAt     time.Time         `json:"expires_at"`
 	Cvv           string            `json:"cvv"`
 	CreatedAt     time.Time         `json:"created_at"`
@@ -493,13 +493,13 @@ func (s *SlashUIService) UpdateCardStatus(ctx context.Context, req *UpdateCardRe
 	item, err := s.usecase.UpdateCardStatus(ctx, &biz.UpdateCardStatusRequest{
 		AccountID: accountID,
 		ID:        id,
-		Status:    slash.CardStatusToGeneric(req.CardStatus),
+		Status:    req.CardStatus,
 	})
 	if err != nil {
 		return nil, err
 	}
 	event := slash.WebhookEventCardUpdate
-	if req.CardStatus == slash.CardStatus_Closed {
+	if req.CardStatus == common.CardStatus_Deleted {
 		event = slash.WebhookEventCardDelete
 	}
 	s.webhookUsecase.Dispatch(ctx, slashWebhookDispatchRequest(
@@ -521,10 +521,10 @@ type SimulateAuthorizationRequest struct {
 }
 
 type SimulateAuthorizationData struct {
-	Approved      bool                    `json:"approved"`
-	Status        slash.TransactionStatus `json:"status"`
-	Authorization AuthorizationData       `json:"authorization"`
-	Transaction   TransactionData         `json:"transaction"`
+	Approved      bool                         `json:"approved"`
+	Status        common.CardTransactionStatus `json:"status"`
+	Authorization AuthorizationData            `json:"authorization"`
+	Transaction   TransactionData              `json:"transaction"`
 }
 
 type SimulateRefundRequest struct {
@@ -582,7 +582,7 @@ func (s *SlashUIService) SimulateAuthorization(ctx context.Context, req *Simulat
 	}
 	return &SimulateAuthorizationData{
 		Approved:      true,
-		Status:        slash.TransactionStatusFromGeneric(result.Authorization.Status),
+		Status:        result.Authorization.Status,
 		Authorization: *authorizationData(result.Authorization),
 		Transaction:   *transactionData(result.CardTransaction),
 	}, nil
@@ -590,24 +590,24 @@ func (s *SlashUIService) SimulateAuthorization(ctx context.Context, req *Simulat
 
 type ListAuthorizationsRequest struct {
 	ListRequest
-	ID     *string                  `form:"id"`
-	CardID *string                  `form:"card_id"`
-	Status *slash.TransactionStatus `form:"status" binding:"omitempty,oneof=pending posted failed"`
+	ID     *string                       `form:"id"`
+	CardID *string                       `form:"card_id"`
+	Status *common.CardTransactionStatus `form:"status" binding:"omitempty,oneof=pending authorized succeed failed void"`
 }
 
 type AuthorizationData struct {
-	AccountID            string                  `json:"account_id"`
-	AccountName          string                  `json:"account_name"`
-	ID                   string                  `json:"id"`
-	CardID               string                  `json:"card_id"`
-	Status               slash.TransactionStatus `json:"status"`
-	AuthorizedAmount     string                  `json:"authorized_amount"`
-	Currency             string                  `json:"currency"`
-	MerchantName         string                  `json:"merchant_name"`
-	MerchantCategoryCode string                  `json:"merchant_category_code"`
-	AuthorizationCode    string                  `json:"authorization_code"`
-	AuthorizedAt         time.Time               `json:"authorized_at"`
-	CreatedAt            time.Time               `json:"created_at"`
+	AccountID            string                       `json:"account_id"`
+	AccountName          string                       `json:"account_name"`
+	ID                   string                       `json:"id"`
+	CardID               string                       `json:"card_id"`
+	Status               common.CardTransactionStatus `json:"status"`
+	AuthorizedAmount     string                       `json:"authorized_amount"`
+	Currency             string                       `json:"currency"`
+	MerchantName         string                       `json:"merchant_name"`
+	MerchantCategoryCode string                       `json:"merchant_category_code"`
+	AuthorizationCode    string                       `json:"authorization_code"`
+	AuthorizedAt         time.Time                    `json:"authorized_at"`
+	CreatedAt            time.Time                    `json:"created_at"`
 }
 
 func (s *SlashUIService) ListAuthorizations(ctx context.Context, req *ListAuthorizationsRequest) (*ListResponse[*AuthorizationData], error) {
@@ -630,7 +630,7 @@ func (s *SlashUIService) ListAuthorizations(ctx context.Context, req *ListAuthor
 		Limit:     limit,
 		ID:        id,
 		CardID:    cardID,
-		Status:    types.ConvertPointer(req.Status, slash.TransactionStatusToGeneric),
+		Status:    req.Status,
 	})
 	if err != nil {
 		return nil, err
@@ -654,21 +654,21 @@ func (s *SlashUIService) GetAuthorization(ctx context.Context, req *IDRequest) (
 }
 
 type TransactionData struct {
-	AccountName          string                  `json:"account_name"`
-	AccountID            string                  `json:"account_id"`
-	ID                   string                  `json:"id"`
-	CardID               string                  `json:"card_id"`
-	AuthorizationID      string                  `json:"authorization_id"`
-	TransactionType      slash.TransactionType   `json:"transaction_type"`
-	Status               slash.TransactionStatus `json:"status"`
-	Amount               string                  `json:"amount"`
-	Currency             string                  `json:"currency"`
-	MerchantName         string                  `json:"merchant_name"`
-	MerchantCountry      string                  `json:"merchant_country"`
-	MerchantCategoryCode string                  `json:"merchant_category_code"`
-	AuthorizationCode    string                  `json:"authorization_code"`
-	TransactedAt         time.Time               `json:"transacted_at"`
-	CreatedAt            time.Time               `json:"created_at"`
+	AccountName          string                       `json:"account_name"`
+	AccountID            string                       `json:"account_id"`
+	ID                   string                       `json:"id"`
+	CardID               string                       `json:"card_id"`
+	AuthorizationID      string                       `json:"authorization_id"`
+	TransactionType      common.CardTransactionType   `json:"transaction_type"`
+	Status               common.CardTransactionStatus `json:"status"`
+	Amount               string                       `json:"amount"`
+	Currency             string                       `json:"currency"`
+	MerchantName         string                       `json:"merchant_name"`
+	MerchantCountry      string                       `json:"merchant_country"`
+	MerchantCategoryCode string                       `json:"merchant_category_code"`
+	AuthorizationCode    string                       `json:"authorization_code"`
+	TransactedAt         time.Time                    `json:"transacted_at"`
+	CreatedAt            time.Time                    `json:"created_at"`
 }
 
 func (s *SlashUIService) GetTransaction(ctx context.Context, req *IDRequest) (*TransactionData, error) {
@@ -726,7 +726,7 @@ func cardHolderData(item *model.CardHolder) *CardHolderData {
 		LastName:    item.LastName,
 		Email:       item.Email,
 		Mobile:      item.Mobile,
-		Status:      slash.CardHolderStatusFromGeneric(item.Status),
+		Status:      item.Status,
 		CreatedAt:   item.CreatedAt,
 		UpdatedAt:   item.UpdatedAt,
 	}
@@ -793,8 +793,8 @@ func cardData(item *model.Card) *CardData {
 		CardScheme:    item.CardScheme,
 		CardCurrency:  string(item.CardCurrency),
 		FormFactor:    string(item.FormType),
-		CardStatus:    slash.CardStatusFromGeneric(item.Status),
-		Status:        slash.CardStatusFromGeneric(item.Status),
+		CardStatus:    item.Status,
+		Status:        item.Status,
 		ExpiresAt:     item.ExpireAt,
 		Cvv:           item.Cvv,
 		CreatedAt:     item.CreatedAt,
@@ -810,7 +810,7 @@ func authorizationData(item *model.Authorization) *AuthorizationData {
 		AccountName:          uiAccountName(item.Account),
 		ID:                   idconv.ToUUID(item.ID),
 		CardID:               idconv.ToUUID(item.CardID),
-		Status:               slash.TransactionStatusFromGeneric(item.Status),
+		Status:               item.Status,
 		AuthorizedAmount:     item.Amount.String(),
 		Currency:             string(item.Currency),
 		MerchantName:         item.MerchantName,
@@ -828,8 +828,8 @@ func transactionData(item *model.CardTransaction) *TransactionData {
 		ID:                   idconv.ToUUID(item.ID),
 		CardID:               idconv.ToUUID(item.CardID),
 		AuthorizationID:      idconv.ToUUID(item.AuthorizationID),
-		TransactionType:      slash.TransactionTypeFromGeneric(item.Type),
-		Status:               slash.TransactionStatusFromGeneric(item.Status),
+		TransactionType:      item.Type,
+		Status:               item.Status,
 		Amount:               item.TxAmount.String(),
 		Currency:             string(item.TxCurrency),
 		MerchantName:         item.MerchantName,

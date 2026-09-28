@@ -1,3 +1,4 @@
+import type { CardStatus, TransactionStatus, WalletTransferKind } from "@/channel/enums";
 export interface Page<Item> {
   items: Item[];
   total: number;
@@ -24,7 +25,7 @@ export interface Card extends Owned {
   virtual_account_id: string;
   card_number: string;
   card_bin: string;
-  status: "ACTIVE" | "REVOKED" | "CANCELLED" | "INACTIVE";
+  status: CardStatus;
   balance: number;
   reserved: number;
   currency: string;
@@ -35,17 +36,17 @@ export interface Authorization extends Owned {
   remaining: number;
   currency: string;
   merchant_name: string;
-  status: "authorized";
+  status: TransactionStatus;
   notification_status: "contract_pending";
 }
 export interface Transfer extends Owned {
   request_id: string;
-  kind: string;
+  kind: WalletTransferKind;
   amount: number;
   currency: string;
   source_wallet_id: string;
   target_wallet_id: string;
-  status: "SUCCESS";
+  status: "succeed";
 }
 export interface Product {
   id: string;

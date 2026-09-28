@@ -13,6 +13,7 @@ defineProps<{
   accountOptions: SelectOption[];
   accountsLoading: boolean;
   loading: boolean;
+  showDateRange?: boolean;
 }>();
 
 const values = defineModel<Record<string, string | null>>("values", { required: true });
@@ -64,6 +65,7 @@ function showAccountOptions(shown: boolean) {
         />
       </template>
       <n-date-picker
+        v-if="showDateRange !== false"
         v-model:value="dateRange"
         class="filter-date-range"
         type="datetimerange"

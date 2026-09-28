@@ -1,4 +1,5 @@
 import type { AuthorizationSimulationRequest, SimulationStage } from "./shared/simulation";
+import type { CardStatus, TransactionStatus, TransactionType } from "./enums";
 
 export interface Cardholder {
   account_id: string;
@@ -8,25 +9,27 @@ export interface Cardholder {
   last_name: string;
   email: string;
   phone_number: string;
-  status: string;
+  status: "normal";
   created_at: string;
 }
 
 export interface Card {
   account_id: string;
   account_name: string;
-  wallet_id: string;
+  wallet_id?: string;
   id: string;
-  cardholder_id: string;
+  cardholder_id?: string;
   card_number: string;
   card_bin: string;
   card_currency: string;
-  card_status: string;
-  cvv: string;
-  expires_at: string;
+  card_status: CardStatus;
+  cvv?: string;
+  expires_at?: string;
   created_at: string;
-  funding_source: string;
+  funding_source?: string;
   balance: string;
+  reserved?: string;
+  virtual_account_id?: string;
 }
 
 export interface Transaction {
@@ -35,8 +38,8 @@ export interface Transaction {
   id: string;
   card_id: string;
   authorization_id: string;
-  transaction_type: string;
-  status: string;
+  transaction_type: TransactionType;
+  status: TransactionStatus;
   amount: string;
   currency: string;
   merchant_name: string;
@@ -58,7 +61,7 @@ export interface CardListRequest extends PageRequest {
   account_id?: string;
   id?: string;
   card_number?: string;
-  card_status?: string;
+  card_status?: CardStatus;
   created_from?: string;
   created_to?: string;
 }
@@ -68,8 +71,8 @@ export interface TransactionListRequest extends PageRequest {
   id?: string;
   card_id?: string;
   authorization_id?: string;
-  transaction_type?: string;
-  status?: string;
+  transaction_type?: TransactionType;
+  status?: TransactionStatus;
   created_from?: string;
   created_to?: string;
 }
@@ -77,7 +80,7 @@ export interface TransactionListRequest extends PageRequest {
 export interface CardStatusUpdateRequest {
   id: string;
   account_id: string;
-  card_status: string;
+  card_status: CardStatus;
 }
 
 export interface ChannelAPI {
@@ -85,7 +88,7 @@ export interface ChannelAPI {
 
   listCards(query?: CardListRequest): Promise<ListResponse<Card>>;
 
-  updateCardStatus(payload: CardStatusUpdateRequest): Promise<Card>;
+  updateCardStatus(payload: CardStatusUpdateRequest): Promise<unknown>;
 
   listTransactions(query?: TransactionListRequest): Promise<ListResponse<Transaction>>;
 

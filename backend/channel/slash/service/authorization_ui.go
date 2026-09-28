@@ -2,11 +2,10 @@ package service
 
 import (
 	"context"
+	"generic-mock/pkg/types"
 	"time"
 
 	"generic-mock/channel/slash/biz"
-	slash "generic-mock/channel/slash/enums"
-	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/channel/slash/pkg/idconv"
 	common "generic-mock/enums"
 
@@ -15,11 +14,11 @@ import (
 
 type ListAuthorizationBalancesRequest struct {
 	UIListTimeRange
-	Status       *slash.AuthorizationStatus `form:"status" binding:"omitempty,oneof=pending authorized declined void"`
-	AccountID    *string                    `form:"account_id"`
-	ID           *string                    `form:"id" binding:"omitempty,min=1"`
-	CardID       *string                    `form:"card_id" binding:"omitempty,min=1"`
-	MerchantName *string                    `form:"merchant_name" binding:"omitempty,min=1"`
+	Status       *common.CardTransactionStatus `form:"status" binding:"omitempty,oneof=pending authorized succeed failed void"`
+	AccountID    *string                       `form:"account_id"`
+	ID           *string                       `form:"id" binding:"omitempty,min=1"`
+	CardID       *string                       `form:"card_id" binding:"omitempty,min=1"`
+	MerchantName *string                       `form:"merchant_name" binding:"omitempty,min=1"`
 }
 
 func (s *SlashUIService) ListAuthorizationBalances(ctx context.Context, req *ListAuthorizationBalancesRequest) (*[]AuthorizationBalanceData, error) {
@@ -35,13 +34,9 @@ func (s *SlashUIService) ListAuthorizationBalances(ctx context.Context, req *Lis
 	if err != nil {
 		return nil, err
 	}
-	statuses := uiAuthorizationStatuses(req.Status)
-	if req.Status != nil && len(statuses) == 0 {
-		return nil, slasherrors.ErrInvalidOperation
-	}
 	items, err := s.usecase.ListAuthorizationBalances(ctx, &biz.ListAuthorizationBalancesRequest{
 		AccountID:    accountID,
-		Statuses:     statuses,
+		Statuses:     types.PointerSlice(req.Status),
 		ID:           id,
 		CardID:       cardID,
 		MerchantName: req.MerchantName,
@@ -59,19 +54,19 @@ func (s *SlashUIService) ListAuthorizationBalances(ctx context.Context, req *Lis
 }
 
 type AuthorizationBalanceData struct {
-	Status       slash.AuthorizationStatus `json:"status"`
-	Reversed     string                    `json:"reversed"`
-	Refunded     string                    `json:"refunded"`
-	AccountName  string                    `json:"account_name"`
-	AccountID    string                    `json:"account_id"`
-	ID           string                    `json:"id"`
-	CardID       string                    `json:"card_id"`
-	Currency     common.Currency           `json:"currency"`
-	Amount       string                    `json:"amount"`
-	Settled      string                    `json:"settled"`
-	Remaining    string                    `json:"remaining"`
-	MerchantName string                    `json:"merchant_name"`
-	CreatedAt    time.Time                 `json:"created_at"`
+	Status       common.CardTransactionStatus `json:"status"`
+	Reversed     string                       `json:"reversed"`
+	Refunded     string                       `json:"refunded"`
+	AccountName  string                       `json:"account_name"`
+	AccountID    string                       `json:"account_id"`
+	ID           string                       `json:"id"`
+	CardID       string                       `json:"card_id"`
+	Currency     common.Currency              `json:"currency"`
+	Amount       string                       `json:"amount"`
+	Settled      string                       `json:"settled"`
+	Remaining    string                       `json:"remaining"`
+	MerchantName string                       `json:"merchant_name"`
+	CreatedAt    time.Time                    `json:"created_at"`
 }
 
 type ClearAuthorizationRequest struct {
@@ -105,7 +100,7 @@ func authorizationBalanceData(item *biz.AuthorizationBalance) AuthorizationBalan
 		AccountName:  uiAccountName(auth.Account),
 		ID:           idconv.ToUUID(auth.ID),
 		CardID:       idconv.ToUUID(auth.CardID),
-		Status:       slash.AuthorizationStatusFromGeneric(auth.Status),
+		Status:       auth.Status,
 		Currency:     auth.Currency,
 		Amount:       auth.Amount.String(),
 		Settled:      item.Settled.String(),
@@ -115,23 +110,4 @@ func authorizationBalanceData(item *biz.AuthorizationBalance) AuthorizationBalan
 		MerchantName: auth.MerchantName,
 		CreatedAt:    auth.CreatedAt,
 	}
-}
-
-func uiAuthorizationStatuses(value *slash.AuthorizationStatus) []common.CardTransactionStatus {
-	if value == nil {
-		return nil
-	}
-	var result []common.CardTransactionStatus
-	for _, status := range []common.CardTransactionStatus{
-		common.TransactionStatus_PENDING,
-		common.TransactionStatus_AUTHORIZED,
-		common.TransactionStatus_SUCCEED,
-		common.TransactionStatus_FAILED,
-		common.TransactionStatus_VOID,
-	} {
-		if slash.AuthorizationStatusFromGeneric(status) == *value {
-			result = append(result, status)
-		}
-	}
-	return result
 }

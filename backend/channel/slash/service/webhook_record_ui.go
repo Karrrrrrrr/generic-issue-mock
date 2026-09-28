@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	common "generic-mock/enums"
+
 	"generic-mock/channel/slash/biz"
 	slash "generic-mock/channel/slash/enums"
 	"generic-mock/channel/slash/pkg/idconv"
@@ -13,10 +15,10 @@ import (
 
 type ListWebhookRecordsRequest struct {
 	ListRequest
-	Event       *slash.WebhookEvent          `form:"event" binding:"omitempty,oneof=aggregated_transaction.create aggregated_transaction.update card_creation.event card.update card.delete"`
-	Status      *slash.WebhookDeliveryStatus `form:"status" binding:"omitempty,oneof=pending succeeded failed"`
-	CreatedFrom *time.Time                   `form:"created_from" time_format:"2006-01-02T15:04:05Z07:00" time_utc:"1"`
-	CreatedTo   *time.Time                   `form:"created_to" time_format:"2006-01-02T15:04:05Z07:00" time_utc:"1"`
+	Event       *slash.WebhookEvent           `form:"event" binding:"omitempty,oneof=aggregated_transaction.create aggregated_transaction.update card_creation.event card.update card.delete"`
+	Status      *common.WebhookDeliveryStatus `form:"status" binding:"omitempty,oneof=pending succeeded failed"`
+	CreatedFrom *time.Time                    `form:"created_from" time_format:"2006-01-02T15:04:05Z07:00" time_utc:"1"`
+	CreatedTo   *time.Time                    `form:"created_to" time_format:"2006-01-02T15:04:05Z07:00" time_utc:"1"`
 }
 
 type ReplayWebhookRecordRequest struct {
@@ -25,22 +27,22 @@ type ReplayWebhookRecordRequest struct {
 }
 
 type WebhookRecordData struct {
-	ID              string                      `json:"id"`
-	AccountID       string                      `json:"account_id"`
-	AccountName     string                      `json:"account_name"`
-	Event           slash.WebhookEvent          `json:"event"`
-	TargetURL       string                      `json:"target_url"`
-	SourceID        string                      `json:"source_id"`
-	Payload         string                      `json:"payload"`
-	RequestHeaders  string                      `json:"request_headers"`
-	ResponseBody    string                      `json:"response_body"`
-	ResponseHeaders string                      `json:"response_headers"`
-	StatusCode      int                         `json:"status_code"`
-	Status          slash.WebhookDeliveryStatus `json:"status"`
-	AttemptCount    int                         `json:"attempt_count"`
-	DeliveredAt     *time.Time                  `json:"delivered_at"`
-	ErrorMessage    string                      `json:"error_message"`
-	CreatedAt       time.Time                   `json:"created_at"`
+	ID              string                       `json:"id"`
+	AccountID       string                       `json:"account_id"`
+	AccountName     string                       `json:"account_name"`
+	Event           slash.WebhookEvent           `json:"event"`
+	TargetURL       string                       `json:"target_url"`
+	SourceID        string                       `json:"source_id"`
+	Payload         string                       `json:"payload"`
+	RequestHeaders  string                       `json:"request_headers"`
+	ResponseBody    string                       `json:"response_body"`
+	ResponseHeaders string                       `json:"response_headers"`
+	StatusCode      int                          `json:"status_code"`
+	Status          common.WebhookDeliveryStatus `json:"status"`
+	AttemptCount    int                          `json:"attempt_count"`
+	DeliveredAt     *time.Time                   `json:"delivered_at"`
+	ErrorMessage    string                       `json:"error_message"`
+	CreatedAt       time.Time                    `json:"created_at"`
 }
 
 func (s *SlashUIService) ListWebhookRecords(ctx context.Context, req *ListWebhookRecordsRequest) (*ListResponse[*WebhookRecordData], error) {
@@ -52,7 +54,7 @@ func (s *SlashUIService) ListWebhookRecords(ctx context.Context, req *ListWebhoo
 	items, total, err := s.webhookUsecase.ListRecords(ctx, &biz.ListWebhookRecordsRequest{
 		AccountID:   accountID,
 		Event:       req.Event,
-		Status:      types.ConvertPointer(req.Status, slash.WebhookDeliveryStatusToGeneric),
+		Status:      req.Status,
 		CreatedFrom: req.CreatedFrom,
 		CreatedTo:   req.CreatedTo,
 		Offset:      offset,
@@ -99,7 +101,7 @@ func webhookRecordData(item *model.WebhookRecord) *WebhookRecordData {
 		ResponseBody:    item.ResponseBody,
 		ResponseHeaders: string(item.ResponseHeaders),
 		StatusCode:      item.StatusCode,
-		Status:          slash.WebhookDeliveryStatusFromGeneric(item.Status),
+		Status:          item.Status,
 		AttemptCount:    item.AttemptCount,
 		DeliveredAt:     item.DeliveredAt,
 		ErrorMessage:    item.ErrorMessage,

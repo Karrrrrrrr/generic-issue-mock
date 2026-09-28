@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
+	common "generic-mock/enums"
 
 	"generic-mock/channel/photonpay/biz"
-	channelEnums "generic-mock/channel/photonpay/enums"
 	"generic-mock/channel/photonpay/pkg/idconv"
 	"generic-mock/pkg/types"
 )
@@ -12,9 +12,9 @@ import (
 type ListUICardsRequest struct {
 	UIListRequest
 	UIListTimeRange
-	ID         *string                  `form:"id" binding:"omitempty,min=1"`
-	CardNumber *string                  `form:"card_number" binding:"omitempty,min=1"`
-	CardStatus *channelEnums.CardStatus `form:"card_status" binding:"omitempty,oneof=normal freezing frozen cancelled"`
+	ID         *string            `form:"id" binding:"omitempty,min=1"`
+	CardNumber *string            `form:"card_number" binding:"omitempty,min=1"`
+	CardStatus *common.CardStatus `form:"card_status" binding:"omitempty,oneof=inactive active freezing frozen deleting deleted"`
 }
 
 func (s *PhotonPayUIService) ListCards(ctx context.Context, req *ListUICardsRequest) (*UIListResponse[*UICardData], error) {
@@ -35,7 +35,7 @@ func (s *PhotonPayUIService) ListCards(ctx context.Context, req *ListUICardsRequ
 		CreatedFrom: req.CreatedFrom,
 		CreatedTo:   req.CreatedTo,
 		CardNumber:  req.CardNumber,
-		Statuses:    uiCardStatuses(req.CardStatus),
+		Statuses:    types.PointerSlice(req.CardStatus),
 	})
 	if err != nil {
 		return nil, err

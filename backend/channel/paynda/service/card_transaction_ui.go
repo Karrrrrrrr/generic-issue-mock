@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
+	common "generic-mock/enums"
 
 	"generic-mock/channel/paynda/biz"
-	channelEnums "generic-mock/channel/paynda/enums"
 	"generic-mock/channel/paynda/pkg/idconv"
 	"generic-mock/pkg/types"
 )
@@ -12,11 +12,11 @@ import (
 type ListUITransactionsRequest struct {
 	PayndaUIListRequest
 	UIListTimeRange
-	ID              *string                         `form:"id" binding:"omitempty,min=1"`
-	CardID          *string                         `form:"card_id" binding:"omitempty,min=1"`
-	AuthorizationID *string                         `form:"authorization_id" binding:"omitempty,min=1"`
-	TransactionType *channelEnums.TransactionType   `form:"transaction_type" binding:"omitempty,oneof=transaction.authentication.approved transaction.authentication.settled transaction.authentication.reversal.settled transaction.refund.settled"`
-	Status          *channelEnums.TransactionStatus `form:"status" binding:"omitempty,oneof=pending authorized succeed failed void"`
+	ID              *string                       `form:"id" binding:"omitempty,min=1"`
+	CardID          *string                       `form:"card_id" binding:"omitempty,min=1"`
+	AuthorizationID *string                       `form:"authorization_id" binding:"omitempty,min=1"`
+	TransactionType *common.CardTransactionType   `form:"transaction_type" binding:"omitempty,oneof=auth clear void refund verification fund_in fund_out"`
+	Status          *common.CardTransactionStatus `form:"status" binding:"omitempty,oneof=pending authorized succeed failed void"`
 }
 
 func (s *PayndaUIService) ListTransactions(ctx context.Context, req *ListUITransactionsRequest) (*PayndaUIListResponse[*PayndaUITransactionData], error) {
@@ -46,8 +46,8 @@ func (s *PayndaUIService) ListTransactions(ctx context.Context, req *ListUITrans
 		CreatedTo:       req.CreatedTo,
 		CardID:          cardID,
 		AuthorizationID: authorizationID,
-		Types:           uiTransactionTypes(req.TransactionType),
-		Statuses:        uiTransactionStatuses(req.Status),
+		Types:           types.PointerSlice(req.TransactionType),
+		Statuses:        types.PointerSlice(req.Status),
 	})
 	if err != nil {
 		return nil, err

@@ -5,23 +5,22 @@ import (
 	"time"
 
 	"generic-mock/channel/pingpong/biz"
-	ping "generic-mock/channel/pingpong/enums"
 	"generic-mock/channel/pingpong/pkg/idconv"
 	common "generic-mock/enums"
 )
 
 type UITransferData struct {
-	ID             string             `json:"id"`
-	AccountID      string             `json:"account_id"`
-	AccountName    string             `json:"account_name"`
-	RequestID      string             `json:"request_id"`
-	Kind           ping.TransferKind  `json:"kind"`
-	Amount         Number             `json:"amount"`
-	Currency       common.Currency    `json:"currency"`
-	SourceWalletID string             `json:"source_wallet_id"`
-	TargetWalletID string             `json:"target_wallet_id"`
-	Status         ping.FundingStatus `json:"status"`
-	CreatedAt      time.Time          `json:"created_at"`
+	ID             string                    `json:"id"`
+	AccountID      string                    `json:"account_id"`
+	AccountName    string                    `json:"account_name"`
+	RequestID      string                    `json:"request_id"`
+	Kind           common.WalletTransferKind `json:"kind"`
+	Amount         Number                    `json:"amount"`
+	Currency       common.Currency           `json:"currency"`
+	SourceWalletID string                    `json:"source_wallet_id"`
+	TargetWalletID string                    `json:"target_wallet_id"`
+	Status         common.OperationStatus    `json:"status"`
+	CreatedAt      time.Time                 `json:"created_at"`
 }
 
 func (s *PingPongUIService) ListTransfers(ctx context.Context, req *UIListRequest) (*UIPage[UITransferData], error) {
@@ -51,12 +50,12 @@ func (s *PingPongUIService) ListTransfers(ctx context.Context, req *UIListReques
 			AccountID:      idconv.ToString(item.AccountID),
 			AccountName:    item.Account.GetName(),
 			RequestID:      item.RequestID,
-			Kind:           ping.FromGenericTransferKind(item.Kind),
+			Kind:           item.Kind,
 			Amount:         Number{item.Amount},
 			Currency:       item.Currency,
 			SourceWalletID: idconv.ToString(item.SourceWalletID),
 			TargetWalletID: idconv.ToString(item.TargetWalletID),
-			Status:         ping.FundingSuccess,
+			Status:         common.OperationStatus_Succeed,
 			CreatedAt:      item.CreatedAt,
 		})
 	}

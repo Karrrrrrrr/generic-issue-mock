@@ -48,22 +48,22 @@ type PayndaUIWebhookData struct {
 }
 
 type PayndaUIWebhookRecordData struct {
-	AccountName     string     `json:"account_name"`
-	ID              string     `json:"id"`
-	AccountID       string     `json:"account_id"`
-	Event           string     `json:"event"`
-	TargetURL       string     `json:"target_url"`
-	SourceID        string     `json:"source_id"`
-	Payload         string     `json:"payload"`
-	RequestHeaders  string     `json:"request_headers"`
-	ResponseBody    string     `json:"response_body"`
-	ResponseHeaders string     `json:"response_headers"`
-	StatusCode      int        `json:"status_code"`
-	Status          string     `json:"status"`
-	AttemptCount    int        `json:"attempt_count"`
-	DeliveredAt     *time.Time `json:"delivered_at"`
-	ErrorMessage    string     `json:"error_message"`
-	CreatedAt       time.Time  `json:"created_at"`
+	AccountName     string                       `json:"account_name"`
+	ID              string                       `json:"id"`
+	AccountID       string                       `json:"account_id"`
+	Event           string                       `json:"event"`
+	TargetURL       string                       `json:"target_url"`
+	SourceID        string                       `json:"source_id"`
+	Payload         string                       `json:"payload"`
+	RequestHeaders  string                       `json:"request_headers"`
+	ResponseBody    string                       `json:"response_body"`
+	ResponseHeaders string                       `json:"response_headers"`
+	StatusCode      int                          `json:"status_code"`
+	Status          common.WebhookDeliveryStatus `json:"status"`
+	AttemptCount    int                          `json:"attempt_count"`
+	DeliveredAt     *time.Time                   `json:"delivered_at"`
+	ErrorMessage    string                       `json:"error_message"`
+	CreatedAt       time.Time                    `json:"created_at"`
 }
 
 type PayndaUIAccountData struct {
@@ -266,7 +266,7 @@ type PayndaUICardHolderData struct {
 	LastName    string                  `json:"last_name"`
 	Email       string                  `json:"email"`
 	Mobile      string                  `json:"phone_number"`
-	Status      paynda.CardHolderStatus `json:"status"`
+	Status      common.CardHolderStatus `json:"status"`
 	CreatedAt   time.Time               `json:"created_at"`
 }
 type PayndaUICreateCardRequest struct {
@@ -283,7 +283,7 @@ type PayndaUICardData struct {
 	CardNumber    string            `json:"card_number"`
 	CardBin       string            `json:"card_bin"`
 	CardCurrency  common.Currency   `json:"card_currency"`
-	CardStatus    paynda.CardStatus `json:"card_status"`
+	CardStatus    common.CardStatus `json:"card_status"`
 	Cvv           string            `json:"cvv"`
 	ExpiresAt     time.Time         `json:"expires_at"`
 	CreatedAt     time.Time         `json:"created_at"`
@@ -293,7 +293,7 @@ type PayndaUICardData struct {
 type PayndaUIUpdateCardStatusRequest struct {
 	AccountID  string            `json:"account_id" binding:"required"`
 	ID         string            `uri:"id" binding:"required"`
-	CardStatus paynda.CardStatus `json:"card_status" binding:"required,oneof=ACTIVE FROZEN DELETED"`
+	CardStatus common.CardStatus `json:"card_status" binding:"required,oneof=active frozen deleted"`
 }
 
 func (s *PayndaUIService) CreateCardHolder(ctx context.Context, req *PayndaUICardHolderRequest) (*PayndaUICardHolderData, error) {
@@ -376,7 +376,7 @@ func (s *PayndaUIService) UpdateCardStatus(ctx context.Context, req *PayndaUIUpd
 	item, err := s.usecase.UpdateCardStatus(ctx, &biz.PayndaUIUpdateCardStatusRequest{
 		AccountID: accountID,
 		CardID:    id,
-		Status:    paynda.CardStatusToGeneric(req.CardStatus),
+		Status:    req.CardStatus,
 	})
 	if err != nil {
 		return nil, err
@@ -435,30 +435,30 @@ func (s *PayndaUIService) SimulateRefund(ctx context.Context, req *PayndaUISimul
 }
 
 type PayndaUIAuthorizationData struct {
-	AccountID            string                   `json:"account_id"`
-	AccountName          string                   `json:"account_name"`
-	ID                   string                   `json:"id"`
-	CardID               string                   `json:"card_id"`
-	Status               paynda.TransactionStatus `json:"status"`
-	AuthorizedAmount     string                   `json:"authorized_amount"`
-	Currency             common.Currency          `json:"currency"`
-	MerchantName         string                   `json:"merchant_name"`
-	MerchantCategoryCode string                   `json:"merchant_category_code"`
-	AuthorizedAt         time.Time                `json:"authorized_at"`
+	AccountID            string                       `json:"account_id"`
+	AccountName          string                       `json:"account_name"`
+	ID                   string                       `json:"id"`
+	CardID               string                       `json:"card_id"`
+	Status               common.CardTransactionStatus `json:"status"`
+	AuthorizedAmount     string                       `json:"authorized_amount"`
+	Currency             common.Currency              `json:"currency"`
+	MerchantName         string                       `json:"merchant_name"`
+	MerchantCategoryCode string                       `json:"merchant_category_code"`
+	AuthorizedAt         time.Time                    `json:"authorized_at"`
 }
 type PayndaUITransactionData struct {
-	AccountName          string                   `json:"account_name"`
-	AccountID            string                   `json:"account_id"`
-	ID                   string                   `json:"id"`
-	CardID               string                   `json:"card_id"`
-	AuthorizationID      string                   `json:"authorization_id"`
-	TransactionType      paynda.TransactionType   `json:"transaction_type"`
-	Status               paynda.TransactionStatus `json:"status"`
-	Amount               string                   `json:"amount"`
-	Currency             common.Currency          `json:"currency"`
-	MerchantName         string                   `json:"merchant_name"`
-	MerchantCategoryCode string                   `json:"merchant_category_code"`
-	TransactedAt         time.Time                `json:"transacted_at"`
+	AccountName          string                       `json:"account_name"`
+	AccountID            string                       `json:"account_id"`
+	ID                   string                       `json:"id"`
+	CardID               string                       `json:"card_id"`
+	AuthorizationID      string                       `json:"authorization_id"`
+	TransactionType      common.CardTransactionType   `json:"transaction_type"`
+	Status               common.CardTransactionStatus `json:"status"`
+	Amount               string                       `json:"amount"`
+	Currency             common.Currency              `json:"currency"`
+	MerchantName         string                       `json:"merchant_name"`
+	MerchantCategoryCode string                       `json:"merchant_category_code"`
+	TransactedAt         time.Time                    `json:"transacted_at"`
 }
 
 func (s *PayndaUIService) SimulateAuthorization(
@@ -542,7 +542,7 @@ func payndaUICardHolderData(item *model.CardHolder) *PayndaUICardHolderData {
 		LastName:    item.LastName,
 		Email:       item.Email,
 		Mobile:      item.Mobile,
-		Status:      paynda.CardHolderStatusFromGeneric(item.Status),
+		Status:      item.Status,
 		CreatedAt:   item.CreatedAt,
 	}
 }
@@ -562,7 +562,7 @@ func payndaUICardData(item *model.Card) *PayndaUICardData {
 		CardNumber:    item.CardNumber,
 		CardBin:       item.CardBin,
 		CardCurrency:  item.CardCurrency,
-		CardStatus:    paynda.CardStatusFromGeneric(item.Status),
+		CardStatus:    item.Status,
 		Cvv:           item.Cvv,
 		ExpiresAt:     item.ExpireAt,
 		CreatedAt:     item.CreatedAt,
@@ -576,7 +576,7 @@ func payndaUIAuthorizationData(item *model.Authorization) *PayndaUIAuthorization
 		AccountName:          uiAccountName(item.Account),
 		ID:                   idconv.ToString(item.ID),
 		CardID:               idconv.ToString(item.CardID),
-		Status:               paynda.TransactionStatusFromGeneric(item.Status),
+		Status:               item.Status,
 		AuthorizedAmount:     item.Amount.String(),
 		Currency:             item.Currency,
 		MerchantName:         item.MerchantName,
@@ -610,7 +610,7 @@ func payndaUIWebhookRecordData(item *model.WebhookRecord) *PayndaUIWebhookRecord
 		ResponseBody:    item.ResponseBody,
 		ResponseHeaders: string(item.ResponseHeaders),
 		StatusCode:      item.StatusCode,
-		Status:          string(item.Status),
+		Status:          item.Status,
 		AttemptCount:    item.AttemptCount,
 		DeliveredAt:     item.DeliveredAt,
 		ErrorMessage:    item.ErrorMessage,
@@ -638,8 +638,8 @@ func payndaUITransactionData(item *model.CardTransaction) *PayndaUITransactionDa
 		ID:                   idconv.ToString(item.ID),
 		CardID:               idconv.ToString(item.CardID),
 		AuthorizationID:      idconv.ToString(item.AuthorizationID),
-		TransactionType:      paynda.TransactionTypeFromGeneric(item.Type),
-		Status:               paynda.TransactionStatusFromGeneric(item.Status),
+		TransactionType:      item.Type,
+		Status:               item.Status,
 		Amount:               item.TxAmount.String(),
 		Currency:             item.TxCurrency,
 		MerchantName:         item.MerchantName,

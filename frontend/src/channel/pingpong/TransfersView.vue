@@ -8,10 +8,9 @@ import {
   NSpace,
 } from "naive-ui";
 import { formatDateTime } from "@/channel/dateTime";
-import { renderAmountTag } from "@/channel/tableTags";
+import { renderAmountTag, renderEnumTag } from "@/channel/tableTags";
 import { type Transfer } from "./api";
 import { useList } from "./list";
-import { renderTag } from "./tags";
 const { rows, loading, filters, pagination, search } = useList<Transfer>("transfers");
 const accountFilter = ref("");
 const columns = [
@@ -37,7 +36,7 @@ const columns = [
     title: "类型",
     key: "kind",
     width: 130,
-    render: (row: Transfer) => renderTag(row.kind)
+    render: (row: Transfer) => renderEnumTag(row.kind, "walletTransfer")
   },
   {
     title: "金额",
@@ -59,7 +58,7 @@ const columns = [
     title: "状态",
     key: "status",
     width: 100,
-    render: (row: Transfer) => renderTag(row.status)
+    render: (row: Transfer) => renderEnumTag(row.status, "status")
   },
   {
     title: "时间",
