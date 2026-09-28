@@ -18,6 +18,7 @@ import (
 const slashSeedCardProductPrefix = "424242"
 const payndaSeedCardProductPrefix = "523456"
 const photonSeedCardProductPrefix = "543210"
+const pingpongSeedCardProductPrefix = "424242,424243"
 
 func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 	accounts, err := seedChannelAccounts(ctx, db)
@@ -45,7 +46,7 @@ func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 		},
 		{
 			Channel: enums.Channel_PingPong,
-			Prefix:  "424242,424243",
+			Prefix:  pingpongSeedCardProductPrefix,
 		},
 	}
 
@@ -58,6 +59,9 @@ func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 		}
 	}
 	if err := seedChannelCards(ctx, db, accounts, items); err != nil {
+		return err
+	}
+	if err := seedPingPongData(ctx, db); err != nil {
 		return err
 	}
 

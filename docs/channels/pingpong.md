@@ -97,9 +97,21 @@
 
 ## 本轮实现与运行约定
 
+### 初始化演示数据
+
+`SeedInitialData` 会补齐以下 PingPong 数据：
+
+- 渠道级产品：候选 BIN `424242,424243`，所有账户共享发卡序号。
+- 账户：`pingpong Primary`，根账户钱包初始可用余额 `1,000,000 USD`。
+- 虚拟账户：`PingPong Primary`，钱包初始可用余额 `1,000,000 USD`，作为卡的资金来源。
+- 持卡人：`PingPong Demo`，邮箱 `pingpong.demo@example.test`，与卡同账户、同渠道。
+- 卡：一张已激活的 Visa 虚拟卡，关联上述产品和持卡人；类型为 `virtual_account_single`，有独立卡钱包，初始可用余额 `1,000 USD`，有效期两年。
+
+初始化使用固定请求号 `seed-pingpong-card` 判断卡是否已创建，再从产品候选 BIN 随机选取一个生成卡号；不会因重跑时随机选到不同 BIN 而重复开卡。产品序号、关联记录和卡钱包在事务中创建；重复初始化不重置已有余额或继续推进发卡序号。不会创建 PingPong Webhook 配置或自动配置应用映射。
+
 ### 应用映射和接入
 
-1. 在浏览器 `/pingpong/accounts` 创建账户，记录返回的账户 ID；按需调整根账户余额。
+1. 初始化后可使用 seed 创建的 `pingpong Primary` 账户，或在浏览器 `/pingpong/accounts` 新建账户。以列表返回的实际账户 ID 配置应用映射，不假定固定 ID；按需调整根账户余额。
 2. 启动后端时显式配置应用映射，值必须为账户 ID 字符串，例如：
 
    ```bash
