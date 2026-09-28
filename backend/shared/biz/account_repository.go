@@ -12,6 +12,12 @@ type AccountExistRequest struct {
 	Channel enums.Channel
 }
 
+type AccountFindByIDWithLockRequest struct {
+	ID      model.ID
+	Channel enums.Channel
+}
+
 type AccountRepo interface {
 	Exist(context.Context, *AccountExistRequest) (bool, error)
+	FindByIDWithLock(context.Context, *AccountFindByIDWithLockRequest) (*model.Account, error)
 }

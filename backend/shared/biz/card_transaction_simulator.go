@@ -1,0 +1,1039 @@
+package biz
+
+import (
+	"context"
+	"errors"
+
+	"generic-mock/enums"
+	"generic-mock/model"
+	"generic-mock/pkg/randomx"
+	"generic-mock/pkg/types"
+	sharederrors "generic-mock/shared/errors"
+
+	"github.com/samber/do"
+	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
+)
+
+type SimulateAuthorizationReq struct {
+	AccountID       model.ID
+	Channel         enums.Channel
+	CardID          model.ID
+	Amount          decimal.Decimal
+	Currency        enums.Currency
+	MerchantName    *string
+	MerchantCountry *string
+	MerchantMCC     *string
+	RequestID       *string
+	Accounting      CardTransactionAccounting
+	Notificator     CardTransactionNotificator
+}
+
+func (req *SimulateAuthorizationReq) Validate() error {
+	if req == nil || req.AccountID <= 0 || req.Channel == "" || req.CardID <= 0 ||
+		!req.Amount.IsPositive() || req.Currency == "" || req.Accounting == nil || req.Notificator == nil {
+		return sharederrors.ErrInvalidSimulationRequest
+	}
+	for _, value := range []*string{req.RequestID, req.MerchantName, req.MerchantCountry, req.MerchantMCC} {
+		if value != nil && *value == "" {
+			return sharederrors.ErrInvalidSimulationRequest
+		}
+	}
+	return nil
+}
+
+type SimulateClearingReq struct {
+	AccountID       model.ID
+	Channel         enums.Channel
+	CardID          model.ID
+	AuthorizationID model.ID
+	Amount          decimal.Decimal
+	RequestID       *string
+	Accounting      CardTransactionAccounting
+	Notificator     CardTransactionNotificator
+}
+
+func (req *SimulateClearingReq) Validate() error {
+	if req == nil || req.AccountID <= 0 || req.Channel == "" || req.CardID <= 0 ||
+		req.AuthorizationID <= 0 || !req.Amount.IsPositive() || req.Accounting == nil || req.Notificator == nil ||
+		(req.RequestID != nil && *req.RequestID == "") {
+		return sharederrors.ErrInvalidSimulationRequest
+	}
+	return nil
+}
+
+type SimulateRefundReq struct {
+	AccountID       model.ID
+	Channel         enums.Channel
+	CardID          model.ID
+	AuthorizationID *model.ID
+	Amount          decimal.Decimal
+	Currency        enums.Currency
+	MerchantName    *string
+	MerchantCountry *string
+	MerchantMCC     *string
+	RequestID       *string
+	Accounting      CardTransactionAccounting
+	Notificator     CardTransactionNotificator
+}
+
+func (req *SimulateRefundReq) Validate() error {
+	if req == nil || req.AccountID <= 0 || req.Channel == "" || req.CardID <= 0 ||
+		!req.Amount.IsPositive() || req.Currency == "" || req.Accounting == nil || req.Notificator == nil ||
+		(req.AuthorizationID != nil && *req.AuthorizationID <= 0) {
+		return sharederrors.ErrInvalidSimulationRequest
+	}
+	for _, value := range []*string{req.RequestID, req.MerchantName, req.MerchantCountry, req.MerchantMCC} {
+		if value != nil && *value == "" {
+			return sharederrors.ErrInvalidSimulationRequest
+		}
+	}
+	return nil
+}
+
+type SimulateReversalReq struct {
+	AccountID       model.ID
+	Channel         enums.Channel
+	CardID          model.ID
+	AuthorizationID model.ID
+	Amount          decimal.Decimal
+	Status          enums.CardTransactionStatus
+	RequestID       *string
+	Accounting      CardTransactionAccounting
+	Notificator     CardTransactionNotificator
+}
+
+func (req *SimulateReversalReq) Validate() error {
+	if req == nil || req.AccountID <= 0 || req.Channel == "" || req.CardID <= 0 ||
+		req.AuthorizationID <= 0 || !req.Amount.IsPositive() || req.Accounting == nil || req.Notificator == nil ||
+		(req.Status != enums.TransactionStatus_VOID && req.Status != enums.TransactionStatus_SUCCEED) ||
+		(req.RequestID != nil && *req.RequestID == "") {
+		return sharederrors.ErrInvalidSimulationRequest
+	}
+	return nil
+}
+
+type CardTransactionSimulationResult struct {
+	Authorization     *model.Authorization
+	CardTransaction   *model.CardTransaction
+	Remaining         decimal.Decimal
+	Replayed          bool
+	NotificationError error
+}
+
+type simulationAccountRequest struct {
+	AccountID model.ID
+	Channel   enums.Channel
+}
+
+type simulationCardRequest struct {
+	AccountID model.ID
+	Channel   enums.Channel
+	CardID    model.ID
+}
+
+type simulationWalletRequest struct {
+	Card     *model.Card
+	Currency enums.Currency
+}
+
+type simulationAuthorizationRequest struct {
+	AccountID       model.ID
+	Channel         enums.Channel
+	CardID          model.ID
+	AuthorizationID model.ID
+}
+
+type simulationRequestReference struct {
+	AccountID model.ID
+	Channel   enums.Channel
+	RequestID *string
+}
+
+type simulationAuthorizationState struct {
+	Authorization       *model.Authorization
+	Remaining           decimal.Decimal
+	OriginTransactionID model.ID
+}
+
+type notifySimulationRequest struct {
+	Result      *CardTransactionSimulationResult
+	Notificator CardTransactionNotificator
+}
+
+type CardTransactionSimulator interface {
+	SimulateAuthorization(context.Context, *SimulateAuthorizationReq) (*CardTransactionSimulationResult, error)
+	SimulateClearing(context.Context, *SimulateClearingReq) (*CardTransactionSimulationResult, error)
+	SimulateRefund(context.Context, *SimulateRefundReq) (*CardTransactionSimulationResult, error)
+	SimulateReversal(context.Context, *SimulateReversalReq) (*CardTransactionSimulationResult, error)
+}
+
+type cardTransactionSimulator struct {
+	accountRepo         AccountRepo
+	cardRepo            CardRepo
+	walletRepo          WalletRepo
+	authorizationRepo   AuthorizationRepo
+	cardTransactionRepo CardTransactionRepo
+	tx                  Transaction
+}
+
+var _ CardTransactionSimulator = (*cardTransactionSimulator)(nil)
+
+func NewCardTransactionSimulator(injector *do.Injector) (CardTransactionSimulator, error) {
+	return &cardTransactionSimulator{
+		accountRepo:         do.MustInvoke[AccountRepo](injector),
+		cardRepo:            do.MustInvoke[CardRepo](injector),
+		walletRepo:          do.MustInvoke[WalletRepo](injector),
+		authorizationRepo:   do.MustInvoke[AuthorizationRepo](injector),
+		cardTransactionRepo: do.MustInvoke[CardTransactionRepo](injector),
+		tx:                  do.MustInvoke[Transaction](injector),
+	}, nil
+}
+
+func (simulator *cardTransactionSimulator) SimulateAuthorization(ctx context.Context, req *SimulateAuthorizationReq) (*CardTransactionSimulationResult, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	var result *CardTransactionSimulationResult
+	var operationErr error
+	err := simulator.tx.InTx(ctx, func(ctx context.Context) (err error) {
+		defer func() {
+			operationErr = err
+		}()
+		if err := simulator.lockAccount(ctx, &simulationAccountRequest{
+			AccountID: req.AccountID,
+			Channel:   req.Channel,
+		}); err != nil {
+			return err
+		}
+		previous, err := simulator.findPreviousTransaction(ctx, &simulationRequestReference{
+			AccountID: req.AccountID,
+			Channel:   req.Channel,
+			RequestID: req.RequestID,
+		})
+		if err != nil {
+			return err
+		}
+		if previous != nil {
+			if previous.Type != enums.CardTransactionType_AUTH || previous.Status != enums.TransactionStatus_AUTHORIZED ||
+				previous.CardID != req.CardID || previous.Currency != req.Currency || !previous.TxAmount.Equal(req.Amount) ||
+				previous.MerchantName != types.Value(req.MerchantName) ||
+				previous.MerchantCountry != types.Value(req.MerchantCountry) || previous.MerchantMCC != types.Value(req.MerchantMCC) {
+				return sharederrors.ErrSimulationRequestConflict
+			}
+			result, err = simulator.replayTransaction(ctx, previous)
+			return err
+		}
+		card, err := simulator.lockCard(ctx, &simulationCardRequest{
+			AccountID: req.AccountID,
+			Channel:   req.Channel,
+			CardID:    req.CardID,
+		})
+		if err != nil {
+			return err
+		}
+		if card.Status != enums.CardStatus_Active {
+			return sharederrors.ErrCardNotActive
+		}
+		wallet, err := simulator.lockCardWallet(ctx, &simulationWalletRequest{
+			Card:     card,
+			Currency: req.Currency,
+		})
+		if err != nil {
+			return err
+		}
+		if err := req.Accounting.Authorize(&AuthorizationAccountingRequest{
+			Wallet: wallet,
+			Amount: req.Amount,
+		}); err != nil {
+			return err
+		}
+		authorization := &model.Authorization{
+			Account:           card.Account,
+			AccountID:         req.AccountID,
+			Channel:           req.Channel,
+			CardID:            card.ID,
+			Currency:          req.Currency,
+			Amount:            req.Amount,
+			MerchantName:      types.Value(req.MerchantName),
+			MerchantCountry:   types.Value(req.MerchantCountry),
+			MerchantMCC:       types.Value(req.MerchantMCC),
+			AuthorizationCode: randomx.Digits(6),
+			Status:            enums.TransactionStatus_AUTHORIZED,
+		}
+		if err := simulator.authorizationRepo.Create(ctx, authorization); err != nil {
+			zap.S().Errorw("create shared simulated authorization",
+				"account_id", req.AccountID,
+				"channel", req.Channel,
+				"card_id", req.CardID,
+				"error", err,
+			)
+			return sharederrors.ErrDatabaseOperation
+		}
+		transaction := &model.CardTransaction{
+			Account:           card.Account,
+			AccountID:         req.AccountID,
+			Channel:           req.Channel,
+			CardID:            card.ID,
+			AuthorizationID:   authorization.ID,
+			Type:              enums.CardTransactionType_AUTH,
+			Status:            enums.TransactionStatus_AUTHORIZED,
+			Currency:          req.Currency,
+			TxCurrency:        req.Currency,
+			TxAmount:          req.Amount,
+			RequestID:         types.Value(req.RequestID),
+			MerchantName:      authorization.MerchantName,
+			MerchantCountry:   authorization.MerchantCountry,
+			MerchantMCC:       authorization.MerchantMCC,
+			AuthorizationCode: authorization.AuthorizationCode,
+		}
+		if err := simulator.cardTransactionRepo.Create(ctx, transaction); err != nil {
+			zap.S().Errorw("create shared simulated authorization transaction",
+				"account_id", req.AccountID,
+				"channel", req.Channel,
+				"authorization_id", authorization.ID,
+				"error", err,
+			)
+			return sharederrors.ErrDatabaseOperation
+		}
+		if err := simulator.saveWalletBalance(ctx, wallet); err != nil {
+			return err
+		}
+		result = &CardTransactionSimulationResult{
+			Authorization:   authorization,
+			CardTransaction: transaction,
+			Remaining:       req.Amount,
+		}
+		return nil
+	})
+	if err != nil {
+		if operationErr != nil {
+			return nil, operationErr
+		}
+		if errors.Is(err, sharederrors.ErrNestedTransaction) {
+			return nil, err
+		}
+		zap.S().Errorw("run shared authorization simulation transaction",
+			"account_id", req.AccountID,
+			"channel", req.Channel,
+			"card_id", req.CardID,
+			"error", err,
+		)
+		return nil, sharederrors.ErrDatabaseOperation
+	}
+	simulator.notifyTransaction(ctx, &notifySimulationRequest{
+		Result:      result,
+		Notificator: req.Notificator,
+	})
+	return result, nil
+}
+
+func (simulator *cardTransactionSimulator) SimulateClearing(ctx context.Context, req *SimulateClearingReq) (*CardTransactionSimulationResult, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	var result *CardTransactionSimulationResult
+	var operationErr error
+	err := simulator.tx.InTx(ctx, func(ctx context.Context) (err error) {
+		defer func() {
+			operationErr = err
+		}()
+		if err := simulator.lockAccount(ctx, &simulationAccountRequest{
+			AccountID: req.AccountID,
+			Channel:   req.Channel,
+		}); err != nil {
+			return err
+		}
+		previous, err := simulator.findPreviousTransaction(ctx, &simulationRequestReference{
+			AccountID: req.AccountID,
+			Channel:   req.Channel,
+			RequestID: req.RequestID,
+		})
+		if err != nil {
+			return err
+		}
+		if previous != nil {
+			if previous.Type != enums.CardTransactionType_CLEAR || previous.Status != enums.TransactionStatus_SUCCEED ||
+				previous.CardID != req.CardID || previous.AuthorizationID != req.AuthorizationID || !previous.TxAmount.Equal(req.Amount) {
+				return sharederrors.ErrSimulationRequestConflict
+			}
+			result, err = simulator.replayTransaction(ctx, previous)
+			return err
+		}
+		state, err := simulator.loadAuthorization(ctx, &simulationAuthorizationRequest{
+			AccountID:       req.AccountID,
+			Channel:         req.Channel,
+			CardID:          req.CardID,
+			AuthorizationID: req.AuthorizationID,
+		})
+		if err != nil {
+			return err
+		}
+		card, err := simulator.lockCard(ctx, &simulationCardRequest{
+			AccountID: req.AccountID,
+			Channel:   req.Channel,
+			CardID:    req.CardID,
+		})
+		if err != nil {
+			return err
+		}
+		authorization := state.Authorization
+		wallet, err := simulator.lockCardWallet(ctx, &simulationWalletRequest{
+			Card:     card,
+			Currency: authorization.Currency,
+		})
+		if err != nil {
+			return err
+		}
+		if err := req.Accounting.Clear(&ClearingAccountingRequest{
+			Wallet:    wallet,
+			Amount:    req.Amount,
+			Remaining: state.Remaining,
+		}); err != nil {
+			return err
+		}
+		transaction := &model.CardTransaction{
+			Account:                 card.Account,
+			AccountID:               req.AccountID,
+			Channel:                 req.Channel,
+			CardID:                  card.ID,
+			AuthorizationID:         authorization.ID,
+			OriginCardTransactionID: state.OriginTransactionID,
+			Type:                    enums.CardTransactionType_CLEAR,
+			Status:                  enums.TransactionStatus_SUCCEED,
+			Currency:                authorization.Currency,
+			TxCurrency:              authorization.Currency,
+			TxAmount:                req.Amount,
+			RequestID:               types.Value(req.RequestID),
+			MerchantName:            authorization.MerchantName,
+			MerchantCountry:         authorization.MerchantCountry,
+			MerchantMCC:             authorization.MerchantMCC,
+			AuthorizationCode:       authorization.AuthorizationCode,
+		}
+		if err := simulator.cardTransactionRepo.Create(ctx, transaction); err != nil {
+			zap.S().Errorw("create shared simulated clearing transaction",
+				"account_id", req.AccountID,
+				"channel", req.Channel,
+				"authorization_id", authorization.ID,
+				"error", err,
+			)
+			return sharederrors.ErrDatabaseOperation
+		}
+		if err := simulator.saveWalletBalance(ctx, wallet); err != nil {
+			return err
+		}
+		result = &CardTransactionSimulationResult{
+			Authorization:   authorization,
+			CardTransaction: transaction,
+			Remaining:       state.Remaining.Sub(req.Amount),
+		}
+		return nil
+	})
+	if err != nil {
+		if operationErr != nil {
+			return nil, operationErr
+		}
+		if errors.Is(err, sharederrors.ErrNestedTransaction) {
+			return nil, err
+		}
+		zap.S().Errorw("run shared clearing simulation transaction",
+			"account_id", req.AccountID,
+			"channel", req.Channel,
+			"authorization_id", req.AuthorizationID,
+			"error", err,
+		)
+		return nil, sharederrors.ErrDatabaseOperation
+	}
+	simulator.notifyTransaction(ctx, &notifySimulationRequest{
+		Result:      result,
+		Notificator: req.Notificator,
+	})
+	return result, nil
+}
+
+func (simulator *cardTransactionSimulator) SimulateRefund(ctx context.Context, req *SimulateRefundReq) (*CardTransactionSimulationResult, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	var result *CardTransactionSimulationResult
+	var operationErr error
+	err := simulator.tx.InTx(ctx, func(ctx context.Context) (err error) {
+		defer func() {
+			operationErr = err
+		}()
+		if err := simulator.lockAccount(ctx, &simulationAccountRequest{
+			AccountID: req.AccountID,
+			Channel:   req.Channel,
+		}); err != nil {
+			return err
+		}
+		authorizationID := types.Value(req.AuthorizationID)
+		previous, err := simulator.findPreviousTransaction(ctx, &simulationRequestReference{
+			AccountID: req.AccountID,
+			Channel:   req.Channel,
+			RequestID: req.RequestID,
+		})
+		if err != nil {
+			return err
+		}
+		if previous != nil && (previous.Type != enums.CardTransactionType_REFUND ||
+			previous.Status != enums.TransactionStatus_SUCCEED || previous.CardID != req.CardID ||
+			previous.AuthorizationID != authorizationID || previous.Currency != req.Currency || !previous.TxAmount.Equal(req.Amount)) {
+			return sharederrors.ErrSimulationRequestConflict
+		}
+		merchantName := types.Value(req.MerchantName)
+		merchantCountry := types.Value(req.MerchantCountry)
+		merchantMCC := types.Value(req.MerchantMCC)
+		var authorization *model.Authorization
+		var originTransactionID model.ID
+		remaining := decimal.Zero
+		if req.AuthorizationID != nil {
+			state, err := simulator.loadAuthorization(ctx, &simulationAuthorizationRequest{
+				AccountID:       req.AccountID,
+				Channel:         req.Channel,
+				CardID:          req.CardID,
+				AuthorizationID: authorizationID,
+			})
+			if err != nil {
+				return err
+			}
+			authorization = state.Authorization
+			if authorization.Currency != req.Currency {
+				return sharederrors.ErrInvalidAuthorization
+			}
+			originTransactionID = state.OriginTransactionID
+			remaining = state.Remaining
+			if req.MerchantName == nil {
+				merchantName = authorization.MerchantName
+			}
+			if req.MerchantCountry == nil {
+				merchantCountry = authorization.MerchantCountry
+			}
+			if req.MerchantMCC == nil {
+				merchantMCC = authorization.MerchantMCC
+			}
+		}
+		if previous != nil {
+			if previous.MerchantName != merchantName ||
+				previous.MerchantCountry != merchantCountry || previous.MerchantMCC != merchantMCC {
+				return sharederrors.ErrSimulationRequestConflict
+			}
+			result = &CardTransactionSimulationResult{
+				Authorization:   authorization,
+				CardTransaction: previous,
+				Remaining:       remaining,
+				Replayed:        true,
+			}
+			return nil
+		}
+		card, err := simulator.lockCard(ctx, &simulationCardRequest{
+			AccountID: req.AccountID,
+			Channel:   req.Channel,
+			CardID:    req.CardID,
+		})
+		if err != nil {
+			return err
+		}
+		if req.AuthorizationID == nil && card.Status != enums.CardStatus_Active {
+			return sharederrors.ErrCardNotActive
+		}
+		wallet, err := simulator.lockCardWallet(ctx, &simulationWalletRequest{
+			Card:     card,
+			Currency: req.Currency,
+		})
+		if err != nil {
+			return err
+		}
+		if err := req.Accounting.Refund(&RefundAccountingRequest{
+			Wallet: wallet,
+			Amount: req.Amount,
+		}); err != nil {
+			return err
+		}
+		authorizationCode := randomx.Digits(6)
+		if authorization != nil {
+			authorizationCode = authorization.AuthorizationCode
+		}
+		transaction := &model.CardTransaction{
+			Account:                 card.Account,
+			AccountID:               req.AccountID,
+			Channel:                 req.Channel,
+			CardID:                  card.ID,
+			AuthorizationID:         authorizationID,
+			OriginCardTransactionID: originTransactionID,
+			Type:                    enums.CardTransactionType_REFUND,
+			Status:                  enums.TransactionStatus_SUCCEED,
+			Currency:                req.Currency,
+			TxCurrency:              req.Currency,
+			TxAmount:                req.Amount,
+			RequestID:               types.Value(req.RequestID),
+			MerchantName:            merchantName,
+			MerchantCountry:         merchantCountry,
+			MerchantMCC:             merchantMCC,
+			AuthorizationCode:       authorizationCode,
+		}
+		if err := simulator.cardTransactionRepo.Create(ctx, transaction); err != nil {
+			zap.S().Errorw("create shared simulated refund transaction",
+				"account_id", req.AccountID,
+				"channel", req.Channel,
+				"card_id", req.CardID,
+				"authorization_id", authorizationID,
+				"error", err,
+			)
+			return sharederrors.ErrDatabaseOperation
+		}
+		if err := simulator.saveWalletBalance(ctx, wallet); err != nil {
+			return err
+		}
+		result = &CardTransactionSimulationResult{
+			Authorization:   authorization,
+			CardTransaction: transaction,
+			Remaining:       remaining,
+		}
+		return nil
+	})
+	if err != nil {
+		if operationErr != nil {
+			return nil, operationErr
+		}
+		if errors.Is(err, sharederrors.ErrNestedTransaction) {
+			return nil, err
+		}
+		zap.S().Errorw("run shared refund simulation transaction",
+			"account_id", req.AccountID,
+			"channel", req.Channel,
+			"card_id", req.CardID,
+			"error", err,
+		)
+		return nil, sharederrors.ErrDatabaseOperation
+	}
+	simulator.notifyTransaction(ctx, &notifySimulationRequest{
+		Result:      result,
+		Notificator: req.Notificator,
+	})
+	return result, nil
+}
+
+func (simulator *cardTransactionSimulator) SimulateReversal(ctx context.Context, req *SimulateReversalReq) (*CardTransactionSimulationResult, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	var result *CardTransactionSimulationResult
+	var operationErr error
+	err := simulator.tx.InTx(ctx, func(ctx context.Context) (err error) {
+		defer func() {
+			operationErr = err
+		}()
+		if err := simulator.lockAccount(ctx, &simulationAccountRequest{
+			AccountID: req.AccountID,
+			Channel:   req.Channel,
+		}); err != nil {
+			return err
+		}
+		previous, err := simulator.findPreviousTransaction(ctx, &simulationRequestReference{
+			AccountID: req.AccountID,
+			Channel:   req.Channel,
+			RequestID: req.RequestID,
+		})
+		if err != nil {
+			return err
+		}
+		if previous != nil {
+			if previous.Type != enums.CardTransactionType_VOID || previous.Status != req.Status ||
+				previous.CardID != req.CardID || previous.AuthorizationID != req.AuthorizationID || !previous.TxAmount.Equal(req.Amount) {
+				return sharederrors.ErrSimulationRequestConflict
+			}
+			result, err = simulator.replayTransaction(ctx, previous)
+			return err
+		}
+		state, err := simulator.loadAuthorization(ctx, &simulationAuthorizationRequest{
+			AccountID:       req.AccountID,
+			Channel:         req.Channel,
+			CardID:          req.CardID,
+			AuthorizationID: req.AuthorizationID,
+		})
+		if err != nil {
+			return err
+		}
+		card, err := simulator.lockCard(ctx, &simulationCardRequest{
+			AccountID: req.AccountID,
+			Channel:   req.Channel,
+			CardID:    req.CardID,
+		})
+		if err != nil {
+			return err
+		}
+		authorization := state.Authorization
+		wallet, err := simulator.lockCardWallet(ctx, &simulationWalletRequest{
+			Card:     card,
+			Currency: authorization.Currency,
+		})
+		if err != nil {
+			return err
+		}
+		if err := req.Accounting.Reverse(&ReversalAccountingRequest{
+			Wallet:    wallet,
+			Amount:    req.Amount,
+			Remaining: state.Remaining,
+		}); err != nil {
+			return err
+		}
+		transaction := &model.CardTransaction{
+			Account:                 card.Account,
+			AccountID:               req.AccountID,
+			Channel:                 req.Channel,
+			CardID:                  card.ID,
+			AuthorizationID:         authorization.ID,
+			OriginCardTransactionID: state.OriginTransactionID,
+			Type:                    enums.CardTransactionType_VOID,
+			Status:                  req.Status,
+			Currency:                authorization.Currency,
+			TxCurrency:              authorization.Currency,
+			TxAmount:                req.Amount,
+			RequestID:               types.Value(req.RequestID),
+			MerchantName:            authorization.MerchantName,
+			MerchantCountry:         authorization.MerchantCountry,
+			MerchantMCC:             authorization.MerchantMCC,
+			AuthorizationCode:       authorization.AuthorizationCode,
+		}
+		if err := simulator.cardTransactionRepo.Create(ctx, transaction); err != nil {
+			zap.S().Errorw("create shared simulated reversal transaction",
+				"account_id", req.AccountID,
+				"channel", req.Channel,
+				"authorization_id", authorization.ID,
+				"error", err,
+			)
+			return sharederrors.ErrDatabaseOperation
+		}
+		if err := simulator.saveWalletBalance(ctx, wallet); err != nil {
+			return err
+		}
+		result = &CardTransactionSimulationResult{
+			Authorization:   authorization,
+			CardTransaction: transaction,
+			Remaining:       state.Remaining.Sub(req.Amount),
+		}
+		return nil
+	})
+	if err != nil {
+		if operationErr != nil {
+			return nil, operationErr
+		}
+		if errors.Is(err, sharederrors.ErrNestedTransaction) {
+			return nil, err
+		}
+		zap.S().Errorw("run shared reversal simulation transaction",
+			"account_id", req.AccountID,
+			"channel", req.Channel,
+			"authorization_id", req.AuthorizationID,
+			"error", err,
+		)
+		return nil, sharederrors.ErrDatabaseOperation
+	}
+	simulator.notifyTransaction(ctx, &notifySimulationRequest{
+		Result:      result,
+		Notificator: req.Notificator,
+	})
+	return result, nil
+}
+
+func (simulator *cardTransactionSimulator) lockAccount(ctx context.Context, req *simulationAccountRequest) error {
+	exists, err := simulator.accountRepo.Exist(ctx, &AccountExistRequest{
+		ID:      req.AccountID,
+		Channel: req.Channel,
+	})
+	if err != nil {
+		zap.S().Errorw("check shared simulation account",
+			"account_id", req.AccountID,
+			"channel", req.Channel,
+			"error", err,
+		)
+		return sharederrors.ErrDatabaseOperation
+	}
+	if !exists {
+		return sharederrors.ErrAccountNotFound
+	}
+	if _, err := simulator.accountRepo.FindByIDWithLock(ctx, &AccountFindByIDWithLockRequest{
+		ID:      req.AccountID,
+		Channel: req.Channel,
+	}); err != nil {
+		zap.S().Errorw("lock shared simulation account",
+			"account_id", req.AccountID,
+			"channel", req.Channel,
+			"error", err,
+		)
+		return sharederrors.ErrDatabaseOperation
+	}
+	return nil
+}
+
+func (simulator *cardTransactionSimulator) lockCard(ctx context.Context, req *simulationCardRequest) (*model.Card, error) {
+	exists, err := simulator.cardRepo.Exist(ctx, &CardExistRequest{
+		ID:        req.CardID,
+		AccountID: req.AccountID,
+		Channel:   req.Channel,
+	})
+	if err != nil {
+		zap.S().Errorw("check shared simulation card",
+			"account_id", req.AccountID,
+			"channel", req.Channel,
+			"card_id", req.CardID,
+			"error", err,
+		)
+		return nil, sharederrors.ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, sharederrors.ErrCardNotFound
+	}
+	card, err := simulator.cardRepo.FindByIDWithLock(ctx, &CardFindByIDWithLockRequest{
+		ID:        req.CardID,
+		AccountID: req.AccountID,
+		Channel:   req.Channel,
+	})
+	if err != nil {
+		zap.S().Errorw("lock shared simulation card",
+			"account_id", req.AccountID,
+			"channel", req.Channel,
+			"card_id", req.CardID,
+			"error", err,
+		)
+		return nil, sharederrors.ErrDatabaseOperation
+	}
+	return card, nil
+}
+
+func (simulator *cardTransactionSimulator) lockCardWallet(ctx context.Context, req *simulationWalletRequest) (*model.Wallet, error) {
+	card := req.Card
+	if card.WalletID <= 0 || card.CardCurrency != req.Currency {
+		return nil, sharederrors.ErrInvalidWallet
+	}
+	exists, err := simulator.walletRepo.Exist(ctx, &WalletExistRequest{
+		ID:        card.WalletID,
+		AccountID: card.AccountID,
+		Channel:   card.Channel,
+	})
+	if err != nil {
+		zap.S().Errorw("check shared simulation wallet",
+			"account_id", card.AccountID,
+			"channel", card.Channel,
+			"wallet_id", card.WalletID,
+			"error", err,
+		)
+		return nil, sharederrors.ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, sharederrors.ErrInvalidWallet
+	}
+	wallet, err := simulator.walletRepo.FindByIDWithLock(ctx, &WalletFindByIDWithLockRequest{
+		ID:        card.WalletID,
+		AccountID: card.AccountID,
+		Channel:   card.Channel,
+	})
+	if err != nil {
+		zap.S().Errorw("lock shared simulation wallet",
+			"account_id", card.AccountID,
+			"channel", card.Channel,
+			"wallet_id", card.WalletID,
+			"error", err,
+		)
+		return nil, sharederrors.ErrDatabaseOperation
+	}
+	if wallet.Currency != req.Currency {
+		return nil, sharederrors.ErrInvalidWallet
+	}
+	switch card.CardType {
+	case enums.CardType_Single:
+		if card.VirtualAccountID != nil || wallet.Type != enums.WalletType_Card {
+			return nil, sharederrors.ErrInvalidWallet
+		}
+	case enums.CardType_Share:
+		if card.VirtualAccountID == nil || *card.VirtualAccountID <= 0 || wallet.Type != enums.WalletType_VirtualAccount {
+			return nil, sharederrors.ErrInvalidWallet
+		}
+	case enums.CardType_VirtualAccountSingle:
+		if card.VirtualAccountID == nil || *card.VirtualAccountID <= 0 || wallet.Type != enums.WalletType_Card {
+			return nil, sharederrors.ErrInvalidWallet
+		}
+	default:
+		return nil, sharederrors.ErrInvalidWallet
+	}
+	return wallet, nil
+}
+
+func (simulator *cardTransactionSimulator) loadAuthorization(ctx context.Context, req *simulationAuthorizationRequest) (*simulationAuthorizationState, error) {
+	if req.AuthorizationID <= 0 {
+		return nil, sharederrors.ErrInvalidAuthorization
+	}
+	exists, err := simulator.authorizationRepo.Exist(ctx, &AuthorizationExistRequest{
+		ID:        req.AuthorizationID,
+		AccountID: req.AccountID,
+		Channel:   req.Channel,
+		CardID:    req.CardID,
+	})
+	if err != nil {
+		zap.S().Errorw("check shared simulation authorization",
+			"account_id", req.AccountID,
+			"channel", req.Channel,
+			"authorization_id", req.AuthorizationID,
+			"error", err,
+		)
+		return nil, sharederrors.ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, sharederrors.ErrAuthorizationNotFound
+	}
+	authorization, err := simulator.authorizationRepo.FindByIDWithLock(ctx, &AuthorizationFindByIDWithLockRequest{
+		ID:        req.AuthorizationID,
+		AccountID: req.AccountID,
+		Channel:   req.Channel,
+		CardID:    req.CardID,
+	})
+	if err != nil {
+		zap.S().Errorw("lock shared simulation authorization",
+			"account_id", req.AccountID,
+			"channel", req.Channel,
+			"authorization_id", req.AuthorizationID,
+			"error", err,
+		)
+		return nil, sharederrors.ErrDatabaseOperation
+	}
+	if authorization.Status != enums.TransactionStatus_AUTHORIZED || !authorization.Amount.IsPositive() || authorization.Currency == "" {
+		return nil, sharederrors.ErrInvalidAuthorization
+	}
+	stages, err := simulator.cardTransactionRepo.ListStages(ctx, &CardTransactionListStagesRequest{
+		AccountID:       req.AccountID,
+		Channel:         req.Channel,
+		CardID:          req.CardID,
+		AuthorizationID: req.AuthorizationID,
+	})
+	if err != nil {
+		zap.S().Errorw("list shared simulation authorization stages",
+			"account_id", req.AccountID,
+			"channel", req.Channel,
+			"authorization_id", req.AuthorizationID,
+			"error", err,
+		)
+		return nil, sharederrors.ErrDatabaseOperation
+	}
+	state := &simulationAuthorizationState{
+		Authorization: authorization,
+		Remaining:     authorization.Amount,
+	}
+	for _, stage := range stages {
+		switch stage.Type {
+		case enums.CardTransactionType_AUTH:
+			if stage.Status == enums.TransactionStatus_AUTHORIZED && state.OriginTransactionID == 0 {
+				state.OriginTransactionID = stage.ID
+			}
+		case enums.CardTransactionType_CLEAR:
+			if stage.Status == enums.TransactionStatus_SUCCEED {
+				state.Remaining = state.Remaining.Sub(stage.TxAmount)
+			}
+		case enums.CardTransactionType_VOID:
+			if stage.Status == enums.TransactionStatus_SUCCEED || stage.Status == enums.TransactionStatus_VOID {
+				state.Remaining = state.Remaining.Sub(stage.TxAmount)
+			}
+		}
+	}
+	return state, nil
+}
+
+func (simulator *cardTransactionSimulator) findPreviousTransaction(ctx context.Context, req *simulationRequestReference) (*model.CardTransaction, error) {
+	if req.RequestID == nil {
+		return nil, nil
+	}
+	exists, err := simulator.cardTransactionRepo.ExistByRequestID(ctx, &CardTransactionExistByRequestIDRequest{
+		AccountID: req.AccountID,
+		Channel:   req.Channel,
+		RequestID: *req.RequestID,
+	})
+	if err != nil {
+		zap.S().Errorw("check shared simulation request",
+			"account_id", req.AccountID,
+			"channel", req.Channel,
+			"request_id", *req.RequestID,
+			"error", err,
+		)
+		return nil, sharederrors.ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, nil
+	}
+	transaction, err := simulator.cardTransactionRepo.FindByRequestID(ctx, &CardTransactionFindByRequestIDRequest{
+		AccountID: req.AccountID,
+		Channel:   req.Channel,
+		RequestID: *req.RequestID,
+	})
+	if err != nil {
+		zap.S().Errorw("find shared simulation request",
+			"account_id", req.AccountID,
+			"channel", req.Channel,
+			"request_id", *req.RequestID,
+			"error", err,
+		)
+		return nil, sharederrors.ErrDatabaseOperation
+	}
+	return transaction, nil
+}
+
+func (simulator *cardTransactionSimulator) replayTransaction(ctx context.Context, transaction *model.CardTransaction) (*CardTransactionSimulationResult, error) {
+	state, err := simulator.loadAuthorization(ctx, &simulationAuthorizationRequest{
+		AccountID:       transaction.AccountID,
+		Channel:         transaction.Channel,
+		CardID:          transaction.CardID,
+		AuthorizationID: transaction.AuthorizationID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &CardTransactionSimulationResult{
+		Authorization:   state.Authorization,
+		CardTransaction: transaction,
+		Remaining:       state.Remaining,
+		Replayed:        true,
+	}, nil
+}
+
+func (simulator *cardTransactionSimulator) saveWalletBalance(ctx context.Context, wallet *model.Wallet) error {
+	if err := simulator.walletRepo.UpdateBalance(ctx, &WalletUpdateBalanceRequest{
+		ID:         wallet.ID,
+		AccountID:  wallet.AccountID,
+		Channel:    wallet.Channel,
+		Amount:     wallet.Amount,
+		PendingOut: wallet.PendingOut,
+		In:         wallet.In,
+		Out:        wallet.Out,
+	}); err != nil {
+		zap.S().Errorw("save shared simulation wallet balance",
+			"account_id", wallet.AccountID,
+			"channel", wallet.Channel,
+			"wallet_id", wallet.ID,
+			"error", err,
+		)
+		return sharederrors.ErrDatabaseOperation
+	}
+	return nil
+}
+
+func (simulator *cardTransactionSimulator) notifyTransaction(ctx context.Context, req *notifySimulationRequest) {
+	if req.Result.Replayed {
+		return
+	}
+	transaction := req.Result.CardTransaction
+	req.Result.NotificationError = req.Notificator.NotifyCardTransaction(ctx, &NotifyCardTransactionReq{
+		AccountID:         transaction.AccountID,
+		Channel:           transaction.Channel,
+		CardID:            transaction.CardID,
+		AuthorizationID:   transaction.AuthorizationID,
+		CardTransactionID: transaction.ID,
+		Type:              transaction.Type,
+	})
+	if req.Result.NotificationError != nil {
+		zap.S().Errorw("notify shared simulated card transaction",
+			"account_id", transaction.AccountID,
+			"channel", transaction.Channel,
+			"card_transaction_id", transaction.ID,
+			"error", req.Result.NotificationError,
+		)
+	}
+}
