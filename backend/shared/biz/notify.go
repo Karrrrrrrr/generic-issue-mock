@@ -16,9 +16,13 @@ type NotifyIssueCardReq struct {
 // Notificator shared暴露接口 在各渠道实现
 type Notificator interface {
 	NotifyIssueCard(context.Context, *NotifyIssueCardReq) error
+	NotifyCardTransaction(context.Context, *NotifyCardTransactionReq) error
+	NotifyCardFunding(context.Context, *NotifyCardFundingReq) error
 }
 
 type NoopNotificator struct{}
+
+var _ Notificator = NoopNotificator{}
 
 func (NoopNotificator) NotifyIssueCard(context.Context, *NotifyIssueCardReq) error {
 	return nil
@@ -33,10 +37,16 @@ type NotifyCardTransactionReq struct {
 	Type              enums.CardTransactionType
 }
 
-type CardTransactionNotificator interface {
-	NotifyCardTransaction(context.Context, *NotifyCardTransactionReq) error
+func (NoopNotificator) NotifyCardTransaction(context.Context, *NotifyCardTransactionReq) error {
+	return nil
 }
 
-func (NoopNotificator) NotifyCardTransaction(context.Context, *NotifyCardTransactionReq) error {
+type NotifyCardFundingReq struct {
+	AccountID        model.ID
+	Channel          enums.Channel
+	WalletTransferID model.ID
+}
+
+func (NoopNotificator) NotifyCardFunding(context.Context, *NotifyCardFundingReq) error {
 	return nil
 }

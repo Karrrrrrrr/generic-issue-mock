@@ -161,7 +161,7 @@ func (u *PhotonPayUIUsecase) ReplayWebhookRecord(
 	return replay, nil
 }
 
-var _ sharedbiz.CardTransactionNotificator = (*PhotonPayUIUsecase)(nil)
+var _ sharedbiz.Notificator = (*PhotonPayUIUsecase)(nil)
 
 func (u *PhotonPayUIUsecase) NotifyCardTransaction(ctx context.Context, req *sharedbiz.NotifyCardTransactionReq) error {
 	if req == nil || req.Channel != enums.Channel_PhotonPay || req.AccountID <= 0 || req.CardTransactionID <= 0 {
@@ -172,6 +172,7 @@ func (u *PhotonPayUIUsecase) NotifyCardTransaction(ctx context.Context, req *sha
 		ID:        req.CardTransactionID,
 	})
 	if err != nil {
+		zap.S().Errorw("find photonpay notification transaction", "account_id", req.AccountID, "transaction_id", req.CardTransactionID, "error", err)
 		return err
 	}
 	u.dispatch(ctx, photon.WebhookEventFromGenericTransactionType(transaction.Type), transaction.ID, transaction)

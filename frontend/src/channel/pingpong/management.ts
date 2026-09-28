@@ -32,16 +32,9 @@ export async function loadSimulationCards(): Promise<Card[]> {
   }
 }
 
-export const authorizationApi: AuthorizationAPI = {
-  async list(filters) {
-    return (await management.authorizationApi.list(filters)).map(item => ({ ...item, notification_status: "contract_pending" }));
-  },
-  async detail(authorization) {
-    const item = await management.authorizationApi.detail!(authorization);
-    return { ...item, notification_status: "contract_pending" };
-  },
-  stage: management.authorizationApi.stage,
-};
+export const authorizationApi: AuthorizationAPI = management.authorizationApi;
+export const webhookApi = management.webhookApi;
+export const webhookRecordApi = management.webhookRecordApi;
 
 const pendingTransactionRequests = new Map<string, string>();
 export const transactionApi: Pick<ChannelAPI, "listTransactions" | "applyTransactionStep"> = {

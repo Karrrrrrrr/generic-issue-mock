@@ -96,3 +96,14 @@ func (repo *walletTransferRepository) FindByRequestID(ctx context.Context, req *
 		).
 		First()
 }
+
+func (repo *walletTransferRepository) Exist(ctx context.Context, req *biz.WalletTransferExistRequest) (bool, error) {
+	table := repo.DB(ctx).WalletTransfer
+	count, err := table.WithContext(ctx).Where(table.AccountID.Eq(req.AccountID), table.Channel.Eq(string(req.Channel)), table.ID.Eq(req.ID)).Count()
+	return count > 0, err
+}
+
+func (repo *walletTransferRepository) Find(ctx context.Context, req *biz.WalletTransferFindRequest) (*model.WalletTransfer, error) {
+	table := repo.DB(ctx).WalletTransfer
+	return table.WithContext(ctx).Where(table.AccountID.Eq(req.AccountID), table.Channel.Eq(string(req.Channel)), table.ID.Eq(req.ID)).First()
+}

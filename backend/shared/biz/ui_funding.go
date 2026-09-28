@@ -145,6 +145,11 @@ func (uc *ui) FundCard(ctx context.Context, req *UIFundCardRequest) (*model.Wall
 	if err != nil {
 		return nil, err
 	}
+	if uc.notificator != nil {
+		_ = uc.notificator.NotifyCardFunding(ctx, &NotifyCardFundingReq{
+			AccountID: result.AccountID, Channel: uc.channel, WalletTransferID: result.ID,
+		})
+	}
 	return result, nil
 }
 

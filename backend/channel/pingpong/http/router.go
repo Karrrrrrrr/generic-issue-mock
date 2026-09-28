@@ -38,11 +38,14 @@ func Register(req RegisterRequest) {
 		openAPIRoutes.GET("/api/issuing/v4/account/transactions", bind(api.RejectUnsupportedOperation))
 		openAPIRoutes.GET("/api/issuing/v3/cards/3ds/details", bind(api.RejectUnsupportedOperation))
 	}
+	uiRoutes := router.Group("/ui")
 	sharedhttp.Register(sharedhttp.RegisterRequest{
-		Router:                router.Group("/ui"),
+		Router:                uiRoutes,
 		Service:               req.UI.Shared,
 		EnableVirtualAccounts: true,
+		EnableWebhooks:        true,
 	})
+	uiRoutes.POST("/webhooks/dispatch", bindUI(req.UI.DispatchWebhook))
 }
 
 type envelope[Item any] struct {

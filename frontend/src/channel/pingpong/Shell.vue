@@ -56,6 +56,15 @@ const items: MenuOption[] = [
       },
     ],
   },
+  {
+    type: "group",
+    label: "通知",
+    key: "notifications",
+    children: [
+      { label: "Webhook 配置", key: "/pingpong/webhooks" },
+      { label: "投递记录", key: "/pingpong/webhook-records" },
+    ],
+  },
 ];
 </script>
 

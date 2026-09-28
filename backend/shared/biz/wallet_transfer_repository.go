@@ -44,7 +44,21 @@ type WalletTransferFindByRequestIDRequest struct {
 	RequestID string
 }
 
+type WalletTransferExistRequest struct {
+	AccountID model.ID
+	Channel   enums.Channel
+	ID        model.ID
+}
+
+type WalletTransferFindRequest struct {
+	AccountID model.ID
+	Channel   enums.Channel
+	ID        model.ID
+}
+
 type WalletTransferRepo interface {
+	Exist(context.Context, *WalletTransferExistRequest) (bool, error)
+	Find(context.Context, *WalletTransferFindRequest) (*model.WalletTransfer, error)
 	List(context.Context, *WalletTransferListRequest) ([]*model.WalletTransfer, error)
 	Count(context.Context, *WalletTransferCountRequest) (int64, error)
 	Create(context.Context, *WalletTransferCreateRequest) error

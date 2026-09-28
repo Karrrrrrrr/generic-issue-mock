@@ -1,10 +1,12 @@
 package biz
 
 import (
+	sharedbiz "generic-mock/shared/biz"
 	"github.com/samber/do/v2"
 )
 
 type PayndaUIUsecase struct {
+	sharedbiz.NoopNotificator
 	cardRepository            PayndaCardRepository
 	cardHolderRepository      PayndaCardHolderRepository
 	walletRepository          PayndaWalletRepository

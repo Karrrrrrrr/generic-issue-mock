@@ -115,6 +115,7 @@ func (s *PingPongOpenAPIService) CreateCard(ctx context.Context, req *CreateCard
 		return nil, pingerrors.ErrInvalid
 	}
 	card, err := s.uc.CreateCard(ctx, &biz.CreateCardRequest{
+		Notificator:      s.webhook,
 		AccountID:        accountID,
 		ProductID:        productID,
 		VirtualAccountID: virtualAccountID,

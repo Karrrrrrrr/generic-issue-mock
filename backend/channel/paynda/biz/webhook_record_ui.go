@@ -165,7 +165,7 @@ func (u *PayndaUIUsecase) ReplayWebhookRecord(
 	return replay, nil
 }
 
-var _ sharedbiz.CardTransactionNotificator = (*PayndaUIUsecase)(nil)
+var _ sharedbiz.Notificator = (*PayndaUIUsecase)(nil)
 
 func (u *PayndaUIUsecase) NotifyCardTransaction(ctx context.Context, req *sharedbiz.NotifyCardTransactionReq) error {
 	if req == nil || req.Channel != enums.Channel_Paynda || req.AccountID <= 0 || req.CardTransactionID <= 0 {
@@ -176,6 +176,7 @@ func (u *PayndaUIUsecase) NotifyCardTransaction(ctx context.Context, req *shared
 		ID:        req.CardTransactionID,
 	})
 	if err != nil {
+		zap.S().Errorw("find paynda notification transaction", "account_id", req.AccountID, "transaction_id", req.CardTransactionID, "error", err)
 		return err
 	}
 	u.dispatch(ctx, paynda.WebhookEventCardTransaction, transaction.ID, transaction)

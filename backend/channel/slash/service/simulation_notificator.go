@@ -11,7 +11,7 @@ import (
 	sharedbiz "generic-mock/shared/biz"
 )
 
-var _ sharedbiz.CardTransactionNotificator = (*SlashUIService)(nil)
+var _ sharedbiz.Notificator = (*SlashUIService)(nil)
 
 func (s *SlashUIService) NotifyCardTransaction(ctx context.Context, req *sharedbiz.NotifyCardTransactionReq) error {
 	if req == nil || req.Channel != common.Channel_Slash || req.AccountID <= 0 || req.CardTransactionID <= 0 {

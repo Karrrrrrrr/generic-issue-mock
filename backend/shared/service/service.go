@@ -12,7 +12,7 @@ type NewRequest struct {
 	WebhookEventCatalog                   biz.UIWebhookEventCatalog
 	WebhookReplayer                       biz.UIWebhookReplayer
 	Channel                               enums.Channel
-	Notificator                           biz.CardTransactionNotificator
+	Notificator                           biz.Notificator
 	CreateVirtualAccountOnAccountCreation *bool
 }
 

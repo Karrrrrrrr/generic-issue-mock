@@ -9,12 +9,11 @@ import { requestID } from "./api";
   <SharedView
     :account-api="accountApi"
     :api="authorizationApi"
-    show-notification-status
     :new-request-i-d="requestID"
   >
     <template #description>
       <n-alert type="warning" :show-icon="false">
-        本地授权已生效，通知未投递：尚缺 PingPong Webhook 事件及报文契约。这里不配置同步审批。
+        授权在本地完成后按启用的 Webhook 配置异步通知，不等待下游审批。投递结果请查看投递记录；时间、大小写和 HTTP 200 成功规则待确认，暂不签名。
       </n-alert>
     </template>
   </SharedView>

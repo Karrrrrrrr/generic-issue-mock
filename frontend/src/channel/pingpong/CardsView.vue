@@ -69,7 +69,7 @@ function closeAuthorization(shown: boolean) {
     @update:show="closeAuthorization"
   >
     <n-alert type="warning" :show-icon="false">
-      余额足够即可本地授权，不等待下游同意。Webhook 协议尚未补齐，本轮不会发送通知。
+      余额足够即可本地授权，不等待下游同意。提交后按 Webhook 配置异步通知，投递结果请查看投递记录。
     </n-alert>
     <CardAuthorizationForm
       v-if="selected"

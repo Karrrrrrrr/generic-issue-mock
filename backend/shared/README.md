@@ -11,8 +11,8 @@ Slash、Paynda、PhotonPay、PingPong 的 UI 模拟授权、清算、退款和�
 - 所有渠道的模拟请求均不传 `account_id`。模拟授权传卡 ID；清算、撤销、关联退款只需授权 ID 和金额，账户、卡和币种由共享模拟器从授权记录读取。独立退款没有授权，必须提供卡 ID 和币种。
 - 模拟器在自己的事务内先按渠道和资源主键确认存在并读取归属，再按派生出的账户/渠道锁定并验证账户、卡、授权、币种及钱包；归属解析查询是显式的例外，后续查询不省略账户条件。交易入口先按渠道读取原交易，再传授权 ID。渠道不得在外层再包事务，也不再为了调用模拟器重复读取授权。
 - UI 独立退款省略 `authorization_id`，关联退款传正数内部 `model.ID`，JSON 使用数字；显式零值、空字符串和跨账户/跨卡引用不能当成独立退款。
-- Slash 由 service 实现 `CardTransactionNotificator`，在边界转换 UUID 后交给原 webhook 投递器；Paynda、PhotonPay UI 的通知适配器按账户读取已提交交易并调用原投递流程。原来 service/渠道流程末尾的重复发送已移除。
-- PingPong 明确传入 `NoopNotificator`，保持 `contract_pending`，不虚构投递记录；没有借迁移新增同步授权回调。
+- Slash 由 service 实现 `Notificator`，在边界转换 UUID 后交给原 webhook 投递器；Paynda、PhotonPay UI 的通知适配器按账户读取已提交交易并调用原投递流程。原来 service/渠道流程末尾的重复发送已移除。
+- PingPong 注入自己的 Webhook 通知器，按启用的账户订阅创建真实投递记录并异步发送；不新增同步授权回调。时间、大小写及 HTTP 200 ACK 是待确认的临时约定，暂不签名。
 - PingPong 将必填 `request_id` 交给共享模拟器处理幂等，重放不重复记账或通知。三个其他 UI 协议原来没有请求 ID，此次不新增。
 - 所有渠道通过各自独立 `errors` 包把共享错误转为已有渠道错误。Slash、Paynda、PhotonPay 的旧业务错误从 `biz` 迁入 `errors`，不保留别名，不改变状态码、reason 或 message。
 
@@ -25,7 +25,7 @@ Slash、Paynda、PhotonPay、PingPong 的 UI 模拟授权、清算、退款和�
 - `Transaction`：`InTx` 管理真实提交边界，`IsInTx` 判断当前 context 是否已经携带事务。
 - 四个渠道的 UI/OpenAPI usecase 直接注入 `shared/biz.Transaction`，只由 `shared.RegisterProviders` 注册一次；不再定义渠道事务接口、别名或私有实现。各渠道仓储仍通过 `gormx.DB(ctx, db)` 使用同一个 context 事务。`InTx` 拒绝嵌套事务，需要加入已有事务的共享余额组件通过 `IsInTx` 判断后直接执行。
 - `Notificator`：由上层实现并在每次开卡请求中传入。通用层不负责 webhook DTO、签名、HTTP 调用、队列或重试策略。
-- `CardTransactionNotificator`：只负责交易通知，不要求实现开卡通知接口。
+- `Notificator`：统一包含开卡、交易和资金通知；不适用的通知可通过 `NoopNotificator` 保持空实现。
 - 记账规则对所有渠道一致。模拟器决定操作金额、冻结释放上限和流程，由唯一的 `BalanceChanger` 实现钱包金额变更；它不是可按渠道切换的记账策略。
 
 已有一个注册了根数据库连接 `*gorm.DB` 的 `samber/do` injector 时：
@@ -243,6 +243,6 @@ if err != nil {
 - `RequestID == nil` 表示新模拟操作，不进行去重。显式传入请求 ID 后，以 `(AccountID, Channel, RequestID)` 在共享模拟器内去重；授权、清算、退款、撤销共用此键空间，应使用不同的键。
 - 同键同业务参数返回原交易并标记 `Replayed=true`，不再次记账、创建记录或调用通知。不同卡、阶段、授权引用、金额、币种/商户信息或撤销状态会返回冲突。独立退款重放不查询授权，也不会重复入账；重放结果的 `Remaining` 是查询时的当前剩余金额，不是首次调用快照。
 - 并发去重依赖事务中的账户行锁；自定义仓储必须真正加锁，其他直接写入交易的代码不能绕过同一锁约定。没有新增数据库唯一索引或修改模型。
-- 事务提交成功后才调用 `CardTransactionNotificator`，传入账户、渠道、卡、授权、交易 ID 和阶段类型。通知失败仅写入 `NotificationError`，不会改变本地授权或清算结果；重试通知应直接使用这些已提交的 ID，而非再次模拟。
-- 上层通知适配器负责异步排队、协议 DTO、签名、ACK 和投递状态。PingPong 的真实 webhook 合约仍待确认；可以显式使用 `NoopNotificator{}`，不能把它当成已经成功投递。
+- 事务提交成功后才调用 `Notificator`，传入账户、渠道、卡、授权、交易 ID 和阶段类型。通知失败仅写入 `NotificationError`，不会改变本地授权或清算结果；重试通知应直接使用这些已提交的 ID，而非再次模拟。
+- 上层通知适配器负责异步排队、协议 DTO、签名、ACK 和投递状态。PingPong 按已提供的事件报文和暂定 HTTP 200 ACK 投递；待确认项见渠道文档。无订阅不等于投递成功。
 - 与开卡一样，模拟器必须拥有真实提交边界；不支持嵌套未提交事务，不提供持久化 outbox 或恰好一次通知保证。

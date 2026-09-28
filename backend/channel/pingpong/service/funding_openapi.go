@@ -93,11 +93,12 @@ func (s *PingPongOpenAPIService) FundCard(ctx context.Context, req *CardFundingR
 		return nil, err
 	}
 	item, err := s.uc.FundCard(ctx, &biz.CardFundingRequest{
-		AccountID: accountID,
-		CardID:    cardID,
-		Withdraw:  req.Action == ping.Withdraw,
-		Amount:    req.Amount.Decimal,
-		RequestID: req.UniqueOrderID,
+		Notificator: s.webhook,
+		AccountID:   accountID,
+		CardID:      cardID,
+		Withdraw:    req.Action == ping.Withdraw,
+		Amount:      req.Amount.Decimal,
+		RequestID:   req.UniqueOrderID,
 	})
 	if err != nil {
 		return nil, err

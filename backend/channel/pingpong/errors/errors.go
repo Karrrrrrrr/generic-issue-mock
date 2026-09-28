@@ -14,3 +14,9 @@ var (
 )
 
 var ErrCardNotActive = kratoserrors.BadRequest("CARD_NOT_ACTIVE", "activate card before adjusting funds")
+
+var (
+	ErrWebhookDelivery      = kratoserrors.New(502, "WEBHOOK_DELIVERY_FAILED", "PingPong webhook delivery failed")
+	ErrWebhookPayload       = kratoserrors.InternalServer("WEBHOOK_PAYLOAD_FAILED", "cannot encode PingPong webhook payload")
+	ErrWebhookInTransaction = kratoserrors.Conflict("WEBHOOK_BEFORE_COMMIT", "webhook must be queued after business transaction commit")
+)

@@ -47,7 +47,6 @@ export interface Authorization extends Owned {
   currency: string;
   merchant_name: string;
   status: TransactionStatus;
-  notification_status: "contract_pending";
 }
 export interface AuthorizationDetail extends Authorization {
   card_number: string;

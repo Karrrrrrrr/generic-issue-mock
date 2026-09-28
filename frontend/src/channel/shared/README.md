@@ -4,7 +4,7 @@
 
 UI 使用项目内部枚举，不使用第三方状态值：卡状态为 `inactive/active/freezing/frozen/deleting/deleted`，交易状态为 `pending/authorized/succeed/failed/void`，交易类型为 `auth/clear/void/refund/verification/fund_in/fund_out`。前端类型及筛选项定义在 `../enums.ts`，后端 UI DTO 直接使用 `backend/enums`。OpenAPI 和 webhook 报文继续遵守渠道协议，Webhook 事件列表仍从各渠道接口加载。
 
-`api.ts` 为四个渠道的 Shared 管理契约提供参数化接口实现；渠道文件只传入自己的 UI 路径。统一使用 GET query 和 POST JSON body，不把资源 ID 拼入 URI。列表使用 `items/total`，分页字段使用 `page_number/page_size`；适配层显式将 Shared 的 `available/status/type` 等字段映射为已有页面类型。`../pingpong/management.ts` 只保留请求重试键及 `contract_pending` 展示差异。组件不通过渠道名分支，不把第三方状态转换逻辑搬到前端。
+`api.ts` 为四个渠道的 Shared 管理契约提供参数化接口实现；渠道文件只传入自己的 UI 路径。统一使用 GET query 和 POST JSON body，不把资源 ID 拼入 URI。列表使用 `items/total`，分页字段使用 `page_number/page_size`；适配层显式将 Shared 的 `available/status/type` 等字段映射为已有页面类型。`../pingpong/management.ts` 只保留请求重试键等渠道调用差异。组件不通过渠道名分支，不把第三方状态转换逻辑搬到前端。
 
 ## 页面与能力
 
@@ -14,9 +14,9 @@ UI 使用项目内部枚举，不使用第三方状态值：卡状态为 `inacti
 - `CardProductsView.vue`：四渠道共用只读产品列表，展示渠道级产品 ID 与 BIN；候选 BIN 文案和说明由上层提供。开卡必须指定产品，不提供默认产品标记或兜底选择。
 - `VirtualAccountsView.vue`：Slash、PhotonPay、PingPong 共用列表、创建和充值。未提供 `withdraw` 时不展示转出；币种选择、钱包 ID 列和说明可配置。
 - `CardsView.vue`：四渠道共用卡列表、内部状态筛选、冻结/恢复和资金操作。可选到期日、冻结余额、虚拟账户列及模拟授权入口；不按虚拟账户关联关系猜测钱包。PingPong 的卡资金操作仍只在卡钱包与所属虚拟账户之间进行。
-- `AuthorizationsView.vue`：四渠道共用列表及清算/撤销/退款。仅在提供 `api.detail` 时展示关联交易、原始报文等详情；PingPong 从本地授权与阶段记录返回真实汇总、卡信息和关联交易。PingPong 仍展示 `contract_pending`，不伪造通知已投递。
+- `AuthorizationsView.vue`：四渠道共用列表及清算/撤销/退款。仅在提供 `api.detail` 时展示关联交易、原始报文等详情；PingPong 从本地授权与阶段记录返回真实汇总、卡信息和关联交易。PingPong 不再固定展示 `contract_pending`，真实投递结果在 Webhook 记录页面查看。
 - `TransactionsView.vue`：四渠道共用内部交易枚举、操作条件及退款表单。PingPong 查询本地交易记录，不依赖第三方 OpenAPI 交易报表。
-- `WebhooksView.vue`、`WebhookRecordsView.vue`：三个渠道共用配置、投递详情和重放。事件选项由接口提供，筛选能力按现有接口开放；PingPong 不开放未实现的通知能力。
+- `WebhooksView.vue`、`WebhookRecordsView.vue`：四个渠道共用配置、投递详情和重放。事件选项由接口提供，筛选能力按现有接口开放；PingPong 的通知采用暂定协议规则，时间、大小写与 ACK 仍待确认。
 
 领域数据契约定义在 `contracts.ts`。差异通过 typed API、可选操作、少量展示属性和说明 slot 提供，不设计万能 CRUD 组件。账户名称使用原响应的 `account_name`；只有账户选择表单加载账户选项。
 

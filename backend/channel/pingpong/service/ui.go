@@ -1,23 +1,26 @@
 package service
 
 import (
+	"generic-mock/channel/pingpong/biz"
 	"generic-mock/enums"
-	sharedbiz "generic-mock/shared/biz"
 	sharedservice "generic-mock/shared/service"
 
 	"github.com/samber/do/v2"
 )
 
 type PingPongUIService struct {
-	Shared *sharedservice.Service
+	Shared  *sharedservice.Service
+	webhook *biz.PingPongWebhookUsecase
 }
 
 func NewUIService(injector do.Injector) (*PingPongUIService, error) {
 	factory := do.MustInvoke[*sharedservice.Factory](injector)
-	s := &PingPongUIService{}
+	s := &PingPongUIService{webhook: do.MustInvoke[*biz.PingPongWebhookUsecase](injector)}
 	management, err := factory.New(&sharedservice.NewRequest{
-		Channel:     enums.Channel_PingPong,
-		Notificator: sharedbiz.NoopNotificator{},
+		Channel:             enums.Channel_PingPong,
+		Notificator:         s.webhook,
+		WebhookEventCatalog: s.webhook,
+		WebhookReplayer:     s.webhook,
 	})
 	if err != nil {
 		return nil, err

@@ -24,7 +24,7 @@ type SimulateAuthorizationReq struct {
 	MerchantCountry *string
 	MerchantMCC     *string
 	RequestID       *string
-	Notificator     CardTransactionNotificator
+	Notificator     Notificator
 }
 
 func (req *SimulateAuthorizationReq) Validate() error {
@@ -45,7 +45,7 @@ type SimulateClearingReq struct {
 	AuthorizationID model.ID
 	Amount          decimal.Decimal
 	RequestID       *string
-	Notificator     CardTransactionNotificator
+	Notificator     Notificator
 }
 
 func (req *SimulateClearingReq) Validate() error {
@@ -67,7 +67,7 @@ type SimulateRefundReq struct {
 	MerchantCountry *string
 	MerchantMCC     *string
 	RequestID       *string
-	Notificator     CardTransactionNotificator
+	Notificator     Notificator
 }
 
 func (req *SimulateRefundReq) Validate() error {
@@ -93,7 +93,7 @@ type SimulateReversalReq struct {
 	Amount          decimal.Decimal
 	Status          enums.CardTransactionStatus
 	RequestID       *string
-	Notificator     CardTransactionNotificator
+	Notificator     Notificator
 }
 
 func (req *SimulateReversalReq) Validate() error {
@@ -191,7 +191,7 @@ type simulationAuthorizationState struct {
 
 type notifySimulationRequest struct {
 	Result      *CardTransactionSimulationResult
-	Notificator CardTransactionNotificator
+	Notificator Notificator
 }
 
 type CardTransactionSimulator interface {
@@ -1054,14 +1054,6 @@ func (simulator *cardTransactionSimulator) notifyTransaction(ctx context.Context
 		CardTransactionID: transaction.ID,
 		Type:              transaction.Type,
 	})
-	if req.Result.NotificationError != nil {
-		zap.S().Errorw("notify shared simulated card transaction",
-			"account_id", transaction.AccountID,
-			"channel", transaction.Channel,
-			"card_transaction_id", transaction.ID,
-			"error", req.Result.NotificationError,
-		)
-	}
 }
 
 func (simulator *cardTransactionSimulator) findSimulationCard(ctx context.Context, req *simulationCardReference) (*model.Card, error) {

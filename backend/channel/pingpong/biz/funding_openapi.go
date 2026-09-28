@@ -8,17 +8,19 @@ import (
 	"generic-mock/model"
 	"generic-mock/pkg/cardwallet"
 	"generic-mock/pkg/types"
+	sharedbiz "generic-mock/shared/biz"
 
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
 type CardFundingRequest struct {
-	AccountID model.ID
-	CardID    model.ID
-	Withdraw  bool
-	Amount    decimal.Decimal
-	RequestID string
+	Notificator sharedbiz.Notificator
+	AccountID   model.ID
+	CardID      model.ID
+	Withdraw    bool
+	Amount      decimal.Decimal
+	RequestID   string
 }
 
 type VirtualAccountFundingRequest struct {
@@ -89,6 +91,9 @@ func (uc *PingPongOpenAPIUsecase) FundCard(ctx context.Context, req *CardFunding
 		result, err = uc.transferWalletFunds(ctx, transfer)
 		return err
 	})
+	if err == nil && req.Notificator != nil {
+		_ = req.Notificator.NotifyCardFunding(ctx, &sharedbiz.NotifyCardFundingReq{AccountID: result.AccountID, Channel: common.Channel_PingPong, WalletTransferID: result.ID})
+	}
 	return result, err
 }
 

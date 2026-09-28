@@ -17,8 +17,9 @@ import (
 )
 
 type PingPongOpenAPIService struct {
-	uc   *biz.PingPongOpenAPIUsecase
-	apps map[string]string
+	uc      *biz.PingPongOpenAPIUsecase
+	webhook *biz.PingPongWebhookUsecase
+	apps    map[string]string
 }
 
 func NewOpenAPIService(injector do.Injector) (*PingPongOpenAPIService, error) {
@@ -37,8 +38,9 @@ func NewOpenAPIService(injector do.Injector) (*PingPongOpenAPIService, error) {
 		}
 	}
 	return &PingPongOpenAPIService{
-		uc:   do.MustInvoke[*biz.PingPongOpenAPIUsecase](injector),
-		apps: apps,
+		uc:      do.MustInvoke[*biz.PingPongOpenAPIUsecase](injector),
+		apps:    apps,
+		webhook: do.MustInvoke[*biz.PingPongWebhookUsecase](injector),
 	}, nil
 }
 

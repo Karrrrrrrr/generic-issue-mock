@@ -28,7 +28,7 @@ async function refund(request: RefundSimulationRequest) {
       </div>
     </div>
     <n-alert type="warning" :show-icon="false">
-      操作会更新本地钱包和交易记录。Webhook 协议尚未确认，不发送通知。
+      操作会更新本地钱包和交易记录，并按启用的 Webhook 配置异步通知。投递失败不回滚交易；当前暂不签名，HTTP 200 暂视为成功。
     </n-alert>
     <CardTransactionSimulator
       :load-cards="loadSimulationCards"

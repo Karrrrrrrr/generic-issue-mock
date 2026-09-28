@@ -11,7 +11,7 @@ type NewUIRequest struct {
 	WebhookEventCatalog                   UIWebhookEventCatalog
 	WebhookReplayer                       UIWebhookReplayer
 	Channel                               enums.Channel
-	Notificator                           CardTransactionNotificator
+	Notificator                           Notificator
 	CreateVirtualAccountOnAccountCreation *bool
 }
 
@@ -48,7 +48,7 @@ type ui struct {
 	webhookConfigRepo           WebhookConfigRepo
 	webhookRecordRepo           WebhookRecordRepo
 	channel                     enums.Channel
-	notificator                 CardTransactionNotificator
+	notificator                 Notificator
 	createAccountVirtualAccount bool
 	accountRepo                 AccountRepo
 	cardProductRepo             CardProductRepo

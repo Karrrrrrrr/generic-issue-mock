@@ -22,4 +22,6 @@ func RegisterProviders(injector do.Injector) {
 	do.Provide(injector, biz.NewUIUsecase)
 	do.Provide(injector, service.NewOpenAPIService)
 	do.Provide(injector, service.NewUIService)
+	do.Provide(injector, data.NewWebhookClient)
+	do.Provide(injector, biz.NewWebhookUsecase)
 }

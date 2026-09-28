@@ -91,3 +91,27 @@ func (repo *webhookRecordRepository) Find(ctx context.Context, req *biz.WebhookR
 		).
 		First()
 }
+
+func (repo *webhookRecordRepository) Create(ctx context.Context, req *biz.WebhookRecordCreateRequest) error {
+	return repo.DB(ctx).WebhookRecord.WithContext(ctx).Create(req.Record)
+}
+
+func (repo *webhookRecordRepository) ExistBySource(ctx context.Context, req *biz.WebhookRecordExistBySourceRequest) (bool, error) {
+	table := repo.DB(ctx).WebhookRecord
+	count, err := table.WithContext(ctx).Where(
+		table.AccountID.Eq(req.AccountID), table.Channel.Eq(string(req.Channel)),
+		table.WebhookConfigID.Eq(req.WebhookConfigID), table.Event.Eq(req.Event), table.SourceID.Eq(req.SourceID),
+	).Count()
+	return count > 0, err
+}
+
+func (repo *webhookRecordRepository) UpdateDelivery(ctx context.Context, req *biz.WebhookRecordUpdateDeliveryRequest) error {
+	table := repo.DB(ctx).WebhookRecord
+	_, err := table.WithContext(ctx).Where(
+		table.AccountID.Eq(req.AccountID), table.Channel.Eq(string(req.Channel)), table.ID.Eq(req.ID),
+	).Updates(map[string]interface{}{
+		"status": req.Status, "status_code": req.StatusCode, "response_body": req.ResponseBody,
+		"response_headers": req.ResponseHeaders, "delivered_at": req.DeliveredAt, "error_message": req.ErrorMessage,
+	})
+	return err
+}

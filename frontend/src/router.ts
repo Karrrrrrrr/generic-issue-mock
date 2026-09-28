@@ -43,6 +43,8 @@ export const router = createRouter({
           path: "simulation",
           component: () => import("@/channel/pingpong/SimulationView.vue"),
         },
+        { path: "webhooks", component: () => import("@/channel/pingpong/WebhooksView.vue") },
+        { path: "webhook-records", component: () => import("@/channel/pingpong/WebhookRecordsView.vue") },
       ],
     },
     {

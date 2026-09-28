@@ -47,11 +47,13 @@ shared.RegisterUIProviders(injector)
 factory := do.MustInvoke[*service.Factory](injector)
 management, err := factory.New(&service.NewRequest{
     Channel: enums.Channel_PingPong,
-    Notificator: biz.NoopNotificator{},
+    Notificator: pingPongWebhook,
+    WebhookEventCatalog: pingPongWebhook,
+    WebhookReplayer: pingPongWebhook,
 })
 ```
 
-处理构造错误后，使用 `management.ListCards` 等具名方法及各自请求。工厂实例可以创建不同渠道的 service，构造时复制配置，各实例不会共享可变渠道状态。上面的 Noop 仅适用于明确不投递的场景，不代表 PingPong webhook 已实现或投递成功。
+示例中的 `pingPongWebhook` 是已注入的 `*pingpong/biz.PingPongWebhookUsecase`。处理构造错误后，使用 `management.ListCards` 等具名方法及各自请求。工厂实例可以创建不同渠道的 service，构造时复制配置，各实例不会共享可变渠道状态。PingPong 已注入真实的通知适配器，成功提交本地业务不代表通知已投递成功，应查看投递记录。
 
 `RegisterUIProviders` 只注册业务和服务工厂，不注册 Repo，也不直接注册 HTTP 路由。渠道自己的 `Register` 调用 `shared/http.Register`，在已有 UI 分组中挂载通用路由，不增加资源子分组。OpenAPI 可以在只调用 `RegisterProviders` 后直接注入 `biz.CardRepo` 等资源仓储，无需依赖 UI。
 
@@ -66,7 +68,7 @@ management, err := factory.New(&service.NewRequest{
 - 调资记录：查询、请求幂等、双方余额快照；资金转移复用 `BalanceChanger`，不绕过正常余额检查。
 - Webhook：通用配置 CRUD、记录查询；事件选项和重放由上层适配器提供。
 
-路由能力由注册参数显式控制：Paynda 不注册虚拟账户；PingPong 不注册尚无合约的 Webhook 管理和投递入口；模拟接口仅出现在 UI。Slash、PhotonPay 原有的授权回调配置保留在渠道路由中，PingPong 不新增同步授权回调。
+路由能力由注册参数显式控制：Paynda 不注册虚拟账户；四个渠道均注册 Webhook 配置及投递记录入口；模拟接口仅出现在 UI。Slash、PhotonPay 原有的授权回调配置保留在渠道路由中，PingPong 不新增同步授权回调。
 
 ## 类型与差异化配置
 
@@ -74,7 +76,7 @@ management, err := factory.New(&service.NewRequest{
 - UI 状态、交易类型及调资种类使用项目 `enums`；时间使用 `time.Time` / `*time.Time`，金额使用 `decimal.Decimal`。账户关联响应包含 `account_name`。
 - 列表响应为 `items` 和 `total`，分页默认第 1 页、每页 20 条，上限 200 条。UI HTTP 层直接返回该 DTO，不包装渠道 OpenAPI 信封。
 - `CreateVirtualAccountOnAccountCreation` 是显式的可选构造参数；默认不自动建虚拟账户，也不引入默认产品。
-- `CardTransactionNotificator`、`UIWebhookEventCatalog`、`UIWebhookReplayer` 由上层实现。缺少通知适配器时拒绝模拟；缺少事件目录或重放适配器时，对应操作返回未支持错误，不伪造事件或投递成功。
+- `Notificator`、`UIWebhookEventCatalog`、`UIWebhookReplayer` 由上层实现。缺少通知适配器时拒绝模拟；缺少事件目录或重放适配器时，对应操作返回未支持错误，不伪造事件或投递成功。
 - 渠道 webhook 的报文、签名、ACK 和实际发送仍在渠道适配器中，不下沉到 Repo 或通用 UI 流程。
 
 ## 统一 HTTP 参数
@@ -106,8 +108,8 @@ POST /slash/ui/simulate/clearings
 | `/authorizations`、`/authorizations/detail` | 授权列表和详情 |
 | `/transactions`、`/transactions/detail` | 交易列表和详情 |
 | `/transfers` | 调资记录 |
-| `/webhooks`、`/webhooks/events` | 配置和渠道事件选项，PingPong 除外 |
-| `/webhook-records`、`/webhook-records/detail` | 投递记录和详情，PingPong 除外 |
+| `/webhooks`、`/webhooks/events` | 配置和渠道事件选项 |
+| `/webhook-records`、`/webhook-records/detail` | 投递记录和详情 |
 
 通用写操作均为 POST：
 
@@ -119,8 +121,8 @@ POST /slash/ui/simulate/clearings
 | `/simulate/authorizations`、`/simulate/clearings` | 模拟授权和清算 |
 | `/simulate/refunds`、`/simulate/reversals` | 模拟退款和撤销 |
 | `/transactions/stages` | 通过原交易 ID 模拟后续阶段 |
-| `/webhooks`、`/webhooks/update`、`/webhooks/delete` | 配置 CRUD，PingPong 除外 |
-| `/webhook-records/replay` | 重放投递，PingPong 除外 |
+| `/webhooks`、`/webhooks/update`、`/webhooks/delete` | 配置 CRUD |
+| `/webhook-records/replay` | 重放投递 |
 
 Slash、PhotonPay 另外保留 GET/POST `/authorization-config`，同样只用 query/body。旧 UI 的 `/:id`、PUT/DELETE 以及重复管理列表路径不再注册；重复的渠道 service handler 已清理，渠道特殊实现保留，前端已切换至新契约。独立脚本或 SDK 测试中准备 UI 数据的调用方也需使用上述新路径和字段，OpenAPI 调用不受影响。
 

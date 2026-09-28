@@ -12,11 +12,13 @@ import (
 	"generic-mock/pkg/cardnumber"
 	"generic-mock/pkg/cardwallet"
 	"generic-mock/pkg/randomx"
+	sharedbiz "generic-mock/shared/biz"
 
 	"go.uber.org/zap"
 )
 
 type CreateCardRequest struct {
+	Notificator      sharedbiz.Notificator
 	AccountID        model.ID
 	VirtualAccountID model.ID
 	ProductID        model.ID
@@ -41,6 +43,7 @@ func (uc *PingPongOpenAPIUsecase) CreateCard(ctx context.Context, req *CreateCar
 		return nil, pingerrors.ErrInvalid
 	}
 	var card *model.Card
+	created := false
 	err := uc.tx.InTx(ctx, func(ctx context.Context) error {
 		account, err := uc.lockAccount(ctx, req.AccountID)
 		if err != nil {
@@ -141,8 +144,12 @@ func (uc *PingPongOpenAPIUsecase) CreateCard(ctx context.Context, req *CreateCar
 			zap.S().Errorw("create pingpong card", "error", err)
 			return pingerrors.ErrDatabase
 		}
+		created = true
 		return nil
 	})
+	if err == nil && created && req.Notificator != nil {
+		_ = req.Notificator.NotifyIssueCard(ctx, &sharedbiz.NotifyIssueCardReq{AccountID: card.AccountID, Channel: common.Channel_PingPong, CardID: card.ID})
+	}
 	return card, err
 }
 
