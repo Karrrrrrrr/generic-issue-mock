@@ -10,7 +10,6 @@ import (
 	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
-	"generic-mock/pkg/types"
 	sharedbiz "generic-mock/shared/biz"
 
 	"go.uber.org/zap"
@@ -18,15 +17,6 @@ import (
 
 type payndaEventPayload struct {
 	CardTransactionWebhook payndaCardTransactionWebhook `json:"cardTransactionWebhook"`
-}
-
-type payndaCardStatusEventPayload struct {
-	CardStatusWebhook payndaCardStatusWebhook `json:"cardStatusWebhook"`
-}
-
-type payndaCardStatusWebhook struct {
-	CardID model.ID          `json:"cardId"`
-	Status paynda.CardStatus `json:"status"`
 }
 
 type payndaCardTransactionWebhook struct {
@@ -71,31 +61,6 @@ func payndaMaskCardNumber(cardNumber string) string {
 		return cardNumber
 	}
 	return cardNumber[:6] + "******" + cardNumber[len(cardNumber)-4:]
-}
-
-func (u *PayndaUIUsecase) ListWebhookRecords(
-	ctx context.Context,
-	req *PayndaListRequest,
-) ([]*model.WebhookRecord, int64, error) {
-	items, err := u.webhookRecordRepository.List(ctx, &WebhookRecordListRequest{
-		AccountIDs: types.PointerSlice(req.AccountID),
-		Limit:      req.Limit,
-		Offset:     req.Offset,
-	})
-	if err != nil {
-		zap.S().Errorw("list paynda webhook records", "error", err)
-		return nil, 0, payndaerrors.ErrDatabaseOperation
-	}
-
-	total, err := u.webhookRecordRepository.Count(ctx, &WebhookRecordCountRequest{
-		AccountIDs: types.PointerSlice(req.AccountID),
-	})
-	if err != nil {
-		zap.S().Errorw("count paynda webhook records", "error", err)
-		return nil, 0, payndaerrors.ErrDatabaseOperation
-	}
-
-	return items, total, nil
 }
 
 func (u *PayndaUIUsecase) ReplayWebhookRecord(
@@ -316,107 +281,6 @@ func (u *PayndaUIUsecase) dispatch(ctx context.Context, event paynda.WebhookEven
 		}
 		if err := u.webhookRecordRepository.Save(ctx, record); err != nil {
 			zap.S().Errorw("save paynda webhook record", "error", err)
-		}
-	}
-}
-
-func (u *PayndaUIUsecase) dispatchCardStatus(ctx context.Context, card *model.Card) {
-	payload, err := json.Marshal(payndaCardStatusEventPayload{
-		CardStatusWebhook: payndaCardStatusWebhook{
-			CardID: card.ID,
-			Status: paynda.CardStatusFromGeneric(card.Status),
-		},
-	})
-	if err != nil {
-		zap.S().Errorw("marshal paynda card status webhook payload", "error", err)
-		return
-	}
-	configs, err := u.webhookConfigRepository.ListByAccountIDs(ctx, &WebhookConfigListByAccountIDsRequest{
-		AccountIDs: []model.ID{card.AccountID},
-	})
-	if err != nil {
-		zap.S().Errorw("list paynda card status webhook configs", "error", err)
-		return
-	}
-	for _, config := range configs {
-		if !config.Enabled || config.Event != string(paynda.WebhookEventCardStatus) {
-			continue
-		}
-		record := &model.WebhookRecord{
-			WebhookConfigID: config.ID,
-			AccountID:       config.AccountID,
-			Channel:         enums.Channel_Paynda,
-			Event:           string(paynda.WebhookEventCardStatus),
-			TargetURL:       config.TargetURL,
-			SourceID:        strconv.FormatInt(card.ID, 10),
-			Payload:         payload,
-			Status:          enums.WebhookDeliveryStatus_Pending,
-			AttemptCount:    1,
-		}
-		if err := u.webhookRecordRepository.Create(ctx, record); err != nil {
-			zap.S().Errorw("create paynda card status webhook record", "error", err)
-			continue
-		}
-		startedAt := time.Now()
-		zap.S().Infow("webhook delivery started",
-			"channel", record.Channel,
-			"account_id", record.AccountID,
-			"webhook_record_id", record.ID,
-			"event", record.Event,
-			"source_id", record.SourceID,
-			"attempt", record.AttemptCount,
-			"method", "POST",
-			"url", record.TargetURL,
-			"request_body", string(record.Payload),
-		)
-		result, deliveryErr := u.webhookClient.Deliver(ctx, &PayndaWebhookDeliveryRequest{
-			TargetURL: config.TargetURL,
-			Payload:   payload,
-			Category:  string(paynda.WebhookEventCardStatus),
-		})
-		if result != nil {
-			record.StatusCode = result.StatusCode
-			record.ResponseBody = result.ResponseBody
-			record.RequestHeaders = result.RequestHeaders
-			record.ResponseHeaders = result.ResponseHeaders
-		}
-		if deliveryErr != nil {
-			record.Status = enums.WebhookDeliveryStatus_Failed
-			record.ErrorMessage = deliveryErr.Error()
-		} else {
-			if result.StatusCode >= 200 && result.StatusCode < 300 {
-				deliveredAt := time.Now().UTC()
-				record.Status = enums.WebhookDeliveryStatus_Succeeded
-				record.DeliveredAt = &deliveredAt
-			} else {
-				record.Status = enums.WebhookDeliveryStatus_Failed
-				record.ErrorMessage = "unexpected Paynda webhook response"
-			}
-		}
-		logFields := []any{
-			"channel", record.Channel,
-			"account_id", record.AccountID,
-			"webhook_record_id", record.ID,
-			"event", record.Event,
-			"source_id", record.SourceID,
-			"attempt", record.AttemptCount,
-			"method", "POST",
-			"url", record.TargetURL,
-			"status", record.Status,
-			"status_code", record.StatusCode,
-			"request_headers", string(record.RequestHeaders),
-			"response_headers", string(record.ResponseHeaders),
-			"response_body", record.ResponseBody,
-			"duration_ms", time.Since(startedAt).Milliseconds(),
-			"error", record.ErrorMessage,
-		}
-		if record.Status == enums.WebhookDeliveryStatus_Failed {
-			zap.S().Errorw("webhook delivery failed", logFields...)
-		} else {
-			zap.S().Infow("webhook delivery succeeded", logFields...)
-		}
-		if err := u.webhookRecordRepository.Save(ctx, record); err != nil {
-			zap.S().Errorw("save paynda card status webhook record", "error", err)
 		}
 	}
 }

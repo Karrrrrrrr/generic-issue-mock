@@ -1,55 +1,27 @@
 package biz
 
 import (
-	"generic-mock/model"
-	sharedbiz "generic-mock/shared/biz"
-
 	"github.com/samber/do/v2"
 )
 
-type ListRequest struct {
-	AccountID *model.ID
-	Offset    int
-	Limit     int
-}
-
-type ResourceRequest struct {
-	AccountID *model.ID
-	ID        model.ID
-}
-
 type PhotonPayUIUsecase struct {
-	simulator               sharedbiz.CardTransactionSimulator
-	transaction             sharedbiz.Transaction
-	cardHolderRepo          CardHolderRepository
 	cardRepo                CardRepository
-	cardProductRepo         CardProductRepository
-	authorizationRepo       AuthorizationRepository
 	cardTransactionRepo     CardTransactionRepository
 	webhookRepo             WebhookConfigRepository
 	authorizationConfigRepo AuthorizationConfigRepository
 	webhookRecordRepo       WebhookRecordRepository
 	webhookClient           WebhookClient
 	accountRepo             AccountRepository
-	walletRepo              WalletRepository
-	virtualAccountRepo      VirtualAccountRepository
 }
 
 func NewPhotonPayUIUsecase(injector do.Injector) (*PhotonPayUIUsecase, error) {
 	return &PhotonPayUIUsecase{
-		simulator:               do.MustInvoke[sharedbiz.CardTransactionSimulator](injector),
-		transaction:             do.MustInvoke[sharedbiz.Transaction](injector),
-		cardHolderRepo:          do.MustInvoke[CardHolderRepository](injector),
 		cardRepo:                do.MustInvoke[CardRepository](injector),
-		cardProductRepo:         do.MustInvoke[CardProductRepository](injector),
-		authorizationRepo:       do.MustInvoke[AuthorizationRepository](injector),
 		cardTransactionRepo:     do.MustInvoke[CardTransactionRepository](injector),
 		webhookRepo:             do.MustInvoke[WebhookConfigRepository](injector),
 		authorizationConfigRepo: do.MustInvoke[AuthorizationConfigRepository](injector),
 		webhookRecordRepo:       do.MustInvoke[WebhookRecordRepository](injector),
 		webhookClient:           do.MustInvoke[WebhookClient](injector),
 		accountRepo:             do.MustInvoke[AccountRepository](injector),
-		walletRepo:              do.MustInvoke[WalletRepository](injector),
-		virtualAccountRepo:      do.MustInvoke[VirtualAccountRepository](injector),
 	}, nil
 }

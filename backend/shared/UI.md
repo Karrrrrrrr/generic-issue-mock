@@ -2,7 +2,7 @@
 
 ## 接入边界
 
-`shared/service` 提供独立的浏览器管理 DTO 和 service，`shared/biz/ui_*.go` 实现 UI 业务。已通过 `main` 注册工厂，并由四个渠道保留的 `SlashUIService`、`PayndaUIService`、`PhotonPayUIService`、`PingPongUIService` 按渠道构造，注册到 `/<channel>/ui`。前端通过统一管理 API 调用。已删除渠道 service 中被 Shared 接管的重复 handler、DTO 和私有转换函数，渠道 UI Service 结构体和构造函数保留；现有渠道 biz/repo 不在本轮清理范围。Slash、PhotonPay 的授权回调配置仍使用原渠道实现，Webhook 投递与重放继续委托原渠道实现。
+`shared/service` 提供独立的浏览器管理 DTO 和 service，`shared/biz/ui_*.go` 实现 UI 业务。已通过 `main` 注册工厂，并由四个渠道保留的 `SlashUIService`、`PayndaUIService`、`PhotonPayUIService`、`PingPongUIService` 按渠道构造，注册到 `/<channel>/ui`。前端通过统一管理 API 调用。已删除渠道 service 中被 Shared 接管的重复 handler、DTO 和私有转换函数，渠道 UI Service 结构体和构造函数保留；渠道 biz 中不再被调用的 UI usecase 方法、专用请求和私有辅助函数也已删除；usecase 结构体、构造函数及注册保留，Repo 接口和实现未改动。Slash、PhotonPay 的授权回调配置仍使用原渠道实现，Webhook 投递与重放继续委托原渠道实现。
 
 `shared/biz/*_repository.go` 和 `shared/data/*_repository.go` 是按资源划分的通用持久化接口与实现，不属于 UI。UI、OpenAPI 和共享卡组件均可注入同一套 Repo；OpenAPI 不应为了复用仓储而调用 UI service/usecase。
 
@@ -14,6 +14,14 @@
 - Slash、PhotonPay 保留授权回调配置 handler，按领域放在 `authorization_config_ui.go`；渠道事件目录和重放适配在 `webhook_ui_adapter.go`，Slash 交易通知适配保留编译期接口断言。
 - Paynda、PingPong 当前不保留重复的资源管理 handler，但 UI Service 结构体仍作为后续特殊能力的扩展位置。可复用的能力统一加到 Shared，不复制回渠道。
 - OpenAPI 仍需要的转换保留在 OpenAPI 文件中，不因删除 UI 文件而一起删除。
+
+## 渠道 usecase 清理边界
+
+- 按当前服务调用、包内调用和接口实现关系清理未使用的方法，不按方法名称猜测用途。
+- 保留所有 usecase 结构体及构造函数，只移除不再需要的依赖字段和注入。`PingPongUIUsecase` 当前保留为空结构体，后续可继续扩展。
+- Slash、PhotonPay 的授权回调配置，以及各渠道仍在调用的 Webhook 通知、报文生成、投递和重放流程继续保留；通知接口的编译期断言保留。
+- OpenAPI 仍使用的请求类型和辅助函数保留并归回 OpenAPI 文件，不再留在已清空的 UI 文件中；现有 OpenAPI 行为不变。
+- Repo 可能服务于其他调用方，本轮不因删除某个 usecase 方法而连带删除其仓储接口或实现。
 
 ## Repo 设计约定
 

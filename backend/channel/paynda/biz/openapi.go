@@ -1,10 +1,22 @@
 package biz
 
 import (
+	"generic-mock/model"
 	sharedbiz "generic-mock/shared/biz"
 
 	"github.com/samber/do/v2"
 )
+
+type PayndaResourceRequest struct {
+	AccountID model.ID
+	ID        model.ID
+}
+
+type PayndaListRequest struct {
+	AccountID *model.ID
+	Offset    int
+	Limit     int
+}
 
 type PayndaOpenAPIUsecase struct {
 	transaction               sharedbiz.Transaction

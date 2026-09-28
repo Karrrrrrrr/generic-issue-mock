@@ -2,13 +2,23 @@ package biz
 
 import (
 	"context"
+	"time"
 
 	payndaerrors "generic-mock/channel/paynda/errors"
+	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
 
 	"go.uber.org/zap"
 )
+
+type PayndaListTransactionsRequest struct {
+	PayndaListRequest
+	CardID         *model.ID
+	StartCreatedAt *time.Time
+	EndCreatedAt   *time.Time
+	Types          []enums.CardTransactionType
+}
 
 type PayndaCardTransactionDetail struct {
 	Transaction   *model.CardTransaction

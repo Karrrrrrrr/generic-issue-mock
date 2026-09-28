@@ -10,7 +10,6 @@ import (
 	photonpayerrors "generic-mock/channel/photonpay/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
-	"generic-mock/pkg/types"
 	sharedbiz "generic-mock/shared/biz"
 
 	"go.uber.org/zap"
@@ -58,31 +57,6 @@ func photonPayWebhookAcknowledged(body string) bool {
 		Roger bool `json:"roger"`
 	}
 	return json.Unmarshal([]byte(body), &response) == nil && response.Roger
-}
-
-func (u *PhotonPayUIUsecase) ListWebhookRecords(
-	ctx context.Context,
-	req *ListRequest,
-) ([]*model.WebhookRecord, int64, error) {
-	items, err := u.webhookRecordRepo.List(ctx, &WebhookRecordListRequest{
-		AccountIDs: types.PointerSlice(req.AccountID),
-		Limit:      req.Limit,
-		Offset:     req.Offset,
-	})
-	if err != nil {
-		zap.S().Errorw("list photonpay webhook records", "error", err)
-		return nil, 0, photonpayerrors.ErrDatabaseOperation
-	}
-
-	total, err := u.webhookRecordRepo.Count(ctx, &WebhookRecordCountRequest{
-		AccountIDs: types.PointerSlice(req.AccountID),
-	})
-	if err != nil {
-		zap.S().Errorw("count photonpay webhook records", "error", err)
-		return nil, 0, photonpayerrors.ErrDatabaseOperation
-	}
-
-	return items, total, nil
 }
 
 func (u *PhotonPayUIUsecase) ReplayWebhookRecord(
@@ -202,110 +176,6 @@ func (u *PhotonPayUIUsecase) NotifyCardTransaction(ctx context.Context, req *sha
 	}
 	u.dispatch(ctx, photon.WebhookEventFromGenericTransactionType(transaction.Type), transaction.ID, transaction)
 	return nil
-}
-
-func (u *PhotonPayUIUsecase) dispatchCardStatus(ctx context.Context, card *model.Card) {
-	payload, err := json.Marshal(struct {
-		CardID     string            `json:"cardId"`
-		CardStatus photon.CardStatus `json:"cardStatus"`
-	}{
-		CardID:     strconv.FormatInt(card.ID, 10),
-		CardStatus: photon.CardStatusFromGeneric(card.Status),
-	})
-	if err != nil {
-		zap.S().Errorw("marshal photonpay card status webhook payload", "error", err)
-		return
-	}
-	configs, err := u.webhookRepo.List(ctx, &WebhookConfigListRequest{
-		AccountIDs: []model.ID{card.AccountID},
-	})
-	if err != nil {
-		zap.S().Errorw("list photonpay card status webhook configs", "error", err)
-		return
-	}
-	for _, config := range configs {
-		if !config.Enabled || config.Event != string(photon.WebhookEventCardStatusUpdate) {
-			continue
-		}
-		record := &model.WebhookRecord{
-			WebhookConfigID: config.ID,
-			AccountID:       config.AccountID,
-			Channel:         enums.Channel_PhotonPay,
-			Event:           string(photon.WebhookEventCardStatusUpdate),
-			TargetURL:       config.TargetURL,
-			SourceID:        strconv.FormatInt(card.ID, 10),
-			Payload:         payload,
-			Status:          enums.WebhookDeliveryStatus_Pending,
-			AttemptCount:    1,
-		}
-		if err := u.webhookRecordRepo.Create(ctx, record); err != nil {
-			zap.S().Errorw("create photonpay card status webhook record", "error", err)
-			continue
-		}
-		startedAt := time.Now()
-		zap.S().Infow("webhook delivery started",
-			"channel", record.Channel,
-			"account_id", record.AccountID,
-			"webhook_record_id", record.ID,
-			"event", record.Event,
-			"source_id", record.SourceID,
-			"attempt", record.AttemptCount,
-			"method", "POST",
-			"url", record.TargetURL,
-			"request_body", string(record.Payload),
-		)
-		result, deliveryErr := u.webhookClient.Deliver(ctx, &PhotonPayWebhookDeliveryRequest{
-			TargetURL:      config.TargetURL,
-			Payload:        payload,
-			NotifyCategory: string(photon.WebhookNotificationCategoryIssuingCard),
-			NotifyType:     string(photon.WebhookEventCardStatusUpdate),
-			PublishedAt:    time.Now().UTC().Format(time.RFC3339),
-		})
-		if result != nil {
-			record.StatusCode = result.StatusCode
-			record.ResponseBody = result.ResponseBody
-			record.RequestHeaders = result.RequestHeaders
-			record.ResponseHeaders = result.ResponseHeaders
-		}
-		if deliveryErr != nil {
-			record.Status = enums.WebhookDeliveryStatus_Failed
-			record.ErrorMessage = deliveryErr.Error()
-		} else {
-			if result.StatusCode >= 200 && result.StatusCode < 300 && photonPayWebhookAcknowledged(result.ResponseBody) {
-				deliveredAt := time.Now().UTC()
-				record.Status = enums.WebhookDeliveryStatus_Succeeded
-				record.DeliveredAt = &deliveredAt
-			} else {
-				record.Status = enums.WebhookDeliveryStatus_Failed
-				record.ErrorMessage = "unexpected PhotonPay webhook response"
-			}
-		}
-		logFields := []any{
-			"channel", record.Channel,
-			"account_id", record.AccountID,
-			"webhook_record_id", record.ID,
-			"event", record.Event,
-			"source_id", record.SourceID,
-			"attempt", record.AttemptCount,
-			"method", "POST",
-			"url", record.TargetURL,
-			"status", record.Status,
-			"status_code", record.StatusCode,
-			"request_headers", string(record.RequestHeaders),
-			"response_headers", string(record.ResponseHeaders),
-			"response_body", record.ResponseBody,
-			"duration_ms", time.Since(startedAt).Milliseconds(),
-			"error", record.ErrorMessage,
-		}
-		if record.Status == enums.WebhookDeliveryStatus_Failed {
-			zap.S().Errorw("webhook delivery failed", logFields...)
-		} else {
-			zap.S().Infow("webhook delivery succeeded", logFields...)
-		}
-		if err := u.webhookRecordRepo.Save(ctx, record); err != nil {
-			zap.S().Errorw("save photonpay card status webhook record", "error", err)
-		}
-	}
 }
 
 func (u *PhotonPayUIUsecase) dispatch(ctx context.Context, event photon.WebhookEvent, sourceID model.ID, transaction *model.CardTransaction) {

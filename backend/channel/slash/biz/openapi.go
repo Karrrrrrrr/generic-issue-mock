@@ -1,10 +1,16 @@
 package biz
 
 import (
+	"generic-mock/model"
 	sharedbiz "generic-mock/shared/biz"
 
 	"github.com/samber/do/v2"
 )
+
+type ResourceRequest struct {
+	AccountID *model.ID
+	ID        model.ID
+}
 
 type SlashOpenAPIUsecase struct {
 	accountRepository         SlashAccountRepository

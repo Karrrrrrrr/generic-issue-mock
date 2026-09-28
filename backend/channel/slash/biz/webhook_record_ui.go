@@ -9,7 +9,6 @@ import (
 	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
-	"generic-mock/pkg/types"
 
 	"github.com/samber/do/v2"
 	"go.uber.org/zap"
@@ -20,16 +19,6 @@ type DispatchWebhookRequest struct {
 	Event     slash.WebhookEvent
 	EntityID  string
 	EventID   string
-}
-
-type ListWebhookRecordsRequest struct {
-	AccountID   *model.ID
-	Event       *slash.WebhookEvent
-	Status      *enums.WebhookDeliveryStatus
-	CreatedFrom *time.Time
-	CreatedTo   *time.Time
-	Offset      int
-	Limit       int
 }
 
 type ReplayWebhookRecordRequest struct {
@@ -49,40 +38,6 @@ func NewSlashWebhookUsecase(injector do.Injector) (*SlashWebhookUsecase, error) 
 		webhookRecordRepository: do.MustInvoke[SlashWebhookRecordRepository](injector),
 		webhookClient:           do.MustInvoke[SlashWebhookClient](injector),
 	}, nil
-}
-
-func (u *SlashWebhookUsecase) ListRecords(ctx context.Context, req *ListWebhookRecordsRequest) ([]*model.WebhookRecord, int64, error) {
-	if (req.CreatedFrom != nil && req.CreatedFrom.IsZero()) ||
-		(req.CreatedTo != nil && req.CreatedTo.IsZero()) ||
-		(req.CreatedFrom != nil && req.CreatedTo != nil && req.CreatedFrom.After(*req.CreatedTo)) {
-		return nil, 0, slasherrors.ErrInvalidOperation
-	}
-	filters := WebhookRecordFilters{
-		AccountIDs:  types.PointerSlice(req.AccountID),
-		Statuses:    types.PointerSlice(req.Status),
-		CreatedFrom: req.CreatedFrom,
-		CreatedTo:   req.CreatedTo,
-	}
-	if req.Event != nil {
-		filters.Events = []string{string(*req.Event)}
-	}
-	items, err := u.webhookRecordRepository.List(ctx, &WebhookRecordListRequest{
-		WebhookRecordFilters: filters,
-		Offset:               req.Offset,
-		Limit:                req.Limit,
-	})
-	if err != nil {
-		zap.S().Errorw("list slash webhook records", "error", err)
-		return nil, 0, slasherrors.ErrDatabaseOperation
-	}
-	total, err := u.webhookRecordRepository.Count(ctx, &WebhookRecordCountRequest{
-		WebhookRecordFilters: filters,
-	})
-	if err != nil {
-		zap.S().Errorw("count slash webhook records", "error", err)
-		return nil, 0, slasherrors.ErrDatabaseOperation
-	}
-	return items, total, nil
 }
 
 func (u *SlashWebhookUsecase) ReplayRecord(ctx context.Context, req *ReplayWebhookRecordRequest) (*model.WebhookRecord, error) {
