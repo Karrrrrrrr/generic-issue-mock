@@ -80,7 +80,7 @@ func (u *PayndaOpenAPIUsecase) TransferAccountWallet(
 			zap.S().Errorw("lock paynda account wallet", "error", err)
 			return ErrDatabaseOperation
 		}
-		wallet.Amount = wallet.Amount.Add(req.Amount)
+		wallet.Available = wallet.Available.Add(req.Amount)
 		wallet.In = wallet.In.Add(req.Amount)
 		if err := u.walletRepository.Save(txCtx, wallet); err != nil {
 			zap.S().Errorw("save paynda account wallet", "error", err)
@@ -122,17 +122,17 @@ func (u *PayndaOpenAPIUsecase) TransferCardBalance(
 			zap.S().Errorw("lock paynda card wallet", "error", err)
 			return ErrDatabaseOperation
 		}
-		oldAmount := wallet.Amount
+		oldAmount := wallet.Available
 		transactionType := enums.CardTransactionType_FundIn
 		if req.Type == paynda.TransferType_Out {
-			if wallet.Amount.LessThan(req.Amount) {
+			if wallet.Available.LessThan(req.Amount) {
 				return ErrInvalidOperation
 			}
-			wallet.Amount = wallet.Amount.Sub(req.Amount)
+			wallet.Available = wallet.Available.Sub(req.Amount)
 			wallet.Out = wallet.Out.Add(req.Amount)
 			transactionType = enums.CardTransactionType_FundOut
 		} else {
-			wallet.Amount = wallet.Amount.Add(req.Amount)
+			wallet.Available = wallet.Available.Add(req.Amount)
 			wallet.In = wallet.In.Add(req.Amount)
 		}
 		if err := u.walletRepository.Save(txCtx, wallet); err != nil {

@@ -80,12 +80,12 @@ func (u *PhotonPayUIUsecase) FundCard(ctx context.Context, req *UIFundCardReques
 			(source.Type != enums.WalletType_VirtualAccount || target.Type != enums.WalletType_Card) {
 			return ErrInvalidOperation
 		}
-		if source.Amount.LessThan(req.Amount) {
+		if source.Available.LessThan(req.Amount) {
 			return ErrInvalidOperation
 		}
-		source.Amount = source.Amount.Sub(req.Amount)
+		source.Available = source.Available.Sub(req.Amount)
 		source.Out = source.Out.Add(req.Amount)
-		target.Amount = target.Amount.Add(req.Amount)
+		target.Available = target.Available.Add(req.Amount)
 		target.In = target.In.Add(req.Amount)
 		if err := u.walletRepo.Save(txCtx, source); err != nil {
 			zap.S().Errorw("save photonpay UI funding source wallet", "error", err)
@@ -181,10 +181,10 @@ func (u *PhotonPayUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsReques
 			return ErrInvalidOperation
 		}
 		if source != nil {
-			if source.Amount.LessThan(req.Amount) {
+			if source.Available.LessThan(req.Amount) {
 				return ErrInvalidOperation
 			}
-			source.Amount = source.Amount.Sub(req.Amount)
+			source.Available = source.Available.Sub(req.Amount)
 			source.Out = source.Out.Add(req.Amount)
 			if err := u.walletRepo.SaveWallet(ctx, source); err != nil {
 				zap.S().Errorw("debit photonpay wallet", "error", err)
@@ -192,7 +192,7 @@ func (u *PhotonPayUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsReques
 			}
 		}
 		if target != nil {
-			target.Amount = target.Amount.Add(req.Amount)
+			target.Available = target.Available.Add(req.Amount)
 			target.In = target.In.Add(req.Amount)
 			if err := u.walletRepo.SaveWallet(ctx, target); err != nil {
 				zap.S().Errorw("credit photonpay wallet", "error", err)

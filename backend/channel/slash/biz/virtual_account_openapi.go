@@ -172,11 +172,11 @@ func (u *SlashOpenAPIUsecase) TransferVirtualAccount(ctx context.Context, req *O
 		}
 		amount := decimal.NewFromInt(req.AmountCents).Div(decimal.NewFromInt(100))
 		sourceWallet, destinationWallet := locked[source.WalletID], locked[destination.WalletID]
-		if sourceWallet.Amount.LessThan(amount) {
+		if sourceWallet.Available.LessThan(amount) {
 			return ErrInvalidOperation
 		}
-		sourceWallet.Amount = sourceWallet.Amount.Sub(amount)
-		destinationWallet.Amount = destinationWallet.Amount.Add(amount)
+		sourceWallet.Available = sourceWallet.Available.Sub(amount)
+		destinationWallet.Available = destinationWallet.Available.Add(amount)
 		if err := u.walletRepository.Save(txCtx, sourceWallet); err != nil {
 			zap.S().Errorw("save slash source wallet", "error", err)
 			return ErrDatabaseOperation

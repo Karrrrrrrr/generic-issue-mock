@@ -39,7 +39,7 @@ func toAccountData(item *model.Account) AccountData {
 		CreatedAt: item.CreatedAt,
 	}
 	if item.Wallet != nil {
-		result.Balance = Number{item.Wallet.Amount.Sub(item.Wallet.PendingOut)}
+		result.Balance = Number{item.Wallet.Available}
 		result.Currency = item.Wallet.Currency
 	}
 	return result

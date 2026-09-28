@@ -138,7 +138,7 @@ func (u *PhotonPayUIUsecase) SimulateRefund(ctx context.Context, req *UISimulate
 		if wallet.Currency != req.Currency {
 			return ErrInvalidOperation
 		}
-		wallet.Amount = wallet.Amount.Add(req.Amount)
+		wallet.Available = wallet.Available.Add(req.Amount)
 		wallet.In = wallet.In.Add(req.Amount)
 		if err := u.walletRepo.SaveWallet(txCtx, wallet); err != nil {
 			zap.S().Errorw("credit photonpay refund wallet", "error", err)
@@ -247,10 +247,10 @@ func (u *PhotonPayUIUsecase) ApplyTransactionStep(ctx context.Context, req *UIAp
 				return ErrInvalidOperation
 			}
 			if req.Type == enums.CardTransactionType_REFUND {
-				wallet.Amount = wallet.Amount.Add(amount)
+				wallet.Available = wallet.Available.Add(amount)
 				wallet.In = wallet.In.Add(amount)
 			} else {
-				wallet.Amount = wallet.Amount.Sub(amount)
+				wallet.Available = wallet.Available.Sub(amount)
 				wallet.Out = wallet.Out.Add(amount)
 			}
 			if err := u.walletRepo.SaveWallet(txCtx, wallet); err != nil {

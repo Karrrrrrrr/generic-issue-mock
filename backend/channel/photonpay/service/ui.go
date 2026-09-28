@@ -676,7 +676,7 @@ func photonPayUICardData(item *model.Card) *UICardData {
 	balance := decimal.Zero
 	fundingSource := "卡资金"
 	if item.Wallet != nil {
-		balance = item.Wallet.Amount
+		balance = item.Wallet.Available
 		if item.Wallet.Type == common.WalletType_VirtualAccount {
 			fundingSource = "虚拟账户共享资金"
 		}
@@ -736,7 +736,7 @@ func photonPayUIVirtualAccountData(item *model.VirtualAccount) *UIVirtualAccount
 		ID:          idconv.ToString(item.ID),
 		Name:        item.Name,
 		Currency:    string(item.Wallet.Currency),
-		Balance:     item.Wallet.Amount.String(),
+		Balance:     item.Wallet.Available.String(),
 		CreatedAt:   item.CreatedAt,
 	}
 }
@@ -776,7 +776,7 @@ func photonPayUIWebhookRecordData(item *model.WebhookRecord) *UIWebhookRecordDat
 func photonPayUIAccountData(item *model.Account) *UIAccountData {
 	balance := decimal.Zero
 	if item.Wallet != nil {
-		balance = item.Wallet.Amount
+		balance = item.Wallet.Available
 	}
 	return &UIAccountData{
 		WalletID:  idconv.ToString(item.WalletID),
@@ -846,7 +846,7 @@ func (s *PhotonPayUIService) ListFunds(ctx context.Context, req *ManagementListR
 			ID:          idconv.ToString(item.ID),
 			Currency:    item.Currency,
 			Kind:        kind,
-			Amount:      item.Amount.String(),
+			Amount:      item.Available.String(),
 		})
 	}
 	return &result, nil

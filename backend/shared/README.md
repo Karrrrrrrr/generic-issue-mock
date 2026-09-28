@@ -8,11 +8,12 @@
 
 - `CardIssuer`：通用开卡入口。
 - `CardTransactionSimulator`：仅暴露模拟授权、清算、退款和撤销四个方法的接口；具体实现 `cardTransactionSimulator` 不导出。请求、`Validate`、实现和复用的私有方法集中在 `biz/card_transaction_simulator.go`，不再拆出只有一次调用的流程方法。
+- `BalanceChanger`：通用余额变更接口，具体实现 `balanceChanger` 不导出，编译期断言保证接口实现完整。请求、`Validate` 和实现集中在 `biz/balance_changer.go`。
 - `AccountRepo`、`CardRepo`、`CardHolderRepo`、`CardProductRepo`、`VirtualAccountRepo`、`WalletRepo`、`AuthorizationRepo`、`CardTransactionRepo`：按资源拆分，只包含当前共享业务需要的仓储操作。
-- `Transaction`：统一事务边界，返回成功必须表示真实提交完成。
+- `Transaction`：`InTx` 管理真实提交边界，`IsInTx` 判断当前 context 是否已经携带事务。
 - `Notificator`：由上层实现并在每次开卡请求中传入。通用层不负责 webhook DTO、签名、HTTP 调用、队列或重试策略。
 - `CardTransactionNotificator`：只负责交易通知，不要求实现开卡通知接口。
-- `CardTransactionAccounting`：由上层为授权、清算、退款和撤销选择一致的记账策略；共享流程不根据渠道名称分支。
+- 记账规则对所有渠道一致。模拟器决定操作金额、冻结释放上限和流程，由唯一的 `BalanceChanger` 实现钱包金额变更；它不是可按渠道切换的记账策略。
 
 已有一个注册了根数据库连接 `*gorm.DB` 的 `samber/do` injector 时：
 
@@ -20,9 +21,10 @@
 shared.RegisterProviders(injector)
 issuer := do.MustInvoke[*biz.CardIssuer](injector)
 simulator := do.MustInvoke[biz.CardTransactionSimulator](injector)
+balanceChanger := do.MustInvoke[biz.BalanceChanger](injector)
 ```
 
-`RegisterProviders` 直接注册构造器，包括可选用的 GORM Gen 仓储实现。若上层已有其他存储适配，可按需注册 `biz.NewCardIssuer` / `biz.NewCardTransactionSimulator`，自行提供对应仓储接口和 `Transaction`，不必引用 `shared/data`。
+`RegisterProviders` 直接注册构造器，包括可选用的 GORM Gen 仓储实现。若上层已有其他存储适配，可按需注册 `biz.NewCardIssuer` / `biz.NewCardTransactionSimulator` / `biz.NewBalanceChanger`，自行提供对应仓储接口和 `Transaction`，不必引用 `shared/data`。模拟器依赖 `BalanceChanger`；其余查询仓储仍由模拟器明确声明。
 
 ## 调用约定
 
@@ -90,12 +92,47 @@ NotifyIssueCard(context.Context, *biz.NotifyIssueCardReq) error
 
 开卡入口不统一渠道幂等应答。数据库保留既有 `(account_id, channel, request_id)` 唯一约束，重复请求失败时所有新增记录及产品序号均回滚；已有请求的查询、请求内容冲突判断、返回历史卡片等策略由上层 usecase 按渠道契约实现。
 
+## 通用余额变更
+
+`BalanceChanger` 提供五个方法，全部返回 `error`。参数使用本项目的 `AccountID`、`Channel`、`WalletID` 和 `Currency`，资源 ID 为 `model.ID`（int64），不复制其他项目的商户、外部账户或交易归属字段。余额实体继续使用 `model.Wallet`，没有新增一套 `BalanceChangeBalance`。
+
+| 方法 | 请求 | 金额变更 |
+| --- | --- | --- |
+| `ChangeBalance` | `BalanceChangeReq` | 显式应用 `AvailableDelta`、`PendingOutDelta`、`InDelta`、`OutDelta` |
+| `TryBalanceChange` | `TccBalanceChangeReq` | `Available -= 请求金额`，`PendingOut += 请求金额` |
+| `ConfirmBalanceChange` | `ConfirmBalanceChangeReq` | `Available += ReleaseAmount - 请求 Amount`，冻结减 `ReleaseAmount`，`Out` 加请求金额 |
+| `CancelBalanceChange` | `TccBalanceChangeReq` | 冻结减请求金额，等额加回可用余额，`In` / `Out` 不变 |
+| `ChangeBalanceSimple` | `ChangeBalanceSimpleReq` | 正数增加余额和 `In`，负数扣余额并按绝对值增加 `Out`；不改冻结 |
+
+- 每种请求自行实现 `Validate()`。归属、钱包 ID 和币种必填；Try/Confirm/Cancel 金额必须为正，Simple 金额必须非零，原始 delta 请求不能四项全零。
+- Confirm 使用单独的请求，是因为项目允许超额及持续清算，实际扣款额与释放冻结额不一定相等。`ReleaseAmount` 是必填金额值，允许为 0，不得为负或超过本次扣款额。授权剩余额度由模拟器计算，不在余额组件中查询。
+- `CheckAvailable=true` 时拒绝变更后的可用余额为负；false 允许负可用余额。授权传 true，模拟清算、退款和撤销传 false；正常钱包资金转出应传 true，不能借用模拟清算的例外。
+- 冻结余额和累计 `In` / `Out` 不能变成负数，不受 `CheckAvailable` 影响。释放额超出钱包实际冻结额时返回命名业务错误，不会扣别的字段补齐，也不会把错误数据截成零。
+- 所有读写都按 `(AccountID, Channel, WalletID)` 限定，锁定钱包后再次验证币种并根据当前值计算。模拟器预加载卡的钱包只用于检查归属、类型和币种，不使用预加载快照记账。
+- 已有事务时，组件通过 `Transaction.IsInTx(ctx)` 自动识别并复用，不提交调用方的事务；没有事务时自己开启并提交。因此不提供 `IsInTx` 请求开关，也不把 GORM 句柄放进 biz 请求。模拟器里的交易阶段和余额修改仍能一起回滚。
+- TCC 表示冻结、确认、取消的金额操作，不引入 DTM、TCC 状态表或自动幂等。调用两次组件就可能变更两次；请求重放校验、授权归属、冻结释放上限、交易记录和通知由上层处理。模拟器已经保留这些控制。
+
+例如普通扣款（无冻结）：
+
+```go
+err := balanceChanger.ChangeBalanceSimple(ctx, &biz.ChangeBalanceSimpleReq{
+	AccountID:      accountID,
+	Channel:        channel,
+	WalletID:       walletID,
+	Currency:       currency,
+	Amount:         decimal.NewFromInt(-10),
+	CheckAvailable: true,
+})
+if err != nil {
+	return err
+}
+```
+
 ## 模拟卡交易
 
 `CardTransactionSimulator` 的四个入口 `SimulateAuthorization`、`SimulateClearing`、`SimulateRefund` 和 `SimulateReversal` 均返回 `(*CardTransactionSimulationResult, error)`。各入口先调用请求的 `Validate()`，随后直接在自己的事务回调内实现流程。结果包含授权记录、当前交易阶段、带符号的授权剩余金额、是否重放，以及提交后的通知错误；独立退款的 `Authorization` 为 nil、`Remaining` 为零。
 
 ```go
-accounting := biz.ClearingDebitAccounting{}
 notificator := biz.NoopNotificator{}
 authorizationRequestID := "authorization-001"
 clearingRequestID := "clearing-001"
@@ -107,7 +144,6 @@ authorizationResult, err := simulator.SimulateAuthorization(ctx, &biz.SimulateAu
 	Currency:    currency,
 	Amount:      decimal.NewFromInt(10),
 	RequestID:   &authorizationRequestID,
-	Accounting:  accounting,
 	Notificator: notificator,
 })
 if err != nil {
@@ -121,7 +157,6 @@ clearingResult, err := simulator.SimulateClearing(ctx, &biz.SimulateClearingReq{
 	AuthorizationID: authorizationResult.Authorization.ID,
 	Amount:          decimal.NewFromInt(12),
 	RequestID:       &clearingRequestID,
-	Accounting:      accounting,
 	Notificator:     notificator,
 })
 if err != nil {
@@ -142,7 +177,6 @@ refundResult, err := simulator.SimulateRefund(ctx, &biz.SimulateRefundReq{
 	Currency:    currency,
 	Amount:      decimal.NewFromInt(3),
 	RequestID:   &refundRequestID,
-	Accounting:  accounting,
 	Notificator: notificator,
 })
 if err != nil {
@@ -158,7 +192,6 @@ reversalResult, err := simulator.SimulateReversal(ctx, &biz.SimulateReversalReq{
 	Amount:          decimal.NewFromInt(2),
 	Status:          enums.TransactionStatus_VOID,
 	RequestID:       &reversalRequestID,
-	Accounting:      accounting,
 	Notificator:     notificator,
 })
 if err != nil {
@@ -169,19 +202,25 @@ if err != nil {
 - 退款的 `AuthorizationID` 是可选指针。nil 表示独立退款，持久化为 0，不创建或查找虚构授权；非 nil 必须是同账户、同渠道、同一卡的正数授权 ID，传入 0 不会被当作省略。
 - 独立退款要求卡处于有效状态；关联已有授权的退款与撤销不因卡被冻结而拒绝。两种退款均不要求存在先前清算，也不限制为已清算金额。
 - 关联退款的请求币种必须与授权一致；未提供的商户字段继承授权，明确提供的字段按请求记录。独立退款使用请求的币种和商户字段。
-- 退款增加卡实际消费钱包的 `Amount` 和 `In`，不释放占款、不增加或扣减授权剩余金额。
-- 撤销的 `AuthorizationID` 必填，币种、商户信息及原授权交易关联从授权继承。撤销扣减授权剩余金额，保留负数，不向钱包退回未实际扣过的资金。
+- 退款增加卡实际消费钱包的 `Available` 和 `In`，不释放占款、不增加或扣减授权剩余金额。
+- 撤销的 `AuthorizationID` 必填，币种、商户信息及原授权交易关联从授权继承。撤销扣减授权剩余金额，保留负数，将实际释放的冻结金额转回可用余额，不增加总余额。
 - 撤销请求的 `Status` 必填，仅允许 `TransactionStatus_VOID` 或 `TransactionStatus_SUCCEED`。上层按已有渠道约定传入：Slash、Paynda、PhotonPay 使用 VOID，PingPong 使用 SUCCEED。交易 `Type` 始终为 VOID，共享层不硬编码渠道判断。
 
-### 记账差异
+### 统一记账规则
 
-独立的策略定义在 `biz/card_transaction_accounting.go`，不是拆散模拟器的方法：
+所有渠道使用同一套规则。旧实现中授权不冻结等行为是不一致的实现，不作为渠道差异保留，也不再由调用方传入策略。模拟器分别调用 `BalanceChanger` 的 Try、Confirm、Simple、Cancel 方法实现授权、清算、退款、撤销；撤销可释放金额为零时不调用余额组件，但仍按原流程保存撤销阶段。
 
-- `ClearingDebitAccounting`：授权只创建授权与 AUTH 交易，不检查余额、不占款；清算从钱包 `Amount` 扣款、累加 `Out`；退款增加余额和 `In`；撤销不改变钱包余额和占款。对应现有 Slash、Paynda、PhotonPay 的模拟记账行为。
-- `AuthorizationHoldAccounting`：授权检查 `Amount - PendingOut` 是否足够，成功才增加 `PendingOut`；清算释放本授权尚未消费的占款，再扣款和累加 `Out`；退款增加余额和 `In`，不释放占款；撤销只释放本授权尚未消费的占款，不增加余额。对应 PingPong 的本地授权规则。
-- 两种清算策略均不检查余额或授权剩余额度，允许超额清算、负钱包余额和负授权剩余金额。占款释放最多为本授权的正数剩余额度，不会在剩余为负时继续释放其他授权的占款。
-- `Accounting` 必须由上层明确传入，不提供隐式默认值。上层应按渠道固定策略，并对同一授权的后续操作保持一致；不能给没有冻结余额的旧授权切换为占款释放策略。清算和撤销的占款释放都不会超过本授权的正数剩余额度。
-- 自定义策略只修改传入钱包的 `Amount`、`PendingOut`、`In`、`Out`，不修改资源身份、归属或币种，不自行访问数据库、发送通知或提交事务。共享流程统一持久化修改。策略不得把授权与清算自动推断成相反的记账方向，也不得收紧清算的超额规则。
+- 钱包 `Available` 是可用余额（数据库列为 `available`），`PendingOut` 是冻结余额，`Available + PendingOut` 才是总余额。展示可用余额或检查可转出金额时直接使用 `Available`，不能再减一次 `PendingOut`。请求中的 `Amount` 仍表示本次操作金额，不是钱包余额。
+- 授权：检查 `Available` 是否足够；不足则拒绝且不发成功通知。成功从 `Available` 扣减授权金额并等额增加 `PendingOut`，不增加 `Out`，总余额不变。
+- 清算：释放 `min(本次清算金额, max(授权剩余金额, 0))` 的冻结金额。`PendingOut -= 释放额`，`Available += 释放额 - 清算金额`，`Out += 清算金额`。冻结覆盖的部分不重复扣减可用余额，超出冻结的部分直接扣可用余额，总余额减少清算金额。
+- 退款：直接增加 `Available` 和 `In`。独立退款与关联授权的退款都不修改 `PendingOut`，也不改变授权剩余金额；退款不是扣款。
+- 撤销：释放 `min(本次撤销金额, max(授权剩余金额, 0))` 的冻结金额，等额加回 `Available`，总余额不变，不改变 `In` 或 `Out`；授权剩余金额扣除本次撤销金额。
+- 清算不检查余额或授权剩余额度，允许超额清算、负钱包余额和负授权剩余金额。清算和撤销释放冻结的数量不会超过本授权的正数剩余额度，不会在剩余为负时继续释放其他授权的占款。
+- 同账户、渠道、请求 ID 的成功重放不重复冻结、扣款、退款或解冻；所有钱包修改与当前交易阶段在同一事务内提交。
+
+例如初始可用余额 100、冻结 0：授权 30 后为可用 70、冻结 30、总额 100；清算 20 后为可用 70、冻结 10、总额 80；撤销剩余 10 后为可用 80、冻结 0、总额 80；退款 5 后为可用 85、冻结 0、总额 85。
+
+旧流程生成但没有冻结金额，或冻结时未从可用余额转出的授权数据不满足新规则的前提。本次不自动修补历史钱包数据，也不保留旧钱包 `amount` 列的兼容映射；验证时应初始化独立测试库并新建授权，不能把旧钱包余额直接视作新规则下的可用余额。
 
 ### 数据与事务边界
 

@@ -120,6 +120,6 @@ func (r *walletRepository) SaveWallet(ctx context.Context, item *model.Wallet) e
 		db.Wallet.ID.Eq(item.ID),
 		db.Wallet.AccountID.Eq(item.AccountID),
 		db.Wallet.Channel.Eq(string(enums.Channel_Paynda)),
-	).Select(db.Wallet.Amount, db.Wallet.In, db.Wallet.Out).Updates(item)
+	).Select(db.Wallet.Available, db.Wallet.In, db.Wallet.Out).Updates(item)
 	return err
 }

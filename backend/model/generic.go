@@ -80,7 +80,7 @@ type Wallet struct {
 	BaseModel
 	AccountID  ID               `gorm:"column:account_id;type:bigint;not null;default:0"`
 	Channel    enums.Channel    `gorm:"column:channel;type:varchar;not null;default:''"`
-	Amount     decimal.Decimal  `gorm:"column:amount;type:numeric;not null;default:0"`
+	Available  decimal.Decimal  `gorm:"column:available;type:numeric;not null;default:0"`
 	PendingIn  decimal.Decimal  `gorm:"column:pending_in;type:numeric;not null;default:0"`
 	PendingOut decimal.Decimal  `gorm:"column:pending_out;type:numeric;not null;default:0"`
 	In         decimal.Decimal  `gorm:"column:in;type:numeric;not null;default:0"`

@@ -28,7 +28,7 @@ func virtualAccountData(item *model.VirtualAccount) *OpenAPIVirtualAccountData {
 		},
 	}
 	if item.Wallet != nil {
-		result.Balance.AmountCents = item.Wallet.Amount.Mul(decimal.NewFromInt(100)).IntPart()
+		result.Balance.AmountCents = item.Wallet.Available.Mul(decimal.NewFromInt(100)).IntPart()
 		result.Spend.AmountCents = item.Wallet.Out.Mul(decimal.NewFromInt(100)).IntPart()
 	}
 	return result

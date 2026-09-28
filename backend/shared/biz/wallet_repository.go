@@ -25,7 +25,7 @@ type WalletUpdateBalanceRequest struct {
 	ID         model.ID
 	AccountID  model.ID
 	Channel    enums.Channel
-	Amount     decimal.Decimal
+	Available  decimal.Decimal
 	PendingOut decimal.Decimal
 	In         decimal.Decimal
 	Out        decimal.Decimal

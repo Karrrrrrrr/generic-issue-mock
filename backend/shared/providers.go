@@ -19,5 +19,6 @@ func RegisterProviders(injector *do.Injector) {
 	do.Provide(injector, data.NewAuthorizationRepository)
 	do.Provide(injector, data.NewCardTransactionRepository)
 	do.Provide(injector, biz.NewCardIssuer)
+	do.Provide(injector, biz.NewBalanceChanger)
 	do.Provide(injector, biz.NewCardTransactionSimulator)
 }

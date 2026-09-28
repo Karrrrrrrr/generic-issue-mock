@@ -94,10 +94,10 @@ func (u *PayndaUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsRequest) 
 			return ErrInvalidOperation
 		}
 		if source != nil {
-			if source.Amount.LessThan(req.Amount) {
+			if source.Available.LessThan(req.Amount) {
 				return ErrInvalidOperation
 			}
-			source.Amount = source.Amount.Sub(req.Amount)
+			source.Available = source.Available.Sub(req.Amount)
 			source.Out = source.Out.Add(req.Amount)
 			if err := u.walletRepository.SaveWallet(ctx, source); err != nil {
 				zap.S().Errorw("debit paynda wallet", "error", err)
@@ -105,7 +105,7 @@ func (u *PayndaUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsRequest) 
 			}
 		}
 		if target != nil {
-			target.Amount = target.Amount.Add(req.Amount)
+			target.Available = target.Available.Add(req.Amount)
 			target.In = target.In.Add(req.Amount)
 			if err := u.walletRepository.SaveWallet(ctx, target); err != nil {
 				zap.S().Errorw("credit paynda wallet", "error", err)

@@ -91,10 +91,10 @@ func (u *SlashUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsRequest) e
 			return ErrInvalidOperation
 		}
 		if source != nil {
-			if source.Amount.LessThan(req.Amount) {
+			if source.Available.LessThan(req.Amount) {
 				return ErrInvalidOperation
 			}
-			source.Amount = source.Amount.Sub(req.Amount)
+			source.Available = source.Available.Sub(req.Amount)
 			source.Out = source.Out.Add(req.Amount)
 			if err := u.walletRepository.SaveWallet(ctx, source); err != nil {
 				zap.S().Errorw("debit slash wallet", "error", err)
@@ -102,7 +102,7 @@ func (u *SlashUIUsecase) MoveFunds(ctx context.Context, req *MoveFundsRequest) e
 			}
 		}
 		if target != nil {
-			target.Amount = target.Amount.Add(req.Amount)
+			target.Available = target.Available.Add(req.Amount)
 			target.In = target.In.Add(req.Amount)
 			if err := u.walletRepository.SaveWallet(ctx, target); err != nil {
 				zap.S().Errorw("credit slash wallet", "error", err)

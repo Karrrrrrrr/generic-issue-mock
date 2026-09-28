@@ -91,10 +91,10 @@ func (uc *PingPongUIUsecase) AdjustAccount(ctx context.Context, req *AdjustAccou
 			zap.S().Errorw("lock pingpong account balance", "error", err)
 			return pingerrors.ErrDatabase
 		}
-		if wallet.Amount.Add(req.Amount).LessThan(wallet.PendingOut) {
+		if wallet.Available.Add(req.Amount).IsNegative() {
 			return pingerrors.ErrInsufficient
 		}
-		wallet.Amount = wallet.Amount.Add(req.Amount)
+		wallet.Available = wallet.Available.Add(req.Amount)
 		if req.Amount.IsPositive() {
 			wallet.In = wallet.In.Add(req.Amount)
 		} else {

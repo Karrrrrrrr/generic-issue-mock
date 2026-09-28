@@ -108,7 +108,7 @@ func (service *SlashOpenAPIService) ListAccountBalances(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	amount := OpenAPIAmount{AmountCents: item.Wallet.Amount.Mul(decimal.NewFromInt(100)).IntPart()}
+	amount := OpenAPIAmount{AmountCents: item.Wallet.Available.Mul(decimal.NewFromInt(100)).IntPart()}
 	return &OpenAPIAccountBalancesData{Balances: []OpenAPIBalanceData{{
 		AccountID: idconv.ToUUID(item.ID),
 		Type:      slash.BalanceTypeCash,

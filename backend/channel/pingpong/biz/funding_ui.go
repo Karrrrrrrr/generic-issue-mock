@@ -203,7 +203,7 @@ func (uc *PingPongUIUsecase) transferWalletFunds(ctx context.Context, req *uiWal
 	if source.Currency != req.Currency || target.Currency != req.Currency {
 		return nil, pingerrors.ErrInvalid
 	}
-	if source.Amount.Sub(source.PendingOut).LessThan(req.Amount) {
+	if source.Available.LessThan(req.Amount) {
 		return nil, pingerrors.ErrInsufficient
 	}
 	result := &model.WalletTransfer{
@@ -216,15 +216,15 @@ func (uc *PingPongUIUsecase) transferWalletFunds(ctx context.Context, req *uiWal
 		TargetWalletID: target.ID,
 		Currency:       req.Currency,
 		Amount:         req.Amount,
-		SourceBefore:   source.Amount,
-		TargetBefore:   target.Amount,
+		SourceBefore:   source.Available,
+		TargetBefore:   target.Available,
 	}
-	source.Amount = source.Amount.Sub(req.Amount)
+	source.Available = source.Available.Sub(req.Amount)
 	source.Out = source.Out.Add(req.Amount)
-	target.Amount = target.Amount.Add(req.Amount)
+	target.Available = target.Available.Add(req.Amount)
 	target.In = target.In.Add(req.Amount)
-	result.SourceAfter = source.Amount
-	result.TargetAfter = target.Amount
+	result.SourceAfter = source.Available
+	result.TargetAfter = target.Available
 	for _, wallet := range []*model.Wallet{source, target} {
 		if err := uc.walletRepo.Save(ctx, wallet); err != nil {
 			zap.S().Errorw("save pingpong transfer wallet", "error", err)

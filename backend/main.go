@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"generic-mock/shared"
 	"os"
 
 	"generic-mock/channel/paynda"
@@ -48,6 +49,7 @@ func main() {
 
 	injector := do.New()
 	do.ProvideValue(injector, db)
+	shared.RegisterProviders(injector)
 	photonpay.RegisterProviders(injector)
 	paynda.RegisterProviders(injector)
 	slash.RegisterProviders(injector)

@@ -81,7 +81,7 @@ func (s *SlashOpenAPIService) ListVirtualAccounts(ctx context.Context, req *Open
 				Name:        item.Name,
 				AccountType: "primary",
 			},
-			Balance: OpenAPIAmount{AmountCents: item.Wallet.Amount.Mul(decimal.NewFromInt(100)).IntPart()},
+			Balance: OpenAPIAmount{AmountCents: item.Wallet.Available.Mul(decimal.NewFromInt(100)).IntPart()},
 			Spend:   OpenAPIAmount{AmountCents: item.Wallet.Out.Mul(decimal.NewFromInt(100)).IntPart()},
 		})
 	}

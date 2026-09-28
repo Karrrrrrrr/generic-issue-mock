@@ -42,7 +42,7 @@ func (repo *walletRepository) Save(ctx context.Context, item *model.Wallet) erro
 		table.Channel.Eq(string(common.Channel_PingPong)),
 		table.AccountID.Eq(item.AccountID),
 	).UpdateSimple(
-		table.Amount.Value(item.Amount),
+		table.Available.Value(item.Available),
 		table.PendingOut.Value(item.PendingOut),
 		table.In.Value(item.In),
 		table.Out.Value(item.Out),

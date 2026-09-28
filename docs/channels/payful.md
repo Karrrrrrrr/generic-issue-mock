@@ -17,7 +17,7 @@
 | `localCurrency`、`startDate`、`endDate` | `Card.CardCurrency`、`Card.ExpireAt` | 起始日无中立字段，不持久化；结束日转换为时间 |
 | `cardStatus` | `Card.Status` | 使用 Payful 枚举转换 |
 | `userReqNo` | `Card.RequestID`、`Card.LastOperationRequestID` | 幂等和异步操作关联 |
-| `authLimitAmount` / 充值金额 | `Wallet.Amount` 或 `CardTransaction.TxAmount` | 余额变动创建 `fund_in` / `fund_out` 交易，不将渠道额度作为卡字段保存 |
+| `authLimitAmount` / 充值金额 | `Wallet.Available` 或 `CardTransaction.TxAmount` | 余额变动创建 `fund_in` / `fund_out` 交易，不将渠道额度作为卡字段保存 |
 | 交易 `cardId`、金额、类型、状态、时间 | `CardTransaction.CardID`、`TxAmount`、`Type`、`Status`、`OccurredAt` / `SettledAt` | 清算查询映射 |
 | 持卡人资料 | `CardHolder` | 只存姓名、联系方式和渠道中立地址/证件字段 |
 
@@ -116,7 +116,7 @@ SDK 位于 Marxo 的 `pkg/dealer/payful/payful.go`；实际调用位于 `app/new
 | `POST /payful/api/vas/card/modifyCard` | 冻结/解冻/额度更新 | `userReqNo`、`cardId`，可选 `cardAlias`、`cardLabel`、`status`、`authLimitAmount`。只有 `status` 映射 `Card.Status`；别名/标签保留 `Invalid:`，不得扩展通用模型。 |
 | `POST /payful/api/vas/card/close` | 销卡 | `cardId`、`userReqNo`。创建销卡 operation，状态完成后转换为通用关闭状态。 |
 
-每个变更类请求都必须用 `userReqNo` 幂等：重复请求返回首次 operation 的相同结果，不重复记账。`authLimitAmount` 是 Payful 授权额度，不作为 `Card` 的新列；只有已实现的入金/出金才改变 `Wallet.Amount`。
+每个变更类请求都必须用 `userReqNo` 幂等：重复请求返回首次 operation 的相同结果，不重复记账。`authLimitAmount` 是 Payful 授权额度，不作为 `Card` 的新列；只有已实现的入金/出金才改变 `Wallet.Available`。
 
 ### 第三批：清算查询
 

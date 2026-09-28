@@ -16,7 +16,7 @@
 | `maskCardNo`、敏感信息中的 `cardNo`/`cvv`/`expirationDate` | `Card.CardNumber`、`Card.Cvv`、`Card.ExpireAt` | 读取时按接口需要掩码或原样返回 |
 | `status`、`currency`、`cardScheme` | `Card.Status`、`Card.CardCurrency`、`Card.CardScheme` | 枚举转换 |
 | `requestId` header | `Card.RequestID`、`Card.LastOperationRequestID` | 开卡、状态变更和资金操作的幂等关联键 |
-| 卡余额 `amount`、`availableAmount`、`amountFrozen` | `Wallet.Amount`、`Wallet.PendingOut` | Paynda 普通卡的 `Card.WalletID` 指向独立钱包 |
+| 卡余额 `amount`、`availableAmount`、`amountFrozen` | `Wallet.Available`、`Wallet.PendingOut` | Paynda 普通卡的 `Card.WalletID` 指向独立钱包 |
 | `transaction.id`、`cardId`、`type`、金额、授权码和商户字段 | `CardTransaction.ID`、`CardID`、`Type`、`TxAmount`、`AuthorizationCode`、`Merchant*` | 交易查询和 UI 模拟的映射 |
 | `IN` / `OUT` 资金操作 | `CardTransaction.Type` | 分别映射为 `fund_in` / `fund_out`；操作前余额保留在 `RawPayload` |
 

@@ -74,7 +74,7 @@ func (s *PingPongOpenAPIService) ListBudgetBalances(ctx context.Context, req *Bu
 			BudgetID:   idconv.ToString(item.ID),
 			BudgetName: item.Name,
 			Currency:   item.Wallet.Currency,
-			Balance:    Number{item.Wallet.Amount.Sub(item.Wallet.PendingOut)},
+			Balance:    Number{item.Wallet.Available},
 		})
 	}
 	return result, nil

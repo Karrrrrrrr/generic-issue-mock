@@ -182,7 +182,7 @@ func (s *PingPongOpenAPIService) GetCardBalance(ctx context.Context, req *CardRe
 	}
 	return &CardBalance{
 		CardNumber:       card.CardNumber,
-		AvailableBalance: Number{card.Wallet.Amount.Sub(card.Wallet.PendingOut)},
+		AvailableBalance: Number{card.Wallet.Available},
 		Currency:         card.CardCurrency,
 	}, nil
 }

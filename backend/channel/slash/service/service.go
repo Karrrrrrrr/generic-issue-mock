@@ -328,7 +328,7 @@ func (s *SlashUIService) ListVirtualAccounts(ctx context.Context, _ *struct{}) (
 			Name:          item.Name,
 			Currency:      string(item.Wallet.Currency),
 			FundingSource: "账户资金",
-			Balance:       item.Wallet.Amount.String(),
+			Balance:       item.Wallet.Available.String(),
 			Spend:         item.Wallet.Out.String(),
 			CreatedAt:     item.CreatedAt,
 		})
@@ -760,7 +760,7 @@ func webhookData(item *model.WebhookConfig) *WebhookData {
 func slashAccountData(item *model.Account) *AccountData {
 	balance := decimal.Zero
 	if item.Wallet != nil {
-		balance = item.Wallet.Amount
+		balance = item.Wallet.Available
 	}
 	return &AccountData{
 		WalletID:  idconv.ToUUID(item.WalletID),
@@ -786,7 +786,7 @@ func cardData(item *model.Card) *CardData {
 	balance := decimal.Zero
 	fundingSource := "卡资金"
 	if item.Wallet != nil {
-		balance = item.Wallet.Amount
+		balance = item.Wallet.Available
 		if item.Wallet.Type == common.WalletType_VirtualAccount {
 			fundingSource = "虚拟账户共享资金"
 		}
@@ -907,7 +907,7 @@ func (s *SlashUIService) ListFunds(ctx context.Context, req *ManagementListReque
 			ID:          idconv.ToUUID(item.ID),
 			Currency:    item.Currency,
 			Kind:        kind,
-			Amount:      item.Amount.String(),
+			Amount:      item.Available.String(),
 		})
 	}
 	return &result, nil

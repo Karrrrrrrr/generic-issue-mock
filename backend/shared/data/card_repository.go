@@ -34,9 +34,14 @@ func (repo *cardRepository) Exist(ctx context.Context, req *biz.CardExistRequest
 }
 
 func (repo *cardRepository) FindByIDWithLock(ctx context.Context, req *biz.CardFindByIDWithLockRequest) (*model.Card, error) {
-	table := repo.DB(ctx).Card
+	db := repo.DB(ctx)
+	table := db.Card
 	return table.WithContext(ctx).
 		Preload(table.Account).
+		Preload(table.Wallet.Where(
+			db.Wallet.AccountID.Eq(req.AccountID),
+			db.Wallet.Channel.Eq(string(req.Channel)),
+		)).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where(
 			table.ID.Eq(req.ID),

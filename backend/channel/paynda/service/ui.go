@@ -550,7 +550,7 @@ func payndaUICardData(item *model.Card) *PayndaUICardData {
 	balance := decimal.Zero
 	fundingSource := "卡资金"
 	if item.Wallet != nil {
-		balance = item.Wallet.Amount
+		balance = item.Wallet.Available
 	}
 
 	return &PayndaUICardData{
@@ -621,7 +621,7 @@ func payndaUIWebhookRecordData(item *model.WebhookRecord) *PayndaUIWebhookRecord
 func payndaUIAccountData(item *model.Account) *PayndaUIAccountData {
 	balance := decimal.Zero
 	if item.Wallet != nil {
-		balance = item.Wallet.Amount
+		balance = item.Wallet.Available
 	}
 	return &PayndaUIAccountData{
 		Balance:   balance,
@@ -690,7 +690,7 @@ func (s *PayndaUIService) ListFunds(ctx context.Context, req *ManagementListRequ
 			ID:          idconv.ToString(item.ID),
 			Currency:    item.Currency,
 			Kind:        kind,
-			Amount:      item.Amount.String(),
+			Amount:      item.Available.String(),
 		})
 	}
 	return &result, nil

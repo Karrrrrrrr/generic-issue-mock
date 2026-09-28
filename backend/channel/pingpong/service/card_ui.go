@@ -87,7 +87,7 @@ func (s *PingPongUIService) ListCards(ctx context.Context, req *UIListCardsReque
 			CardNumber:       item.CardNumber,
 			CardBin:          item.CardBin,
 			Status:           ping.FromGenericCardStatus(item.Status),
-			Balance:          Number{item.Wallet.Amount.Sub(item.Wallet.PendingOut)},
+			Balance:          Number{item.Wallet.Available},
 			Reserved:         Number{item.Wallet.PendingOut},
 			Currency:         item.CardCurrency,
 			CreatedAt:        item.CreatedAt,

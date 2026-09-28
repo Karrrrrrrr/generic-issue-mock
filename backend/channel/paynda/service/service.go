@@ -469,7 +469,7 @@ func (s *PayndaOpenAPIService) ListMerchantWallets(
 		CreateTime: timeTypes.DateTime(account.Wallet.CreatedAt.UTC()),
 		UpdateTime: timeTypes.DateTime(account.Wallet.UpdatedAt.UTC()),
 		Currency:   account.Wallet.Currency,
-		Amount:     account.Wallet.Amount.String(),
+		Amount:     account.Wallet.Available.String(),
 	}}
 	return &items, nil
 }
@@ -991,8 +991,8 @@ func payndaCardBalanceData(item *model.Wallet) *PayndaCardBalanceData {
 		UpdateTime:      timeTypes.DateTime(item.UpdatedAt.UTC()),
 		AmountUsed:      decimal.Zero.String(),
 		AmountFrozen:    item.PendingOut.String(),
-		AvailableAmount: item.Amount.String(),
-		Amount:          item.Amount.String(),
+		AvailableAmount: item.Available.String(),
+		Amount:          item.Available.String(),
 	}
 }
 
@@ -1006,7 +1006,7 @@ func payndaBalanceAccountWalletData(
 		UpdateTime:       timeTypes.DateTime(item.Wallet.UpdatedAt.UTC()),
 		BalanceAccountID: balanceAccountID,
 		Currency:         item.Wallet.Currency,
-		Amount:           item.Wallet.Amount.String(),
+		Amount:           item.Wallet.Available.String(),
 		FrozenAmount:     item.Wallet.PendingOut.String(),
 	}
 }

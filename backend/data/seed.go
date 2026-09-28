@@ -75,7 +75,7 @@ func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 		wallet = model.Wallet{
 			AccountID: accounts[enums.Channel_Slash].ID,
 			Channel:   enums.Channel_Slash,
-			Amount:    decimal.NewFromInt(1_000_000),
+			Available: decimal.NewFromInt(1_000_000),
 			Type:      enums.WalletType_VirtualAccount,
 			Currency:  enums.Currency_USD,
 		}
@@ -227,7 +227,7 @@ func seedChannelAccounts(ctx context.Context, db *gorm.DB) (map[enums.Channel]*m
 			wallet := &model.Wallet{
 				AccountID: account.ID,
 				Channel:   channel,
-				Amount:    decimal.NewFromInt(1_000_000),
+				Available: decimal.NewFromInt(1_000_000),
 				Type:      enums.WalletType_Account,
 				Currency:  enums.Currency_USD,
 			}
@@ -363,7 +363,7 @@ func seedChannelCards(
 		wallet := &model.Wallet{
 			AccountID: account.ID,
 			Channel:   seed.channel,
-			Amount:    decimal.NewFromInt(1_000),
+			Available: decimal.NewFromInt(1_000),
 			Type:      enums.WalletType_Card,
 			Currency:  enums.Currency_USD,
 		}

@@ -13,7 +13,7 @@
 | `cardProductId` | `Card.CardProductID` | Slash UUID 解析后关联 `CardProduct`；其 `Prefix` 写入 `Card.CardBin` |
 | `pan`、`cvv`、`last4`、`expiryMonth`/`expiryYear` | `Card.CardNumber`、`Card.Cvv`、`Card.ExpireAt` | `last4` 从卡号派生，不单独存储 |
 | `status`、`isPhysical` | `Card.Status`、`Card.FormType` | 枚举和布尔值转换；当前只创建虚拟卡 |
-| `source`、`destination`、`amountCents` | `VirtualAccount.ID`、`Wallet.Amount`、`Wallet.Out` / `In` | UUID 解析虚拟账户；分为 100 转换到 `decimal` 金额 |
+| `source`、`destination`、`amountCents` | `VirtualAccount.ID`、`Wallet.Available`、`Wallet.Out` / `In` | UUID 解析虚拟账户；分为 100 转换到 `decimal` 金额 |
 | `transaction.id`、`cardId` | `CardTransaction.ID`、`CardTransaction.CardID` | 均使用 Slash UUID 格式 |
 | `providerAuthorizationId` | `CardTransaction.AuthorizationID` | 关联授权内部 ID后以 UUID 输出 |
 | `amountCents`、`status`、`authorizedAt`、商户描述 | `CardTransaction.TxAmount`、`Status`、`Authorization.CreatedAt`、`MerchantName` | 金额从分转换，状态经 Slash 枚举转换 |

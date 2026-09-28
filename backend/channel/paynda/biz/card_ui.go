@@ -100,7 +100,7 @@ func (u *PayndaUIUsecase) CreateCard(ctx context.Context, req *PayndaUICreateCar
 		wallet := &model.Wallet{
 			AccountID: req.AccountID,
 			Channel:   enums.Channel_Paynda,
-			Amount:    decimal.Zero,
+			Available: decimal.Zero,
 			Type:      enums.WalletType_Card,
 			Currency:  req.Currency,
 		}

@@ -65,7 +65,7 @@ func (s *PingPongUIService) ListVirtualAccounts(ctx context.Context, req *UIList
 			AccountID:   idconv.ToString(item.AccountID),
 			AccountName: item.Account.GetName(),
 			Name:        item.Name,
-			Balance:     Number{item.Wallet.Amount.Sub(item.Wallet.PendingOut)},
+			Balance:     Number{item.Wallet.Available},
 			Currency:    item.Wallet.Currency,
 			CreatedAt:   item.CreatedAt,
 		})

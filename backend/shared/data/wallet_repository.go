@@ -53,7 +53,7 @@ func (repo *walletRepository) UpdateBalance(ctx context.Context, req *biz.Wallet
 			table.Channel.Eq(string(req.Channel)),
 		).
 		UpdateSimple(
-			table.Amount.Value(req.Amount),
+			table.Available.Value(req.Available),
 			table.PendingOut.Value(req.PendingOut),
 			table.In.Value(req.In),
 			table.Out.Value(req.Out),

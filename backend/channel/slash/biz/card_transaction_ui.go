@@ -98,7 +98,7 @@ func (u *SlashUIUsecase) SimulateRefund(ctx context.Context, req *SimulateRefund
 		if wallet.Currency != req.Currency {
 			return ErrInvalidOperation
 		}
-		wallet.Amount = wallet.Amount.Add(req.Amount)
+		wallet.Available = wallet.Available.Add(req.Amount)
 		wallet.In = wallet.In.Add(req.Amount)
 		if err := u.walletRepository.SaveWallet(txCtx, wallet); err != nil {
 			zap.S().Errorw("credit slash refund wallet", "error", err)
@@ -258,10 +258,10 @@ func (u *SlashUIUsecase) ApplyTransactionStep(ctx context.Context, req *ApplyTra
 				return ErrInvalidOperation
 			}
 			if req.Type == enums.CardTransactionType_REFUND {
-				wallet.Amount = wallet.Amount.Add(amount)
+				wallet.Available = wallet.Available.Add(amount)
 				wallet.In = wallet.In.Add(amount)
 			} else {
-				wallet.Amount = wallet.Amount.Sub(amount)
+				wallet.Available = wallet.Available.Sub(amount)
 				wallet.Out = wallet.Out.Add(amount)
 			}
 			if err := u.walletRepository.SaveWallet(txCtx, wallet); err != nil {

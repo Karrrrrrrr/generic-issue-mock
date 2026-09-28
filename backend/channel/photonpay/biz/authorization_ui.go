@@ -319,10 +319,10 @@ func (u *PhotonPayUIUsecase) applyAuthorizationStep(ctx context.Context, req *ap
 				return ErrInvalidOperation
 			}
 			if req.Type == enums.CardTransactionType_REFUND {
-				wallet.Amount = wallet.Amount.Add(req.Amount)
+				wallet.Available = wallet.Available.Add(req.Amount)
 				wallet.In = wallet.In.Add(req.Amount)
 			} else {
-				wallet.Amount = wallet.Amount.Sub(req.Amount)
+				wallet.Available = wallet.Available.Sub(req.Amount)
 				wallet.Out = wallet.Out.Add(req.Amount)
 			}
 			if err := u.walletRepo.SaveWallet(ctx, wallet); err != nil {

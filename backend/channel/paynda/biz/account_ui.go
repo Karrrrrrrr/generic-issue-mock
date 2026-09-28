@@ -37,7 +37,7 @@ func (u *PayndaUIUsecase) CreateAccount(
 		wallet := &model.Wallet{
 			AccountID: account.ID,
 			Channel:   enums.Channel_Paynda,
-			Amount:    decimal.Zero,
+			Available: decimal.Zero,
 			Type:      enums.WalletType_Account,
 			Currency:  enums.Currency_USD,
 		}

@@ -84,9 +84,10 @@ func (uc *PingPongUIUsecase) SimulateAuthorization(ctx context.Context, req *Sim
 		if wallet.Type != common.WalletType_Card || wallet.Currency != req.Currency {
 			return pingerrors.ErrInvalid
 		}
-		if wallet.Amount.Sub(wallet.PendingOut).LessThan(req.Amount) {
+		if wallet.Available.LessThan(req.Amount) {
 			return pingerrors.ErrInsufficient
 		}
+		wallet.Available = wallet.Available.Sub(req.Amount)
 		wallet.PendingOut = wallet.PendingOut.Add(req.Amount)
 		authorization = &model.Authorization{
 			AccountID:         req.AccountID,
@@ -238,13 +239,14 @@ func (uc *PingPongUIUsecase) Stage(ctx context.Context, req *AuthorizationStageR
 		if req.Kind != common.CardTransactionType_REFUND {
 			release := decimal.Min(req.Amount, decimal.Max(remaining, decimal.Zero))
 			wallet.PendingOut = wallet.PendingOut.Sub(release)
+			wallet.Available = wallet.Available.Add(release)
 		}
 		if req.Kind == common.CardTransactionType_CLEAR {
-			wallet.Amount = wallet.Amount.Sub(req.Amount)
+			wallet.Available = wallet.Available.Sub(req.Amount)
 			wallet.Out = wallet.Out.Add(req.Amount)
 		}
 		if req.Kind == common.CardTransactionType_REFUND {
-			wallet.Amount = wallet.Amount.Add(req.Amount)
+			wallet.Available = wallet.Available.Add(req.Amount)
 			wallet.In = wallet.In.Add(req.Amount)
 		}
 		stage := &model.CardTransaction{

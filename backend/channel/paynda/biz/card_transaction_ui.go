@@ -153,7 +153,7 @@ func (u *PayndaUIUsecase) SimulateRefund(ctx context.Context, req *PayndaSimulat
 		if wallet.Currency != req.Currency {
 			return ErrInvalidOperation
 		}
-		wallet.Amount = wallet.Amount.Add(req.Amount)
+		wallet.Available = wallet.Available.Add(req.Amount)
 		wallet.In = wallet.In.Add(req.Amount)
 		if err := u.walletRepository.SaveWallet(txCtx, wallet); err != nil {
 			zap.S().Errorw("credit paynda refund wallet", "error", err)
@@ -267,7 +267,7 @@ func (u *PayndaUIUsecase) ApplyTransactionStep(ctx context.Context, req *PayndaU
 			if origin.Type != enums.CardTransactionType_AUTH || origin.Status != enums.TransactionStatus_AUTHORIZED {
 				return ErrInvalidOperation
 			}
-			wallet.Amount = wallet.Amount.Sub(amount)
+			wallet.Available = wallet.Available.Sub(amount)
 			wallet.Out = wallet.Out.Add(amount)
 			origin.Status = enums.TransactionStatus_SUCCEED
 		case enums.CardTransactionType_VOID:
@@ -280,7 +280,7 @@ func (u *PayndaUIUsecase) ApplyTransactionStep(ctx context.Context, req *PayndaU
 			if origin.AuthorizationID <= 0 {
 				return ErrInvalidOperation
 			}
-			wallet.Amount = wallet.Amount.Add(amount)
+			wallet.Available = wallet.Available.Add(amount)
 			wallet.In = wallet.In.Add(amount)
 		default:
 			return ErrInvalidOperation

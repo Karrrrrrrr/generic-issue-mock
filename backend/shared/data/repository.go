@@ -28,13 +28,19 @@ type transaction struct {
 	repo *Repository
 }
 
+var _ biz.Transaction = (*transaction)(nil)
+
 func NewTransaction(injector *do.Injector) (biz.Transaction, error) {
 	return &transaction{repo: do.MustInvoke[*Repository](injector)}, nil
 }
 
 func (tx *transaction) InTx(ctx context.Context, run func(context.Context) error) error {
-	if gormx.DB(ctx, tx.repo.db) != tx.repo.db {
+	if tx.IsInTx(ctx) {
 		return sharederrors.ErrNestedTransaction
 	}
 	return gormx.InTx(ctx, tx.repo.db, run)
+}
+
+func (tx *transaction) IsInTx(ctx context.Context) bool {
+	return gormx.DB(ctx, tx.repo.db) != tx.repo.db
 }
