@@ -24,4 +24,5 @@ func RegisterProviders(injector do.Injector) {
 	do.Provide(injector, biz.NewPayndaUIUsecase)
 	do.Provide(injector, service.NewPayndaOpenAPIService)
 	do.Provide(injector, service.NewPayndaUIService)
+	do.Provide(injector, service.NewSharedUIService)
 }

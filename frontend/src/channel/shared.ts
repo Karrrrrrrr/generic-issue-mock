@@ -14,11 +14,11 @@ request.interceptors.response.use(
 export function authorizationPayload(payload: AuthorizationSimulationRequest) {
   return {
     card_id: payload.cardID,
-    transaction_amount: payload.amount,
-    transaction_currency: payload.currency,
-    merchant_name: payload.merchantName,
-    merchant_category_code: payload.merchantMCC,
-    merchant_country: payload.merchantCountry,
-    merchant_city: payload.merchantCity,
+    amount: payload.amount,
+    currency: payload.currency,
+    merchant_name: payload.merchantName || undefined,
+    merchant_mcc: payload.merchantMCC || undefined,
+    merchant_country: payload.merchantCountry || undefined,
+    request_id: payload.requestID,
   };
 }

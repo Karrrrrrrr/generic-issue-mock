@@ -16,7 +16,7 @@ export interface Account {
   name: string;
   balance: string;
   created_at: string;
-  currency?: string;
+  currency: string;
 }
 
 export interface Webhook {
@@ -41,9 +41,7 @@ export interface VirtualAccount {
   id: number;
   name: string;
   currency: string;
-  funding_source: string;
   balance: string;
-  spend: string;
   created_at: string;
 }
 
@@ -85,261 +83,265 @@ export interface WebhookRecordListRequest {
   created_to?: string;
 }
 
+interface Page<Item> {
+  items: Item[];
+  total: number;
+}
+
+type Query = Record<string, string | number | undefined>;
+type AccountData = Omit<Account, "balance"> & { available: string };
+type VirtualAccountData = Omit<ManagedVirtualAccount, "balance"> & { available: string };
+type CardData = Omit<Card, "card_currency" | "card_status" | "balance" | "reserved" | "funding_source" | "virtual_account_id"> & {
+  currency: Card["card_currency"];
+  status: Card["card_status"];
+  available: string;
+  pending_out: string;
+  virtual_account_id: number | null;
+  card_type: "single" | "share" | "virtual_account_single";
+};
+type CardholderData = Omit<Cardholder, "phone_number"> & { mobile: string };
+type TransactionData = Omit<Transaction, "transaction_type" | "transacted_at" | "merchant_category_code"> & {
+  type: Transaction["transaction_type"];
+  created_at: string;
+  merchant_mcc: string;
+};
+type AuthorizationDetailData = Omit<Authorization, "transactions"> & {
+  card: CardData;
+  transactions: TransactionData[];
+};
+type WalletData = Omit<Wallet, "kind" | "amount"> & { type: Wallet["kind"]; available: string };
+type WebhookRecordData = Omit<WebhookRecord, "payload" | "request_headers" | "response_headers"> & {
+  payload: unknown;
+  request_headers: unknown;
+  response_headers: unknown;
+};
+
+function toAccount(item: AccountData): Account {
+  return { ...item, balance: item.available };
+}
+
+function toCard(item: CardData): Card {
+  return {
+    ...item,
+    virtual_account_id: item.virtual_account_id ?? undefined,
+    card_currency: item.currency,
+    card_status: item.status,
+    balance: item.available,
+    reserved: item.pending_out,
+    funding_source: item.card_type === "virtual_account_single" ? "虚拟账户供资独立卡" : item.card_type === "share" ? "虚拟账户共享资金" : "卡资金",
+  };
+}
+
+function toTransaction(item: TransactionData): Transaction {
+  return {
+    ...item,
+    transaction_type: item.type,
+    transacted_at: item.created_at,
+    merchant_category_code: item.merchant_mcc,
+  };
+}
+
+function toJSONText(value: unknown): string {
+  return typeof value === "string" ? value : JSON.stringify(value) ?? "";
+}
+
+function toWebhookRecord(item: WebhookRecordData): WebhookRecord {
+  return {
+    ...item,
+    payload: toJSONText(item.payload),
+    request_headers: toJSONText(item.request_headers),
+    response_headers: toJSONText(item.response_headers),
+  };
+}
+
 export function createManagementAPI(baseURL: string) {
+  async function listAll<Item>(resource: string, filters: Query = {}): Promise<Item[]> {
+    const items: Item[] = [];
+    for (let page = 1; ; page++) {
+      const result = (await request.get<Page<Item>>(`${baseURL}/${resource}`, {
+        params: { ...filters, page_number: page, page_size: 100 },
+      })).data;
+      items.push(...result.items);
+      if (items.length >= result.total || result.items.length === 0) return items;
+    }
+  }
+
   const accountApi = {
     async listAll(): Promise<Account[]> {
-      const accounts: Account[] = [];
-      let page = 1;
-      while (true) {
-        const result = await this.list(page, 100);
-        accounts.push(...result.data);
-        if (accounts.length >= result.total_items || result.data.length === 0) {
-          return accounts;
-        }
-        page += 1;
-      }
+      return (await listAll<AccountData>("accounts")).map(toAccount);
     },
-    async list(pageNumber = 1, pageSize = 20) {
-      return (
-        await request.get<ListResponse<Account>>(`${baseURL}/accounts`, {
-          params: {
-            page_number: pageNumber,
-            page_size: pageSize,
-          },
-        })
-      ).data;
+    async list(pageNumber = 1, pageSize = 20): Promise<ListResponse<Account>> {
+      const result = (await request.get<Page<AccountData>>(`${baseURL}/accounts`, {
+        params: { page_number: pageNumber, page_size: pageSize },
+      })).data;
+      return { data: result.items.map(toAccount), total_items: result.total };
     },
-    async create(payload: Pick<Account, "name">) {
-      return (await request.post<Account>(`${baseURL}/accounts`, payload)).data;
+    async create(payload: Pick<Account, "name" | "currency">) {
+      return toAccount((await request.post<AccountData>(`${baseURL}/accounts`, payload)).data);
     },
     async update(id: number, payload: Pick<Account, "name">) {
-      return (await request.put<Account>(`${baseURL}/accounts/${id}`, payload)).data;
+      return toAccount((await request.post<AccountData>(`${baseURL}/accounts/rename`, { id, ...payload })).data);
     },
   };
 
   const webhookApi = {
     async events() {
-      return (await request.get<WebhookEvent[]>(`${baseURL}/webhooks/events`)).data;
+      return (await request.get<{ items: WebhookEvent[] }>(`${baseURL}/webhooks/events`)).data.items;
     },
     async list(accountID?: number) {
-      return (
-        await request.get<Webhook[]>(`${baseURL}/webhooks`, {
-          params: {
-            account_id: accountID || undefined,
-          },
-        })
-      ).data;
+      return listAll<Webhook>("webhooks", { account_id: accountID });
     },
     async create(payload: Omit<Webhook, "id" | "created_at" | "updated_at" | "account_name">) {
       return (await request.post<Webhook>(`${baseURL}/webhooks`, payload)).data;
     },
-    async update(id: number, payload: Pick<Webhook, "target_url" | "enabled">) {
-      return (await request.put<Webhook>(`${baseURL}/webhooks/${id}`, payload)).data;
+    async update(webhook: Pick<Webhook, "id" | "account_id">, payload: Pick<Webhook, "target_url" | "enabled">) {
+      return (await request.post<Webhook>(`${baseURL}/webhooks/update`, {
+        id: webhook.id, account_id: webhook.account_id, ...payload,
+      })).data;
     },
-    async remove(id: number) {
-      await request.delete(`${baseURL}/webhooks/${id}`);
+    async remove(webhook: Pick<Webhook, "id" | "account_id">) {
+      await request.post(`${baseURL}/webhooks/delete`, { id: webhook.id, account_id: webhook.account_id });
     },
   };
 
   const managementApi = {
     async cardProducts() {
-      return (await request.get<{ items: CardProduct[] }>(`${baseURL}/card-products`)).data.items;
+      return listAll<CardProduct>("card-products");
     },
-    async virtualAccounts() {
-      return (await request.get<VirtualAccount[]>(`${baseURL}/virtual-accounts`)).data;
+    async virtualAccounts(): Promise<VirtualAccount[]> {
+      return (await listAll<VirtualAccountData & { created_at: string }>("virtual-accounts")).map(item => ({
+        ...item, balance: item.available,
+      }));
     },
   };
 
   const refundApi = {
     async simulate(payload: RefundSimulationRequest) {
-      return (await request.post<Transaction>(`${baseURL}/simulate/refunds`, payload)).data;
+      return (await request.post(`${baseURL}/simulate/refunds`, {
+        authorization_id: payload.authorization_id,
+        card_id: payload.card_id,
+        amount: payload.amount,
+        currency: payload.currency,
+        merchant_name: payload.merchant_name || undefined,
+        merchant_mcc: payload.merchant_category_code || undefined,
+        merchant_country: payload.merchant_country || undefined,
+        request_id: payload.request_id,
+      })).data;
     },
   };
 
   const api: ChannelAPI = {
     async listCardholders(page) {
-      return (
-        await request.get<ListResponse<Cardholder>>(`${baseURL}/cardholders`, {
-          params: page,
-        })
-      ).data;
+      const result = (await request.get<Page<CardholderData>>(`${baseURL}/cardholders`, { params: page })).data;
+      return { data: result.items.map(item => ({ ...item, phone_number: item.mobile })), total_items: result.total };
     },
     async listCards(page) {
-      return (
-        await request.get<ListResponse<Card>>(`${baseURL}/cards`, {
-          params: page,
-        })
-      ).data;
+      const { card_status, ...filters } = page ?? {};
+      const result = (await request.get<Page<CardData>>(`${baseURL}/cards`, {
+        params: { ...filters, status: card_status },
+      })).data;
+      return { data: result.items.map(toCard), total_items: result.total };
     },
     async updateCardStatus(payload) {
-      return (
-        await request.put<Card>(`${baseURL}/cards/${payload.id}/status`, {
-          account_id: payload.account_id,
-          card_status: payload.card_status,
-        })
-      ).data;
+      return (await request.post<CardData>(`${baseURL}/cards/status`, {
+        id: payload.id, account_id: payload.account_id, status: payload.card_status,
+      })).data;
     },
     async listTransactions(page) {
-      return (
-        await request.get<ListResponse<Transaction>>(`${baseURL}/transactions`, {
-          params: page,
-        })
-      ).data;
+      const { transaction_type, ...filters } = page ?? {};
+      const result = (await request.get<Page<TransactionData>>(`${baseURL}/transactions`, {
+        params: { ...filters, type: transaction_type },
+      })).data;
+      return { data: result.items.map(toTransaction), total_items: result.total };
     },
     async simulateAuthorization(payload) {
       await request.post(`${baseURL}/simulate/authorizations`, authorizationPayload(payload));
     },
     async applyTransactionStep(id, action, amount) {
-      await request.post(`${baseURL}/transactions/${id}/${action}`, {
-        amount,
+      await request.post(`${baseURL}/transactions/stages`, {
+        id, type: action === "reverse" ? "void" : action, amount,
       });
     },
   };
 
   const fundsApi = {
-    async list(accountID?: number) {
-      return (
-        await request.get<Wallet[]>(baseURL + "/funds", {
-          params: {
-            account_id: accountID,
-          },
-        })
-      ).data;
+    async list(accountID?: number): Promise<Wallet[]> {
+      return (await listAll<WalletData>("wallets", { account_id: accountID })).map(item => ({
+        ...item, kind: item.type, amount: item.available,
+      }));
     },
-
     async adjustAccount(account: Account, amount: number) {
-      if (!account.wallet_id) {
-        throw new Error("账户钱包不存在");
-      }
-      await request.post(baseURL + "/funds/transfer", {
-        account_id: account.id,
-        source_id: amount < 0 ? account.wallet_id : undefined,
-        target_id: amount > 0 ? account.wallet_id : undefined,
-        amount: String(Math.abs(amount)),
-      });
-    },
-
-    async transferResource(input: {
-      accountID: number;
-      walletID: number;
-      cardID?: number;
-      amount: number;
-      withdraw: boolean;
-    }) {
-      const wallets = await this.list(input.accountID);
-      const accountWallet = wallets.find((wallet) => wallet.kind === "account");
-      if (!accountWallet) {
-        throw new Error("关联账户钱包不存在");
-      }
-      await request.post(baseURL + "/funds/transfer", {
-        account_id: input.accountID,
-        card_id: input.cardID,
-        source_id: input.withdraw ? input.walletID : accountWallet.id,
-        target_id: input.withdraw ? accountWallet.id : input.walletID,
-        amount: String(input.amount),
+      await request.post(`${baseURL}/accounts/adjust`, {
+        account_id: account.id, amount, currency: account.currency,
       });
     },
   };
 
   const webhookRecordApi = {
-    async list(query: WebhookRecordListRequest) {
-      return (
-        await request.get<ListResponse<WebhookRecord>>(`${baseURL}/webhook-records`, {
-          params: query,
-        })
-      ).data;
+    async list(query: WebhookRecordListRequest): Promise<ListResponse<WebhookRecord>> {
+      const result = (await request.get<Page<WebhookRecordData>>(`${baseURL}/webhook-records`, { params: query })).data;
+      return { data: result.items.map(toWebhookRecord), total_items: result.total };
     },
     async replay(record: Pick<WebhookRecord, "id" | "account_id">) {
-      return (
-        await request.post<WebhookRecord>(`${baseURL}/webhook-records/${record.id}/replay`, {
-          account_id: record.account_id,
-        })
-      ).data;
+      return toWebhookRecord((await request.post<WebhookRecordData>(`${baseURL}/webhook-records/replay`, {
+        id: record.id, account_id: record.account_id,
+      })).data);
     },
   };
+
   const authorizationApi: AuthorizationAPI = {
     async list(filters) {
-      return (await request.get<Authorization[]>(`${baseURL}/authorization-balances`, {
-        params: filters,
-      })).data;
+      return listAll<Authorization>("authorizations", filters);
     },
     async detail(authorization) {
-      return (await request.get<Authorization>(`${baseURL}/authorizations/${authorization.id}/detail`, {
-        params: { account_id: authorization.account_id },
+      const item = (await request.get<AuthorizationDetailData>(`${baseURL}/authorizations/detail`, {
+        params: { id: authorization.id, account_id: authorization.account_id },
       })).data;
+      return {
+        ...item,
+        card_number: item.card.card_number,
+        transactions: item.transactions.map(stage => ({ ...stage, transaction_type: stage.type })),
+      };
     },
     async stage(input) {
-      await request.post(`${baseURL}/authorizations/${input.authorization.id}/${input.stage}`, {
-        amount: String(input.amount),
+      const endpoint = { clear: "clearings", reverse: "reversals", refund: "refunds" }[input.stage];
+      await request.post(`${baseURL}/simulate/${endpoint}`, {
+        authorization_id: input.authorization.id, amount: input.amount, request_id: input.requestID,
       });
     },
   };
 
   const virtualAccountApi: VirtualAccountAPI = {
     async list() {
-      const [response, wallets] = await Promise.all([
-        request.get<Omit<ManagedVirtualAccount, "balance" | "currency">[]>(`${baseURL}/managed-virtual-accounts`),
-        fundsApi.list(),
-      ]);
-      return response.data.map((account) => {
-        const wallet = wallets.find((item) => item.id === account.wallet_id && item.account_id === account.account_id);
-        if (!wallet) {
-          throw new Error("虚拟账户钱包不存在");
-        }
-        return { ...account, balance: wallet.amount, currency: wallet.currency };
-      });
+      return (await listAll<VirtualAccountData>("virtual-accounts")).map(item => ({ ...item, balance: item.available }));
     },
     async create(input) {
-      await request.post(`${baseURL}/managed-virtual-accounts`, input);
+      await request.post(`${baseURL}/virtual-accounts`, input);
     },
     async topUp(input) {
-      if (!input.account.wallet_id) {
-        throw new Error("虚拟账户钱包不存在");
-      }
-      await fundsApi.transferResource({
-        accountID: input.account.account_id,
-        walletID: input.account.wallet_id,
-        amount: input.amount,
-        withdraw: false,
+      await request.post(`${baseURL}/virtual-accounts/fund`, {
+        virtual_account_id: input.account.id, account_id: input.account.account_id,
+        amount: input.amount, request_id: input.requestID,
       });
     },
     async withdraw(input) {
-      if (!input.account.wallet_id) {
-        throw new Error("虚拟账户钱包不存在");
-      }
-      await fundsApi.transferResource({
-        accountID: input.account.account_id,
-        walletID: input.account.wallet_id,
-        amount: input.amount,
-        withdraw: true,
+      await request.post(`${baseURL}/virtual-accounts/fund`, {
+        virtual_account_id: input.account.id, account_id: input.account.account_id,
+        amount: input.amount, request_id: input.requestID, withdraw: true,
       });
     },
   };
 
   async function fundCard(input: CardFundingRequest) {
-    if (!input.card.wallet_id) {
-      throw new Error("卡钱包不存在");
-    }
-    await fundsApi.transferResource({
-      accountID: input.card.account_id,
-      cardID: input.card.id,
-      walletID: input.card.wallet_id,
-      amount: input.amount,
-      withdraw: input.withdraw,
+    await request.post(`${baseURL}/cards/fund`, {
+      card_id: input.card.id, account_id: input.card.account_id,
+      kind: input.withdraw ? "card_withdraw" : "card_top_up", amount: input.amount, request_id: input.requestID,
     });
   }
 
   return {
-    fundCard,
-    virtualAccountApi,
-    authorizationApi,
-    accountApi,
-    webhookApi,
-    managementApi,
-    refundApi,
-    api,
-    fundsApi,
-    webhookRecordApi,
+    fundCard, virtualAccountApi, authorizationApi, accountApi, webhookApi,
+    managementApi, refundApi, api, fundsApi, webhookRecordApi,
   };
 }
 

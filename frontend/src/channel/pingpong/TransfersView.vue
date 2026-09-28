@@ -55,12 +55,6 @@ const columns = [
     width: 110
   },
   {
-    title: "状态",
-    key: "status",
-    width: 100,
-    render: (row: Transfer) => renderEnumTag(row.status, "status")
-  },
-  {
     title: "时间",
     key: "created_at",
     width: 180,

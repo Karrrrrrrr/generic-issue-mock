@@ -98,7 +98,7 @@ async function save() {
   }
   try {
     if (editing.value) {
-      await webhookApi.update(editing.value.id, {
+      await webhookApi.update(editing.value, {
         target_url: form.value.target_url,
         enabled: form.value.enabled,
       });
@@ -125,7 +125,7 @@ function remove(item: Webhook) {
     negativeText: "取消",
     onPositiveClick: async () => {
       try {
-        await webhookApi.remove(item.id);
+        await webhookApi.remove(item);
         await load();
       } catch (error) {
         message.error(error instanceof Error ? error.message : "删除失败");

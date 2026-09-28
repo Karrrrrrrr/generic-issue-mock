@@ -60,11 +60,10 @@ export interface AuthorizationDetail extends Authorization {
 export interface Transfer extends Owned {
   request_id: string;
   kind: WalletTransferKind;
-  amount: number;
+  amount: string;
   currency: string;
   source_wallet_id: number;
   target_wallet_id: number;
-  status: "succeed";
 }
 export interface Product {
   id: number;
@@ -111,7 +110,7 @@ export async function accountOptions() {
   const accounts: Account[] = [];
   for (let page = 1;; page++) {
     const result = await api.get<Page<Account>>("accounts", {
-      page_no: page,
+      page_number: page,
       page_size: 100,
     });
     accounts.push(...result.items);

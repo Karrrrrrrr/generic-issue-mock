@@ -4,7 +4,7 @@
 
 UI 使用项目内部枚举，不使用第三方状态值：卡状态为 `inactive/active/freezing/frozen/deleting/deleted`，交易状态为 `pending/authorized/succeed/failed/void`，交易类型为 `auth/clear/void/refund/verification/fund_in/fund_out`。前端类型及筛选项定义在 `../enums.ts`，后端 UI DTO 直接使用 `backend/enums`。OpenAPI 和 webhook 报文继续遵守渠道协议，Webhook 事件列表仍从各渠道接口加载。
 
-`api.ts` 为 Slash、Paynda、PhotonPay 的相同管理契约提供参数化接口实现；渠道文件只传入自己的 UI 路径。`../pingpong/management.ts` 处理 PingPong 的字段、分页、数值金额和请求 ID 差异。组件不通过渠道名分支，不把第三方状态转换逻辑搬到前端。
+`api.ts` 为四个渠道的 Shared 管理契约提供参数化接口实现；渠道文件只传入自己的 UI 路径。统一使用 GET query 和 POST JSON body，不把资源 ID 拼入 URI。列表使用 `items/total`，分页字段使用 `page_number/page_size`；适配层显式将 Shared 的 `available/status/type` 等字段映射为已有页面类型。`../pingpong/management.ts` 只保留请求重试键及 `contract_pending` 展示差异。组件不通过渠道名分支，不把第三方状态转换逻辑搬到前端。
 
 ## 页面与能力
 
@@ -20,7 +20,7 @@ UI 使用项目内部枚举，不使用第三方状态值：卡状态为 `inacti
 
 领域数据契约定义在 `contracts.ts`。差异通过 typed API、可选操作、少量展示属性和说明 slot 提供，不设计万能 CRUD 组件。账户名称使用原响应的 `account_name`；只有账户选择表单加载账户选项。
 
-需要幂等键的资金操作和后续模拟由上层传入 `newRequestID`，打开操作时生成；失败重试保留当前键，成功后为下一次操作生成新键。PingPong 的授权/虚拟账户分页接口在适配层收集完整结果，供现有共享页面进行客户端分页；账户、卡和资金订单仍使用服务端分页。
+需要幂等键的资金操作和后续模拟由上层传入 `newRequestID`，打开操作时生成；失败重试保留当前键，成功后为下一次操作生成新键。各渠道的授权/虚拟账户分页接口在适配层收集完整结果，供现有共享页面进行客户端分页；账户、卡和资金订单仍使用服务端分页。
 
 ## 模拟组件
 

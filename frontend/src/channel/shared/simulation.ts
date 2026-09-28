@@ -6,6 +6,7 @@ export interface SimulationCard {
 }
 
 export interface AuthorizationSimulationRequest {
+  requestID?: string;
   cardID: number;
   amount: number;
   currency: string;
@@ -16,6 +17,7 @@ export interface AuthorizationSimulationRequest {
 }
 
 export interface RefundSimulationRequest {
+  request_id?: string;
   authorization_id?: number;
   card_id?: number;
   amount: number;

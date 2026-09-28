@@ -84,7 +84,7 @@ func toWalletTransferData(item *model.WalletTransfer) WalletTransferData {
 }
 
 type FundCardRequest struct {
-	CardID    model.ID                 `uri:"id" binding:"required,gt=0"`
+	CardID    model.ID                 `json:"card_id" binding:"required,gt=0"`
 	AccountID model.ID                 `json:"account_id" binding:"required,gt=0"`
 	Kind      enums.WalletTransferKind `json:"kind" binding:"required,oneof=card_top_up card_withdraw"`
 	Amount    decimal.Decimal          `json:"amount" binding:"required"`
@@ -110,7 +110,7 @@ func (s *Service) FundCard(ctx context.Context, req *FundCardRequest) (*WalletTr
 }
 
 type FundVirtualAccountRequest struct {
-	VirtualAccountID       model.ID        `uri:"id" binding:"required,gt=0"`
+	VirtualAccountID       model.ID        `json:"virtual_account_id" binding:"required,gt=0"`
 	AccountID              model.ID        `json:"account_id" binding:"required,gt=0"`
 	TargetVirtualAccountID *model.ID       `json:"target_virtual_account_id" binding:"omitempty,gt=0"`
 	Withdraw               *bool           `json:"withdraw"`

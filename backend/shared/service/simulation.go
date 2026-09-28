@@ -139,7 +139,7 @@ func (s *Service) SimulateRefund(ctx context.Context, req *SimulateRefundRequest
 }
 
 type ApplyTransactionStageRequest struct {
-	ID        model.ID                  `uri:"id"`
+	ID        model.ID                  `json:"id"`
 	Type      enums.CardTransactionType `json:"type"`
 	Amount    *decimal.Decimal          `json:"amount"`
 	RequestID *string                   `json:"request_id"`

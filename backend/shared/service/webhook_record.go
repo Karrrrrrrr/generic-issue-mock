@@ -95,7 +95,7 @@ func toWebhookRecordData(item *model.WebhookRecord) WebhookRecordData {
 }
 
 type GetWebhookRecordRequest struct {
-	ID        model.ID `uri:"id" binding:"required,gt=0"`
+	ID        model.ID `form:"id" binding:"required,gt=0"`
 	AccountID model.ID `form:"account_id" binding:"required,gt=0"`
 }
 
@@ -115,7 +115,7 @@ func (s *Service) GetWebhookRecord(ctx context.Context, req *GetWebhookRecordReq
 }
 
 type ReplayWebhookRecordRequest struct {
-	ID        model.ID `uri:"id" binding:"required,gt=0"`
+	ID        model.ID `json:"id" binding:"required,gt=0"`
 	AccountID model.ID `json:"account_id" binding:"required,gt=0"`
 }
 

@@ -5,12 +5,23 @@ import (
 
 	"generic-mock/channel/slash/service"
 	"generic-mock/pkg/httpx"
+	sharedhttp "generic-mock/shared/http"
 
 	"github.com/gin-gonic/gin"
 	kratosErrors "github.com/go-kratos/kratos/v2/errors"
 )
 
-func Register(router *gin.RouterGroup, service *service.SlashUIService, openAPIService *service.SlashOpenAPIService) {
+type RegisterRequest struct {
+	Router   *gin.RouterGroup
+	OpenAPI  *service.SlashOpenAPIService
+	UI       *service.SlashUIService
+	SharedUI *service.SharedUIService
+}
+
+func Register(req RegisterRequest) {
+	router := req.Router
+	service := req.UI
+	openAPIService := req.OpenAPI
 	openAPIRoutes := router.Group("")
 	{
 		openAPIRoutes.GET("/legal-entity", bind(openAPIService.ListLegalEntities))
@@ -53,44 +64,14 @@ func Register(router *gin.RouterGroup, service *service.SlashUIService, openAPIS
 	}
 
 	uiRoutes := router.Group("/ui")
-	{
-		uiRoutes.GET("/accounts", bindUI(service.ListAccounts))
-		uiRoutes.POST("/accounts", bindUI(service.CreateAccount))
-		uiRoutes.PUT("/accounts/:id", bindUI(service.UpdateAccount))
-		uiRoutes.GET("/funds", bindUI(service.ListFunds))
-		uiRoutes.POST("/funds/transfer", bindUI(service.MoveFunds))
-		uiRoutes.GET("/managed-virtual-accounts", bindUI(service.ListManagedVirtualAccounts))
-		uiRoutes.POST("/managed-virtual-accounts", bindUI(service.CreateManagedVirtualAccount))
-		uiRoutes.GET("/virtual-accounts", bindUI(service.ListVirtualAccounts))
-		uiRoutes.GET("/card-products", bindUI(service.ListCardProducts))
-		uiRoutes.GET("/cardholders", bindUI(service.ListCardHolders))
-		uiRoutes.GET("/cards", bindUI(service.ListCards))
-		uiRoutes.GET("/cards/:id", bindUI(service.GetCard))
-		uiRoutes.PUT("/cards/:id/status", bindUI(service.UpdateCardStatus))
-		uiRoutes.GET("/authorization-config", bindUI(service.GetAuthorizationConfig))
-		uiRoutes.PUT("/authorization-config", bindUI(service.UpdateAuthorizationConfig))
-		uiRoutes.GET("/authorizations", bindUI(service.ListAuthorizations))
-		uiRoutes.GET("/authorizations/:id", bindUI(service.GetAuthorization))
-		uiRoutes.POST("/authorizations/:id/clear", bindUI(service.ClearAuthorization))
-		uiRoutes.GET("/authorizations/:id/detail", bindUI(service.GetAuthorizationDetail))
-		uiRoutes.POST("/authorizations/:id/reverse", bindUI(service.ReverseAuthorization))
-		uiRoutes.POST("/authorizations/:id/refund", bindUI(service.RefundAuthorization))
-		uiRoutes.GET("/authorization-balances", bindUI(service.ListAuthorizationBalances))
-		uiRoutes.GET("/transactions", bindUI(service.ListTransactions))
-		uiRoutes.GET("/transactions/:id", bindUI(service.GetTransaction))
-		uiRoutes.POST("/transactions/:id/refund", bindUI(service.RefundTransaction))
-		uiRoutes.POST("/transactions/:id/clear", bindUI(service.ClearTransaction))
-		uiRoutes.POST("/transactions/:id/reverse", bindUI(service.ReverseTransaction))
-		uiRoutes.POST("/simulate/authorizations", bindUI(service.SimulateAuthorization))
-		uiRoutes.POST("/simulate/refunds", bindUI(service.SimulateRefund))
-		uiRoutes.GET("/webhooks", bindUI(service.ListWebhooks))
-		uiRoutes.POST("/webhooks", bindUI(service.CreateWebhook))
-		uiRoutes.PUT("/webhooks/:id", bindUI(service.UpdateWebhook))
-		uiRoutes.DELETE("/webhooks/:id", bindUI(service.DeleteWebhook))
-		uiRoutes.GET("/webhooks/events", bindUI(service.ListWebhookEvents))
-		uiRoutes.GET("/webhook-records", bindUI(service.ListWebhookRecords))
-		uiRoutes.POST("/webhook-records/:id/replay", bindUI(service.ReplayWebhookRecord))
-	}
+	sharedhttp.Register(sharedhttp.RegisterRequest{
+		Router:                uiRoutes,
+		Service:               req.SharedUI.Service,
+		EnableVirtualAccounts: true,
+		EnableWebhooks:        true,
+	})
+	uiRoutes.GET("/authorization-config", bindUI(service.GetAuthorizationConfig))
+	uiRoutes.POST("/authorization-config", bindUI(service.UpdateAuthorizationConfig))
 }
 
 func bind[Req any, Resp any](fn httpx.ServiceFunc[Req, Resp]) gin.HandlerFunc {
@@ -122,12 +103,12 @@ func failure(err error) (int, any) {
 }
 
 func bindUI[Req any, Resp any](fn httpx.ServiceFunc[Req, Resp]) gin.HandlerFunc {
-	return httpx.Bind(
-		fn,
-		func(data *Resp) any { return data },
-		uiBindingFailure,
-		failure,
-	)
+	return httpx.BindUI(httpx.BindUIRequest[Req, Resp]{
+		Service:             fn,
+		SuccessEncoder:      func(data *Resp) any { return data },
+		BindingErrorEncoder: uiBindingFailure,
+		ErrorEncoder:        failure,
+	})
 }
 
 func uiBindingFailure(err error) (int, any) {

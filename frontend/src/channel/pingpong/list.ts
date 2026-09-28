@@ -34,7 +34,7 @@ export function useList<Item>(resource: string) {
     try {
       const result = await api.get<Page<Item>>(resource, {
         ...filters,
-        page_no: pagination.page,
+        page_number: pagination.page,
         page_size: pagination.pageSize,
       });
       if (current === version) {

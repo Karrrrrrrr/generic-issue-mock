@@ -98,7 +98,7 @@ func toAuthorizationData(item *model.Authorization) AuthorizationData {
 }
 
 type GetAuthorizationDetailRequest struct {
-	ID        model.ID `uri:"id" binding:"required,gt=0"`
+	ID        model.ID `form:"id" binding:"required,gt=0"`
 	AccountID model.ID `form:"account_id" binding:"required,gt=0"`
 }
 

@@ -5,6 +5,7 @@ import (
 
 	"generic-mock/channel/paynda/service"
 	"generic-mock/pkg/httpx"
+	sharedhttp "generic-mock/shared/http"
 
 	"github.com/gin-gonic/gin"
 	kratosErrors "github.com/go-kratos/kratos/v2/errors"
@@ -39,14 +40,12 @@ func bind[Req any, Resp any](fn httpx.ServiceFunc[Req, Resp]) gin.HandlerFunc {
 }
 
 func bindUI[Req any, Resp any](fn httpx.ServiceFunc[Req, Resp]) gin.HandlerFunc {
-	return httpx.Bind(
-		fn,
-		func(data *Resp) any {
-			return data
-		},
-		uiBindingFailure,
-		uiFailure,
-	)
+	return httpx.BindUI(httpx.BindUIRequest[Req, Resp]{
+		Service:             fn,
+		SuccessEncoder:      func(data *Resp) any { return data },
+		BindingErrorEncoder: uiBindingFailure,
+		ErrorEncoder:        uiFailure,
+	})
 }
 
 func failure(err error) (int, any) {
@@ -77,7 +76,16 @@ func uiFailure(err error) (int, any) {
 	}
 }
 
-func Register(router *gin.RouterGroup, openapi *service.PayndaOpenAPIService, ui *service.PayndaUIService) {
+type RegisterRequest struct {
+	Router   *gin.RouterGroup
+	OpenAPI  *service.PayndaOpenAPIService
+	UI       *service.PayndaUIService
+	SharedUI *service.SharedUIService
+}
+
+func Register(req RegisterRequest) {
+	router := req.Router
+	openapi := req.OpenAPI
 	openAPIRoutes := router.Group("/openapi")
 	{
 		openAPIRoutes.GET("/merchant/wallets", bind(openapi.ListMerchantWallets))
@@ -115,36 +123,12 @@ func Register(router *gin.RouterGroup, openapi *service.PayndaOpenAPIService, ui
 	}
 
 	uiRoutes := router.Group("/ui")
-	{
-		uiRoutes.GET("/accounts", bindUI(ui.ListAccounts))
-		uiRoutes.POST("/accounts", bindUI(ui.CreateAccount))
-		uiRoutes.PUT("/accounts/:id", bindUI(ui.UpdateAccount))
-		uiRoutes.GET("/funds", bindUI(ui.ListFunds))
-		uiRoutes.POST("/funds/transfer", bindUI(ui.MoveFunds))
-		uiRoutes.GET("/card-products", bindUI(ui.ListCardProducts))
-		uiRoutes.GET("/cardholders", bindUI(ui.ListCardHolders))
-		uiRoutes.GET("/cards", bindUI(ui.ListCards))
-		uiRoutes.PUT("/cards/:id/status", bindUI(ui.UpdateCardStatus))
-		uiRoutes.GET("/authorizations", bindUI(ui.ListAuthorizations))
-		uiRoutes.POST("/authorizations/:id/clear", bindUI(ui.ClearAuthorization))
-		uiRoutes.GET("/authorizations/:id/detail", bindUI(ui.GetAuthorizationDetail))
-		uiRoutes.POST("/authorizations/:id/reverse", bindUI(ui.ReverseAuthorization))
-		uiRoutes.POST("/authorizations/:id/refund", bindUI(ui.RefundAuthorization))
-		uiRoutes.GET("/authorization-balances", bindUI(ui.ListAuthorizationBalances))
-		uiRoutes.GET("/transactions", bindUI(ui.ListTransactions))
-		uiRoutes.POST("/transactions/:id/refund", bindUI(ui.RefundTransaction))
-		uiRoutes.POST("/transactions/:id/clear", bindUI(ui.ClearTransaction))
-		uiRoutes.POST("/transactions/:id/reverse", bindUI(ui.ReverseTransaction))
-		uiRoutes.POST("/simulate/authorizations", bindUI(ui.SimulateAuthorization))
-		uiRoutes.POST("/simulate/refunds", bindUI(ui.SimulateRefund))
-		uiRoutes.GET("/webhooks", bindUI(ui.ListWebhooks))
-		uiRoutes.POST("/webhooks", bindUI(ui.CreateWebhook))
-		uiRoutes.PUT("/webhooks/:id", bindUI(ui.UpdateWebhook))
-		uiRoutes.DELETE("/webhooks/:id", bindUI(ui.DeleteWebhook))
-		uiRoutes.GET("/webhooks/events", bindUI(ui.ListWebhookEvents))
-		uiRoutes.GET("/webhook-records", bindUI(ui.ListWebhookRecords))
-		uiRoutes.POST("/webhook-records/:id/replay", bindUI(ui.ReplayWebhookRecord))
-	}
+	sharedhttp.Register(sharedhttp.RegisterRequest{
+		Router:                uiRoutes,
+		Service:               req.SharedUI.Service,
+		EnableVirtualAccounts: false,
+		EnableWebhooks:        true,
+	})
 }
 
 func uiBindingFailure(err error) (int, any) {

@@ -2,7 +2,7 @@
 
 ## 接入边界
 
-`shared/service` 提供独立的浏览器管理 DTO 和 service，`shared/biz/ui_*.go` 实现 UI 业务。当前没有修改现有渠道路由、service、前端或 `main` 来调用它们；后续确认需求后再迁移。
+`shared/service` 提供独立的浏览器管理 DTO 和 service，`shared/biz/ui_*.go` 实现 UI 业务。已通过 `main` 注册工厂，并由四个渠道的 `SharedUIService` 按渠道构造，注册到 `/<channel>/ui`。前端通过统一管理 API 调用。原渠道 UI service/usecase 文件未删除；Slash、PhotonPay 的授权回调配置仍使用原渠道实现，Webhook 投递与重放继续委托原渠道实现。
 
 `shared/biz/*_repository.go` 和 `shared/data/*_repository.go` 是按资源划分的通用持久化接口与实现，不属于 UI。UI、OpenAPI 和共享卡组件均可注入同一套 Repo；OpenAPI 不应为了复用仓储而调用 UI service/usecase。
 
@@ -36,7 +36,7 @@ management, err := factory.New(&service.NewRequest{
 
 处理构造错误后，使用 `management.ListCards` 等具名方法及各自请求。工厂实例可以创建不同渠道的 service，构造时复制配置，各实例不会共享可变渠道状态。上面的 Noop 仅适用于明确不投递的场景，不代表 PingPong webhook 已实现或投递成功。
 
-`RegisterUIProviders` 只注册业务和服务工厂，不注册 Repo，也不注册 HTTP 路由。OpenAPI 可以在只调用 `RegisterProviders` 后直接注入 `biz.CardRepo` 等资源仓储，无需依赖 UI。
+`RegisterUIProviders` 只注册业务和服务工厂，不注册 Repo，也不直接注册 HTTP 路由。渠道自己的 `Register` 调用 `shared/http.Register`，在已有 UI 分组中挂载通用路由，不增加资源子分组。OpenAPI 可以在只调用 `RegisterProviders` 后直接注入 `biz.CardRepo` 等资源仓储，无需依赖 UI。
 
 ## 当前提供的能力
 
@@ -49,17 +49,64 @@ management, err := factory.New(&service.NewRequest{
 - 调资记录：查询、请求幂等、双方余额快照；资金转移复用 `BalanceChanger`，不绕过正常余额检查。
 - Webhook：通用配置 CRUD、记录查询；事件选项和重放由上层适配器提供。
 
-这些是共享能力，不代表每个渠道都应暴露全部接口。路由接入时仍需遵守渠道能力边界，例如不向 Paynda 暴露虚拟账户，不向 OpenAPI 暴露模拟接口。本次没有补入同步授权回调配置。
+路由能力由注册参数显式控制：Paynda 不注册虚拟账户；PingPong 不注册尚无合约的 Webhook 管理和投递入口；模拟接口仅出现在 UI。Slash、PhotonPay 原有的授权回调配置保留在渠道路由中，PingPong 不新增同步授权回调。
 
 ## 类型与差异化配置
 
 - UI ID 使用 `model.ID`，JSON 数字；可选 ID 用指针。请求键和 webhook 原始协议引用仍为字符串。
 - UI 状态、交易类型及调资种类使用项目 `enums`；时间使用 `time.Time` / `*time.Time`，金额使用 `decimal.Decimal`。账户关联响应包含 `account_name`。
-- 列表响应为 `items` 和 `total`，分页默认第 1 页、每页 20 条，上限 200 条。HTTP 成功信封由后续接入的适配层负责。
+- 列表响应为 `items` 和 `total`，分页默认第 1 页、每页 20 条，上限 200 条。UI HTTP 层直接返回该 DTO，不包装渠道 OpenAPI 信封。
 - `CreateVirtualAccountOnAccountCreation` 是显式的可选构造参数；默认不自动建虚拟账户，也不引入默认产品。
 - `CardTransactionNotificator`、`UIWebhookEventCatalog`、`UIWebhookReplayer` 由上层实现。缺少通知适配器时拒绝模拟；缺少事件目录或重放适配器时，对应操作返回未支持错误，不伪造事件或投递成功。
 - 渠道 webhook 的报文、签名、ACK 和实际发送仍在渠道适配器中，不下沉到 Repo 或通用 UI 流程。
 
+## 统一 HTTP 参数
+
+所有路径都以 `/<channel>/ui` 为前缀。GET 只从 query 绑定；POST 只从 JSON body 绑定。`httpx.BindUI` 不读取 URI 参数，不把 query 合并进 POST，也不读取 GET body。OpenAPI 保持原路径、方法、绑定器和协议不变。
+
+资源 ID 不再放在 `:id` 路径段中。例如：
+
+```text
+GET /slash/ui/cards/detail?id=123&account_id=1
+POST /slash/ui/cards/status
+{"id":123,"account_id":1,"status":"frozen"}
+
+POST /slash/ui/cards/fund
+{"card_id":123,"account_id":1,"kind":"card_top_up","amount":"10"}
+
+POST /slash/ui/simulate/clearings
+{"authorization_id":456,"amount":"10"}
+```
+
+通用查询均为 GET：
+
+| 路径 | 用途 |
+| --- | --- |
+| `/accounts` | 账户列表 |
+| `/card-products`、`/cardholders`、`/wallets` | 产品、持卡人和钱包列表 |
+| `/virtual-accounts` | 虚拟账户列表，Paynda 除外 |
+| `/cards`、`/cards/detail` | 卡列表和详情 |
+| `/authorizations`、`/authorizations/detail` | 授权列表和详情 |
+| `/transactions`、`/transactions/detail` | 交易列表和详情 |
+| `/transfers` | 调资记录 |
+| `/webhooks`、`/webhooks/events` | 配置和渠道事件选项，PingPong 除外 |
+| `/webhook-records`、`/webhook-records/detail` | 投递记录和详情，PingPong 除外 |
+
+通用写操作均为 POST：
+
+| 路径 | 用途 |
+| --- | --- |
+| `/accounts`、`/accounts/rename`、`/accounts/adjust` | 创建账户、改名、调资 |
+| `/virtual-accounts`、`/virtual-accounts/fund` | 创建虚拟账户和调资，Paynda 除外 |
+| `/cards/status`、`/cards/fund` | 改卡状态和卡调资 |
+| `/simulate/authorizations`、`/simulate/clearings` | 模拟授权和清算 |
+| `/simulate/refunds`、`/simulate/reversals` | 模拟退款和撤销 |
+| `/transactions/stages` | 通过原交易 ID 模拟后续阶段 |
+| `/webhooks`、`/webhooks/update`、`/webhooks/delete` | 配置 CRUD，PingPong 除外 |
+| `/webhook-records/replay` | 重放投递，PingPong 除外 |
+
+Slash、PhotonPay 另外保留 GET/POST `/authorization-config`，同样只用 query/body。旧 UI 的 `/:id`、PUT/DELETE 以及重复管理列表路径不再注册；旧渠道实现代码暂时保留，前端已切换至新契约。独立脚本或 SDK 测试中准备 UI 数据的调用方也需使用上述新路径和字段，OpenAPI 调用不受影响。
+
 ## 当前验证范围
 
-需求梳理期间仅执行格式化和编译检查，不自动运行单元测试或集成测试；编译通过不代表现有渠道已经完成 Shared UI 接入。
+需求梳理期间仅执行格式化和编译检查，不自动运行单元测试或集成测试；编译通过不代表完成运行时联调，本轮不以测试通过为交付条件。

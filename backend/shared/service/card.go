@@ -106,7 +106,7 @@ func toCardData(item *model.Card) CardData {
 }
 
 type GetCardRequest struct {
-	ID        model.ID `uri:"id" binding:"required,gt=0"`
+	ID        model.ID `form:"id" binding:"required,gt=0"`
 	AccountID model.ID `form:"account_id" binding:"required,gt=0"`
 }
 
@@ -126,7 +126,7 @@ func (s *Service) GetCard(ctx context.Context, req *GetCardRequest) (*CardData, 
 }
 
 type UpdateCardStatusRequest struct {
-	ID        model.ID         `uri:"id" binding:"required,gt=0"`
+	ID        model.ID         `json:"id" binding:"required,gt=0"`
 	AccountID model.ID         `json:"account_id" binding:"required,gt=0"`
 	Status    enums.CardStatus `json:"status" binding:"required,oneof=active frozen deleted"`
 }

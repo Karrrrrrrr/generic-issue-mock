@@ -34,6 +34,7 @@ const loading = ref(false);
 const visible = ref(false);
 const editingID = ref<number>();
 const name = ref("");
+const currency = ref("USD");
 const rows = ref<Account[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
@@ -81,6 +82,7 @@ async function load() {
 function openCreate() {
   editingID.value = undefined;
   name.value = "";
+  currency.value = "USD";
   visible.value = true;
 }
 
@@ -91,7 +93,8 @@ function openEdit(account: Account) {
 }
 
 async function submit() {
-  if (!name.value) {
+  if (!name.value || (!editingID.value && !/^[A-Z]{3}$/.test(currency.value))) {
+    message.warning("请填写名称和三位大写币种代码");
     return;
   }
 
@@ -99,7 +102,7 @@ async function submit() {
     if (editingID.value) {
       await accountApi.update!(editingID.value, { name: name.value });
     } else {
-      await accountApi.create({ name: name.value });
+      await accountApi.create({ name: name.value, currency: currency.value });
     }
     visible.value = false;
     await load();
@@ -190,6 +193,9 @@ onMounted(() => void load());
       <n-form label-placement="top">
         <n-form-item label="名称">
           <n-input v-model:value="name" />
+        </n-form-item>
+        <n-form-item v-if="!editingID" label="币种">
+          <n-input v-model:value="currency" placeholder="例如 USD" maxlength="3" />
         </n-form-item>
       </n-form>
       <template #action>

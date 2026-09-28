@@ -91,7 +91,7 @@ func (s *Service) CreateAccount(ctx context.Context, req *CreateAccountRequest) 
 }
 
 type AdjustAccountRequest struct {
-	AccountID model.ID        `uri:"id" binding:"required,gt=0"`
+	AccountID model.ID        `json:"account_id" binding:"required,gt=0"`
 	Currency  enums.Currency  `json:"currency" binding:"required"`
 	Amount    decimal.Decimal `json:"amount" binding:"required"`
 }
@@ -112,7 +112,7 @@ func (s *Service) AdjustAccount(ctx context.Context, req *AdjustAccountRequest) 
 }
 
 type RenameAccountRequest struct {
-	ID   model.ID `uri:"id" binding:"required,gt=0"`
+	ID   model.ID `json:"id" binding:"required,gt=0"`
 	Name string   `json:"name" binding:"required"`
 }
 

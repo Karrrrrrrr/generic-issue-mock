@@ -104,7 +104,7 @@ func (s *Service) CreateWebhook(ctx context.Context, req *CreateWebhookRequest) 
 }
 
 type UpdateWebhookRequest struct {
-	ID        model.ID `uri:"id" binding:"required,gt=0"`
+	ID        model.ID `json:"id" binding:"required,gt=0"`
 	AccountID model.ID `json:"account_id" binding:"required,gt=0"`
 	TargetURL string   `json:"target_url" binding:"required"`
 	Enabled   *bool    `json:"enabled" binding:"required"`
@@ -128,8 +128,8 @@ func (s *Service) UpdateWebhook(ctx context.Context, req *UpdateWebhookRequest) 
 }
 
 type DeleteWebhookRequest struct {
-	ID        model.ID `uri:"id" binding:"required,gt=0"`
-	AccountID model.ID `form:"account_id" binding:"required,gt=0"`
+	ID        model.ID `json:"id" binding:"required,gt=0"`
+	AccountID model.ID `json:"account_id" binding:"required,gt=0"`
 }
 
 func (s *Service) DeleteWebhook(ctx context.Context, req *DeleteWebhookRequest) (*Empty, error) {
