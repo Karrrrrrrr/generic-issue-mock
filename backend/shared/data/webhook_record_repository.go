@@ -8,6 +8,7 @@ import (
 
 	"github.com/samber/do/v2"
 	"gorm.io/gen"
+	"gorm.io/gen/field"
 )
 
 type webhookRecordRepository struct {
@@ -109,11 +110,22 @@ func (repo *webhookRecordRepository) ExistBySource(ctx context.Context, req *biz
 
 func (repo *webhookRecordRepository) UpdateDelivery(ctx context.Context, req *biz.WebhookRecordUpdateDeliveryRequest) error {
 	table := repo.DB(ctx).WebhookRecord
+	assigns := []field.AssignExpr{
+		table.Status.Value(string(req.Status)),
+		table.StatusCode.Value(req.StatusCode),
+		table.ResponseBody.Value(req.ResponseBody),
+		table.ResponseHeaders.Value(req.ResponseHeaders),
+		table.ErrorMessage.Value(req.ErrorMessage),
+	}
+	if req.DeliveredAt == nil {
+		assigns = append(assigns, table.DeliveredAt.Null())
+	} else {
+		assigns = append(assigns, table.DeliveredAt.Value(*req.DeliveredAt))
+	}
 	_, err := table.WithContext(ctx).Where(
-		table.AccountID.Eq(req.AccountID), table.Channel.Eq(string(req.Channel)), table.ID.Eq(req.ID),
-	).Updates(map[string]interface{}{
-		"status": req.Status, "status_code": req.StatusCode, "response_body": req.ResponseBody,
-		"response_headers": req.ResponseHeaders, "delivered_at": req.DeliveredAt, "error_message": req.ErrorMessage,
-	})
+		table.AccountID.Eq(req.AccountID),
+		table.Channel.Eq(string(req.Channel)),
+		table.ID.Eq(req.ID),
+	).UpdateSimple(assigns...)
 	return err
 }

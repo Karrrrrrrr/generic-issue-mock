@@ -8,6 +8,7 @@ import (
 	"generic-mock/model"
 
 	"github.com/samber/do/v2"
+	"gorm.io/gen/field"
 )
 
 type webhookRecordRepository struct{ repository *PayndaRepository }
@@ -68,7 +69,28 @@ func (r *webhookRecordRepository) List(
 }
 
 func (r *webhookRecordRepository) Save(ctx context.Context, item *model.WebhookRecord) error {
-	return r.repository.DB(ctx).WebhookRecord.WithContext(ctx).Save(item)
+	db := r.repository.DB(ctx)
+	table := db.WebhookRecord
+	assigns := []field.AssignExpr{
+		table.RequestHeaders.Value(item.RequestHeaders),
+		table.ResponseHeaders.Value(item.ResponseHeaders),
+		table.ResponseBody.Value(item.ResponseBody),
+		table.StatusCode.Value(item.StatusCode),
+		table.Status.Value(string(item.Status)),
+		table.ErrorMessage.Value(item.ErrorMessage),
+	}
+	if item.DeliveredAt == nil {
+		assigns = append(assigns, table.DeliveredAt.Null())
+	} else {
+		assigns = append(assigns, table.DeliveredAt.Value(*item.DeliveredAt))
+	}
+	_, err := table.WithContext(ctx).
+		Where(
+			table.ID.Eq(item.ID),
+			table.Channel.Eq(string(enums.Channel_Paynda)),
+		).
+		UpdateSimple(assigns...)
+	return err
 }
 
 var _ biz.PayndaWebhookRecordRepository = (*webhookRecordRepository)(nil)

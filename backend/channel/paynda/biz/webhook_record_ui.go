@@ -56,13 +56,6 @@ type payndaCardTransactionWebhook struct {
 	WalletID                            string `json:"walletId"`
 }
 
-func payndaMaskCardNumber(cardNumber string) string {
-	if len(cardNumber) <= 10 {
-		return cardNumber
-	}
-	return cardNumber[:6] + "******" + cardNumber[len(cardNumber)-4:]
-}
-
 func (u *PayndaUIUsecase) ReplayWebhookRecord(
 	ctx context.Context,
 	id model.ID,
@@ -115,6 +108,7 @@ func (u *PayndaUIUsecase) ReplayWebhookRecord(
 		TargetURL:      replay.TargetURL,
 		Payload:        replay.Payload,
 		RequestHeaders: replay.RequestHeaders,
+		Category:       replay.Event,
 	})
 	if result != nil {
 		replay.StatusCode = result.StatusCode
@@ -345,7 +339,7 @@ func (u *PayndaUIUsecase) payndaWebhookPayload(ctx context.Context, transaction 
 		BalanceAccountID: account.ID,
 		CardholderID:     holder.ID,
 		CardID:           card.ID,
-		MaskCardNo:       payndaMaskCardNumber(card.CardNumber),
+		MaskCardNo:       card.MaskedNumber(),
 		Type: string(paynda.ConvertGenericCardTransactionToTransactionType(
 			transaction.Type,
 			transaction.Status,

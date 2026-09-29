@@ -37,8 +37,22 @@ func (c *webhookClient) Deliver(ctx context.Context, req *biz.PayndaWebhookDeliv
 	if err != nil {
 		return nil, err
 	}
+	if len(req.RequestHeaders) > 0 {
+		var requestHeaders http.Header
+		if err := json.Unmarshal(req.RequestHeaders, &requestHeaders); err != nil {
+			return nil, err
+		}
+		for key, values := range requestHeaders {
+			httpRequest.Header.Del(key)
+			for _, value := range values {
+				httpRequest.Header.Add(key, value)
+			}
+		}
+	}
 	httpRequest.Header.Set("Content-Type", "application/json")
-	httpRequest.Header.Set("X-VK-NOTIFICATION-CATEGORY", req.Category)
+	if req.Category != "" {
+		httpRequest.Header.Set("X-VK-NOTIFICATION-CATEGORY", req.Category)
+	}
 	if c.appID != "" && c.appSecret != "" {
 		timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 		nonce := randomx.Digits(16)
@@ -48,11 +62,6 @@ func (c *webhookClient) Deliver(ctx context.Context, req *biz.PayndaWebhookDeliv
 		httpRequest.Header.Set("timestamp", timestamp)
 		httpRequest.Header.Set("nonce", nonce)
 		httpRequest.Header.Set("sign", hex.EncodeToString(hash[:]))
-	}
-	if len(req.RequestHeaders) > 0 {
-		if err := json.Unmarshal(req.RequestHeaders, &httpRequest.Header); err != nil {
-			return nil, err
-		}
 	}
 	requestHeaders, err := json.Marshal(httpRequest.Header)
 	if err != nil {
