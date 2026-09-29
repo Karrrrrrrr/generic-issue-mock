@@ -792,6 +792,8 @@ type PayndaTransactionData struct {
 	AuthorizationTime                   *timeTypes.DateTime    `json:"authorizationTime,omitempty"`
 	MerchantMcc                         string                 `json:"merchantMcc"`
 	MerchantName                        string                 `json:"merchantName"`
+	SupplierTransactionID               string                 `json:"supplierTransactionId"`
+	SupplierTransactionLinkID           string                 `json:"supplierTransactionLinkId"`
 	DeclineMessage                      string                 `json:"declineMessage"`
 }
 
@@ -1045,8 +1047,13 @@ func payndaTransactionData(item *biz.PayndaCardTransactionDetail) *PayndaTransac
 		value := timeTypes.DateTime(item.Authorization.CreatedAt)
 		authorizationTime = &value
 	}
+	transactionID := idconv.ToString(item.Transaction.ID)
+	supplierTransactionLinkID := ""
+	if item.Transaction.AuthorizationID != 0 {
+		supplierTransactionLinkID = idconv.ToString(item.Transaction.AuthorizationID)
+	}
 	return &PayndaTransactionData{
-		ID:                                  idconv.ToString(item.Transaction.ID),
+		ID:                                  transactionID,
 		CreateTime:                          timeTypes.DateTime(item.Transaction.CreatedAt.UTC()),
 		UpdateTime:                          timeTypes.DateTime(item.Transaction.UpdatedAt.UTC()),
 		CardID:                              idconv.ToString(item.Transaction.CardID),
@@ -1061,6 +1068,8 @@ func payndaTransactionData(item *biz.PayndaCardTransactionDetail) *PayndaTransac
 		AuthorizationTime:                   authorizationTime,
 		MerchantMcc:                         item.Transaction.MerchantMCC,
 		MerchantName:                        item.Transaction.MerchantName,
+		SupplierTransactionID:               transactionID,
+		SupplierTransactionLinkID:           supplierTransactionLinkID,
 	}
 }
 
