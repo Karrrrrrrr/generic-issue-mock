@@ -8,20 +8,20 @@ import {
   type GlobalThemeOverrides,
 } from "naive-ui";
 
-const isDark = ref(false);
+const initialTheme = localStorage.getItem("generic-mock-theme") === "dark";
+const isDark = ref(initialTheme);
 
 function syncTheme() {
   const nextTheme = localStorage.getItem("generic-mock-theme") === "dark";
   isDark.value = nextTheme;
-  document.documentElement.dataset.theme = nextTheme ? "dark" : "light";
 }
-
-syncTheme();
 
 onMounted(() => {
   window.addEventListener("generic-mock-theme-change", syncTheme);
 });
-onUnmounted(() => window.removeEventListener("generic-mock-theme-change", syncTheme));
+onUnmounted(() => {
+  window.removeEventListener("generic-mock-theme-change", syncTheme);
+});
 
 const themeOverrides = computed<GlobalThemeOverrides>(() => ({
   common: {
@@ -50,15 +50,15 @@ const themeOverrides = computed<GlobalThemeOverrides>(() => ({
   },
   Menu: {
     color: isDark.value ? "#242428" : "#ffffff",
-    groupTextColor: isDark.value ? "#a6adbb" : "#8a94a6",
+    groupTextColor: isDark.value ? "#b4bbc8" : "#475569",
     itemHeight: "44px",
-    itemTextColor: isDark.value ? "#e0e0e0" : "#666980",
+    itemTextColor: isDark.value ? "#e5e7eb" : "#1f2937",
     itemTextColorHover: "#12B89A",
     itemTextColorActive: "#12B89A",
-    itemColorHover: isDark.value ? "#2c3334" : "#edf8f6",
+    itemColorHover: isDark.value ? "#2c3334" : "#eef8f6",
     itemColorActive: isDark.value ? "#203c37" : "#e3f6f3",
     itemColorActiveHover: isDark.value ? "#284c44" : "#d4f0e9",
-    itemIconColor: isDark.value ? "#e0e0e0" : "#666980",
+    itemIconColor: isDark.value ? "#e5e7eb" : "#1f2937",
     itemIconColorHover: "#12B89A",
     itemIconColorActive: "#12B89A",
   },
@@ -69,7 +69,9 @@ const themeOverrides = computed<GlobalThemeOverrides>(() => ({
   <n-config-provider :theme="isDark ? darkTheme : undefined" :theme-overrides="themeOverrides">
     <n-message-provider>
       <n-dialog-provider>
-        <router-view/>
+        <div class="theme-root" :class="{ 'theme-root-dark': isDark }">
+          <router-view/>
+        </div>
       </n-dialog-provider>
     </n-message-provider>
   </n-config-provider>

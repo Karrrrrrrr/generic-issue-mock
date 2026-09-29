@@ -1,6 +1,16 @@
 :root {
-    color: #303133;
-    background: #f5f5f5;
+    --theme-bezier: var(--n-bezier, cubic-bezier(.4, 0, .2, 1));
+    --theme-duration: .3s;
+    --theme-color-transition:
+            color var(--theme-duration) var(--theme-bezier),
+            fill var(--theme-duration) var(--theme-bezier),
+            stroke var(--theme-duration) var(--theme-bezier),
+            caret-color var(--theme-duration) var(--theme-bezier),
+            -webkit-text-fill-color var(--theme-duration) var(--theme-bezier),
+            text-decoration-color var(--theme-duration) var(--theme-bezier);
+    --theme-surface-transition:
+            background-color var(--theme-duration) var(--theme-bezier),
+            border-color var(--theme-duration) var(--theme-bezier);
     font-family: Inter,
     -apple-system,
     BlinkMacSystemFont,
@@ -24,32 +34,45 @@ body,
     min-height: 100%;
 }
 
-html[data-theme="dark"] {
+.theme-root {
+    --app-bg: #f8fafc;
+    --app-surface: #ffffff;
+    --app-surface-muted: #eef8f6;
+    --app-border: #d8dee8;
+    --app-text: #1f2937;
+    --app-text-muted: #475569;
+    --app-brand-text: #0f4f77;
+    --app-brand: #12b89a;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    background: var(--app-bg);
+    color: var(--app-text);
+    color-scheme: light;
+    transition: var(--theme-color-transition), var(--theme-surface-transition);
+}
+
+.theme-root.theme-root-dark {
+    --app-bg: #18181c;
+    --app-surface: #242428;
+    --app-surface-muted: #202024;
+    --app-border: #3a3a40;
+    --app-text: #e5e7eb;
+    --app-text-muted: #b4bbc8;
+    --app-brand-text: #12b89a;
     color-scheme: dark;
 }
 
-html[data-theme="dark"] body,
-html[data-theme="dark"] .app-shell,
-html[data-theme="dark"] .content {
-    background: #18181c;
-    color: #e0e0e0;
-}
-
-html[data-theme="dark"] .sidebar,
-html[data-theme="dark"] .app-header {
-    background: #242428;
-    border-color: #3a3a40;
-}
-
-html[data-theme="dark"] .channel-logo {
-    color: #12b89a;
-    background: #202024;
-    border-color: #3a3a40;
-}
-
-html[data-theme="dark"] .simulation-heading p,
-html[data-theme="dark"] .page-heading p {
-    color: #a6adbb;
+.theme-root,
+.app-shell,
+.app-shell > .n-layout-scroll-container,
+.main-layout,
+.main-layout > .n-layout-scroll-container,
+.content,
+.content > .n-layout-scroll-container {
+    background: var(--app-bg);
+    color: var(--app-text);
+    transition: var(--theme-color-transition), var(--theme-surface-transition);
 }
 
 .app-shell {
@@ -85,8 +108,9 @@ html[data-theme="dark"] .page-heading p {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: #ffffff;
-    border-bottom: 1px solid #e5e7eb;
+    background: var(--app-surface);
+    border-bottom: 1px solid var(--app-border);
+    transition: var(--theme-surface-transition);
 }
 
 .header-actions {
@@ -96,26 +120,31 @@ html[data-theme="dark"] .page-heading p {
 }
 
 .app-header strong {
-    color: #114b72;
+    color: var(--app-brand-text);
     font-size: 17px;
+    transition: var(--theme-color-transition);
 }
 
 .app-header span {
-    color: #627084;
+    color: var(--app-text-muted);
     font-size: 13px;
+    transition: var(--theme-color-transition);
 }
 
 .sidebar {
     width: 208px;
     padding: 0;
     overflow: hidden;
-    background: #ffffff;
+    background: var(--app-surface);
+    transition: var(--theme-surface-transition);
 }
 
 .sidebar .n-layout-sider-scroll-container {
     height: 100%;
     overflow-x: hidden !important;
     overflow-y: auto;
+    background: var(--app-surface);
+    transition: var(--theme-surface-transition);
 }
 
 .sidebar .n-menu,
@@ -132,12 +161,12 @@ html[data-theme="dark"] .page-heading p {
 .sidebar .n-menu .n-menu-item-content::before {
     left: 0;
     right: 0;
-    transition: background-color 180ms ease;
+    transition: var(--theme-surface-transition);
 }
 
 .sidebar .n-menu .n-menu-item-content-header,
 .sidebar .n-menu .n-menu-item-content__icon {
-    transition: color 180ms ease;
+    transition: var(--theme-color-transition) !important;
 }
 
 .sidebar .n-menu .n-menu-item-content:focus-visible::before {
@@ -145,13 +174,40 @@ html[data-theme="dark"] .page-heading p {
     outline-offset: 2px;
 }
 
-.app-header,
-.app-header *,
-.page-heading,
-.page-heading *,
-.simulation-heading,
-.simulation-heading * {
-    transition: none !important;
+.n-menu-item-content-header,
+.n-menu-item-content__icon,
+.n-data-table-th,
+.n-data-table-th *,
+.n-data-table-td,
+.n-data-table-td *,
+.n-button__content,
+.n-form-item-label,
+.n-form-item-label *,
+.n-input__input-el,
+.n-input__placeholder,
+.n-base-selection-label,
+.n-base-selection-label * {
+    transition: var(--theme-color-transition) !important;
+}
+
+.n-input,
+.n-base-selection-label,
+.n-base-selection-tags,
+.n-menu,
+.n-menu-item-content {
+    transition:
+            var(--theme-color-transition),
+            var(--theme-surface-transition),
+            box-shadow var(--theme-duration) var(--theme-bezier) !important;
+}
+
+.n-input__border,
+.n-input__state-border,
+.n-base-selection__border,
+.n-base-selection__state-border {
+    transition:
+            border-color var(--theme-duration) var(--theme-bezier),
+            box-shadow var(--theme-duration) var(--theme-bezier) !important;
 }
 
 .channel-logo {
@@ -159,11 +215,12 @@ html[data-theme="dark"] .page-heading p {
     margin: 0 0 10px;
     display: grid;
     place-items: center;
-    color: #12b89a;
-    background: #e3f6f3;
-    border-bottom: 1px solid #e5e7eb;
+    color: var(--app-brand);
+    background: var(--app-surface-muted);
+    border-bottom: 1px solid var(--app-border);
     font-size: 14px;
     font-weight: 700;
+    transition: var(--theme-color-transition), var(--theme-surface-transition);
 }
 
 .content {
@@ -171,7 +228,8 @@ html[data-theme="dark"] .page-heading p {
     min-height: 0;
     padding: 0;
     min-width: 0;
-    background: #f5f5f5;
+    background: var(--app-bg);
+    transition: var(--theme-surface-transition);
 }
 
 .content > .n-layout-scroll-container {
@@ -193,9 +251,10 @@ html[data-theme="dark"] .page-heading p {
 .table-filters {
     margin-bottom: 24px;
     padding: 16px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--app-border);
     border-radius: 12px;
-    background: #ffffff;
+    background: var(--app-surface);
+    transition: var(--theme-surface-transition);
 }
 
 .filter-grid {
@@ -251,11 +310,6 @@ html[data-theme="dark"] .page-heading p {
     margin-bottom: 24px;
 }
 
-html[data-theme="dark"] .table-filters {
-    background: #242428;
-    border-color: #3a3a40;
-}
-
 .route-page .n-data-table {
     width: 100%;
     min-width: 0;
@@ -294,12 +348,14 @@ html[data-theme="dark"] .table-filters {
     margin: 0;
     font-size: 22px;
     font-weight: 600;
-    color: #303133;
+    color: var(--app-text);
+    transition: var(--theme-color-transition);
 }
 
 .simulation-heading p {
     margin: 6px 0 0;
-    color: #667085;
+    color: var(--app-text-muted);
+    transition: var(--theme-color-transition);
 }
 
 .page-heading {
@@ -313,24 +369,20 @@ html[data-theme="dark"] .table-filters {
     margin: 0;
     font-size: 20px;
     font-weight: 650;
-    color: #303133;
+    color: var(--app-text);
+    transition: var(--theme-color-transition);
 }
 
 .n-card-header__main {
-    color: #303133;
-    transition: none !important;
-}
-
-html[data-theme="dark"] .page-heading h1,
-html[data-theme="dark"] .simulation-heading h2,
-html[data-theme="dark"] .n-card-header__main {
-    color: #e0e0e0;
+    color: var(--app-text);
+    transition: var(--theme-color-transition) !important;
 }
 
 .page-heading p {
     margin: 5px 0 0;
-    color: #667085;
+    color: var(--app-text-muted);
     font-size: 13px;
+    transition: var(--theme-color-transition);
 }
 
 .table-actions {
@@ -474,9 +526,10 @@ html[data-theme="dark"] .n-card-header__main {
 }
 
 .authorization-hint {
-    color: #6b7280;
+    color: var(--app-text-muted);
     font-size: 13px;
     line-height: 1.7;
+    transition: var(--theme-color-transition);
 }
 
 p.authorization-hint {
@@ -492,8 +545,9 @@ p.authorization-hint {
 
 .authorization-info-grid dt {
     margin-bottom: 6px;
-    color: #6b7280;
+    color: var(--app-text-muted);
     font-size: 13px;
+    transition: var(--theme-color-transition);
 }
 
 .authorization-info-grid dd {
@@ -505,13 +559,8 @@ p.authorization-hint {
     display: block;
     margin-top: 4px;
     font-size: 12px;
-    color: #6b7280;
-}
-
-html[data-theme="dark"] .authorization-hint,
-html[data-theme="dark"] .authorization-info-grid dt,
-html[data-theme="dark"] .authorization-secondary-id {
-    color: #a6adbb;
+    color: var(--app-text-muted);
+    transition: var(--theme-color-transition);
 }
 
 .authorization-operations {
