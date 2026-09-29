@@ -35,7 +35,10 @@ func (client *webhookClient) Send(ctx context.Context, req *biz.SendWebhookReque
 		return nil, err
 	}
 	defer response.Body.Close()
-	result := &biz.SendWebhookResult{StatusCode: response.StatusCode, Headers: response.Header.Clone()}
+	result := &biz.SendWebhookResult{
+		StatusCode: response.StatusCode,
+		Headers:    response.Header.Clone(),
+	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, (1<<20)+1))
 	if len(body) > 1<<20 {
 		result.Body = string(body[:1<<20])

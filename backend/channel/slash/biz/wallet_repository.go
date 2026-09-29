@@ -10,9 +10,9 @@ type WalletListRequest struct {
 	AccountIDs []model.ID
 }
 
-type WalletFindByAccountIDForUpdateRequest struct {
-	AccountID *model.ID
-	ID        model.ID
+type WalletListByAccountIDForUpdateRequest struct {
+	AccountID model.ID
+	IDs       []model.ID
 }
 
 type LockWalletRequest struct {
@@ -33,5 +33,5 @@ type SlashWalletRepository interface {
 	Create(context.Context, *model.Wallet) error
 	FindByIDForUpdate(context.Context, model.ID) (*model.Wallet, error)
 	Save(context.Context, *model.Wallet) error
-	FindByAccountIDForUpdate(context.Context, *WalletFindByAccountIDForUpdateRequest) (*model.Wallet, error)
+	ListByAccountIDForUpdate(context.Context, *WalletListByAccountIDForUpdateRequest) ([]*model.Wallet, error)
 }

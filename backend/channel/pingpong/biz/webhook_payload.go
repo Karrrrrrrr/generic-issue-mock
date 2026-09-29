@@ -1,8 +1,6 @@
 package biz
 
 import (
-	"strings"
-
 	ping "generic-mock/channel/pingpong/enums"
 	pingerrors "generic-mock/channel/pingpong/errors"
 	"generic-mock/channel/pingpong/pkg/idconv"
@@ -119,20 +117,34 @@ func toWebhookPayload(req *webhookPayloadRequest) (any, error) {
 	card := req.Source.Card
 	cardID := idconv.ToString(card.ID)
 	budgetID := toWebhookOptionalID(card.VirtualAccountID)
-	masked := maskWebhookCardNumber(card.CardNumber)
+	masked := card.MaskedNumber()
 	switch req.Event {
 	case ping.WebhookOpenCard:
-		return &OpenCardWebhook{OrderID: cardID, BudgetID: budgetID, CardIDs: []string{cardID}}, nil
+		return &OpenCardWebhook{
+			OrderID:  cardID,
+			BudgetID: budgetID,
+			CardIDs: []string{
+				cardID,
+			},
+		}, nil
 	case ping.WebhookCardOperate:
 		transfer := req.Source.Transfer
 		if transfer == nil || transfer.Kind != common.WalletTransfer_CardTopUp {
 			return nil, pingerrors.ErrInvalid
 		}
 		return &CardOperateWebhook{
-			RecordID: idconv.ToString(transfer.ID), UniqueOrderID: transfer.RequestID,
-			Created: datetime.DateTime(transfer.CreatedAt.UTC()), ChangeAmount: webhookNumber{transfer.Amount.Round(2)},
-			Currency: transfer.Currency, CardNumber: masked, CardID: cardID, Remark: "Card funding",
-			Status: ping.FundingSuccess, OperateType: ping.WebhookCardIn, BudgetID: budgetID, OperateReason: "Card funding",
+			RecordID:      idconv.ToString(transfer.ID),
+			UniqueOrderID: transfer.RequestID,
+			Created:       datetime.DateTime(transfer.CreatedAt.UTC()),
+			ChangeAmount:  ConvertDecimalToWebhookNumber(transfer.Amount),
+			Currency:      transfer.Currency,
+			CardNumber:    masked,
+			CardID:        cardID,
+			Remark:        "Card funding",
+			Status:        ping.FundingSuccess,
+			OperateType:   ping.WebhookCardIn,
+			BudgetID:      budgetID,
+			OperateReason: "Card funding",
 		}, nil
 	case ping.WebhookTransfer:
 		transfer := req.Source.Transfer
@@ -145,9 +157,14 @@ func toWebhookPayload(req *webhookPayloadRequest) (any, error) {
 			reason = "Card deactivation balance transfer"
 		}
 		return &TransferWebhook{
-			TransferReason: reason, TransferInType: ping.WebhookTransferBudget, TransferOutType: ping.WebhookTransferCard,
-			CardID: cardID, BudgetID: budgetID, TransferDate: datetime.DateTime(transfer.CreatedAt.UTC()),
-			TransferAmount: webhookNumber{transfer.Amount.Round(2)}, TransferCurrency: transfer.Currency,
+			TransferReason:   reason,
+			TransferInType:   ping.WebhookTransferBudget,
+			TransferOutType:  ping.WebhookTransferCard,
+			CardID:           cardID,
+			BudgetID:         budgetID,
+			TransferDate:     datetime.DateTime(transfer.CreatedAt.UTC()),
+			TransferAmount:   ConvertDecimalToWebhookNumber(transfer.Amount),
+			TransferCurrency: transfer.Currency,
 		}, nil
 	case ping.WebhookAuthorization:
 		transaction := req.Source.Transaction
@@ -155,15 +172,25 @@ func toWebhookPayload(req *webhookPayloadRequest) (any, error) {
 			return nil, pingerrors.ErrInvalid
 		}
 		payload := &AuthorizationWebhook{
-			AuthorizationDate: datetime.DateTime(transaction.CreatedAt.UTC()),
-			AuthorizationID:   idconv.ToString(transaction.AuthorizationID),
-			CardID:            cardID, CardNumber: masked, ApproveCode: transaction.AuthorizationCode,
-			MCC: transaction.MerchantMCC, MerchantName: transaction.MerchantName, MerchantCountry: transaction.MerchantCountry,
-			BillingAmount: webhookNumber{transaction.TxAmount.Round(2)}, BillingCurrency: transaction.Currency,
-			TransactionAmount: webhookNumber{transaction.TxAmount.Round(2)}, TransactionCurrency: transaction.TxCurrency,
-			AuthorizationType: ping.WebhookAuth, AuthorizationStatus: ping.WebhookApproved,
-			BudgetID: budgetID, RateFee: webhookNumber{decimal.Zero}, RateFeeCurrency: transaction.Currency,
-			ThreeDSFee: webhookNumber{decimal.Zero}, ThreeDSFeeCurrency: transaction.Currency,
+			AuthorizationDate:   datetime.DateTime(transaction.CreatedAt.UTC()),
+			AuthorizationID:     idconv.ToString(transaction.AuthorizationID),
+			CardID:              cardID,
+			CardNumber:          masked,
+			ApproveCode:         transaction.AuthorizationCode,
+			MCC:                 transaction.MerchantMCC,
+			MerchantName:        transaction.MerchantName,
+			MerchantCountry:     transaction.MerchantCountry,
+			BillingAmount:       ConvertDecimalToWebhookNumber(transaction.TxAmount),
+			BillingCurrency:     transaction.Currency,
+			TransactionAmount:   ConvertDecimalToWebhookNumber(transaction.TxAmount),
+			TransactionCurrency: transaction.TxCurrency,
+			AuthorizationType:   ping.WebhookAuth,
+			AuthorizationStatus: ping.WebhookApproved,
+			BudgetID:            budgetID,
+			RateFee:             ConvertDecimalToWebhookNumber(decimal.Zero),
+			RateFeeCurrency:     transaction.Currency,
+			ThreeDSFee:          ConvertDecimalToWebhookNumber(decimal.Zero),
+			ThreeDSFeeCurrency:  transaction.Currency,
 		}
 		if transaction.Type == common.CardTransactionType_VOID {
 			payload.AuthorizationType = ping.WebhookReversal
@@ -191,10 +218,18 @@ func toWebhookPayload(req *webhookPayloadRequest) (any, error) {
 			return nil, pingerrors.ErrInvalid
 		}
 		payload := &ClearingWebhook{
-			ClearDate: datetime.DateTime(transaction.CreatedAt.UTC()), CardID: cardID, CardNumber: masked,
-			ClearID: idconv.ToString(transaction.ID), ClearType: clearType, ClearStatus: ping.WebhookSettled,
-			SettlementAmount: webhookNumber{transaction.TxAmount.Round(2)}, SettlementCurrency: transaction.Currency,
-			BudgetID: budgetID, MerchantName: transaction.MerchantName, MerchantCountry: transaction.MerchantCountry, MCC: transaction.MerchantMCC,
+			ClearDate:          datetime.DateTime(transaction.CreatedAt.UTC()),
+			CardID:             cardID,
+			CardNumber:         masked,
+			ClearID:            idconv.ToString(transaction.ID),
+			ClearType:          clearType,
+			ClearStatus:        ping.WebhookSettled,
+			SettlementAmount:   ConvertDecimalToWebhookNumber(transaction.TxAmount),
+			SettlementCurrency: transaction.Currency,
+			BudgetID:           budgetID,
+			MerchantName:       transaction.MerchantName,
+			MerchantCountry:    transaction.MerchantCountry,
+			MCC:                transaction.MerchantMCC,
 		}
 		if transaction.AuthorizationID > 0 {
 			originalID := idconv.ToString(transaction.AuthorizationID)
@@ -214,13 +249,12 @@ func toWebhookOptionalID(value *model.ID) *string {
 	return &result
 }
 
-func maskWebhookCardNumber(value string) string {
-	if len(value) < 10 {
-		return strings.Repeat("*", len(value))
-	}
-	return value[:6] + strings.Repeat("*", len(value)-10) + value[len(value)-4:]
-}
-
 type webhookNumber struct{ decimal.Decimal }
+
+func ConvertDecimalToWebhookNumber(value decimal.Decimal) webhookNumber {
+	return webhookNumber{
+		Decimal: value.Round(2),
+	}
+}
 
 func (value webhookNumber) MarshalJSON() ([]byte, error) { return []byte(value.String()), nil }

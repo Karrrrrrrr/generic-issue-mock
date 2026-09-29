@@ -155,24 +155,28 @@ func (u *SlashOpenAPIUsecase) TransferVirtualAccount(ctx context.Context, req *O
 			zap.S().Errorw("find slash destination account", "error", err)
 			return slasherrors.ErrDatabaseOperation
 		}
-		first, second := source.WalletID, destination.WalletID
-		if first > second {
-			first, second = second, first
+		wallets, err := u.walletRepository.ListByAccountIDForUpdate(txCtx, &WalletListByAccountIDForUpdateRequest{
+			AccountID: req.AccountID,
+			IDs: []model.ID{
+				source.WalletID,
+				destination.WalletID,
+			},
+		})
+		if err != nil {
+			zap.S().Errorw("lock slash virtual account wallets", "error", err)
+			return slasherrors.ErrDatabaseOperation
 		}
-		locked := make(map[model.ID]*model.Wallet, 2)
-		for _, id := range []model.ID{first, second} {
-			wallet, err := u.walletRepository.FindByAccountIDForUpdate(txCtx, &WalletFindByAccountIDForUpdateRequest{
-				AccountID: &req.AccountID,
-				ID:        id,
-			})
-			if err != nil {
-				zap.S().Errorw("lock slash virtual account wallet", "error", err)
-				return slasherrors.ErrDatabaseOperation
-			}
-			locked[id] = wallet
+		locked := make(map[model.ID]*model.Wallet, len(wallets))
+		for _, wallet := range wallets {
+			locked[wallet.ID] = wallet
 		}
 		amount := decimal.NewFromInt(req.AmountCents).Div(decimal.NewFromInt(100))
-		sourceWallet, destinationWallet := locked[source.WalletID], locked[destination.WalletID]
+		sourceWallet := locked[source.WalletID]
+		destinationWallet := locked[destination.WalletID]
+		if sourceWallet == nil || destinationWallet == nil {
+			zap.S().Errorw("missing slash virtual account wallet", "source_wallet_id", source.WalletID, "destination_wallet_id", destination.WalletID)
+			return slasherrors.ErrDatabaseOperation
+		}
 		if sourceWallet.Available.LessThan(amount) {
 			return slasherrors.ErrInvalidOperation
 		}

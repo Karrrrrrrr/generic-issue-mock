@@ -31,6 +31,9 @@ func (adapter *sharedUIWebhookAdapter) Replay(ctx context.Context, req *sharedbi
 	if req == nil || req.Record == nil || req.Record.Channel != enums.Channel_Slash {
 		return sharederrors.ErrInvalidUIRequest
 	}
-	_, err := adapter.webhookUsecase.ReplayRecord(ctx, &biz.ReplayWebhookRecordRequest{AccountID: req.Record.AccountID, ID: req.Record.ID})
+	_, err := adapter.webhookUsecase.ReplayRecord(ctx, &biz.ReplayWebhookRecordRequest{
+		AccountID: req.Record.AccountID,
+		ID:        req.Record.ID,
+	})
 	return err
 }

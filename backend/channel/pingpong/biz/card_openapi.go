@@ -148,7 +148,11 @@ func (uc *PingPongOpenAPIUsecase) CreateCard(ctx context.Context, req *CreateCar
 		return nil
 	})
 	if err == nil && created && req.Notificator != nil {
-		_ = req.Notificator.NotifyIssueCard(ctx, &sharedbiz.NotifyIssueCardReq{AccountID: card.AccountID, Channel: common.Channel_PingPong, CardID: card.ID})
+		_ = req.Notificator.NotifyIssueCard(ctx, &sharedbiz.NotifyIssueCardReq{
+			AccountID: card.AccountID,
+			Channel:   common.Channel_PingPong,
+			CardID:    card.ID,
+		})
 	}
 	return card, err
 }

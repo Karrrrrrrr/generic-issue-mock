@@ -19,7 +19,11 @@ func (s *PingPongUIService) DispatchWebhook(ctx context.Context, req *DispatchWe
 	if req == nil {
 		return nil, pingerrors.ErrInvalid
 	}
-	if err := s.webhook.Dispatch(ctx, &biz.LoadWebhookSourceRequest{AccountID: req.AccountID, SourceID: req.SourceID, Event: req.Event}); err != nil {
+	if err := s.webhook.Dispatch(ctx, &biz.LoadWebhookSourceRequest{
+		AccountID: req.AccountID,
+		SourceID:  req.SourceID,
+		Event:     req.Event,
+	}); err != nil {
 		return nil, err
 	}
 	return &Empty{}, nil

@@ -74,7 +74,7 @@ func (uc *PingPongOpenAPIUsecase) FundCard(ctx context.Context, req *CardFunding
 			RequestID: &req.RequestID,
 		}
 		if req.Withdraw {
-			transfer.SourceID, transfer.TargetID = transfer.TargetID, transfer.SourceID
+			types.Swap(&transfer.SourceID, &transfer.TargetID)
 			transfer.Kind = common.WalletTransfer_CardWithdraw
 		}
 		previous, err := uc.findPreviousTransfer(ctx, transfer)
@@ -92,7 +92,11 @@ func (uc *PingPongOpenAPIUsecase) FundCard(ctx context.Context, req *CardFunding
 		return err
 	})
 	if err == nil && req.Notificator != nil {
-		_ = req.Notificator.NotifyCardFunding(ctx, &sharedbiz.NotifyCardFundingReq{AccountID: result.AccountID, Channel: common.Channel_PingPong, WalletTransferID: result.ID})
+		_ = req.Notificator.NotifyCardFunding(ctx, &sharedbiz.NotifyCardFundingReq{
+			AccountID:        result.AccountID,
+			Channel:          common.Channel_PingPong,
+			WalletTransferID: result.ID,
+		})
 	}
 	return result, err
 }
@@ -189,7 +193,7 @@ func (uc *PingPongOpenAPIUsecase) transferWalletFunds(ctx context.Context, req *
 	}
 	ids := []model.ID{req.SourceID, req.TargetID}
 	if ids[0] > ids[1] {
-		ids[0], ids[1] = ids[1], ids[0]
+		types.Swap(&ids[0], &ids[1])
 	}
 	wallets := make(map[model.ID]*model.Wallet)
 	for _, id := range ids {

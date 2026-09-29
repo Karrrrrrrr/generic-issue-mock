@@ -83,5 +83,8 @@ func failure(err error) (int, any) {
 	if status < http.StatusBadRequest || status > 599 {
 		status = http.StatusInternalServerError
 	}
-	return status, errorResponse{Reason: converted.Reason, Message: converted.Message}
+	return status, errorResponse{
+		Reason:  converted.Reason,
+		Message: converted.Message,
+	}
 }

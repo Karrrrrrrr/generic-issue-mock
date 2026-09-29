@@ -302,7 +302,10 @@ func (s *PingPongOpenAPIService) Query3DSDetails(ctx context.Context, req *Three
 	if err != nil {
 		return nil, err
 	}
-	card, err := s.uc.GetCard(ctx, &biz.GetCardRequest{AccountID: accountID, ID: cardID})
+	card, err := s.uc.GetCard(ctx, &biz.GetCardRequest{
+		AccountID: accountID,
+		ID:        cardID,
+	})
 	if err != nil {
 		return nil, err
 	}

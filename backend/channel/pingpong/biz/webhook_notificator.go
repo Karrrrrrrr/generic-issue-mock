@@ -30,21 +30,32 @@ func (uc *PingPongWebhookUsecase) NotifyCardTransaction(ctx context.Context, req
 	default:
 		return pingerrors.ErrInvalid
 	}
-	return uc.Dispatch(ctx, &LoadWebhookSourceRequest{AccountID: req.AccountID, SourceID: req.CardTransactionID, Event: event})
+	return uc.Dispatch(ctx, &LoadWebhookSourceRequest{
+		AccountID: req.AccountID,
+		SourceID:  req.CardTransactionID,
+		Event:     event,
+	})
 }
 
 func (uc *PingPongWebhookUsecase) NotifyIssueCard(ctx context.Context, req *sharedbiz.NotifyIssueCardReq) error {
 	if req == nil || req.Channel != common.Channel_PingPong {
 		return pingerrors.ErrInvalid
 	}
-	return uc.Dispatch(ctx, &LoadWebhookSourceRequest{AccountID: req.AccountID, SourceID: req.CardID, Event: ping.WebhookOpenCard})
+	return uc.Dispatch(ctx, &LoadWebhookSourceRequest{
+		AccountID: req.AccountID,
+		SourceID:  req.CardID,
+		Event:     ping.WebhookOpenCard,
+	})
 }
 
 func (uc *PingPongWebhookUsecase) NotifyCardFunding(ctx context.Context, req *sharedbiz.NotifyCardFundingReq) error {
 	if req == nil || req.Channel != common.Channel_PingPong {
 		return pingerrors.ErrInvalid
 	}
-	source, err := uc.LoadFundingSource(ctx, &LoadWebhookFundingRequest{AccountID: req.AccountID, TransferID: req.WalletTransferID})
+	source, err := uc.LoadFundingSource(ctx, &LoadWebhookFundingRequest{
+		AccountID:  req.AccountID,
+		TransferID: req.WalletTransferID,
+	})
 	if err != nil {
 		return err
 	}
@@ -67,7 +78,10 @@ func (uc *PingPongWebhookUsecase) Replay(ctx context.Context, req *sharedbiz.UIW
 	if req == nil || req.Record == nil || req.Record.Channel != common.Channel_PingPong {
 		return pingerrors.ErrInvalid
 	}
-	return uc.ReplayRecord(ctx, &ReplayWebhookRequest{AccountID: req.Record.AccountID, ID: req.Record.ID})
+	return uc.ReplayRecord(ctx, &ReplayWebhookRequest{
+		AccountID: req.Record.AccountID,
+		ID:        req.Record.ID,
+	})
 }
 
 func (uc *PingPongWebhookUsecase) Dispatch(ctx context.Context, req *LoadWebhookSourceRequest) error {
@@ -75,7 +89,10 @@ func (uc *PingPongWebhookUsecase) Dispatch(ctx context.Context, req *LoadWebhook
 	if err != nil {
 		return err
 	}
-	payload, err := toWebhookPayload(&webhookPayloadRequest{Event: req.Event, Source: source})
+	payload, err := toWebhookPayload(&webhookPayloadRequest{
+		Event:  req.Event,
+		Source: source,
+	})
 	if err != nil {
 		return err
 	}
@@ -86,6 +103,9 @@ func (uc *PingPongWebhookUsecase) Dispatch(ctx context.Context, req *LoadWebhook
 	}
 	// TODO: 确认事件所在 header/外层封装，暂直接发送文档业务 JSON，不自行添加协议字段；签名暂不实现。
 	return uc.Queue(ctx, &QueueWebhookRequest{
-		AccountID: req.AccountID, Event: req.Event, SourceID: idconv.ToString(req.SourceID), Payload: raw,
+		AccountID: req.AccountID,
+		Event:     req.Event,
+		SourceID:  idconv.ToString(req.SourceID),
+		Payload:   raw,
 	})
 }

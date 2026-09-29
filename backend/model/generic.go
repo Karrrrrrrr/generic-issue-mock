@@ -2,6 +2,7 @@ package model
 
 import (
 	"generic-mock/enums"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -49,6 +50,17 @@ type Card struct {
 	CardProduct    *CardProduct    `gorm:"foreignKey:CardProductID;references:ID;->"`
 	VirtualCard    *VirtualCard    `gorm:"foreignKey:CardID;references:ID;->"`
 	PhysicalCard   *PhysicalCard   `gorm:"foreignKey:CardID;references:ID;->"`
+}
+
+func (card *Card) MaskedNumber() string {
+	if card == nil {
+		return ""
+	}
+	if len(card.CardNumber) < 10 {
+		return strings.Repeat("*", len(card.CardNumber))
+	}
+
+	return card.CardNumber[:6] + strings.Repeat("*", len(card.CardNumber)-10) + card.CardNumber[len(card.CardNumber)-4:]
 }
 
 type CardProduct struct {

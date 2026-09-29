@@ -68,7 +68,11 @@ func (uc *PingPongWebhookUsecase) LoadSource(ctx context.Context, req *LoadWebho
 	cardID := req.SourceID
 	switch req.Event {
 	case ping.WebhookAuthorization, ping.WebhookClearing:
-		exists, err := uc.cardTransactionRepo.Exist(ctx, &sharedbiz.CardTransactionExistRequest{AccountID: req.AccountID, Channel: common.Channel_PingPong, ID: req.SourceID})
+		exists, err := uc.cardTransactionRepo.Exist(ctx, &sharedbiz.CardTransactionExistRequest{
+			AccountID: req.AccountID,
+			Channel:   common.Channel_PingPong,
+			ID:        req.SourceID,
+		})
 		if err != nil {
 			zap.S().Errorw("check pingpong webhook transaction", "error", err)
 			return nil, pingerrors.ErrDatabase
@@ -76,7 +80,11 @@ func (uc *PingPongWebhookUsecase) LoadSource(ctx context.Context, req *LoadWebho
 		if !exists {
 			return nil, pingerrors.ErrNotFound
 		}
-		result.Transaction, err = uc.cardTransactionRepo.Find(ctx, &sharedbiz.CardTransactionFindRequest{AccountID: req.AccountID, Channel: common.Channel_PingPong, ID: req.SourceID})
+		result.Transaction, err = uc.cardTransactionRepo.Find(ctx, &sharedbiz.CardTransactionFindRequest{
+			AccountID: req.AccountID,
+			Channel:   common.Channel_PingPong,
+			ID:        req.SourceID,
+		})
 		if err != nil {
 			zap.S().Errorw("find pingpong webhook transaction", "error", err)
 			return nil, pingerrors.ErrDatabase
@@ -98,7 +106,11 @@ func (uc *PingPongWebhookUsecase) LoadSource(ctx context.Context, req *LoadWebho
 		}
 		cardID = item.CardID
 	case ping.WebhookCardOperate, ping.WebhookTransfer:
-		exists, err := uc.walletTransferRepo.Exist(ctx, &sharedbiz.WalletTransferExistRequest{AccountID: req.AccountID, Channel: common.Channel_PingPong, ID: req.SourceID})
+		exists, err := uc.walletTransferRepo.Exist(ctx, &sharedbiz.WalletTransferExistRequest{
+			AccountID: req.AccountID,
+			Channel:   common.Channel_PingPong,
+			ID:        req.SourceID,
+		})
 		if err != nil {
 			zap.S().Errorw("check pingpong webhook transfer", "error", err)
 			return nil, pingerrors.ErrDatabase
@@ -106,7 +118,11 @@ func (uc *PingPongWebhookUsecase) LoadSource(ctx context.Context, req *LoadWebho
 		if !exists {
 			return nil, pingerrors.ErrNotFound
 		}
-		result.Transfer, err = uc.walletTransferRepo.Find(ctx, &sharedbiz.WalletTransferFindRequest{AccountID: req.AccountID, Channel: common.Channel_PingPong, ID: req.SourceID})
+		result.Transfer, err = uc.walletTransferRepo.Find(ctx, &sharedbiz.WalletTransferFindRequest{
+			AccountID: req.AccountID,
+			Channel:   common.Channel_PingPong,
+			ID:        req.SourceID,
+		})
 		if err != nil {
 			zap.S().Errorw("find pingpong webhook transfer", "error", err)
 			return nil, pingerrors.ErrDatabase
@@ -122,7 +138,11 @@ func (uc *PingPongWebhookUsecase) LoadSource(ctx context.Context, req *LoadWebho
 		}
 		cardID = *result.Transfer.CardID
 	}
-	exists, err := uc.cardRepo.Exist(ctx, &sharedbiz.CardExistRequest{AccountID: req.AccountID, Channel: common.Channel_PingPong, ID: cardID})
+	exists, err := uc.cardRepo.Exist(ctx, &sharedbiz.CardExistRequest{
+		AccountID: req.AccountID,
+		Channel:   common.Channel_PingPong,
+		ID:        cardID,
+	})
 	if err != nil {
 		zap.S().Errorw("check pingpong webhook card", "error", err)
 		return nil, pingerrors.ErrDatabase
@@ -130,7 +150,11 @@ func (uc *PingPongWebhookUsecase) LoadSource(ctx context.Context, req *LoadWebho
 	if !exists {
 		return nil, pingerrors.ErrNotFound
 	}
-	result.Card, err = uc.cardRepo.Find(ctx, &sharedbiz.CardFindRequest{AccountID: req.AccountID, Channel: common.Channel_PingPong, ID: cardID})
+	result.Card, err = uc.cardRepo.Find(ctx, &sharedbiz.CardFindRequest{
+		AccountID: req.AccountID,
+		Channel:   common.Channel_PingPong,
+		ID:        cardID,
+	})
 	if err != nil {
 		zap.S().Errorw("find pingpong webhook card", "error", err)
 		return nil, pingerrors.ErrDatabase
@@ -169,7 +193,10 @@ func (uc *PingPongWebhookUsecase) Queue(ctx context.Context, req *QueueWebhookRe
 	}
 	var pending []*model.WebhookRecord
 	err := uc.tx.InTx(ctx, func(ctx context.Context) error {
-		exists, err := uc.accountRepo.Exist(ctx, &sharedbiz.AccountExistRequest{ID: req.AccountID, Channel: common.Channel_PingPong})
+		exists, err := uc.accountRepo.Exist(ctx, &sharedbiz.AccountExistRequest{
+			ID:      req.AccountID,
+			Channel: common.Channel_PingPong,
+		})
 		if err != nil {
 			zap.S().Errorw("check pingpong webhook owner", "error", err)
 			return pingerrors.ErrDatabase
@@ -177,14 +204,26 @@ func (uc *PingPongWebhookUsecase) Queue(ctx context.Context, req *QueueWebhookRe
 		if !exists {
 			return pingerrors.ErrNotFound
 		}
-		if _, err := uc.accountRepo.FindByIDWithLock(ctx, &sharedbiz.AccountFindByIDWithLockRequest{ID: req.AccountID, Channel: common.Channel_PingPong}); err != nil {
+		if _, err := uc.accountRepo.FindByIDWithLock(ctx, &sharedbiz.AccountFindByIDWithLockRequest{
+			ID:      req.AccountID,
+			Channel: common.Channel_PingPong,
+		}); err != nil {
 			zap.S().Errorw("lock pingpong webhook owner", "error", err)
 			return pingerrors.ErrDatabase
 		}
 		for offset := 0; ; offset += 100 {
 			configs, err := uc.webhookConfigRepo.List(ctx, &sharedbiz.WebhookConfigListRequest{
-				WebhookConfigFilters: sharedbiz.WebhookConfigFilters{AccountIDs: []model.ID{req.AccountID}, Channel: common.Channel_PingPong, Events: []string{string(req.Event)}},
-				Offset:               offset, Limit: 100,
+				WebhookConfigFilters: sharedbiz.WebhookConfigFilters{
+					AccountIDs: []model.ID{
+						req.AccountID,
+					},
+					Channel: common.Channel_PingPong,
+					Events: []string{
+						string(req.Event),
+					},
+				},
+				Offset: offset,
+				Limit:  100,
 			})
 			if err != nil {
 				zap.S().Errorw("list pingpong webhook subscriptions", "error", err)
@@ -195,7 +234,11 @@ func (uc *PingPongWebhookUsecase) Queue(ctx context.Context, req *QueueWebhookRe
 					continue
 				}
 				exists, err := uc.webhookRecordRepo.ExistBySource(ctx, &sharedbiz.WebhookRecordExistBySourceRequest{
-					AccountID: req.AccountID, Channel: common.Channel_PingPong, WebhookConfigID: config.ID, Event: string(req.Event), SourceID: req.SourceID,
+					AccountID:       req.AccountID,
+					Channel:         common.Channel_PingPong,
+					WebhookConfigID: config.ID,
+					Event:           string(req.Event),
+					SourceID:        req.SourceID,
 				})
 				if err != nil {
 					zap.S().Errorw("check pingpong webhook duplicate", "error", err)
@@ -205,10 +248,17 @@ func (uc *PingPongWebhookUsecase) Queue(ctx context.Context, req *QueueWebhookRe
 					continue
 				}
 				record := &model.WebhookRecord{
-					AccountID: req.AccountID, Channel: common.Channel_PingPong, WebhookConfigID: config.ID,
-					Event: string(req.Event), SourceID: req.SourceID, TargetURL: config.TargetURL,
-					Payload: slices.Clone(req.Payload), RequestHeaders: []byte(`{"Content-Type":["application/json"]}`),
-					ResponseHeaders: []byte(`{}`), Status: common.WebhookDeliveryStatus_Pending, AttemptCount: 1,
+					AccountID:       req.AccountID,
+					Channel:         common.Channel_PingPong,
+					WebhookConfigID: config.ID,
+					Event:           string(req.Event),
+					SourceID:        req.SourceID,
+					TargetURL:       config.TargetURL,
+					Payload:         slices.Clone(req.Payload),
+					RequestHeaders:  []byte(`{"Content-Type":["application/json"]}`),
+					ResponseHeaders: []byte(`{}`),
+					Status:          common.WebhookDeliveryStatus_Pending,
+					AttemptCount:    1,
 				}
 				if err := uc.webhookRecordRepo.Create(ctx, &sharedbiz.WebhookRecordCreateRequest{Record: record}); err != nil {
 					zap.S().Errorw("create pingpong webhook delivery", "error", err)
@@ -247,7 +297,11 @@ func (uc *PingPongWebhookUsecase) ReplayRecord(ctx context.Context, req *ReplayW
 	if uc.tx.IsInTx(ctx) {
 		return pingerrors.ErrWebhookInTransaction
 	}
-	exists, err := uc.webhookRecordRepo.Exist(ctx, &sharedbiz.WebhookRecordExistRequest{AccountID: req.AccountID, Channel: common.Channel_PingPong, ID: req.ID})
+	exists, err := uc.webhookRecordRepo.Exist(ctx, &sharedbiz.WebhookRecordExistRequest{
+		AccountID: req.AccountID,
+		Channel:   common.Channel_PingPong,
+		ID:        req.ID,
+	})
 	if err != nil {
 		zap.S().Errorw("check pingpong replay source", "error", err)
 		return pingerrors.ErrDatabase
@@ -255,16 +309,27 @@ func (uc *PingPongWebhookUsecase) ReplayRecord(ctx context.Context, req *ReplayW
 	if !exists {
 		return pingerrors.ErrNotFound
 	}
-	source, err := uc.webhookRecordRepo.Find(ctx, &sharedbiz.WebhookRecordFindRequest{AccountID: req.AccountID, Channel: common.Channel_PingPong, ID: req.ID})
+	source, err := uc.webhookRecordRepo.Find(ctx, &sharedbiz.WebhookRecordFindRequest{
+		AccountID: req.AccountID,
+		Channel:   common.Channel_PingPong,
+		ID:        req.ID,
+	})
 	if err != nil {
 		zap.S().Errorw("find pingpong replay source", "error", err)
 		return pingerrors.ErrDatabase
 	}
 	replay := &model.WebhookRecord{
-		AccountID: source.AccountID, Channel: source.Channel, WebhookConfigID: source.WebhookConfigID,
-		Event: source.Event, SourceID: source.SourceID, TargetURL: source.TargetURL,
-		Payload: slices.Clone(source.Payload), RequestHeaders: slices.Clone(source.RequestHeaders),
-		ResponseHeaders: []byte(`{}`), Status: common.WebhookDeliveryStatus_Pending, AttemptCount: source.AttemptCount + 1,
+		AccountID:       source.AccountID,
+		Channel:         source.Channel,
+		WebhookConfigID: source.WebhookConfigID,
+		Event:           source.Event,
+		SourceID:        source.SourceID,
+		TargetURL:       source.TargetURL,
+		Payload:         slices.Clone(source.Payload),
+		RequestHeaders:  slices.Clone(source.RequestHeaders),
+		ResponseHeaders: []byte(`{}`),
+		Status:          common.WebhookDeliveryStatus_Pending,
+		AttemptCount:    source.AttemptCount + 1,
 	}
 	if err := uc.webhookRecordRepo.Create(ctx, &sharedbiz.WebhookRecordCreateRequest{Record: replay}); err != nil {
 		zap.S().Errorw("create pingpong webhook replay", "error", err)
@@ -280,16 +345,26 @@ func (uc *PingPongWebhookUsecase) deliver(ctx context.Context, record *model.Web
 	err := json.Unmarshal(record.RequestHeaders, &headers)
 	var result *SendWebhookResult
 	if err == nil {
-		result, err = uc.client.Send(ctx, &SendWebhookRequest{TargetURL: record.TargetURL, Payload: record.Payload, Headers: headers})
+		result, err = uc.client.Send(ctx, &SendWebhookRequest{
+			TargetURL: record.TargetURL,
+			Payload:   record.Payload,
+			Headers:   headers,
+		})
 	}
 	update := &sharedbiz.WebhookRecordUpdateDeliveryRequest{
-		AccountID: record.AccountID, Channel: record.Channel, ID: record.ID,
-		Status: common.WebhookDeliveryStatus_Failed, ResponseHeaders: []byte(`{}`),
+		AccountID:       record.AccountID,
+		Channel:         record.Channel,
+		ID:              record.ID,
+		Status:          common.WebhookDeliveryStatus_Failed,
+		ResponseHeaders: []byte(`{}`),
 	}
 	if result != nil {
 		update.StatusCode = result.StatusCode
 		update.ResponseBody = result.Body
-		update.ResponseHeaders, _ = json.Marshal(result.Headers)
+		responseHeaders, err := json.Marshal(result.Headers)
+		if err == nil {
+			update.ResponseHeaders = responseHeaders
+		}
 	}
 	// TODO: 暂定 HTTP 200 即成功，待确认 ACK body 及正式成功条件。
 	if err == nil && result != nil && result.StatusCode == http.StatusOK {
@@ -325,7 +400,11 @@ func (uc *PingPongWebhookUsecase) LoadFundingSource(ctx context.Context, req *Lo
 	if req == nil || req.AccountID <= 0 || req.TransferID <= 0 {
 		return nil, pingerrors.ErrInvalid
 	}
-	exists, err := uc.walletTransferRepo.Exist(ctx, &sharedbiz.WalletTransferExistRequest{AccountID: req.AccountID, Channel: common.Channel_PingPong, ID: req.TransferID})
+	exists, err := uc.walletTransferRepo.Exist(ctx, &sharedbiz.WalletTransferExistRequest{
+		AccountID: req.AccountID,
+		Channel:   common.Channel_PingPong,
+		ID:        req.TransferID,
+	})
 	if err != nil {
 		zap.S().Errorw("check pingpong funding notification source", "error", err)
 		return nil, pingerrors.ErrDatabase
@@ -333,7 +412,11 @@ func (uc *PingPongWebhookUsecase) LoadFundingSource(ctx context.Context, req *Lo
 	if !exists {
 		return nil, pingerrors.ErrNotFound
 	}
-	transfer, err := uc.walletTransferRepo.Find(ctx, &sharedbiz.WalletTransferFindRequest{AccountID: req.AccountID, Channel: common.Channel_PingPong, ID: req.TransferID})
+	transfer, err := uc.walletTransferRepo.Find(ctx, &sharedbiz.WalletTransferFindRequest{
+		AccountID: req.AccountID,
+		Channel:   common.Channel_PingPong,
+		ID:        req.TransferID,
+	})
 	if err != nil {
 		zap.S().Errorw("find pingpong funding notification source", "error", err)
 		return nil, pingerrors.ErrDatabase
@@ -344,5 +427,9 @@ func (uc *PingPongWebhookUsecase) LoadFundingSource(ctx context.Context, req *Lo
 	} else if transfer.Kind != common.WalletTransfer_CardTopUp {
 		return nil, pingerrors.ErrInvalid
 	}
-	return &LoadWebhookSourceRequest{AccountID: req.AccountID, SourceID: req.TransferID, Event: event}, nil
+	return &LoadWebhookSourceRequest{
+		AccountID: req.AccountID,
+		SourceID:  req.TransferID,
+		Event:     event,
+	}, nil
 }

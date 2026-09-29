@@ -253,9 +253,11 @@ func (u *PayndaUIUsecase) dispatch(ctx context.Context, event paynda.WebhookEven
 		} else {
 			if result.StatusCode >= 200 && result.StatusCode < 300 {
 				deliveredAt := time.Now().UTC()
-				record.Status, record.DeliveredAt = enums.WebhookDeliveryStatus_Succeeded, &deliveredAt
+				record.Status = enums.WebhookDeliveryStatus_Succeeded
+				record.DeliveredAt = &deliveredAt
 			} else {
-				record.Status, record.ErrorMessage = enums.WebhookDeliveryStatus_Failed, "unexpected Paynda webhook response"
+				record.Status = enums.WebhookDeliveryStatus_Failed
+				record.ErrorMessage = "unexpected Paynda webhook response"
 			}
 		}
 		logFields := []any{

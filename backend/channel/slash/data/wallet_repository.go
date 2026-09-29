@@ -45,7 +45,7 @@ func (r *walletRepository) Save(ctx context.Context, item *model.Wallet) error {
 	return r.repository.DB(ctx).Wallet.WithContext(ctx).Save(item)
 }
 
-func (r *walletRepository) FindByAccountIDForUpdate(ctx context.Context, req *biz.WalletFindByAccountIDForUpdateRequest) (*model.Wallet, error) {
+func (r *walletRepository) ListByAccountIDForUpdate(ctx context.Context, req *biz.WalletListByAccountIDForUpdateRequest) ([]*model.Wallet, error) {
 	db := r.repository.DB(ctx)
 	return db.Wallet.WithContext(ctx).
 		Preload(db.Wallet.Account).
@@ -53,10 +53,10 @@ func (r *walletRepository) FindByAccountIDForUpdate(ctx context.Context, req *bi
 			Strength: "UPDATE",
 			Table:    clause.Table{Name: clause.CurrentTable},
 		}).Where(
-		db.Wallet.ID.Eq(req.ID),
-		db.Wallet.AccountID.Eq(*req.AccountID),
+		db.Wallet.ID.In(req.IDs...),
+		db.Wallet.AccountID.Eq(req.AccountID),
 		db.Wallet.Channel.Eq(string(enums.Channel_Slash)),
-	).First()
+	).Order(db.Wallet.ID.Asc()).Find()
 }
 
 func (r *walletRepository) WalletExists(ctx context.Context, req *biz.ExistWalletRequest) (bool, error) {
