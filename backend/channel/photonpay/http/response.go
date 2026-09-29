@@ -18,6 +18,11 @@ type response[T any] struct {
 	Data T                  `json:"data"`
 }
 
+type errorResponse struct {
+	Code enums.ResponseCode `json:"code"`
+	Msg  string             `json:"msg"`
+}
+
 func bind[Req any, Resp any](fn httpx.ServiceFunc[Req, Resp]) gin.HandlerFunc {
 	return httpx.Bind(fn, success[Resp], bindingFailure, failure)
 }
@@ -32,6 +37,13 @@ func success[T any](data *T) any {
 
 func failure(err error) (int, any) {
 	appError := kratosErrors.FromError(err)
+	if appError.Reason == string(enums.ResponseCode_NotFound) {
+		return http.StatusOK, errorResponse{
+			Code: enums.ResponseCode_NotFound,
+			Msg:  appError.Message,
+		}
+	}
+
 	status := int(appError.Code)
 	if status == 0 {
 		status = http.StatusInternalServerError

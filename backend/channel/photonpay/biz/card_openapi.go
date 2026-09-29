@@ -71,7 +71,12 @@ func (u *PhotonPayOpenAPIUsecase) FindCardProductByBinPrefix(
 		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, photonpayerrors.ErrResourceNotFound
+		zap.S().Warnw(
+			"photonpay card product not found for card bin",
+			"card_bin",
+			prefix,
+		)
+		return nil, photonpayerrors.ErrCardBinNotFound
 	}
 	product, err := u.cardProductRepo.FindByPrefix(ctx, prefix)
 	if err != nil {
@@ -85,12 +90,28 @@ func (u *PhotonPayOpenAPIUsecase) FindDefaultVirtualAccount(
 	ctx context.Context,
 	accountID model.ID,
 ) (*model.VirtualAccount, error) {
-	virtualAccount, err := u.virtualAccountRepo.FindByAccountID(ctx, accountID)
+	virtualAccounts, err := u.virtualAccountRepo.ListVirtualAccounts(ctx, &VirtualAccountListRequest{
+		AccountIDs: []model.ID{accountID},
+	})
 	if err != nil {
-		zap.S().Errorw("find photonpay account virtual account", "error", err)
+		zap.S().Errorw(
+			"list photonpay account virtual accounts",
+			"account_id",
+			accountID,
+			"error",
+			err,
+		)
 		return nil, photonpayerrors.ErrDatabaseOperation
 	}
-	return virtualAccount, nil
+	if len(virtualAccounts) == 0 {
+		zap.S().Errorw(
+			"photonpay default virtual account not found",
+			"account_id",
+			accountID,
+		)
+		return nil, photonpayerrors.ErrDefaultVirtualAccountNotFound
+	}
+	return virtualAccounts[len(virtualAccounts)-1], nil
 }
 
 func (u *PhotonPayOpenAPIUsecase) GetRequestResult(ctx context.Context, req *RequestResultResourceRequest) (*model.Card, error) {

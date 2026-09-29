@@ -14,9 +14,12 @@ const (
 )
 
 var (
-	ErrCardClosed            = kratosErrors.BadRequest("CARD_CLOSED", "已注销或注销中的卡片不能恢复或冻结")
-	ErrRequestResultNotFound = kratosErrors.NotFound("VCC1039", "invalid requestId")
-	ErrDatabaseOperation     = kratosErrors.InternalServer(
+	ErrCardClosed                    = kratosErrors.BadRequest("CARD_CLOSED", "已注销或注销中的卡片不能恢复或冻结")
+	ErrRequestResultNotFound         = kratosErrors.NotFound("VCC1039", "invalid parameter[invalid requestId]")
+	ErrInvalidCardholderID           = kratosErrors.NotFound("VCC1039", "invalid parameter[invalid cardholderId]")
+	ErrCardBinNotFound               = kratosErrors.NotFound("PHOTONPAY_CARD_BIN_NOT_FOUND", "photonpay card product not found for cardBin")
+	ErrDefaultVirtualAccountNotFound = kratosErrors.NotFound("PHOTONPAY_DEFAULT_VIRTUAL_ACCOUNT_NOT_FOUND", "photonpay default virtual account not found")
+	ErrDatabaseOperation             = kratosErrors.InternalServer(
 		errorReasonDatabaseOperation,
 		errorMessageDatabaseOperation,
 	)

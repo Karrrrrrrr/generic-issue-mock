@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	stderrors "errors"
+	"fmt"
 	"mime/multipart"
 	"strings"
 	"time"
@@ -207,7 +208,7 @@ func (s *PhotonPayOpenAPIService) EditCardHolder(ctx context.Context, req *EditC
 	}
 	cardholderID, err := idconv.FromString(req.CardholderID)
 	if err != nil {
-		return nil, err
+		return nil, photonpayerrors.ErrInvalidCardholderID
 	}
 	holder, err := s.usecase.UpdateCardHolder(ctx, &biz.UpdateCardHolderRequest{
 		AccountID:    accountID,
@@ -352,13 +353,14 @@ type OpenCardData struct {
 }
 
 func (s *PhotonPayOpenAPIService) OpenCard(ctx context.Context, req *OpenCardRequest) (*OpenCardData, error) {
+	fmt.Printf("%+v\n", req)
 	accountID, err := idconv.FromAccountString(req.Token)
 	if err != nil {
 		return nil, err
 	}
 	cardholderID, err := idconv.FromString(req.CardholderID)
 	if err != nil {
-		return nil, err
+		return nil, photonpayerrors.ErrInvalidCardholderID
 	}
 	formFactor := req.CardFormFactor
 	if formFactor == "" {
@@ -420,8 +422,9 @@ func (s *PhotonPayOpenAPIService) OpenCard(ctx context.Context, req *OpenCardReq
 
 func convertPhotonPayIssueCardError(err error) error {
 	switch {
+	case stderrors.Is(err, sharederrors.ErrCardHolderNotFound):
+		return photonpayerrors.ErrInvalidCardholderID
 	case stderrors.Is(err, sharederrors.ErrAccountNotFound),
-		stderrors.Is(err, sharederrors.ErrCardHolderNotFound),
 		stderrors.Is(err, sharederrors.ErrCardProductNotFound),
 		stderrors.Is(err, sharederrors.ErrVirtualAccountNotFound):
 		return photonpayerrors.ErrResourceNotFound
