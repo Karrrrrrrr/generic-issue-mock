@@ -228,6 +228,7 @@ function completeSimulation() {
 }
 
 function renderActions(card: Card) {
+  const action = statusAction(card);
   return h(
     NSpace,
     {
@@ -237,24 +238,32 @@ function renderActions(card: Card) {
       default: () => [
         ...(simulateAuthorization && simulateRefund ? [h(NButton, {
           size: "small",
+          type: "info",
+          secondary: true,
           disabled: card.card_status !== "active",
           onClick: () => openSimulation(card),
         }, { default: () => "模拟交易" })] : []),
         h(NButton, {
           size: "small",
+          type: "success",
+          secondary: true,
           disabled: card.card_status !== "active",
           onClick: () => openFunding(card, false),
         }, { default: () => "充值" }),
         h(NButton, {
           size: "small",
+          type: "warning",
+          secondary: true,
           disabled: card.card_status !== "active",
           onClick: () => openFunding(card, true),
         }, { default: () => "转出" }),
         h(NButton, {
           size: "small",
-          disabled: statusAction(card).status === null,
+          type: action.status === "active" ? "success" : "error",
+          secondary: true,
+          disabled: action.status === null,
           onClick: () => changeStatus(card),
-        }, { default: () => statusAction(card).label }),
+        }, { default: () => action.label }),
       ],
     },
   );
