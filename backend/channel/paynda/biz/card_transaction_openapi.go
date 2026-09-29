@@ -21,8 +21,9 @@ type PayndaListTransactionsRequest struct {
 }
 
 type PayndaCardTransactionDetail struct {
-	Transaction   *model.CardTransaction
-	Authorization *model.Authorization
+	Transaction              *model.CardTransaction
+	Authorization            *model.Authorization
+	AuthorizationTransaction *model.CardTransaction
 }
 
 func (u *PayndaOpenAPIUsecase) GetCardTransaction(
@@ -79,7 +80,13 @@ func (u *PayndaOpenAPIUsecase) cardTransactionDetails(
 ) ([]*PayndaCardTransactionDetail, error) {
 	authorizationIDs := make([]model.ID, 0, len(transactions))
 	seenAuthorizationIDs := make(map[model.ID]struct{}, len(transactions))
+	accountIDs := make([]model.ID, 0, len(transactions))
+	seenAccountIDs := make(map[model.ID]struct{}, len(transactions))
 	for _, transaction := range transactions {
+		if _, exists := seenAccountIDs[transaction.AccountID]; !exists {
+			seenAccountIDs[transaction.AccountID] = struct{}{}
+			accountIDs = append(accountIDs, transaction.AccountID)
+		}
 		if transaction.AuthorizationID == 0 {
 			continue
 		}
@@ -104,11 +111,31 @@ func (u *PayndaOpenAPIUsecase) cardTransactionDetails(
 		}
 	}
 
+	authorizationTransactionsByAuthorizationID := make(map[model.ID]*model.CardTransaction, len(authorizationIDs))
+	if len(authorizationIDs) > 0 {
+		authorizationTransactions, err := u.cardTransactionRepository.List(ctx, &CardTransactionListRequest{
+			AccountIDs:       accountIDs,
+			AuthorizationIDs: authorizationIDs,
+			Types: []enums.CardTransactionType{
+				enums.CardTransactionType_AUTH,
+			},
+			Limit: len(authorizationIDs),
+		})
+		if err != nil {
+			zap.S().Errorw("list paynda authorization transactions", "error", err)
+			return nil, payndaerrors.ErrDatabaseOperation
+		}
+		for _, authorizationTransaction := range authorizationTransactions {
+			authorizationTransactionsByAuthorizationID[authorizationTransaction.AuthorizationID] = authorizationTransaction
+		}
+	}
+
 	details := make([]*PayndaCardTransactionDetail, 0, len(transactions))
 	for _, transaction := range transactions {
 		details = append(details, &PayndaCardTransactionDetail{
-			Transaction:   transaction,
-			Authorization: authorizationsByID[transaction.AuthorizationID],
+			Transaction:              transaction,
+			Authorization:            authorizationsByID[transaction.AuthorizationID],
+			AuthorizationTransaction: authorizationTransactionsByAuthorizationID[transaction.AuthorizationID],
 		})
 	}
 

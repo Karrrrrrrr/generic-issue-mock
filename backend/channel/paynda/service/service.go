@@ -1116,8 +1116,8 @@ func payndaTransactionData(item *biz.PayndaCardTransactionDetail) *PayndaTransac
 	}
 	transactionID := idconv.ToString(item.Transaction.ID)
 	supplierTransactionLinkID := ""
-	if item.Transaction.AuthorizationID != 0 {
-		supplierTransactionLinkID = idconv.ToString(item.Transaction.AuthorizationID)
+	if item.Transaction.Type != common.CardTransactionType_AUTH && item.AuthorizationTransaction != nil {
+		supplierTransactionLinkID = idconv.ToString(item.AuthorizationTransaction.ID)
 	}
 	return &PayndaTransactionData{
 		ID:                                  transactionID,

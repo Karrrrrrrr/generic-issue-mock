@@ -431,7 +431,61 @@ func (n *PayndaWebhookNotificator) payndaTransactionWebhookPayload(
 		},
 	}
 	if transaction.AuthorizationID != 0 {
-		payload.CardTransactionWebhook.SupplierTransactionLinkID = strconv.FormatInt(transaction.AuthorizationID, 10)
+		authorizationTransactionID, err := n.payndaAuthorizationTransactionID(ctx, transaction)
+		if err != nil {
+			return nil, err
+		}
+		if authorizationTransactionID != 0 {
+			payload.CardTransactionWebhook.SupplierTransactionLinkID = strconv.FormatInt(authorizationTransactionID, 10)
+		}
 	}
 	return json.Marshal(payload)
+}
+
+func (n *PayndaWebhookNotificator) payndaAuthorizationTransactionID(
+	ctx context.Context,
+	transaction *model.CardTransaction,
+) (model.ID, error) {
+	if transaction.Type == enums.CardTransactionType_AUTH || transaction.AuthorizationID == 0 {
+		return 0, nil
+	}
+	authorizationTransactions, err := n.cardTransactionRepository.List(ctx, &CardTransactionListRequest{
+		AccountIDs: []model.ID{
+			transaction.AccountID,
+		},
+		AuthorizationIDs: []model.ID{
+			transaction.AuthorizationID,
+		},
+		Types: []enums.CardTransactionType{
+			enums.CardTransactionType_AUTH,
+		},
+		Limit: 1,
+	})
+	if err != nil {
+		zap.S().Errorw(
+			"list paynda authorization transaction for webhook",
+			"account_id",
+			transaction.AccountID,
+			"authorization_id",
+			transaction.AuthorizationID,
+			"transaction_id",
+			transaction.ID,
+			"error",
+			err,
+		)
+		return 0, payndaerrors.ErrDatabaseOperation
+	}
+	if len(authorizationTransactions) == 0 {
+		zap.S().Errorw(
+			"missing paynda authorization transaction for webhook",
+			"account_id",
+			transaction.AccountID,
+			"authorization_id",
+			transaction.AuthorizationID,
+			"transaction_id",
+			transaction.ID,
+		)
+		return 0, payndaerrors.ErrResourceNotFound
+	}
+	return authorizationTransactions[0].ID, nil
 }
