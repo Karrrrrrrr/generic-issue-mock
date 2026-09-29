@@ -16,6 +16,35 @@ export interface AuthorizationSimulationRequest {
   merchantCity: string;
 }
 
+export interface AuthorizationSimulationResult {
+  attempted: boolean;
+  approved: boolean;
+  failed_side: "mock" | "third_party" | "";
+  reason: string;
+  message: string;
+  account_id: number;
+  card_id: number;
+  amount: string;
+  currency: string;
+  merchant_name: string;
+  merchant_country: string;
+  merchant_mcc: string;
+  target_url?: string;
+  status_code?: number;
+  request_payload?: unknown;
+  request_headers?: unknown;
+  response_body?: string;
+  response_headers?: unknown;
+}
+
+export interface SimulationResult {
+  authorization_id: number;
+  remaining: string;
+  replayed: boolean;
+  authorization_result?: AuthorizationSimulationResult;
+  notification_error?: string;
+}
+
 export interface RefundSimulationRequest {
   request_id?: string;
   authorization_id?: number;

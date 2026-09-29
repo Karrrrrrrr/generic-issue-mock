@@ -1,4 +1,4 @@
-import type { AuthorizationSimulationRequest, SimulationStage } from "./shared/simulation";
+import type { AuthorizationSimulationRequest, SimulationResult, SimulationStage } from "./shared/simulation";
 import type { CardStatus, TransactionStatus, TransactionType } from "./enums";
 
 export interface Cardholder {
@@ -92,7 +92,7 @@ export interface ChannelAPI {
 
   listTransactions(query?: TransactionListRequest): Promise<ListResponse<Transaction>>;
 
-  simulateAuthorization(payload: AuthorizationSimulationRequest): Promise<void>;
+  simulateAuthorization(payload: AuthorizationSimulationRequest): Promise<SimulationResult>;
 
   applyTransactionStep(
     id: number,

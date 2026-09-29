@@ -1,6 +1,6 @@
 import type { Card, Cardholder, ChannelAPI, ListResponse, PageRequest, Transaction } from "@/channel/types";
 import { authorizationPayload, request } from "@/channel/shared";
-import type { RefundSimulationRequest } from "@/channel/shared/simulation";
+import type { RefundSimulationRequest, SimulationResult } from "@/channel/shared/simulation";
 import type { WebhookDeliveryStatus } from "@/channel/enums";
 import type {
   Authorization,
@@ -291,7 +291,7 @@ export function createManagementAPI(baseURL: string) {
       return { data: result.items.map(toTransaction), total_items: result.total };
     },
     async simulateAuthorization(payload) {
-      await request.post(`${baseURL}/simulate/authorizations`, authorizationPayload(payload));
+      return (await request.post<SimulationResult>(`${baseURL}/simulate/authorizations`, authorizationPayload(payload))).data;
     },
     async applyTransactionStep(id, action, amount) {
       await request.post(`${baseURL}/transactions/stages`, {

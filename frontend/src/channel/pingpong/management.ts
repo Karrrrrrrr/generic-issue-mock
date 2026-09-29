@@ -16,7 +16,7 @@ export async function fundCard(input: CardFundingRequest) {
 }
 
 export async function simulateAuthorization(input: AuthorizationSimulationRequest) {
-	await management.api.simulateAuthorization(input);
+	return await management.api.simulateAuthorization(input);
 }
 
 export async function simulateRefund(input: RefundSimulationRequest & { requestId?: string }) {

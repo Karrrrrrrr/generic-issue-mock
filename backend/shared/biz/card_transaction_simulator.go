@@ -108,11 +108,12 @@ func (req *SimulateReversalReq) Validate() error {
 }
 
 type CardTransactionSimulationResult struct {
-	Authorization     *model.Authorization
-	CardTransaction   *model.CardTransaction
-	Remaining         decimal.Decimal
-	Replayed          bool
-	NotificationError error
+	Authorization       *model.Authorization
+	CardTransaction     *model.CardTransaction
+	AuthorizationResult *AuthorizationResult
+	Remaining           decimal.Decimal
+	Replayed            bool
+	NotificationError   error
 }
 
 type simulationCardReference struct {
@@ -410,10 +411,7 @@ func (simulator *cardTransactionSimulator) requestAuthorization(
 		return err
 	}
 	if decision == nil || !decision.Approved {
-		reason := ""
-		if decision != nil {
-			reason = decision.Reason
-		}
+		result := simulator.authorizationResultFromDecision(req, decision)
 		zap.S().Infow(
 			"shared simulated authorization declined",
 			"account_id",
@@ -427,11 +425,49 @@ func (simulator *cardTransactionSimulator) requestAuthorization(
 			"transaction_id",
 			req.CardTransaction.ID,
 			"reason",
-			reason,
+			result.Reason,
 		)
-		return sharederrors.ErrAuthorizationDeclined
+		return NewAuthorizationFailureError(
+			result,
+			sharederrors.ErrAuthorizationDeclined,
+		)
 	}
 	return nil
+}
+
+func (simulator *cardTransactionSimulator) authorizationResultFromDecision(
+	req *requestAuthorizationSimulationRequest,
+	decision *AuthorizationDecision,
+) *AuthorizationResult {
+	result := &AuthorizationResult{
+		Attempted:       true,
+		Approved:        false,
+		FailureSide:     AuthorizationFailureSideThirdParty,
+		Message:         "third-party authorization declined",
+		AccountID:       req.AccountID,
+		CardID:          req.Card.ID,
+		Amount:          req.Authorization.Amount,
+		Currency:        req.Authorization.Currency,
+		MerchantName:    req.CardTransaction.MerchantName,
+		MerchantCountry: req.CardTransaction.MerchantCountry,
+		MerchantMCC:     req.CardTransaction.MerchantMCC,
+	}
+	if decision == nil {
+		result.FailureSide = AuthorizationFailureSideMock
+		result.Message = "authorization decision is empty"
+		return result
+	}
+	result.FailureSide = decision.FailureSide
+	result.Reason = decision.Reason
+	result.Message = decision.Message
+	result.Exchange = decision.Exchange
+	if result.FailureSide == "" {
+		result.FailureSide = AuthorizationFailureSideThirdParty
+	}
+	if result.Message == "" {
+		result.Message = "third-party authorization declined"
+	}
+	return result
 }
 
 func (simulator *cardTransactionSimulator) SimulateClearing(ctx context.Context, req *SimulateClearingReq) (*CardTransactionSimulationResult, error) {

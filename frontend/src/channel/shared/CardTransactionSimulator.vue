@@ -21,12 +21,13 @@ import {
   type AuthorizationSimulationRequest,
   type RefundSimulationRequest,
   type SimulationCard,
+  type SimulationResult,
 } from "./simulation";
 import { useSimulation } from "./useSimulation";
 
 const props = defineProps<{
 	loadCards: () => Promise<Card[]>;
-	authorize: (request: AuthorizationSimulationRequest) => Promise<unknown>;
+	authorize: (request: AuthorizationSimulationRequest) => Promise<SimulationResult | undefined>;
 	refund: (request: RefundSimulationRequest) => Promise<unknown>;
 	initialCardId?: number | null;
 }>();

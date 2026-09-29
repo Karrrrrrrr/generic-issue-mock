@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 
 	"generic-mock/enums"
 	"generic-mock/model"
@@ -12,17 +14,19 @@ import (
 )
 
 type SimulationData struct {
-	AuthorizationID   model.ID            `json:"authorization_id"`
-	Transaction       CardTransactionData `json:"transaction"`
-	Remaining         decimal.Decimal     `json:"remaining"`
-	Replayed          bool                `json:"replayed"`
-	NotificationError *string             `json:"notification_error,omitempty"`
+	AuthorizationID     model.ID                 `json:"authorization_id"`
+	Transaction         *CardTransactionData     `json:"transaction,omitempty"`
+	Remaining           decimal.Decimal          `json:"remaining"`
+	Replayed            bool                     `json:"replayed"`
+	AuthorizationResult *AuthorizationResultData `json:"authorization_result,omitempty"`
+	NotificationError   *string                  `json:"notification_error,omitempty"`
 }
 
 func toSimulationData(result *biz.CardTransactionSimulationResult) *SimulationData {
+	transaction := toCardTransactionData(result.CardTransaction)
 	data := &SimulationData{
 		AuthorizationID: result.CardTransaction.AuthorizationID,
-		Transaction:     toCardTransactionData(result.CardTransaction),
+		Transaction:     &transaction,
 		Remaining:       result.Remaining,
 		Replayed:        result.Replayed,
 	}
@@ -34,6 +38,70 @@ func toSimulationData(result *biz.CardTransactionSimulationResult) *SimulationDa
 		data.NotificationError = &message
 	}
 	return data
+}
+
+type AuthorizationResultData struct {
+	Attempted       bool            `json:"attempted"`
+	Approved        bool            `json:"approved"`
+	FailedSide      string          `json:"failed_side"`
+	Reason          string          `json:"reason"`
+	Message         string          `json:"message"`
+	AccountID       model.ID        `json:"account_id"`
+	CardID          model.ID        `json:"card_id"`
+	Amount          decimal.Decimal `json:"amount"`
+	Currency        enums.Currency  `json:"currency"`
+	MerchantName    string          `json:"merchant_name"`
+	MerchantCountry string          `json:"merchant_country"`
+	MerchantMCC     string          `json:"merchant_mcc"`
+	TargetURL       string          `json:"target_url,omitempty"`
+	StatusCode      int             `json:"status_code,omitempty"`
+	RequestPayload  json.RawMessage `json:"request_payload,omitempty"`
+	RequestHeaders  json.RawMessage `json:"request_headers,omitempty"`
+	ResponseBody    string          `json:"response_body,omitempty"`
+	ResponseHeaders json.RawMessage `json:"response_headers,omitempty"`
+}
+
+func toAuthorizationResultData(result *biz.AuthorizationResult) *AuthorizationResultData {
+	if result == nil {
+		return nil
+	}
+	data := &AuthorizationResultData{
+		Attempted:       result.Attempted,
+		Approved:        result.Approved,
+		FailedSide:      string(result.FailureSide),
+		Reason:          result.Reason,
+		Message:         result.Message,
+		AccountID:       result.AccountID,
+		CardID:          result.CardID,
+		Amount:          result.Amount,
+		Currency:        result.Currency,
+		MerchantName:    result.MerchantName,
+		MerchantCountry: result.MerchantCountry,
+		MerchantMCC:     result.MerchantMCC,
+	}
+	if result.Exchange == nil {
+		return data
+	}
+	data.TargetURL = result.Exchange.TargetURL
+	data.StatusCode = result.Exchange.StatusCode
+	data.RequestPayload = jsonRawMessage(result.Exchange.RequestPayload)
+	data.RequestHeaders = jsonRawMessage(result.Exchange.RequestHeaders)
+	data.ResponseBody = result.Exchange.ResponseBody
+	data.ResponseHeaders = jsonRawMessage(result.Exchange.ResponseHeaders)
+	return data
+}
+
+func toAuthorizationFailureSimulationData(err *biz.AuthorizationFailureError) *SimulationData {
+	return &SimulationData{
+		AuthorizationResult: toAuthorizationResultData(err.Result),
+	}
+}
+
+func jsonRawMessage(value []byte) json.RawMessage {
+	if !json.Valid(value) {
+		return nil
+	}
+	return json.RawMessage(value)
 }
 
 type SimulateAuthorizationRequest struct {
@@ -60,6 +128,10 @@ func (s *Service) SimulateAuthorization(ctx context.Context, req *SimulateAuthor
 		RequestID:       req.RequestID,
 	})
 	if err != nil {
+		var authorizationErr *biz.AuthorizationFailureError
+		if errors.As(err, &authorizationErr) {
+			return toAuthorizationFailureSimulationData(authorizationErr), nil
+		}
 		return nil, err
 	}
 	return toSimulationData(result), nil

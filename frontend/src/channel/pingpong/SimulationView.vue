@@ -9,8 +9,9 @@ let authorizationRequestId = requestId();
 let refundRequestId = requestId();
 
 async function authorize(request: AuthorizationSimulationRequest) {
-  await simulateAuthorization({ ...request, requestId: authorizationRequestId });
+  const result = await simulateAuthorization({ ...request, requestId: authorizationRequestId });
   authorizationRequestId = requestId();
+  return result;
 }
 
 async function refund(request: RefundSimulationRequest) {

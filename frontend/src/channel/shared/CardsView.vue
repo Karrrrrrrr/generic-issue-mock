@@ -23,7 +23,7 @@ import type { Card } from "@/channel/types";
 import type { ChannelAPI } from "@/channel/types";
 import type { CardFundingRequest } from "./contracts";
 import CardTransactionSimulator from "./CardTransactionSimulator.vue";
-import type { AuthorizationSimulationRequest, RefundSimulationRequest } from "./simulation";
+import type { AuthorizationSimulationRequest, RefundSimulationRequest, SimulationResult } from "./simulation";
 const {
 	api,
 	accountApi,
@@ -44,7 +44,7 @@ const {
 	showVirtualAccount?: boolean;
 	detailedFilters?: boolean;
 	newRequestId?: () => string;
-	simulateAuthorization?: (request: AuthorizationSimulationRequest) => Promise<unknown>;
+	simulateAuthorization?: (request: AuthorizationSimulationRequest) => Promise<SimulationResult>;
 	simulateRefund?: (request: RefundSimulationRequest) => Promise<unknown>;
 	fundingSourceLabel?: string;
 	showExpiry?: boolean;
@@ -204,9 +204,9 @@ async function loadSimulationCards(): Promise<Card[]> {
 
 async function submitSimulationAuthorization(request: AuthorizationSimulationRequest) {
   if (!simulateAuthorization) {
-    return;
+    return undefined;
   }
-  await simulateAuthorization({
+  return await simulateAuthorization({
     ...request,
     requestId: authorizationRequestId.value,
   });

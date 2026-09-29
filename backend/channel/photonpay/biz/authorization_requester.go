@@ -34,6 +34,16 @@ type photonPayAuthorizationPayload struct {
 	AuthCode              string `json:"authCode"`
 }
 
+type photonPayAuthorizationFailureRequest struct {
+	Request   *sharedbiz.AuthorizationRequest
+	Side      sharedbiz.AuthorizationFailureSide
+	Message   string
+	Reason    string
+	TargetURL string
+	Payload   []byte
+	Result    *AuthorizationRequestDeliveryResult
+}
+
 type PhotonPayAuthorizationRequester struct {
 	authorizationConfigRepo AuthorizationConfigRepository
 	authorizationClient     AuthorizationClient
@@ -77,7 +87,11 @@ func (r *PhotonPayAuthorizationRequester) RequestAuthorization(
 			"transaction_id",
 			req.CardTransaction.ID,
 		)
-		return nil, sharederrors.ErrAuthorizationRequestFailed
+		return nil, r.authorizationFailure(&photonPayAuthorizationFailureRequest{
+			Request: req,
+			Side:    sharedbiz.AuthorizationFailureSideMock,
+			Message: "PhotonPay authorization config missing",
+		})
 	}
 
 	config, err := r.authorizationConfigRepo.FindByAccountID(ctx, req.AccountID)
@@ -101,7 +115,11 @@ func (r *PhotonPayAuthorizationRequester) RequestAuthorization(
 			"transaction_id",
 			req.CardTransaction.ID,
 		)
-		return nil, sharederrors.ErrAuthorizationRequestFailed
+		return nil, r.authorizationFailure(&photonPayAuthorizationFailureRequest{
+			Request: req,
+			Side:    sharedbiz.AuthorizationFailureSideMock,
+			Message: "PhotonPay authorization config disabled or target URL is empty",
+		})
 	}
 
 	payload, err := json.Marshal(photonPayAuthorizationPayload{
@@ -123,7 +141,11 @@ func (r *PhotonPayAuthorizationRequester) RequestAuthorization(
 	})
 	if err != nil {
 		zap.S().Errorw("marshal photonpay authorization request", "error", err)
-		return nil, sharederrors.ErrAuthorizationRequestFailed
+		return nil, r.authorizationFailure(&photonPayAuthorizationFailureRequest{
+			Request: req,
+			Side:    sharedbiz.AuthorizationFailureSideMock,
+			Message: "marshal PhotonPay authorization request failed",
+		})
 	}
 
 	result, err := r.authorizationClient.RequestAuthorization(ctx, &AuthorizationRequestDeliveryRequest{
@@ -145,7 +167,14 @@ func (r *PhotonPayAuthorizationRequester) RequestAuthorization(
 			"error",
 			err,
 		)
-		return nil, sharederrors.ErrAuthorizationRequestFailed
+		return nil, r.authorizationFailure(&photonPayAuthorizationFailureRequest{
+			Request:   req,
+			Side:      sharedbiz.AuthorizationFailureSideThirdParty,
+			Message:   "send PhotonPay authorization request failed",
+			TargetURL: config.TargetURL,
+			Payload:   payload,
+			Result:    result,
+		})
 	}
 	if result.StatusCode < http.StatusOK || result.StatusCode >= http.StatusMultipleChoices {
 		zap.S().Errorw(
@@ -163,7 +192,14 @@ func (r *PhotonPayAuthorizationRequester) RequestAuthorization(
 			"response_body",
 			result.ResponseBody,
 		)
-		return nil, sharederrors.ErrAuthorizationRequestFailed
+		return nil, r.authorizationFailure(&photonPayAuthorizationFailureRequest{
+			Request:   req,
+			Side:      sharedbiz.AuthorizationFailureSideThirdParty,
+			Message:   "PhotonPay authorization endpoint returned non-success status",
+			TargetURL: config.TargetURL,
+			Payload:   payload,
+			Result:    result,
+		})
 	}
 
 	var response struct {
@@ -183,7 +219,14 @@ func (r *PhotonPayAuthorizationRequester) RequestAuthorization(
 			"error",
 			err,
 		)
-		return nil, sharederrors.ErrAuthorizationRequestFailed
+		return nil, r.authorizationFailure(&photonPayAuthorizationFailureRequest{
+			Request:   req,
+			Side:      sharedbiz.AuthorizationFailureSideThirdParty,
+			Message:   "decode PhotonPay authorization response failed",
+			TargetURL: config.TargetURL,
+			Payload:   payload,
+			Result:    result,
+		})
 	}
 	if response.Code == "" {
 		zap.S().Errorw(
@@ -197,11 +240,69 @@ func (r *PhotonPayAuthorizationRequester) RequestAuthorization(
 			"response_body",
 			result.ResponseBody,
 		)
-		return nil, sharederrors.ErrAuthorizationRequestFailed
+		return nil, r.authorizationFailure(&photonPayAuthorizationFailureRequest{
+			Request:   req,
+			Side:      sharedbiz.AuthorizationFailureSideThirdParty,
+			Message:   "PhotonPay authorization response missing code",
+			TargetURL: config.TargetURL,
+			Payload:   payload,
+			Result:    result,
+		})
 	}
 
+	message := photon.ConvertAuthorizationResultCodeToMessage(response.Code)
 	return &sharedbiz.AuthorizationDecision{
-		Approved: response.Code == string(photon.ResponseCode_Success),
-		Reason:   response.Code,
+		Approved:    response.Code == string(photon.AuthorizationResultCodePass),
+		FailureSide: sharedbiz.AuthorizationFailureSideThirdParty,
+		Reason:      response.Code,
+		Message:     message,
+		Exchange: r.authorizationExchange(&photonPayAuthorizationFailureRequest{
+			TargetURL: config.TargetURL,
+			Payload:   payload,
+			Result:    result,
+		}),
 	}, nil
+}
+
+func (r *PhotonPayAuthorizationRequester) authorizationFailure(
+	req *photonPayAuthorizationFailureRequest,
+) *sharedbiz.AuthorizationFailureError {
+	return sharedbiz.NewAuthorizationFailureError(
+		&sharedbiz.AuthorizationResult{
+			Attempted:       req.Payload != nil,
+			Approved:        false,
+			FailureSide:     req.Side,
+			Reason:          req.Reason,
+			Message:         req.Message,
+			AccountID:       req.Request.AccountID,
+			CardID:          req.Request.Card.ID,
+			Amount:          req.Request.Authorization.Amount,
+			Currency:        req.Request.Authorization.Currency,
+			MerchantName:    req.Request.CardTransaction.MerchantName,
+			MerchantCountry: req.Request.CardTransaction.MerchantCountry,
+			MerchantMCC:     req.Request.CardTransaction.MerchantMCC,
+			Exchange:        r.authorizationExchange(req),
+		},
+		sharederrors.ErrAuthorizationRequestFailed,
+	)
+}
+
+func (r *PhotonPayAuthorizationRequester) authorizationExchange(
+	req *photonPayAuthorizationFailureRequest,
+) *sharedbiz.AuthorizationExchange {
+	if req.Payload == nil && req.Result == nil {
+		return nil
+	}
+	exchange := &sharedbiz.AuthorizationExchange{
+		TargetURL:      req.TargetURL,
+		RequestPayload: req.Payload,
+	}
+	if req.Result == nil {
+		return exchange
+	}
+	exchange.StatusCode = req.Result.StatusCode
+	exchange.RequestHeaders = req.Result.RequestHeaders
+	exchange.ResponseBody = req.Result.ResponseBody
+	exchange.ResponseHeaders = req.Result.ResponseHeaders
+	return exchange
 }
