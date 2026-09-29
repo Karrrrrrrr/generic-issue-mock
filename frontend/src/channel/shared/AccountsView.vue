@@ -210,7 +210,7 @@ onMounted(() => void load());
       </div>
       <n-button type="primary" @click="openCreate">新增账户</n-button>
     </div>
-    <form class="table-filters" @submit.prevent="search">
+    <form class="table-filters compact-table-filters" @submit.prevent="search">
       <div class="compact-filter-grid">
         <n-input
           class="compact-filter-id"

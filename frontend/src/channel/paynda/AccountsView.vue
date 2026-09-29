@@ -7,7 +7,7 @@ import { accountApi, fundsApi } from "./api";
   <SharedView
     :account-api="accountApi"
     :adjust-balance="fundsApi.adjustAccount"
-    title="资金账户"
+    title="账户"
     show-wallet-id
   />
 </template>

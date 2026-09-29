@@ -231,7 +231,7 @@ onMounted(load);
     </n-space>
   </div>
   <slot name="description" />
-  <form class="table-filters" @submit.prevent="search">
+  <form class="table-filters compact-table-filters" @submit.prevent="search">
     <div class="compact-filter-grid">
       <n-input
         class="compact-filter-id"

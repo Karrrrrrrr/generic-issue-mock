@@ -5,7 +5,7 @@ const items = [
     type: "group",
     label: "账户",
     key: "accounts",
-    children: [{ label: "资金账户", key: "/paynda/accounts" }],
+    children: [{ label: "账户", key: "/paynda/accounts" }],
   },
   {
     type: "group",
