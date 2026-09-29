@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	ping "generic-mock/channel/pingpong/enums"
 	"generic-mock/channel/pingpong/pkg/idconv"
@@ -44,8 +45,8 @@ func (s *PingPongOpenAPIService) ListCardProducts(ctx context.Context, req *Open
 			BillingCurrency:    common.Currency_USD,
 			BinRange:           item.Prefix,
 			Share:              false,
-			NameCN:             "预算组独立卡",
-			NameEN:             "Budget-funded card",
+			NameCN:             fmt.Sprintf("预算组独立卡-%d", item.ID),
+			NameEN:             fmt.Sprintf("Budget-funded card-%d", item.ID),
 		})
 	}
 	return result, nil
