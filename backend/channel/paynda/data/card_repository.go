@@ -89,6 +89,7 @@ func (r *cardRepository) FindByRequestID(ctx context.Context, req *biz.CardFindB
 
 	return db.Card.WithContext(ctx).
 		Preload(db.Card.Account).
+		Preload(db.Card.Wallet).
 		Where(
 			db.Card.RequestID.Eq(req.RequestID),
 			db.Card.AccountID.Eq(req.AccountID),
@@ -104,6 +105,7 @@ func (r *cardRepository) FindByLastOperationRequestID(
 
 	return db.Card.WithContext(ctx).
 		Preload(db.Card.Account).
+		Preload(db.Card.Wallet).
 		Where(
 			db.Card.LastOperationRequestID.Eq(req.RequestID),
 			db.Card.AccountID.Eq(req.AccountID),
@@ -116,6 +118,7 @@ func (r *cardRepository) List(ctx context.Context, req *biz.CardListRequest) ([]
 
 	query := db.Card.WithContext(ctx).
 		Preload(db.Card.Account).
+		Preload(db.Card.Wallet).
 		Where(db.Card.Channel.Eq(string(enums.Channel_Paynda)))
 	if len(req.AccountIDs) != 0 {
 		query = query.Where(db.Card.AccountID.In(req.AccountIDs...))

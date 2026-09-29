@@ -1,12 +1,10 @@
 package biz
 
 import (
-	sharedbiz "generic-mock/shared/biz"
 	"github.com/samber/do/v2"
 )
 
-type PayndaUIUsecase struct {
-	sharedbiz.NoopNotificator
+type PayndaWebhookNotificator struct {
 	cardRepository            PayndaCardRepository
 	cardHolderRepository      PayndaCardHolderRepository
 	walletRepository          PayndaWalletRepository
@@ -18,8 +16,8 @@ type PayndaUIUsecase struct {
 	webhookClient             PayndaWebhookClient
 }
 
-func NewPayndaUIUsecase(injector do.Injector) (*PayndaUIUsecase, error) {
-	return &PayndaUIUsecase{
+func NewPayndaWebhookNotificator(injector do.Injector) (*PayndaWebhookNotificator, error) {
+	return &PayndaWebhookNotificator{
 		cardRepository:            do.MustInvoke[PayndaCardRepository](injector),
 		cardHolderRepository:      do.MustInvoke[PayndaCardHolderRepository](injector),
 		walletRepository:          do.MustInvoke[PayndaWalletRepository](injector),

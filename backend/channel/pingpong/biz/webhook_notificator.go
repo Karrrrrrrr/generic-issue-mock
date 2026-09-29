@@ -48,6 +48,13 @@ func (uc *PingPongWebhookUsecase) NotifyIssueCard(ctx context.Context, req *shar
 	})
 }
 
+func (uc *PingPongWebhookUsecase) NotifyCardStatus(ctx context.Context, req *sharedbiz.NotifyCardStatusReq) error {
+	if req == nil || req.Channel != common.Channel_PingPong {
+		return pingerrors.ErrInvalid
+	}
+	return nil
+}
+
 func (uc *PingPongWebhookUsecase) NotifyCardFunding(ctx context.Context, req *sharedbiz.NotifyCardFundingReq) error {
 	if req == nil || req.Channel != common.Channel_PingPong {
 		return pingerrors.ErrInvalid

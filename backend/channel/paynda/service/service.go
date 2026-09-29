@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"time"
 
 	"generic-mock/channel/paynda/biz"
@@ -15,18 +16,24 @@ import (
 	"generic-mock/pkg/timefmt"
 	"generic-mock/pkg/types"
 	timeTypes "generic-mock/pkg/types/time"
+	sharedbiz "generic-mock/shared/biz"
+	sharederrors "generic-mock/shared/errors"
 
 	"github.com/samber/do/v2"
 	"github.com/shopspring/decimal"
 )
 
 type PayndaOpenAPIService struct {
-	usecase *biz.PayndaOpenAPIUsecase
+	usecase     *biz.PayndaOpenAPIUsecase
+	cardIssuer  *sharedbiz.CardIssuer
+	notificator *biz.PayndaWebhookNotificator
 }
 
 func NewPayndaOpenAPIService(injector do.Injector) (*PayndaOpenAPIService, error) {
 	return &PayndaOpenAPIService{
-		usecase: do.MustInvoke[*biz.PayndaOpenAPIUsecase](injector),
+		usecase:     do.MustInvoke[*biz.PayndaOpenAPIUsecase](injector),
+		cardIssuer:  do.MustInvoke[*sharedbiz.CardIssuer](injector),
+		notificator: do.MustInvoke[*biz.PayndaWebhookNotificator](injector),
 	}, nil
 }
 
@@ -258,7 +265,7 @@ type PayndaCreateCardRequest struct {
 	RequestID                  string          `form:"requestId" binding:"required"`
 	CardholderID               string          `json:"cardholderId" binding:"required"`
 	Currency                   common.Currency `json:"currency" binding:"required"`
-	Amount                     string          `json:"amount"` // Invalid: generic card does not persist channel credit limits.
+	Amount                     string          `json:"amount" binding:"required"`
 	ExpirationDate             string          `json:"expirationDate"`
 	CardBinID                  string          `json:"cardBinId" binding:"required"`
 	SingleUse                  bool            `json:"singleUse"`                    // Invalid: generic model has no one-time Paynda card flag.
@@ -278,6 +285,10 @@ func (s *PayndaOpenAPIService) CreateCard(ctx context.Context, req *PayndaCreate
 	if err != nil {
 		return nil, err
 	}
+	amount, err := decimal.NewFromString(req.Amount)
+	if err != nil || !amount.IsPositive() {
+		return nil, payndaerrors.ErrInvalidOperation
+	}
 	expireAt, valid := timeconv.ParseCardExpiration(
 		req.ExpirationDate,
 		time.Now().UTC().AddDate(2, 0, 0),
@@ -285,18 +296,40 @@ func (s *PayndaOpenAPIService) CreateCard(ctx context.Context, req *PayndaCreate
 	if !valid {
 		return nil, payndaerrors.ErrInvalidOperation
 	}
-	item, err := s.usecase.CreateCard(ctx, &biz.PayndaCreateCardRequest{
-		AccountID:     accountID,
-		CardHolderID:  cardholderID,
-		CardProductID: cardProductID,
-		Currency:      req.Currency,
-		ExpireAt:      expireAt,
-		RequestID:     req.RequestID,
+	result, err := s.cardIssuer.Issue(ctx, &sharedbiz.IssueCardReq{
+		IssueCardHolder: &sharedbiz.IssueCardHolder{
+			ID: &cardholderID,
+		},
+		Channel:          common.Channel_Paynda,
+		AccountID:        accountID,
+		CardType:         common.CardType_Single,
+		CardProductID:    cardProductID,
+		Currency:         req.Currency,
+		CardScheme:       common.CardScheme_MasterCard,
+		FormType:         common.CardFormType_Virtual,
+		Status:           common.CardStatus_Active,
+		ExpireAt:         expireAt,
+		RequestID:        &req.RequestID,
+		InitialAvailable: &amount,
+		Notificator:      s.notificator,
 	})
 	if err != nil {
-		return nil, err
+		return nil, convertPayndaIssueCardError(err)
 	}
-	return payndaCardDetail(item, req.BalanceAccountID), nil
+	return payndaCardDetail(result.Card, req.BalanceAccountID), nil
+}
+
+func convertPayndaIssueCardError(err error) error {
+	switch {
+	case stderrors.Is(err, sharederrors.ErrAccountNotFound),
+		stderrors.Is(err, sharederrors.ErrCardHolderNotFound),
+		stderrors.Is(err, sharederrors.ErrCardProductNotFound):
+		return payndaerrors.ErrResourceNotFound
+	case stderrors.Is(err, sharederrors.ErrDatabaseOperation):
+		return payndaerrors.ErrDatabaseOperation
+	default:
+		return payndaerrors.ErrInvalidOperation
+	}
 }
 
 type PayndaCardRequest struct {
@@ -613,14 +646,24 @@ func (s *PayndaOpenAPIService) FreezeCard(ctx context.Context, req *PayndaCardSt
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.usecase.UpdateCardStatus(ctx, &biz.PayndaUpdateCardStatusRequest{
+	card, err := s.usecase.UpdateCardStatus(ctx, &biz.PayndaUpdateCardStatusRequest{
 		AccountID: accountID,
 		CardID:    cardID,
 		RequestID: req.RequestID,
 		Status:    paynda.CardStatus_Frozen,
 	})
-	return &struct{}{}, err
+	if err != nil {
+		return nil, err
+	}
+	_ = s.notificator.NotifyCardStatus(ctx, &sharedbiz.NotifyCardStatusReq{
+		AccountID: card.AccountID,
+		Channel:   common.Channel_Paynda,
+		CardID:    card.ID,
+		Status:    card.Status,
+	})
+	return &struct{}{}, nil
 }
+
 func (s *PayndaOpenAPIService) UnfreezeCard(ctx context.Context, req *PayndaCardStatusRequest) (*struct{}, error) {
 	var err error
 	accountID, err := idconv.FromAccountString(req.BalanceAccountID)
@@ -631,13 +674,22 @@ func (s *PayndaOpenAPIService) UnfreezeCard(ctx context.Context, req *PayndaCard
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.usecase.UpdateCardStatus(ctx, &biz.PayndaUpdateCardStatusRequest{
+	card, err := s.usecase.UpdateCardStatus(ctx, &biz.PayndaUpdateCardStatusRequest{
 		AccountID: accountID,
 		CardID:    cardID,
 		RequestID: req.RequestID,
 		Status:    paynda.CardStatus_Active,
 	})
-	return &struct{}{}, err
+	if err != nil {
+		return nil, err
+	}
+	_ = s.notificator.NotifyCardStatus(ctx, &sharedbiz.NotifyCardStatusReq{
+		AccountID: card.AccountID,
+		Channel:   common.Channel_Paynda,
+		CardID:    card.ID,
+		Status:    card.Status,
+	})
+	return &struct{}{}, nil
 }
 
 func (s *PayndaOpenAPIService) ReleaseCard(ctx context.Context, req *PayndaCardStatusRequest) (*struct{}, error) {
@@ -650,7 +702,7 @@ func (s *PayndaOpenAPIService) ReleaseCard(ctx context.Context, req *PayndaCardS
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.usecase.ReleaseCard(ctx, &biz.PayndaUpdateCardStatusRequest{
+	card, err := s.usecase.ReleaseCard(ctx, &biz.PayndaUpdateCardStatusRequest{
 		AccountID: accountID,
 		CardID:    cardID,
 		RequestID: req.RequestID,
@@ -658,6 +710,12 @@ func (s *PayndaOpenAPIService) ReleaseCard(ctx context.Context, req *PayndaCardS
 	if err != nil {
 		return nil, err
 	}
+	_ = s.notificator.NotifyCardStatus(ctx, &sharedbiz.NotifyCardStatusReq{
+		AccountID: card.AccountID,
+		Channel:   common.Channel_Paynda,
+		CardID:    card.ID,
+		Status:    card.Status,
+	})
 
 	return &struct{}{}, nil
 }
@@ -945,22 +1003,31 @@ func payndaCardholderData(item *model.CardHolder, balanceAccountID string) *Payn
 }
 
 func payndaCardDetail(item *model.Card, balanceAccountID string) *PayndaCardDetail {
+	wallet := item.Wallet
+	cardBalance := &PayndaCardBalanceData{
+		ID:              idconv.ToString(item.ID),
+		CreateTime:      timeTypes.DateTime(item.CreatedAt.UTC()),
+		UpdateTime:      timeTypes.DateTime(item.UpdatedAt.UTC()),
+		AvailableAmount: decimal.Zero.String(),
+		Amount:          decimal.Zero.String(),
+		AmountUsed:      decimal.Zero.String(),
+		AmountFrozen:    decimal.Zero.String(),
+	}
+	if wallet != nil {
+		cardBalance = payndaCardBalanceData(wallet)
+	}
 	return &PayndaCardDetail{
 		Card:          payndaCardData(item, balanceAccountID),
 		CardSensitive: payndaCardSensitiveData(item),
-		CardBalance: &PayndaCardBalanceData{
-			ID:              idconv.ToString(item.ID),
-			CreateTime:      timeTypes.DateTime(item.CreatedAt.UTC()),
-			UpdateTime:      timeTypes.DateTime(item.UpdatedAt.UTC()),
-			AvailableAmount: decimal.Zero.String(),
-			Amount:          decimal.Zero.String(),
-			AmountUsed:      decimal.Zero.String(),
-			AmountFrozen:    decimal.Zero.String(),
-		},
+		CardBalance:   cardBalance,
 	}
 }
 
 func payndaCardData(item *model.Card, balanceAccountID string) *PayndaCardData {
+	amount := decimal.Zero.String()
+	if item.Wallet != nil {
+		amount = item.Wallet.Available.String()
+	}
 	return &PayndaCardData{
 		ID:               idconv.ToString(item.ID),
 		CreateTime:       timeTypes.DateTime(item.CreatedAt.UTC()),
@@ -974,7 +1041,7 @@ func payndaCardData(item *model.Card, balanceAccountID string) *PayndaCardData {
 		Currency:         item.CardCurrency,
 		CreditLimitType:  "INDEPENDENT",
 		AmountUsed:       decimal.Zero.String(),
-		Amount:           decimal.Zero.String(),
+		Amount:           amount,
 	}
 }
 

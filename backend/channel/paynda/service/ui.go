@@ -14,12 +14,12 @@ type PayndaUIService struct {
 
 func NewPayndaUIService(injector do.Injector) (*PayndaUIService, error) {
 	factory := do.MustInvoke[*sharedservice.Factory](injector)
-	uc := do.MustInvoke[*biz.PayndaUIUsecase](injector)
+	notificator := do.MustInvoke[*biz.PayndaWebhookNotificator](injector)
 	s := &PayndaUIService{}
-	adapter := &sharedUIWebhookAdapter{uc: uc}
+	adapter := &sharedUIWebhookAdapter{notificator: notificator}
 	management, err := factory.New(&sharedservice.NewRequest{
 		Channel:             enums.Channel_Paynda,
-		Notificator:         uc,
+		Notificator:         notificator,
 		WebhookEventCatalog: adapter,
 		WebhookReplayer:     adapter,
 	})

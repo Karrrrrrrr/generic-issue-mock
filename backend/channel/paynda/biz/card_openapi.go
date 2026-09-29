@@ -2,32 +2,20 @@ package biz
 
 import (
 	"context"
-	"time"
 
 	paynda "generic-mock/channel/paynda/enums"
 	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
-	"generic-mock/pkg/cardnumber"
 	"generic-mock/pkg/randomx"
 	"generic-mock/pkg/types"
 
-	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
 type PayndaRequestLookup struct {
 	AccountID model.ID
 	RequestID string
-}
-
-type PayndaCreateCardRequest struct {
-	AccountID     model.ID
-	CardHolderID  model.ID
-	CardProductID model.ID
-	Currency      enums.Currency
-	ExpireAt      time.Time
-	RequestID     string
 }
 
 type PayndaUpdateCardStatusRequest struct {
@@ -41,93 +29,6 @@ type PayndaRequestResult struct {
 	Card         *model.Card
 	Transaction  *model.CardTransaction
 	IsCardCreate bool
-}
-
-func (u *PayndaOpenAPIUsecase) CreateCard(ctx context.Context, req *PayndaCreateCardRequest) (*model.Card, error) {
-	var card *model.Card
-	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		exists, err := u.accountRepository.ExistByID(txCtx, req.AccountID)
-		if err != nil {
-			zap.S().Errorw("check paynda card account", "error", err)
-			return payndaerrors.ErrDatabaseOperation
-		}
-		if !exists {
-			return payndaerrors.ErrResourceNotFound
-		}
-		holderResource := &PayndaResourceRequest{
-			AccountID: req.AccountID,
-			ID:        req.CardHolderID,
-		}
-		if err := u.requireCardHolder(txCtx, holderResource); err != nil {
-			return err
-		}
-		if err := u.requireCardProduct(txCtx, req.CardProductID); err != nil {
-			return err
-		}
-
-		product, err := u.cardProductRepository.FindByIDForUpdate(txCtx, req.CardProductID)
-		if err != nil {
-			zap.S().Errorw("lock paynda card product", "error", err)
-			return payndaerrors.ErrDatabaseOperation
-		}
-		product.NextCardNumber++
-		generatedCard, ok := cardnumber.Generate(cardnumber.GenerateRequest{
-			Channel:  enums.Channel_Paynda,
-			Prefix:   product.Prefix,
-			Sequence: product.NextCardNumber,
-		})
-		if !ok {
-			return payndaerrors.ErrInvalidOperation
-		}
-		if err := u.cardProductRepository.Save(txCtx, product); err != nil {
-			zap.S().Errorw("advance paynda card product sequence", "error", err)
-			return payndaerrors.ErrDatabaseOperation
-		}
-
-		wallet := &model.Wallet{
-			AccountID: req.AccountID,
-			Channel:   enums.Channel_Paynda,
-			Available: decimal.Zero,
-			Type:      enums.WalletType_Card,
-			Currency:  req.Currency,
-		}
-		if err := u.walletRepository.Create(txCtx, wallet); err != nil {
-			zap.S().Errorw("create paynda card wallet", "error", err)
-			return payndaerrors.ErrDatabaseOperation
-		}
-
-		card = &model.Card{
-			Channel:                enums.Channel_Paynda,
-			AccountID:              req.AccountID,
-			CardProductID:          product.ID,
-			CardBin:                generatedCard.Bin,
-			CardNumber:             generatedCard.Number,
-			Cvv:                    randomx.Digits(3),
-			ExpireAt:               req.ExpireAt,
-			Status:                 enums.CardStatus_Active,
-			WalletID:               wallet.ID,
-			CardHolderID:           req.CardHolderID,
-			FormType:               enums.CardFormType_Virtual,
-			RequestID:              req.RequestID,
-			LastOperationRequestID: req.RequestID,
-			LastOperationType:      enums.OperationType_OpenCard,
-			LastOperationStatus:    enums.OperationStatus_Succeed,
-			CardCurrency:           req.Currency,
-			CardScheme:             enums.CardScheme_MasterCard,
-			CardType:               enums.CardType_Single,
-		}
-		if err := u.cardRepository.Create(txCtx, card); err != nil {
-			zap.S().Errorw("create paynda card", "error", err)
-			return payndaerrors.ErrDatabaseOperation
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return card, nil
 }
 
 func (u *PayndaOpenAPIUsecase) GetCard(ctx context.Context, req *PayndaResourceRequest) (*model.Card, error) {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"slices"
 	"time"
 
 	"generic-mock/enums"
@@ -16,6 +17,7 @@ import (
 	sharederrors "generic-mock/shared/errors"
 
 	"github.com/samber/do/v2"
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 )
 
@@ -41,6 +43,7 @@ type IssueCardReq struct {
 	Status           enums.CardStatus
 	ExpireAt         time.Time
 	RequestID        *string
+	InitialAvailable *decimal.Decimal
 	RawRequest       json.RawMessage
 	Notificator      Notificator
 }
@@ -129,6 +132,11 @@ func validateIssueCardRequest(req *IssueCardReq) error {
 	}
 	if req.RequestID != nil && *req.RequestID == "" {
 		return sharederrors.ErrInvalidIssueRequest
+	}
+	if req.InitialAvailable != nil {
+		if req.CardType != enums.CardType_Single || req.InitialAvailable.IsNegative() {
+			return sharederrors.ErrInvalidWallet
+		}
 	}
 	if req.RawRequest != nil && !json.Valid(req.RawRequest) {
 		return sharederrors.ErrInvalidIssueRequest
@@ -231,6 +239,10 @@ func (issuer *CardIssuer) issueCard(ctx context.Context, req *IssueCardReq) (*mo
 	if err != nil {
 		return nil, err
 	}
+	if req.InitialAvailable != nil {
+		assignment.Wallet.Available = *req.InitialAvailable
+		assignment.Wallet.In = *req.InitialAvailable
+	}
 	holderID, err := issuer.resolveCardHolderID(ctx, req)
 	if err != nil {
 		return nil, err
@@ -262,7 +274,7 @@ func (issuer *CardIssuer) issueCard(ctx context.Context, req *IssueCardReq) (*mo
 
 	rawRequest := json.RawMessage(`{}`)
 	if req.RawRequest != nil {
-		rawRequest = append(json.RawMessage(nil), req.RawRequest...)
+		rawRequest = slices.Clone(req.RawRequest)
 	}
 	card := &model.Card{
 		AccountID:              req.AccountID,

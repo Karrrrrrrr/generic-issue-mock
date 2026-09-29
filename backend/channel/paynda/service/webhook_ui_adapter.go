@@ -10,7 +10,9 @@ import (
 	sharederrors "generic-mock/shared/errors"
 )
 
-type sharedUIWebhookAdapter struct{ uc *biz.PayndaUIUsecase }
+type sharedUIWebhookAdapter struct {
+	notificator *biz.PayndaWebhookNotificator
+}
 
 var _ sharedbiz.UIWebhookEventCatalog = (*sharedUIWebhookAdapter)(nil)
 var _ sharedbiz.UIWebhookReplayer = (*sharedUIWebhookAdapter)(nil)
@@ -31,6 +33,6 @@ func (adapter *sharedUIWebhookAdapter) Replay(ctx context.Context, req *sharedbi
 	if req == nil || req.Record == nil || req.Record.Channel != enums.Channel_Paynda {
 		return sharederrors.ErrInvalidUIRequest
 	}
-	_, err := adapter.uc.ReplayWebhookRecord(ctx, req.Record.ID)
+	_, err := adapter.notificator.ReplayWebhookRecord(ctx, req.Record.ID)
 	return err
 }

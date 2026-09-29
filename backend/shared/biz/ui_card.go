@@ -172,5 +172,11 @@ func (uc *ui) UpdateCardStatus(ctx context.Context, req *UpdateUICardStatusReque
 	if err != nil {
 		return nil, err
 	}
+	_ = uc.notificator.NotifyCardStatus(ctx, &NotifyCardStatusReq{
+		AccountID: result.AccountID,
+		Channel:   uc.channel,
+		CardID:    result.ID,
+		Status:    result.Status,
+	})
 	return result, nil
 }

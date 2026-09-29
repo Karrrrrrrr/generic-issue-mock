@@ -21,7 +21,7 @@ func RegisterProviders(injector do.Injector) {
 	do.Provide(injector, data.NewWebhookRecordRepository)
 	do.Provide(injector, data.NewWebhookClient)
 	do.Provide(injector, biz.NewPayndaOpenAPIUsecase)
-	do.Provide(injector, biz.NewPayndaUIUsecase)
+	do.Provide(injector, biz.NewPayndaWebhookNotificator)
 	do.Provide(injector, service.NewPayndaOpenAPIService)
 	do.Provide(injector, service.NewPayndaUIService)
 }

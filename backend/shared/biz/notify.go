@@ -16,6 +16,7 @@ type NotifyIssueCardReq struct {
 // Notificator shared暴露接口 在各渠道实现
 type Notificator interface {
 	NotifyIssueCard(context.Context, *NotifyIssueCardReq) error
+	NotifyCardStatus(context.Context, *NotifyCardStatusReq) error
 	NotifyCardTransaction(context.Context, *NotifyCardTransactionReq) error
 	NotifyCardFunding(context.Context, *NotifyCardFundingReq) error
 }
@@ -25,6 +26,17 @@ type NoopNotificator struct{}
 var _ Notificator = NoopNotificator{}
 
 func (NoopNotificator) NotifyIssueCard(context.Context, *NotifyIssueCardReq) error {
+	return nil
+}
+
+type NotifyCardStatusReq struct {
+	AccountID model.ID
+	Channel   enums.Channel
+	CardID    model.ID
+	Status    enums.CardStatus
+}
+
+func (NoopNotificator) NotifyCardStatus(context.Context, *NotifyCardStatusReq) error {
 	return nil
 }
 
