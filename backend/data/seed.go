@@ -148,12 +148,12 @@ func seedWebhookConfigs(
 		}
 	}
 
-	for _, event := range paynda.WebhookEvents() {
+	for _, webhookType := range paynda.WebhookTypes() {
 		item := &model.WebhookConfig{
 			AccountID: accounts[enums.Channel_Paynda].ID,
 			Channel:   enums.Channel_Paynda,
-			Event:     string(event),
-			TargetURL: "http://127.0.0.1:18080/paynda/webhooks/" + string(event),
+			Event:     string(webhookType),
+			TargetURL: "http://127.0.0.1:18080/paynda/webhooks/xm-event",
 			Enabled:   true,
 		}
 		if err := db.WithContext(ctx).Where(&model.WebhookConfig{

@@ -93,6 +93,12 @@ const transactionLabels: Record<string, EnumLabel> = {
 };
 
 const eventLabels: Record<string, EnumLabel> = {
+  CARD_TRANSACTION: {
+    label: "CARD_TRANSACTION",
+  },
+  CARD_STATUS: {
+    label: "CARD_STATUS",
+  },
   auth: {
     label: "交易授权",
   },

@@ -21,15 +21,17 @@ import {
 } from "naive-ui";
 import type { WebhookRecord, ManagementAPI } from "./api";
 const {
-  accountApi,
-  webhookRecordApi,
-  eventOptions = [],
-  extendedFilters = false,
+	accountApi,
+	webhookRecordApi,
+	eventOptions = [],
+	eventLabel = "事件",
+	extendedFilters = false,
 } = defineProps<{
-  accountApi: Pick<ManagementAPI["accountApi"], "listAll">;
-  webhookRecordApi: ManagementAPI["webhookRecordApi"];
-  eventOptions?: { label: string; value: string }[];
-  extendedFilters?: boolean;
+	accountApi: Pick<ManagementAPI["accountApi"], "listAll">;
+	webhookRecordApi: ManagementAPI["webhookRecordApi"];
+	eventOptions?: { label: string; value: string }[];
+	eventLabel?: string;
+	extendedFilters?: boolean;
 }>();
 
 const { dialog, message } = createDiscreteApi(["dialog", "message"]);
@@ -42,7 +44,7 @@ const pageSize = ref(20);
 const total = ref(0);
 
 const filterFields = computed<FilterField[]>(() => extendedFilters ? [
-  { key: "event", label: "投递事件", options: eventOptions },
+	{ key: "event", label: `投递${eventLabel}`, options: eventOptions },
   { key: "status", label: "投递状态", options: [
     { label: "处理中", value: "pending" },
     { label: "成功", value: "succeeded" },
@@ -117,10 +119,10 @@ const columns: DataTableColumns<WebhookRecord> = [
     title: "账户名称",
     key: "account_name",
   },
-  {
-    title: "事件",
-    key: "event",
-    render: (row) => renderEnumTag(row.event, "event"),
+	{
+		title: eventLabel,
+		key: "event",
+		render: (row) => renderEnumTag(row.event, "event"),
   },
   {
     title: "目标地址",
@@ -232,7 +234,7 @@ onMounted(() => void load());
         <n-descriptions-item label="投递时间">{{ formatDateTime(selected.delivered_at) }}</n-descriptions-item>
         <n-descriptions-item label="投递次数">{{ selected.attempt_count }}</n-descriptions-item>
         <n-descriptions-item label="错误信息">{{ selected.error_message || "—" }}</n-descriptions-item>
-        <n-descriptions-item label="事件">
+				<n-descriptions-item :label="eventLabel">
           <n-tag :bordered="true" size="small" :title="selected.event">
             {{ formatEnumLabel(selected.event, "event") }}
           </n-tag>

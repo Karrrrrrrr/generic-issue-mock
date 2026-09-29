@@ -31,10 +31,16 @@ func ConvertStringToTransferType(value string) (TransferType, bool) {
 type TransactionType string
 
 const (
-	TransactionType_Approved        TransactionType = "transaction.authentication.approved"
-	TransactionType_Settled         TransactionType = "transaction.authentication.settled"
-	TransactionType_ReversalSettled TransactionType = "transaction.authentication.reversal.settled"
-	TransactionType_RefundSettled   TransactionType = "transaction.refund.settled"
+	TransactionType_AuthenticationApproved        TransactionType = "transaction.authentication.approved"
+	TransactionType_AuthenticationDeclined        TransactionType = "transaction.authentication.declined"
+	TransactionType_AuthenticationSettled         TransactionType = "transaction.authentication.settled"
+	TransactionType_AuthenticationReversalPending TransactionType = "transaction.authentication.reversal.pending"
+	TransactionType_AuthenticationReversalSettled TransactionType = "transaction.authentication.reversal.settled"
+	TransactionType_AuthenticationReversalExpired TransactionType = "transaction.authentication.reversal.expired"
+	TransactionType_RefundApproved                TransactionType = "transaction.refund.approved"
+	TransactionType_RefundSettled                 TransactionType = "transaction.refund.settled"
+	TransactionType_RefundDeclined                TransactionType = "transaction.refund.declined"
+	TransactionType_RefundReversal                TransactionType = "transaction.refund.reversal"
 )
 
 type CardHolderStatus string
@@ -72,34 +78,75 @@ func ConvertGenericTransactionStatusToTransactionStatus(value common.CardTransac
 	}
 }
 
-type WebhookEvent string
+type WebhookType string
 
 const (
-	WebhookEventCardTransaction WebhookEvent = "CARD_TRANSACTION"
-	WebhookEventCardStatus      WebhookEvent = "CARD_STATUS"
+	WebhookTypeCardTransaction WebhookType = "CARD_TRANSACTION"
+	WebhookTypeCardStatus      WebhookType = "CARD_STATUS"
 )
 
-func (v WebhookEvent) Valid() bool {
-	return v == WebhookEventCardTransaction || v == WebhookEventCardStatus
+func (v WebhookType) Valid() bool {
+	return v == WebhookTypeCardTransaction || v == WebhookTypeCardStatus
 }
 
-func WebhookEvents() []WebhookEvent {
-	return []WebhookEvent{
-		WebhookEventCardTransaction,
-		WebhookEventCardStatus,
+func WebhookTypes() []WebhookType {
+	return []WebhookType{
+		WebhookTypeCardTransaction,
+		WebhookTypeCardStatus,
 	}
 }
 
-func ConvertGenericTransactionTypeToTransactionType(value common.CardTransactionType) TransactionType {
+func ConvertGenericTransactionTypeToTransactionType(
+	value common.CardTransactionType,
+) TransactionType {
 	switch value {
+	case common.CardTransactionType_AUTH:
+		return TransactionType_AuthenticationApproved
 	case common.CardTransactionType_CLEAR:
-		return TransactionType_Settled
+		return TransactionType_AuthenticationSettled
 	case common.CardTransactionType_VOID:
-		return TransactionType_ReversalSettled
+		return TransactionType_AuthenticationReversalSettled
 	case common.CardTransactionType_REFUND:
 		return TransactionType_RefundSettled
 	default:
-		return TransactionType_Approved
+		return TransactionType_AuthenticationApproved
+	}
+}
+
+func ConvertGenericCardTransactionToTransactionType(
+	value common.CardTransactionType,
+	status common.CardTransactionStatus,
+) TransactionType {
+	switch value {
+	case common.CardTransactionType_AUTH:
+		if status == common.TransactionStatus_FAILED {
+			return TransactionType_AuthenticationDeclined
+		}
+		return TransactionType_AuthenticationApproved
+	case common.CardTransactionType_CLEAR:
+		return TransactionType_AuthenticationSettled
+	case common.CardTransactionType_VOID:
+		switch status {
+		case common.TransactionStatus_PENDING:
+			return TransactionType_AuthenticationReversalPending
+		case common.TransactionStatus_FAILED:
+			return TransactionType_AuthenticationReversalExpired
+		default:
+			return TransactionType_AuthenticationReversalSettled
+		}
+	case common.CardTransactionType_REFUND:
+		switch status {
+		case common.TransactionStatus_PENDING, common.TransactionStatus_AUTHORIZED:
+			return TransactionType_RefundApproved
+		case common.TransactionStatus_FAILED:
+			return TransactionType_RefundDeclined
+		case common.TransactionStatus_VOID:
+			return TransactionType_RefundReversal
+		default:
+			return TransactionType_RefundSettled
+		}
+	default:
+		return TransactionType_AuthenticationApproved
 	}
 }
 

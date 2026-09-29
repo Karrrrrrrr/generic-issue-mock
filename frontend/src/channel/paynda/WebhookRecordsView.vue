@@ -4,8 +4,9 @@ import { accountApi, webhookRecordApi } from "./api";
 </script>
 
 <template>
-  <SharedView
-    :account-api="accountApi"
-    :webhook-record-api="webhookRecordApi"
-  />
+	<SharedView
+		:account-api="accountApi"
+		:webhook-record-api="webhookRecordApi"
+		event-label="类型"
+	/>
 </template>

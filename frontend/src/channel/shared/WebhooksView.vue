@@ -17,9 +17,10 @@ import {
   NSwitch,
 } from "naive-ui";
 import type { Account, Webhook, WebhookEvent, ManagementAPI } from "./api";
-const { accountApi, webhookApi } = defineProps<{
-  accountApi: Pick<ManagementAPI["accountApi"], "listAll">;
-  webhookApi: ManagementAPI["webhookApi"];
+const { accountApi, webhookApi, eventLabel = "事件" } = defineProps<{
+	accountApi: Pick<ManagementAPI["accountApi"], "listAll">;
+	webhookApi: ManagementAPI["webhookApi"];
+	eventLabel?: string;
 }>();
 
 const { dialog, message } = createDiscreteApi(["dialog", "message"]);
@@ -98,10 +99,10 @@ async function openEdit(item: Webhook) {
 }
 
 async function save() {
-  if (!form.value.account_id || !form.value.event || !form.value.target_url) {
-    message.warning("请选择账户、事件并填写 Webhook URL");
-    return;
-  }
+	if (!form.value.account_id || !form.value.event || !form.value.target_url) {
+		message.warning(`请选择账户、${eventLabel}并填写 Webhook URL`);
+		return;
+	}
   try {
     if (editing.value) {
       await webhookApi.update(editing.value, {
@@ -150,10 +151,10 @@ const columns: DataTableColumns<Webhook> = [
     key: "account_id",
     width: 180,
   },
-  {
-    title: "事件",
-    key: "event",
-    width: 220,
+	{
+		title: eventLabel,
+		key: "event",
+		width: 220,
     render: (row) => renderEnumTag(row.event, "event"),
   },
   { title: "目标地址", key: "target_url", ellipsis: { tooltip: true } },
@@ -256,7 +257,7 @@ onMounted(() => void load());
             :disabled="Boolean(editing)"
           />
         </n-form-item>
-        <n-form-item label="事件">
+				<n-form-item :label="eventLabel">
           <n-select
             v-model:value="form.event"
             :options="eventOptions.map((value) => ({ label: value, value }))"

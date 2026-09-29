@@ -179,11 +179,16 @@ func (u *PayndaUIUsecase) NotifyCardTransaction(ctx context.Context, req *shared
 		zap.S().Errorw("find paynda notification transaction", "account_id", req.AccountID, "transaction_id", req.CardTransactionID, "error", err)
 		return err
 	}
-	u.dispatch(ctx, paynda.WebhookEventCardTransaction, transaction.ID, transaction)
+	u.dispatch(ctx, paynda.WebhookTypeCardTransaction, transaction.ID, transaction)
 	return nil
 }
 
-func (u *PayndaUIUsecase) dispatch(ctx context.Context, event paynda.WebhookEvent, sourceID model.ID, transaction *model.CardTransaction) {
+func (u *PayndaUIUsecase) dispatch(
+	ctx context.Context,
+	webhookType paynda.WebhookType,
+	sourceID model.ID,
+	transaction *model.CardTransaction,
+) {
 	card, err := u.cardRepository.FindByID(ctx, &CardFindByIDRequest{
 		AccountID: &transaction.AccountID,
 		ID:        transaction.CardID,
@@ -200,20 +205,22 @@ func (u *PayndaUIUsecase) dispatch(ctx context.Context, event paynda.WebhookEven
 		zap.S().Errorw("marshal paynda webhook payload", "error", err)
 		return
 	}
-	configs, err := u.webhookConfigRepository.ListByAccountIDs(ctx, &WebhookConfigListByAccountIDsRequest{AccountIDs: []model.ID{card.AccountID}})
+	configs, err := u.webhookConfigRepository.ListByAccountIDs(ctx, &WebhookConfigListByAccountIDsRequest{
+		AccountIDs: []model.ID{card.AccountID},
+	})
 	if err != nil {
 		zap.S().Errorw("list paynda webhook configs", "error", err)
 		return
 	}
 	for _, config := range configs {
-		if !config.Enabled || config.Event != string(event) {
+		if !config.Enabled || config.Event != string(webhookType) {
 			continue
 		}
 		record := &model.WebhookRecord{
 			WebhookConfigID: config.ID,
 			AccountID:       config.AccountID,
 			Channel:         enums.Channel_Paynda,
-			Event:           string(event),
+			Event:           string(webhookType),
 			TargetURL:       config.TargetURL,
 			SourceID:        strconv.FormatInt(int64(sourceID), 10),
 			Payload:         payload,
@@ -239,7 +246,7 @@ func (u *PayndaUIUsecase) dispatch(ctx context.Context, event paynda.WebhookEven
 		result, deliveryErr := u.webhookClient.Deliver(ctx, &PayndaWebhookDeliveryRequest{
 			TargetURL: config.TargetURL,
 			Payload:   payload,
-			Category:  string(event),
+			Category:  string(webhookType),
 		})
 		if result != nil {
 			record.StatusCode = result.StatusCode
@@ -331,15 +338,18 @@ func (u *PayndaUIUsecase) payndaWebhookPayload(ctx context.Context, transaction 
 	}
 	transactionID := strconv.FormatInt(transaction.ID, 10)
 	payload := payndaEventPayload{CardTransactionWebhook: payndaCardTransactionWebhook{
-		ID:                                  transactionID,
-		CreateTime:                          transaction.CreatedAt.UTC().Format(time.RFC3339),
-		UpdateTime:                          transaction.UpdatedAt.UTC().Format(time.RFC3339),
-		MerchantID:                          account.ID,
-		BalanceAccountID:                    account.ID,
-		CardholderID:                        holder.ID,
-		CardID:                              card.ID,
-		MaskCardNo:                          payndaMaskCardNumber(card.CardNumber),
-		Type:                                string(paynda.ConvertGenericTransactionTypeToTransactionType(transaction.Type)),
+		ID:               transactionID,
+		CreateTime:       transaction.CreatedAt.UTC().Format(time.RFC3339),
+		UpdateTime:       transaction.UpdatedAt.UTC().Format(time.RFC3339),
+		MerchantID:       account.ID,
+		BalanceAccountID: account.ID,
+		CardholderID:     holder.ID,
+		CardID:           card.ID,
+		MaskCardNo:       payndaMaskCardNumber(card.CardNumber),
+		Type: string(paynda.ConvertGenericCardTransactionToTransactionType(
+			transaction.Type,
+			transaction.Status,
+		)),
 		ApprovalCode:                        transaction.AuthorizationCode,
 		PreAuthAmount:                       transaction.TxAmount.String(),
 		PostedAmount:                        transaction.TxAmount.String(),

@@ -19,10 +19,10 @@ func (adapter *sharedUIWebhookAdapter) ListEvents(ctx context.Context, req *shar
 	if req == nil || req.Channel != enums.Channel_Paynda {
 		return nil, sharederrors.ErrInvalidUIRequest
 	}
-	events := channelenums.WebhookEvents()
-	result := make([]string, 0, len(events))
-	for _, event := range events {
-		result = append(result, string(event))
+	webhookTypes := channelenums.WebhookTypes()
+	result := make([]string, 0, len(webhookTypes))
+	for _, webhookType := range webhookTypes {
+		result = append(result, string(webhookType))
 	}
 	return result, nil
 }
