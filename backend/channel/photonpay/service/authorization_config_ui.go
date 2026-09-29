@@ -10,12 +10,12 @@ import (
 )
 
 type UIAuthorizationConfigData struct {
-	AccountName   string    `json:"account_name"`
-	AccountID     model.ID  `json:"account_id"`
-	TargetURL     string    `json:"target_url"`
-	Enabled       bool      `json:"enabled"`
-	TimeoutMillis int       `json:"timeout_millis"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	AccountName   string     `json:"account_name"`
+	AccountID     model.ID   `json:"account_id"`
+	TargetURL     string     `json:"target_url"`
+	Enabled       bool       `json:"enabled"`
+	TimeoutMillis int        `json:"timeout_millis"`
+	UpdatedAt     *time.Time `json:"updated_at"`
 }
 
 type UIGetAuthorizationConfigRequest struct {
@@ -65,12 +65,17 @@ func (s *PhotonPayUIService) UpdateAuthorizationConfig(
 }
 
 func toAuthorizationConfigData(item *model.AuthorizationConfig) *UIAuthorizationConfigData {
+	var updatedAt *time.Time
+	if item.ID != 0 {
+		updatedAt = &item.UpdatedAt
+	}
+
 	return &UIAuthorizationConfigData{
 		AccountID:     item.AccountID,
 		AccountName:   item.Account.GetName(),
 		TargetURL:     item.TargetURL,
 		Enabled:       item.Enabled,
 		TimeoutMillis: item.TimeoutMillis,
-		UpdatedAt:     item.UpdatedAt,
+		UpdatedAt:     updatedAt,
 	}
 }

@@ -32,7 +32,18 @@ func (u *PhotonPayUIUsecase) GetAuthorizationConfig(ctx context.Context, account
 		return nil, photonpayerrors.ErrDatabaseOperation
 	}
 	if !exists {
-		return nil, photonpayerrors.ErrResourceNotFound
+		account, err := u.accountRepo.Find(ctx, accountID)
+		if err != nil {
+			zap.S().Errorw("find photonpay authorization config owner", "error", err)
+			return nil, photonpayerrors.ErrDatabaseOperation
+		}
+		return &model.AuthorizationConfig{
+			Account:       account,
+			AccountID:     accountID,
+			Channel:       enums.Channel_PhotonPay,
+			Enabled:       true,
+			TimeoutMillis: 500,
+		}, nil
 	}
 	item, err := u.authorizationConfigRepo.FindByAccountID(ctx, accountID)
 	if err != nil {
