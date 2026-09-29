@@ -93,7 +93,7 @@ func (service *PayndaOpenAPIService) CardholderWallet(ctx context.Context, req *
 		return nil, err
 	}
 	return &OpenAPICardholderWalletData{
-		PayndaBalanceAccountWalletData: *payndaBalanceAccountWalletData(item, req.BalanceAccountID),
+		PayndaBalanceAccountWalletData: *convertAccountWalletToPayndaBalanceAccountWalletData(item, req.BalanceAccountID),
 		CardholderID:                   idconv.ToString(holderID),
 	}, nil
 }

@@ -128,7 +128,7 @@ func (n *PayndaWebhookNotificator) NotifyIssueCard(ctx context.Context, req *sha
 	if err != nil {
 		return err
 	}
-	payload, err := n.payndaCardStatusWebhookPayload(ctx, card, card.Status)
+	payload, err := n.convertCardToPayndaCardStatusWebhookPayload(ctx, card, card.Status)
 	if err != nil {
 		zap.S().Errorw("marshal paynda card status webhook payload", "error", err)
 		return err
@@ -150,7 +150,7 @@ func (n *PayndaWebhookNotificator) NotifyCardStatus(ctx context.Context, req *sh
 	if status == "" {
 		status = card.Status
 	}
-	payload, err := n.payndaCardStatusWebhookPayload(ctx, card, status)
+	payload, err := n.convertCardToPayndaCardStatusWebhookPayload(ctx, card, status)
 	if err != nil {
 		zap.S().Errorw("marshal paynda card status webhook payload", "error", err)
 		return err
@@ -179,7 +179,7 @@ func (n *PayndaWebhookNotificator) NotifyCardTransaction(ctx context.Context, re
 		)
 		return err
 	}
-	payload, err := n.payndaTransactionWebhookPayload(ctx, transaction)
+	payload, err := n.convertCardTransactionToPayndaTransactionWebhookPayload(ctx, transaction)
 	if err != nil {
 		zap.S().Errorw("marshal paynda transaction webhook payload", "error", err)
 		return err
@@ -321,7 +321,7 @@ func (n *PayndaWebhookNotificator) deliverWebhookRecord(ctx context.Context, rec
 	}
 }
 
-func (n *PayndaWebhookNotificator) payndaCardStatusWebhookPayload(
+func (n *PayndaWebhookNotificator) convertCardToPayndaCardStatusWebhookPayload(
 	ctx context.Context,
 	card *model.Card,
 	status enums.CardStatus,
@@ -354,7 +354,7 @@ func (n *PayndaWebhookNotificator) payndaCardStatusWebhookPayload(
 	return json.Marshal(payload)
 }
 
-func (n *PayndaWebhookNotificator) payndaTransactionWebhookPayload(
+func (n *PayndaWebhookNotificator) convertCardTransactionToPayndaTransactionWebhookPayload(
 	ctx context.Context,
 	transaction *model.CardTransaction,
 ) ([]byte, error) {
@@ -431,7 +431,7 @@ func (n *PayndaWebhookNotificator) payndaTransactionWebhookPayload(
 		},
 	}
 	if transaction.AuthorizationID != 0 {
-		authorizationTransactionID, err := n.payndaAuthorizationTransactionID(ctx, transaction)
+		authorizationTransactionID, err := n.resolvePayndaAuthorizationTransactionID(ctx, transaction)
 		if err != nil {
 			return nil, err
 		}
@@ -442,7 +442,7 @@ func (n *PayndaWebhookNotificator) payndaTransactionWebhookPayload(
 	return json.Marshal(payload)
 }
 
-func (n *PayndaWebhookNotificator) payndaAuthorizationTransactionID(
+func (n *PayndaWebhookNotificator) resolvePayndaAuthorizationTransactionID(
 	ctx context.Context,
 	transaction *model.CardTransaction,
 ) (model.ID, error) {

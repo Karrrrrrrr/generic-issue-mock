@@ -31,7 +31,7 @@ type OpenAPIBalanceAccountsData struct {
 	Size    int64                        `json:"size"`
 }
 
-func balanceAccountData(item *model.Account) *OpenAPIBalanceAccountData {
+func convertAccountToOpenAPIBalanceAccountData(item *model.Account) *OpenAPIBalanceAccountData {
 	return &OpenAPIBalanceAccountData{
 		ID:         idconv.ToString(item.ID),
 		MerchantID: idconv.ToString(item.ID),
@@ -54,7 +54,7 @@ func (service *PayndaOpenAPIService) GetBalanceAccount(ctx context.Context, req 
 	if err != nil {
 		return nil, err
 	}
-	return balanceAccountData(item.Account), nil
+	return convertAccountToOpenAPIBalanceAccountData(item.Account), nil
 }
 
 func (service *PayndaOpenAPIService) ListBalanceAccounts(ctx context.Context, req *OpenAPIBalanceAccountRequest) (*OpenAPIBalanceAccountsData, error) {
@@ -81,7 +81,7 @@ func (service *PayndaOpenAPIService) CreateBalanceAccount(ctx context.Context, r
 	if err != nil {
 		return nil, err
 	}
-	return balanceAccountData(item), nil
+	return convertAccountToOpenAPIBalanceAccountData(item), nil
 }
 
 func (service *PayndaOpenAPIService) UpdateBalanceAccount(ctx context.Context, req *OpenAPIBalanceAccountRequest) (*OpenAPIBalanceAccountData, error) {
@@ -99,7 +99,7 @@ func (service *PayndaOpenAPIService) UpdateBalanceAccount(ctx context.Context, r
 	if err != nil {
 		return nil, err
 	}
-	return balanceAccountData(item), nil
+	return convertAccountToOpenAPIBalanceAccountData(item), nil
 }
 
 func (service *PayndaOpenAPIService) DeleteBalanceAccount(ctx context.Context, req *OpenAPIBalanceAccountRequest) (*struct{}, error) {

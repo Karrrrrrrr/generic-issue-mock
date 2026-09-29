@@ -116,7 +116,7 @@ func (r *cardTransactionRepository) List(
 	req *biz.CardTransactionListRequest,
 ) ([]*model.CardTransaction, error) {
 	db := r.repository.DB(ctx)
-	predicates := payndaTransactionPredicates(ctx, db, req)
+	predicates := buildPayndaTransactionPredicates(ctx, db, req)
 
 	return db.CardTransaction.WithContext(ctx).
 		Preload(db.CardTransaction.Account).
@@ -127,7 +127,7 @@ func (r *cardTransactionRepository) List(
 		Find()
 }
 
-func payndaTransactionPredicates(
+func buildPayndaTransactionPredicates(
 	ctx context.Context,
 	db *query.Query,
 	req *biz.CardTransactionListRequest,

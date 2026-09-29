@@ -93,7 +93,7 @@ func (s *PayndaOpenAPIService) CreateCardHolder(ctx context.Context, req *Paynda
 		return nil, err
 	}
 
-	return payndaCardholderData(item, req.BalanceAccountID), nil
+	return convertCardHolderToPayndaCardholderData(item, req.BalanceAccountID), nil
 }
 
 type PayndaCardHolderIDRequest struct {
@@ -121,7 +121,7 @@ func (s *PayndaOpenAPIService) GetCardHolder(
 		return nil, err
 	}
 
-	return payndaCardholderData(item, req.BalanceAccountID), nil
+	return convertCardHolderToPayndaCardholderData(item, req.BalanceAccountID), nil
 }
 
 type PayndaUpdateCardHolderRequest struct {
@@ -196,7 +196,7 @@ func (s *PayndaOpenAPIService) ListCardHolders(
 	if err != nil {
 		return nil, err
 	}
-	offset, limit, current := payndaPagination(types.Value(req.Current), types.Value(req.PageSize))
+	offset, limit, current := resolvePayndaPagination(types.Value(req.Current), types.Value(req.PageSize))
 	items, err := s.usecase.ListCardHolders(ctx, &biz.PayndaListRequest{
 		AccountID: &accountID,
 		Offset:    offset,
@@ -208,7 +208,7 @@ func (s *PayndaOpenAPIService) ListCardHolders(
 
 	records := make([]*PayndaCardholderData, 0, len(items))
 	for _, item := range items {
-		records = append(records, payndaCardholderData(item, req.BalanceAccountID))
+		records = append(records, convertCardHolderToPayndaCardholderData(item, req.BalanceAccountID))
 	}
 
 	return &PayndaCardholdersData{
@@ -316,7 +316,7 @@ func (s *PayndaOpenAPIService) CreateCard(ctx context.Context, req *PayndaCreate
 	if err != nil {
 		return nil, convertPayndaIssueCardError(err)
 	}
-	return payndaCardDetail(result.Card, req.BalanceAccountID), nil
+	return convertCardToPayndaCardDetail(result.Card, req.BalanceAccountID), nil
 }
 
 func convertPayndaIssueCardError(err error) error {
@@ -355,7 +355,7 @@ func (s *PayndaOpenAPIService) GetCard(ctx context.Context, req *PayndaCardReque
 		return nil, err
 	}
 
-	return payndaCardData(item, req.BalanceAccountID), nil
+	return convertCardToPayndaCardData(item, req.BalanceAccountID), nil
 }
 
 type PayndaCardsData struct {
@@ -372,7 +372,7 @@ func (s *PayndaOpenAPIService) ListCards(ctx context.Context, req *PayndaListReq
 	if err != nil {
 		return nil, err
 	}
-	offset, limit, current := payndaPagination(types.Value(req.Current), types.Value(req.PageSize))
+	offset, limit, current := resolvePayndaPagination(types.Value(req.Current), types.Value(req.PageSize))
 	items, err := s.usecase.ListCards(ctx, &biz.PayndaListRequest{
 		AccountID: &accountID,
 		Offset:    offset,
@@ -384,7 +384,7 @@ func (s *PayndaOpenAPIService) ListCards(ctx context.Context, req *PayndaListReq
 
 	records := make([]*PayndaCardData, 0, len(items))
 	for _, item := range items {
-		records = append(records, payndaCardData(item, req.BalanceAccountID))
+		records = append(records, convertCardToPayndaCardData(item, req.BalanceAccountID))
 	}
 
 	return &PayndaCardsData{
@@ -414,7 +414,7 @@ func (s *PayndaOpenAPIService) GetCardSensitive(ctx context.Context, req *Paynda
 		return nil, err
 	}
 
-	return payndaCardSensitiveData(item), nil
+	return convertCardToPayndaCardSensitiveData(item), nil
 }
 
 func (s *PayndaOpenAPIService) GetCardBalance(
@@ -438,7 +438,7 @@ func (s *PayndaOpenAPIService) GetCardBalance(
 		return nil, err
 	}
 
-	return payndaCardBalanceData(wallet), nil
+	return convertWalletToPayndaCardBalanceData(wallet), nil
 }
 
 type PayndaBalanceAccountWalletData struct {
@@ -465,7 +465,7 @@ func (s *PayndaOpenAPIService) ListBalanceAccountWallets(
 	}
 
 	result := []*PayndaBalanceAccountWalletData{
-		payndaBalanceAccountWalletData(accountWallet, req.BalanceAccountID),
+		convertAccountWalletToPayndaBalanceAccountWalletData(accountWallet, req.BalanceAccountID),
 	}
 
 	return &result, nil
@@ -591,12 +591,12 @@ func (s *PayndaOpenAPIService) RequestResult(
 	var payload any
 	var base model.BaseModel
 	if result.Transaction != nil {
-		payload = payndaCardBalanceTransferData(result.Transaction)
+		payload = convertCardTransactionToPayndaCardBalanceTransferData(result.Transaction)
 		base = result.Transaction.BaseModel
 	} else {
 		base = result.Card.BaseModel
 		if result.IsCardCreate {
-			payload = payndaCardDetail(result.Card, idconv.ToString(accountID))
+			payload = convertCardToPayndaCardDetail(result.Card, idconv.ToString(accountID))
 		} else {
 			payload = struct {
 				ID        string `json:"id"`
@@ -767,7 +767,7 @@ func (s *PayndaOpenAPIService) TransferCardBalance(
 		return nil, err
 	}
 
-	return payndaCardBalanceTransferData(transaction), nil
+	return convertCardTransactionToPayndaCardBalanceTransferData(transaction), nil
 }
 
 type PayndaCardBalanceUpdateHistoryData struct {
@@ -788,7 +788,7 @@ func (s *PayndaOpenAPIService) ListCardBalanceUpdates(
 	if err != nil {
 		return nil, err
 	}
-	offset, limit, _ := payndaPagination(types.Value(req.Current), types.Value(req.PageSize))
+	offset, limit, _ := resolvePayndaPagination(types.Value(req.Current), types.Value(req.PageSize))
 	items, err := s.usecase.ListCardBalanceUpdates(ctx, &biz.PayndaListRequest{
 		AccountID: &accountID,
 		Offset:    offset,
@@ -872,7 +872,7 @@ func (s *PayndaOpenAPIService) ListCardTransactions(
 	if err != nil {
 		return nil, err
 	}
-	offset, limit, current := payndaPagination(types.Value(req.Current), types.Value(req.PageSize))
+	offset, limit, current := resolvePayndaPagination(types.Value(req.Current), types.Value(req.PageSize))
 	start := (*time.Time)(req.TransactionTimeStart)
 	end := (*time.Time)(req.TransactionTimeEnd)
 	if start != nil && end != nil && start.After(*end) {
@@ -898,7 +898,7 @@ func (s *PayndaOpenAPIService) ListCardTransactions(
 
 	records := make([]*PayndaTransactionData, 0, len(items))
 	for _, item := range items {
-		records = append(records, payndaTransactionData(item))
+		records = append(records, convertCardTransactionDetailToPayndaTransactionData(item))
 	}
 
 	return &PayndaTransactionsData{
@@ -935,7 +935,7 @@ func (s *PayndaOpenAPIService) GetCardTransaction(
 		return nil, err
 	}
 
-	return payndaTransactionData(item), nil
+	return convertCardTransactionDetailToPayndaTransactionData(item), nil
 }
 
 type PayndaEmbeddedResponse struct {
@@ -983,7 +983,7 @@ type PayndaCardBalanceData struct {
 	Amount          string             `json:"amount"`
 }
 
-func payndaCardholderData(item *model.CardHolder, balanceAccountID string) *PayndaCardholderData {
+func convertCardHolderToPayndaCardholderData(item *model.CardHolder, balanceAccountID string) *PayndaCardholderData {
 	return &PayndaCardholderData{
 		ID:                  idconv.ToString(item.ID),
 		CreateTime:          timeTypes.DateTime(item.CreatedAt.UTC()),
@@ -1002,7 +1002,7 @@ func payndaCardholderData(item *model.CardHolder, balanceAccountID string) *Payn
 	}
 }
 
-func payndaCardDetail(item *model.Card, balanceAccountID string) *PayndaCardDetail {
+func convertCardToPayndaCardDetail(item *model.Card, balanceAccountID string) *PayndaCardDetail {
 	wallet := item.Wallet
 	cardBalance := &PayndaCardBalanceData{
 		ID:              idconv.ToString(item.ID),
@@ -1014,16 +1014,16 @@ func payndaCardDetail(item *model.Card, balanceAccountID string) *PayndaCardDeta
 		AmountFrozen:    decimal.Zero.String(),
 	}
 	if wallet != nil {
-		cardBalance = payndaCardBalanceData(wallet)
+		cardBalance = convertWalletToPayndaCardBalanceData(wallet)
 	}
 	return &PayndaCardDetail{
-		Card:          payndaCardData(item, balanceAccountID),
-		CardSensitive: payndaCardSensitiveData(item),
+		Card:          convertCardToPayndaCardData(item, balanceAccountID),
+		CardSensitive: convertCardToPayndaCardSensitiveData(item),
 		CardBalance:   cardBalance,
 	}
 }
 
-func payndaCardData(item *model.Card, balanceAccountID string) *PayndaCardData {
+func convertCardToPayndaCardData(item *model.Card, balanceAccountID string) *PayndaCardData {
 	amount := decimal.Zero.String()
 	if item.Wallet != nil {
 		amount = item.Wallet.Available.String()
@@ -1045,7 +1045,7 @@ func payndaCardData(item *model.Card, balanceAccountID string) *PayndaCardData {
 	}
 }
 
-func payndaCardSensitiveData(item *model.Card) *PayndaCardSensitiveData {
+func convertCardToPayndaCardSensitiveData(item *model.Card) *PayndaCardSensitiveData {
 	return &PayndaCardSensitiveData{
 		ID:             idconv.ToString(item.ID),
 		CreateTime:     timeTypes.DateTime(item.CreatedAt.UTC()),
@@ -1057,7 +1057,7 @@ func payndaCardSensitiveData(item *model.Card) *PayndaCardSensitiveData {
 	}
 }
 
-func payndaCardBalanceData(item *model.Wallet) *PayndaCardBalanceData {
+func convertWalletToPayndaCardBalanceData(item *model.Wallet) *PayndaCardBalanceData {
 	return &PayndaCardBalanceData{
 		ID:              idconv.ToString(item.ID),
 		CreateTime:      timeTypes.DateTime(item.CreatedAt.UTC()),
@@ -1069,7 +1069,7 @@ func payndaCardBalanceData(item *model.Wallet) *PayndaCardBalanceData {
 	}
 }
 
-func payndaBalanceAccountWalletData(
+func convertAccountWalletToPayndaBalanceAccountWalletData(
 	item *biz.PayndaAccountWallet,
 	balanceAccountID string,
 ) *PayndaBalanceAccountWalletData {
@@ -1084,7 +1084,7 @@ func payndaBalanceAccountWalletData(
 	}
 }
 
-func payndaCardBalanceTransferData(item *model.CardTransaction) *PayndaCardBalanceTransferData {
+func convertCardTransactionToPayndaCardBalanceTransferData(item *model.CardTransaction) *PayndaCardBalanceTransferData {
 	transferType := paynda.TransferType_In
 	if item.Type == common.CardTransactionType_FundOut {
 		transferType = paynda.TransferType_Out
@@ -1107,7 +1107,7 @@ func payndaCardBalanceTransferData(item *model.CardTransaction) *PayndaCardBalan
 	}
 }
 
-func payndaTransactionData(item *biz.PayndaCardTransactionDetail) *PayndaTransactionData {
+func convertCardTransactionDetailToPayndaTransactionData(item *biz.PayndaCardTransactionDetail) *PayndaTransactionData {
 	transactionTime := timeTypes.DateTime(item.Transaction.CreatedAt)
 	var authorizationTime *timeTypes.DateTime
 	if item.Authorization != nil {
@@ -1140,7 +1140,7 @@ func payndaTransactionData(item *biz.PayndaCardTransactionDetail) *PayndaTransac
 	}
 }
 
-func payndaPagination(current int, pageSize int) (int, int, int) {
+func resolvePayndaPagination(current int, pageSize int) (int, int, int) {
 	if current < 1 {
 		current = 1
 	}
