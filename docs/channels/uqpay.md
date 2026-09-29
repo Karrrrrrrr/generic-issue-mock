@@ -2,7 +2,7 @@
 
 ## 状态
 
-UQPay 当前未实现。它需要支持实体卡、同步授权和虚拟账户。Marxo 已在实际 card service 中调用 UQPay SDK，因此后续实现必须以实际调用为边界。
+UQPay 当前暂不实现，不列入近期 backlog。以下内容仅保留此前调研和可能的协议边界，不能作为当前开发要求；后续如重新启用，仍必须以 Marxo 实际调用点为边界重新核对。
 
 ## 目标字段映射
 
@@ -36,9 +36,9 @@ SDK 位于 `pkg/dealer/uqpay`，实际调用位于 `app/new/card/service/interna
 | 清算查询 | `ListTransaction` |
 | 后续卡操作 | `RetrieveIssuingBalance`、`ResetCardPin`、`ActivateCard`、`UpdateCard`、`CreatePanToken` |
 
-## 待办（可直接实施）
+## 归档调研（暂不实施）
 
-下列内容来自 Marxo 的 `pkg/dealer/uqpay`，可直接作为 mock 的输入输出边界。所有路由均须置于 `/uqpay` 前缀下。
+下列内容来自此前对 Marxo `pkg/dealer/uqpay` 的调研，当前不实施。若未来恢复 UQPay，所有路由仍须置于 `/uqpay` 前缀下，并重新确认请求/响应 DTO。
 
 ### 公共鉴权和错误规则
 
@@ -91,9 +91,9 @@ SDK 把 HTTP 非 2xx 视为传输错误；很多成功 HTTP 响应仍以非空 `
 
 `POST /api/v1/issuing/balances` body 为 `{"currency":"USD"}`，返回 `balance_id`、`available_balance`、`margin_balance`、`frozen_balance`、状态和时间；以 `Wallet` 表达，不持久化 `balance_id`。模拟授权是 `POST /api/v1/simulation/issuing/authorization`，body 为 `card_id`、`transaction_amount`、`transaction_currency`、`merchant_name`、`merchant_category_code`；创建 `Authorization` 和授权交易。撤销为 `POST /api/v1/simulation/issuing/reversal`，body 只含 `transaction_id`，其原交易必须已存在。
 
-### 必须实现的 UQPay webhook 夹具
+### 归档 webhook 夹具
 
-Marxo 有 UQPay webhook 消费模型；mock 需要按此负载生成事件，而不是只写通用 `WebhookRecord`。外层至少带 `version`、`event_name`、`event_id`、`event_type`、`source_id`、`payload` 和 webhook 时间；`event_id` 是去重键。业务 payload 使用 `{"data": ...}` 包装。
+以下为历史调研中的 UQPay webhook 消费模型，不是当前实现要求。若未来恢复 UQPay，mock 需要按确认后的负载生成事件，而不是只写通用 `WebhookRecord`。
 
 ```json
 // 卡激活码事件的 payload

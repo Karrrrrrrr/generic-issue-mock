@@ -2,19 +2,45 @@ package biz
 
 import (
 	"context"
+	"time"
 
 	photonpayerrors "generic-mock/channel/photonpay/errors"
+	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
+	sharedbiz "generic-mock/shared/biz"
 
 	"go.uber.org/zap"
 )
 
-func (u *PhotonPayOpenAPIUsecase) ListTransactions(ctx context.Context, req *ListRequest) ([]*model.CardTransaction, error) {
-	transactions, err := u.cardTransactionRepo.ListTransactions(ctx, &CardTransactionListTransactionsRequest{
-		AccountIDs: types.PointerSlice(req.AccountID),
-		Limit:      req.Limit,
-		Offset:     req.Offset,
+type ListTransactionsRequest struct {
+	AccountID   *model.ID
+	CardID      *model.ID
+	ID          *model.ID
+	RequestID   *string
+	Types       []enums.CardTransactionType
+	Statuses    []enums.CardTransactionStatus
+	CreatedFrom *time.Time
+	CreatedTo   *time.Time
+	Offset      int
+	Limit       int
+}
+
+func (u *PhotonPayOpenAPIUsecase) ListTransactions(ctx context.Context, req *ListTransactionsRequest) ([]*model.CardTransaction, error) {
+	transactions, err := u.cardTransactionRepo.List(ctx, &sharedbiz.CardTransactionListRequest{
+		CardTransactionFilters: sharedbiz.CardTransactionFilters{
+			Channel:     enums.Channel_PhotonPay,
+			AccountIDs:  types.PointerSlice(req.AccountID),
+			IDs:         types.PointerSlice(req.ID),
+			RequestIDs:  types.PointerSlice(req.RequestID),
+			CardIDs:     types.PointerSlice(req.CardID),
+			Types:       req.Types,
+			Statuses:    req.Statuses,
+			CreatedFrom: req.CreatedFrom,
+			CreatedTo:   req.CreatedTo,
+		},
+		Limit:  &req.Limit,
+		Offset: req.Offset,
 	})
 	if err != nil {
 		zap.S().Errorw("list photonpay card transactions", "error", err)

@@ -33,10 +33,10 @@ func Register(req RegisterRequest) {
 		openAPIRoutes.POST("/api/issuing/v3/cards/actions", bind(api.ApplyCardAction))
 		openAPIRoutes.POST("/api/issuing/v3/cards/funding/actions", bind(api.FundCard))
 		openAPIRoutes.GET("/api/issuing/v3/card/funding/orders", bind(api.ListCardFundingOrders))
-		openAPIRoutes.POST("/api/reporting/v3/account-balance", bind(api.RejectUnsupportedOperation))
-		openAPIRoutes.GET("/api/issuing/v3/transactions", bind(api.RejectUnsupportedOperation))
-		openAPIRoutes.GET("/api/issuing/v4/account/transactions", bind(api.RejectUnsupportedOperation))
-		openAPIRoutes.GET("/api/issuing/v3/cards/3ds/details", bind(api.RejectUnsupportedOperation))
+		openAPIRoutes.POST("/api/reporting/v3/account-balance", bind(api.QueryAccountsBalances))
+		openAPIRoutes.GET("/api/issuing/v3/transactions", bind(api.QueryCardTransactions))
+		openAPIRoutes.GET("/api/issuing/v4/account/transactions", bind(api.QueryAccountTransactions))
+		openAPIRoutes.GET("/api/issuing/v3/cards/3ds/details", bind(api.Query3DSDetails))
 	}
 	uiRoutes := router.Group("/ui")
 	sharedhttp.Register(sharedhttp.RegisterRequest{

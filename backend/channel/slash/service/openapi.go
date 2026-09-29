@@ -184,6 +184,7 @@ func (s *SlashOpenAPIService) ListCards(ctx context.Context, req *OpenAPIListCar
 
 type OpenAPICreateCardRequest struct {
 	OpenAPIAccountRequest
+	IdempotencyKey     string          `header:"X-Idempotency-Key" binding:"required"`
 	AccountID          string          `json:"accountId"` // Invalid: mock has one generic account.
 	VirtualAccountID   *string         `json:"virtualAccountId"`
 	Type               slash.CardType  `json:"type" binding:"required"`
@@ -222,7 +223,7 @@ func (s *SlashOpenAPIService) CreateCard(ctx context.Context, req *OpenAPICreate
 		AccountID:        accountID,
 		CardProductID:    cardProductID,
 		Currency:         enums.Currency_USD,
-		RequestID:        req.UserData.RequestID,
+		RequestID:        req.IdempotencyKey,
 	})
 	if err != nil {
 		return nil, err

@@ -594,8 +594,19 @@ func (s *PhotonPayOpenAPIService) CancelCard(ctx context.Context, req *CancelCar
 
 type ListTradeRequest struct {
 	OpenAPIAccountRequest
-	PageIndex *int `form:"pageIndex" binding:"omitempty,min=1"`
-	PageSize  *int `form:"pageSize" binding:"omitempty,min=1"`
+	PageIndex       *int    `form:"pageIndex" binding:"omitempty,min=1"`
+	PageSize        *int    `form:"pageSize" binding:"omitempty,min=1"`
+	MemberID        *string `form:"memberId"`      // Invalid: the token selects the account; Matrix members are unsupported.
+	MatrixAccount   *string `form:"matrixAccount"` // Invalid: mock does not partition by matrix account.
+	CardID          *string `form:"cardId"`
+	CardType        *string `form:"cardType"`       // Invalid: transaction filtering by card type is unsupported.
+	CardFormFactor  *string `form:"cardFormFactor"` // Invalid: transaction filtering by form factor is unsupported.
+	RequestID       *string `form:"requestId"`
+	TransactionID   *string `form:"transactionId"`
+	TransactionType *string `form:"transactionType"`
+	Status          *string `form:"status"`
+	CreatedAtStart  *string `form:"createdAtStart"`
+	CreatedAtEnd    *string `form:"createdAtEnd"`
 }
 type TradeData struct {
 	TransactionID       string                   `json:"transactionId"`
@@ -615,11 +626,53 @@ func (s *PhotonPayOpenAPIService) ListTrades(ctx context.Context, req *ListTrade
 	if err != nil {
 		return nil, err
 	}
+	cardID, err := idconv.FromOptionalString(req.CardID)
+	if err != nil {
+		return nil, err
+	}
+	transactionID, err := idconv.FromOptionalString(req.TransactionID)
+	if err != nil {
+		return nil, err
+	}
+	var typesFilter []common.CardTransactionType
+	if req.TransactionType != nil {
+		var valid bool
+		typesFilter, valid = photon.TransactionTypesToGeneric(*req.TransactionType)
+		if !valid {
+			return nil, photonpayerrors.ErrInvalidOperation
+		}
+	}
+	var statuses []common.CardTransactionStatus
+	if req.Status != nil {
+		var valid bool
+		statuses, valid = photon.TransactionStatusesToGeneric(*req.Status)
+		if !valid {
+			return nil, photonpayerrors.ErrInvalidOperation
+		}
+	}
+	createdFrom, err := parsePhotonPayQueryTime(req.CreatedAtStart)
+	if err != nil {
+		return nil, err
+	}
+	createdTo, err := parsePhotonPayQueryTime(req.CreatedAtEnd)
+	if err != nil {
+		return nil, err
+	}
+	if createdFrom != nil && createdTo != nil && createdFrom.After(*createdTo) {
+		return nil, photonpayerrors.ErrInvalidOperation
+	}
 	page, size := types.NormalizePagination(types.Value(req.PageIndex), types.Value(req.PageSize))
-	transactions, err := s.usecase.ListTransactions(ctx, &biz.ListRequest{
-		AccountID: &accountID,
-		Offset:    (page - 1) * size,
-		Limit:     size,
+	transactions, err := s.usecase.ListTransactions(ctx, &biz.ListTransactionsRequest{
+		AccountID:   &accountID,
+		CardID:      cardID,
+		ID:          transactionID,
+		RequestID:   req.RequestID,
+		Types:       typesFilter,
+		Statuses:    statuses,
+		CreatedFrom: createdFrom,
+		CreatedTo:   createdTo,
+		Offset:      (page - 1) * size,
+		Limit:       size,
 	})
 	if err != nil {
 		return nil, err
@@ -640,6 +693,20 @@ func (s *PhotonPayOpenAPIService) ListTrades(ctx context.Context, req *ListTrade
 		})
 	}
 	return &items, nil
+}
+
+func parsePhotonPayQueryTime(value *string) (*time.Time, error) {
+	if value == nil {
+		return nil, nil
+	}
+	if strings.TrimSpace(*value) == "" {
+		return nil, photonpayerrors.ErrInvalidOperation
+	}
+	parsed, err := timeparse.ParseDate(*value)
+	if err != nil {
+		return nil, photonpayerrors.ErrInvalidOperation
+	}
+	return parsed, nil
 }
 
 type UploadRequest struct {

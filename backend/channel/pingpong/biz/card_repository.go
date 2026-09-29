@@ -2,9 +2,7 @@ package biz
 
 import (
 	"context"
-	"time"
 
-	common "generic-mock/enums"
 	"generic-mock/model"
 )
 
@@ -16,28 +14,6 @@ type CardExistsRequest struct {
 type CardFindRequest struct {
 	AccountID model.ID
 	ID        model.ID
-}
-
-type CardListRequest struct {
-	IDs         []model.ID
-	AccountIDs  []model.ID
-	RequestIDs  []string
-	Statuses    []common.CardStatus
-	CardNumber  *string
-	CreatedFrom *time.Time
-	CreatedTo   *time.Time
-	Offset      int
-	Limit       *int
-}
-
-type CardCountRequest struct {
-	IDs         []model.ID
-	AccountIDs  []model.ID
-	RequestIDs  []string
-	Statuses    []common.CardStatus
-	CardNumber  *string
-	CreatedFrom *time.Time
-	CreatedTo   *time.Time
 }
 
 type CardRequestExistsRequest struct {
@@ -58,6 +34,4 @@ type PingPongCardRepository interface {
 
 	Create(context.Context, *model.Card) error
 	Save(context.Context, *model.Card) error
-	List(context.Context, *CardListRequest) ([]*model.Card, error)
-	Count(context.Context, *CardCountRequest) (int64, error)
 }

@@ -45,7 +45,7 @@
 | --- | --- | --- |
 | 创建账户并创建账户钱包 | 已完成 | PhotonPay、Paynda 与 Slash 均在同一事务创建 USD 账户钱包并回写 `Account.WalletID`。 |
 | 账户 UI 列表、分页与改名 | 已完成 | PhotonPay、Paynda 与 Slash 均提供分页列表、创建与改名。 |
-| OpenAPI 账户范围 | 部分完成 | Slash 和 PhotonPay 的账户资源查询已按账户限定。Paynda 的 `balanceAccountId` 路径资源、账户钱包、持卡人、开卡及单笔交易均已按账户限定；`requestResults` 和 `merchant/wallets` 当前协议 DTO 未提供账户选择器，明确返回 HTTP 501，待确认商户凭据与账户映射后接入，不能臆造请求字段或将 `appId` 解析为资源 ID。 |
+| OpenAPI 账户范围 | 已完成 | Slash 和 PhotonPay 的账户资源查询已按账户限定。Paynda 的 `balanceAccountId` 路径资源、账户钱包、持卡人、开卡及单笔交易均已按账户限定；商户级 `requestResults` 和 `merchant/wallets` 使用 header `appId` 作为 mock 账户主键，按该账户范围查询，不能按 `requestId` 跨账户检索。 |
 | Marxo SDK 与调用点核对 | 受阻 | 当前工作区未提供 Marxo 源码；恢复可访问后逐端点核对 DTO、路径、调用点和错误码。 |
 | 账户余额直接调整 | 已实现 | 在账户页面直接增加或扣减账户钱包余额，不要求资金来源。 |
 | 账户钱包与卡/虚拟账户双向划转 | 余额操作已实现 | 在资源页面充值/转出；同一事务按钱包 ID 顺序锁定来源与目标，验证账户与币种，更新余额和累计入出账。统一资金流水仍待补齐。 |
@@ -95,7 +95,7 @@ PingPong 的页面模拟授权必须检查卡自身可用余额，足够后由�
 
 账户关联资源的 UI DTO 在原接口直接返回 `account_id`、`account_name`。账户名称通过只读账户关联查询获得，不在业务记录中冗余存储；前端不再为了显示名称单独拉取账户列表。
 
-已有渠道的字段映射见各渠道文档；PingPong 已部分实现，UQPay 仍待实现，Payful 已废弃。PingPong 虚拟账户为 VA、普通卡为独立钱包的第三类卡，不新增冗余虚拟账户 ID 或资金来源列；新增 `WalletTransfer` 留存成功资金订单、幂等键、钱包方向及双方前后余额，卡关联可空，虚拟账户订单不伪造卡。所有记录继承 `(AccountID, Channel)`；有值请求键按该对唯一，空键用于无幂等键的独立虚拟账户划转。其[剩余任务](pingpong.md#后续任务顺序)包括报表、3DS、生产调用与 Webhook 契约。
+已有渠道的字段映射见各渠道文档；PingPong 已部分实现，UQPay 暂不实现，Payful 已废弃。PingPong 虚拟账户为 VA、普通卡为独立钱包的第三类卡，不新增冗余虚拟账户 ID 或资金来源列；新增 `WalletTransfer` 留存成功资金订单、幂等键、钱包方向及双方前后余额，卡关联可空，虚拟账户订单不伪造卡。所有记录继承 `(AccountID, Channel)`；有值请求键按该对唯一，空键用于无幂等键的独立虚拟账户划转。其[剩余任务](pingpong.md#后续任务顺序)包括生产调用与 Webhook 契约。
 
 `CardProduct` 是渠道级配置，不包含 `AccountID`；产品查询按 `Channel` 隔离，唯一索引为 `(channel, prefix)`。同渠道账户共享产品及发卡序列，创建账户不再复制产品；卡片仍按账户隔离，且只能引用同渠道产品。
 

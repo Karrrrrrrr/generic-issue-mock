@@ -13,9 +13,9 @@ PingPong 仅在 OpenAPI 契约中使用「预算组 / budget」；内部业务�
 | PhotonPay | 账户、持卡人、卡片、授权管理、卡交易、模拟交易、Webhook 管理 | 已实现 | [PhotonPay](docs/channels/photonpay.md) |
 | Paynda | 账户、持卡人、卡片、授权管理、卡交易、模拟交易、Webhook 管理 | 已实现 | [Paynda](docs/channels/paynda.md) |
 | Slash | 账户、虚拟账户、卡产品、持卡人、卡片、授权管理、卡交易、模拟交易、Webhook 管理 | 部分实现 | [Slash](docs/channels/slash.md) |
-| PingPong | 账户、虚拟账户、产品、卡管理/模拟授权、授权、资金订单 | 部分实现：12 个核心方法；Webhook 与报表待补齐 | [PingPong](docs/channels/pingpong.md) |
+| PingPong | 账户、虚拟账户、产品、卡管理/模拟授权、授权、资金订单、Webhook 管理 | 部分实现：核心方法、报表查询和暂定 Webhook 已接入；生产契约仍待确认 | [PingPong](docs/channels/pingpong.md) |
 | Payful | 不提供菜单 | 已废弃，不再实现 | [Payful（归档）](docs/channels/payful.md) |
-| UQPay | 尚无菜单 | 未实现 | [UQPay](docs/channels/uqpay.md) |
+| UQPay | 尚无菜单 | 暂不实现 | [UQPay（归档）](docs/channels/uqpay.md) |
 
 
 ## 功能摘要
@@ -24,7 +24,7 @@ PingPong 仅在 OpenAPI 契约中使用「预算组 / budget」；内部业务�
 
 清算入口位于「授权管理」，支持部分清算和超额清算；剩余授权金额为负数时如实显示，钱包余额或剩余额度不足不阻止继续模拟清算。现有 Slash、PhotonPay、Paynda 的模拟授权也允许余额不足；PingPong 授权为例外，须检查卡自身可用余额。本次输入金额仍必须为正数。清算、撤销必须关联同账户同卡的有效授权；退款既可独立发起（持久化 `AuthorizationID = 0`），也可指定授权发起，不要求先有清算。普通资金充值/转出仍校验余额。交易列表不提供清算入口。
 
-PingPong 页面模拟授权已实现：卡自身可用余额足够时本地成功并预占资金，不需要下游同意，不提供同步授权回调配置。虚拟账户余额不能代替卡余额。**Webhook 尚未发送**，页面明确显示「协议待补齐／未投递」；事件、报文、签名和 ACK 确认后再接入异步投递，投递失败不得改变授权结果，重放不得重复记账。
+PingPong 页面模拟授权已实现：卡自身可用余额足够时本地成功并预占资金，不需要下游同意，不提供同步授权回调配置。虚拟账户余额不能代替卡余额。Webhook 按暂定协议异步投递并保存真实结果；签名、事件传递方式、时间/枚举格式和 ACK 仍待生产契约确认。投递失败不得改变授权结果，replay 不得重复记账；不做自动重试。
 
 三个渠道的「授权管理」均可点击授权 ID 或「详情」打开模态框，查看授权、已清算、已撤销、已退款、剩余金额和关联卡交易，并直接创建清算、撤销、退款。剩余金额按「授权金额 − 已成功清算 − 已成功撤销」计算，退款单独累计，不恢复授权额度；例如授权 `12 USD`、清算 `24 USD` 后显示 `-12 USD`。列表支持账户、授权 ID、卡 ID、商户、授权状态和时间范围筛选。详情及后续操作携带该授权所属账户，接口按账户和渠道隔离。
 
@@ -36,16 +36,16 @@ PingPong 页面模拟授权已实现：卡自身可用余额足够时本地成�
 
 Paynda 不支持虚拟账户，没有虚拟账户页面或管理接口；其资金操作仅包括账户余额调整，以及账户钱包与独立卡钱包之间的充值/转出。
 
-Paynda 的商户级 `requestResults` 和 `merchant/wallets` 尚无经确认的账户映射，当前明确返回 HTTP 501。不能把 `appId` 当作 mock 账户主键，也不能按 `requestId` 跨账户检索。该部分需确认 Marxo 的商户凭据与账户映射后接入。
+Paynda 的商户级 `requestResults` 和 `merchant/wallets` 使用 header `appId` 作为 mock 账户主键，按该账户范围查询请求结果和账户钱包；不得按 `requestId` 跨账户检索。
 
 | 模块 | PhotonPay | Paynda | Slash | PingPong | Payful | UQPay |
 | --- | --- | --- | --- | --- | --- | --- |
-| 持卡人 | 已实现 | 已实现 | 已实现 | 待实现 | 已废弃 | 未实现 |
-| 开卡 | 虚拟账户卡 | 独立余额卡 | 虚拟卡 | 虚拟账户供资独立卡，多 BIN | 已废弃 | 未实现 |
-| 授权 | 同步 sandbox 模拟，配置接口已提供 | 异步模拟，交易与卡状态 webhook 投递已提供 | 同步模拟，授权配置 OpenAPI 已提供 | 本地预占已实现，异步通知待契约 | 已废弃 | 未实现 |
+| 持卡人 | 已实现 | 已实现 | 已实现 | 仅使用已有本地资料 | 已废弃 | 暂不实现 |
+| 开卡 | 虚拟账户卡 | 独立余额卡 | 虚拟卡 | 虚拟账户供资独立卡，多 BIN | 已废弃 | 暂不实现 |
+| 授权 | 同步 sandbox 模拟，配置接口已提供 | 异步模拟，交易与卡状态 webhook 投递已提供 | 同步模拟，授权配置 OpenAPI 已提供 | 本地预占已实现，异步通知为暂定协议 | 已废弃 | 暂不实现 |
 | 清算/冲正/退款 | 已实现 | 已实现 | 已实现 | 已实现关联授权操作；独立退款入口待补 | 已废弃 | 未实现 |
-| Webhook 配置 | 已实现 | 已实现 | 已实现 | 待实现 | 已废弃 | 未实现 |
-| Webhook 投递与记录 | 已实现，自动重试待补 | 已实现，自动重试待补 | 异步投递待实现 | 待实现 | 已废弃 | 未实现 |
+| Webhook 配置 | 已实现 | 已实现 | 已实现 | 已实现 | 已废弃 | 暂不实现 |
+| Webhook 投递与记录 | 已实现，手动 replay | 已实现，手动 replay | 已实现，手动 replay | 已实现，手动 replay | 已废弃 | 暂不实现 |
 
 
 ## 运行方式
@@ -114,7 +114,7 @@ bash sdk/test-contract.sh
 
 通用卡类型有三种：`single` 为无 VA 的独立卡，`share` 与 VA 共用钱包，`virtual_account_single` 关联 VA 但持有独立卡钱包。PingPong 的虚拟账户关联普通卡采用第三种类型，VA 仅为资金来源；余额展示和交易扣款始终使用 `Card.WalletID`，不能根据 VA 关联判定共享。`pkg/cardwallet` 已提供钱包分配与供资钱包解析，现有两类卡保留原语义。
 
-PingPong 已接入 12 个核心 SDK 方法、六个独立管理页面与本地授权账务。根账户余额报表、两类交易报表及 3DS 当前返回 501，Webhook 协议尚缺失，不宣称完整渠道已完成；[后续任务](docs/channels/pingpong.md#后续任务顺序)记录剩余依赖。SDK 示例不是生产接入证据，Payful 仍为废弃渠道。
+PingPong 已接入核心 SDK 方法、管理页面、本地授权账务、报表查询和暂定 Webhook；签名、ACK、事件传递方式及生产调用仍需确认，不宣称完整渠道已完成；[后续任务](docs/channels/pingpong.md#后续任务顺序)记录剩余依赖。SDK 示例不是生产接入证据，Payful 仍为废弃渠道，UQPay 暂不实现。
 
 PingPong 启动时仅准备共享渠道产品，不创建账户。先在账户页创建账户，再用 `PINGPONG_APP_ACCOUNTS='{"demo-app":"4"}'` 显式绑定实际账户 ID 并重启后端；SDK 基础地址设为 `http://127.0.0.1:8000/pingpong`。通过 token 接口取得 mock 账户选择 token，业务请求使用 `Bearer`；不验证真实密钥/签名。当前虚拟账户与卡为 USD，虚拟账户充值从根账户扣款，卡充值从虚拟账户扣款。详见[接入约定](docs/channels/pingpong.md#应用映射和接入)。
 

@@ -1,6 +1,10 @@
 package enums
 
-import generic "generic-mock/enums"
+import (
+	"strings"
+
+	generic "generic-mock/enums"
+)
 
 type ResponseCode string
 
@@ -249,6 +253,36 @@ func TransactionStatusFromGeneric(value generic.CardTransactionStatus) Transacti
 	}
 }
 
+func TransactionStatusToGeneric(value TransactionStatus) (generic.CardTransactionStatus, bool) {
+	switch value {
+	case TransactionStatus_Pending:
+		return generic.TransactionStatus_PENDING, true
+	case TransactionStatus_Authorized:
+		return generic.TransactionStatus_AUTHORIZED, true
+	case TransactionStatus_Succeed:
+		return generic.TransactionStatus_SUCCEED, true
+	case TransactionStatus_Failed:
+		return generic.TransactionStatus_FAILED, true
+	case TransactionStatus_Void:
+		return generic.TransactionStatus_VOID, true
+	default:
+		return "", false
+	}
+}
+
+func TransactionStatusesToGeneric(value string) ([]generic.CardTransactionStatus, bool) {
+	parts := strings.Split(value, ",")
+	result := make([]generic.CardTransactionStatus, 0, len(parts))
+	for _, item := range parts {
+		status, valid := TransactionStatusToGeneric(TransactionStatus(strings.TrimSpace(item)))
+		if !valid {
+			return nil, false
+		}
+		result = append(result, status)
+	}
+	return result, true
+}
+
 func TransactionTypeFromGeneric(value generic.CardTransactionType) TransactionType {
 	switch value {
 	case generic.CardTransactionType_CLEAR:
@@ -260,6 +294,34 @@ func TransactionTypeFromGeneric(value generic.CardTransactionType) TransactionTy
 	default:
 		return TransactionType_Auth
 	}
+}
+
+func TransactionTypeToGeneric(value TransactionType) (generic.CardTransactionType, bool) {
+	switch value {
+	case TransactionType_Auth:
+		return generic.CardTransactionType_AUTH, true
+	case TransactionType_Clear:
+		return generic.CardTransactionType_CLEAR, true
+	case TransactionType_Void:
+		return generic.CardTransactionType_VOID, true
+	case TransactionType_Refund:
+		return generic.CardTransactionType_REFUND, true
+	default:
+		return "", false
+	}
+}
+
+func TransactionTypesToGeneric(value string) ([]generic.CardTransactionType, bool) {
+	parts := strings.Split(value, ",")
+	result := make([]generic.CardTransactionType, 0, len(parts))
+	for _, item := range parts {
+		transactionType, valid := TransactionTypeToGeneric(TransactionType(strings.TrimSpace(item)))
+		if !valid {
+			return nil, false
+		}
+		result = append(result, transactionType)
+	}
+	return result, true
 }
 
 type WalletKind string

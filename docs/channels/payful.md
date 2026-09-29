@@ -74,7 +74,7 @@ SDK 位于 Marxo 的 `pkg/dealer/payful/payful.go`；实际调用位于 `app/new
 
 `commonTransType`：`1` 消费、`2` 冲正、`3` 退款、`4` 清算差额、`5` 冲正后请款、`7` 强制清算。`commonTransStatus=3` 表示已清算。
 
-## 待办（可直接实施）
+## 归档调研（不实施）
 
 以下清单是下一位实现者的协议边界。渠道路由必须加 `/payful` 前缀；service 层使用 Payful DTO，业务层只接收已转换的中立请求。Payful SDK 的鉴权/签名由其 `restyRequest` 统一附加；mock 按项目约束无需验证 token，不能把签名字段写入通用表。
 

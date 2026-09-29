@@ -64,14 +64,17 @@ func (repo *cardTransactionRepository) ListStages(ctx context.Context, req *biz.
 func (repo *cardTransactionRepository) List(ctx context.Context, req *biz.CardTransactionListRequest) ([]*model.CardTransaction, error) {
 	db := repo.DB(ctx)
 	table := db.CardTransaction
-	return table.WithContext(ctx).
+	query := table.WithContext(ctx).
 		Preload(table.Account).
-		Preload(table.Authorization).
+		Preload(table.Authorization)
+	query = query.
 		Where(repo.buildPredicates(ctx, &req.CardTransactionFilters)...).
 		Order(table.ID.Desc()).
-		Offset(req.Offset).
-		Limit(req.Limit).
-		Find()
+		Offset(req.Offset)
+	if req.Limit != nil {
+		query = query.Limit(*req.Limit)
+	}
+	return query.Find()
 }
 
 func (repo *cardTransactionRepository) Count(ctx context.Context, req *biz.CardTransactionCountRequest) (int64, error) {
@@ -94,8 +97,24 @@ func (repo *cardTransactionRepository) buildPredicates(ctx context.Context, req 
 	if len(req.CardIDs) != 0 {
 		predicates = append(predicates, table.CardID.In(req.CardIDs...))
 	}
+	if len(req.VirtualAccountIDs) != 0 {
+		cardTable := db.Card
+		subQuery := cardTable.WithContext(ctx).
+			Select(cardTable.ID).
+			Where(
+				cardTable.Channel.Eq(string(req.Channel)),
+				cardTable.VirtualAccountID.In(req.VirtualAccountIDs...),
+			)
+		if len(req.AccountIDs) != 0 {
+			subQuery = subQuery.Where(cardTable.AccountID.In(req.AccountIDs...))
+		}
+		predicates = append(predicates, table.Columns(table.CardID).In(subQuery))
+	}
 	if len(req.AuthorizationIDs) != 0 {
 		predicates = append(predicates, table.AuthorizationID.In(req.AuthorizationIDs...))
+	}
+	if len(req.RequestIDs) != 0 {
+		predicates = append(predicates, table.RequestID.In(req.RequestIDs...))
 	}
 	if len(req.Statuses) != 0 {
 		values := make([]string, 0, len(req.Statuses))

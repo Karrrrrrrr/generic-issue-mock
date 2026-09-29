@@ -2,7 +2,7 @@
 
 ## 范围
 
-已实现持卡人、独立余额卡开卡、余额划拨、交易查询、管理端授权/清算/冲正/退款模拟和管理 UI。Paynda 不支持同步授权；已支持 `xm-event` 交易投递和投递记录，自动重试与记录查询 UI 尚未实现。
+已实现持卡人、独立余额卡开卡、余额划拨、交易查询、管理端授权/清算/冲正/退款模拟和管理 UI。Paynda 不支持同步授权；已支持 `xm-event` 交易投递和投递记录。Webhook 只支持手动 replay，不做自动重试。
 
 管理端四种模拟统一调用 `shared/biz.CardTransactionSimulator`，不再自行修改钱包或创建模拟阶段。模拟请求不传 `account_id`：授权按卡 ID 解析账户；清算、关联退款和撤销按授权 ID 解析账户、卡与币种。独立退款传卡 ID 和币种，省略 `authorization_id`，显式 `"0"` 不表示省略。授权冻结、清算扣款、退款入账和撤销解冻执行公共规则，允许超额及负余额清算。`xm-event` 沿用现有协议，由提交后的通知适配器触发一次。
 
@@ -129,4 +129,4 @@ curl -X POST "$MARXO_BASE_URL/api/v1/notify/xm-event" \
 
 该入口返回空成功响应，投递成功以 HTTP 2xx 为准。提交业务 transaction 后，先建立 `WebhookRecord`（`Channel=paynda`、分类事件、target、格式化 `SourceID`、完整 JSON、attempt 1、pending），再 POST；记录 HTTP 状态、响应、时间或失败原因，并在重试时更新同一 record。交易 body 的 `id`/`transactionId` 应稳定复用，避免 Marxo 将重投视作新清算消息。
 
-配置事件使用当前已实现的 Marxo `X-VK-NOTIFICATION-CATEGORY` 值：`CARD_TRANSACTION` 与 `CARD_STATUS`。种子为每种类型创建一条启用配置；当前 UI 模拟授权、退款、清算/冲正投递 `CARD_TRANSACTION`，卡状态修改投递 `CARD_STATUS`。若 Marxo 开启验签，设置 `PAYNDA_WEBHOOK_APP_ID` 与 `PAYNDA_WEBHOOK_APP_SECRET`；未设置时仍发送分类 header 与 body，适用于关闭验签的本地环境。投递记录 UI 已支持分页、详情和 replay：详情保存并展示报文、请求头、响应体和响应头；replay 使用原始报文和请求头再次发送，并新建一条记录保留审计历史。自动重试仍待实现。
+配置事件使用当前已实现的 Marxo `X-VK-NOTIFICATION-CATEGORY` 值：`CARD_TRANSACTION` 与 `CARD_STATUS`。种子为每种类型创建一条启用配置；当前 UI 模拟授权、退款、清算/冲正投递 `CARD_TRANSACTION`，卡状态修改投递 `CARD_STATUS`。若 Marxo 开启验签，设置 `PAYNDA_WEBHOOK_APP_ID` 与 `PAYNDA_WEBHOOK_APP_SECRET`；未设置时仍发送分类 header 与 body，适用于关闭验签的本地环境。投递记录 UI 已支持分页、详情和 replay：详情保存并展示报文、请求头、响应体和响应头；replay 使用原始报文和请求头再次发送，并新建一条记录保留审计历史。不做自动重试。

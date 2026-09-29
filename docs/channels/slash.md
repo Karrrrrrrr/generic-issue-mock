@@ -70,9 +70,9 @@ curl -X POST http://127.0.0.1:8000/slash/transfer/virtual-account \
 
 ## 待办
 
-### 协议修正：开卡幂等
+### 已完成：开卡幂等
 
-`POST /slash/card` 必须读取并校验 `X-Idempotency-Key`，将其写入 `Card.RequestID`；`userData.requestId` 只作为 Slash 透传数据，不能作为替代幂等键。重复 key 必须返回首次创建的卡，不再创建卡号或扣减虚拟账户余额。下列输入组合是实现夹具：
+`POST /slash/card` 已读取并校验 `X-Idempotency-Key`，将其写入 `Card.RequestID`；`userData.requestId` 只作为 Slash 透传数据，不能作为替代幂等键。重复 key 返回首次创建的卡，不再创建卡号或扣减虚拟账户余额。下列输入组合是实现夹具：
 
 ```json
 // header: X-Idempotency-Key: 80c4bb6e-3ce8-4afd-835a-704f21519f43
@@ -102,4 +102,4 @@ Marxo 目前没有 Slash 授权配置的实际调用点，mock 使用账户唯�
 
 `entityId` 和 `eventId` 都由本次卡或交易的内部 `ID` 转成 Slash UUID；每个配置独立投递并记录请求头、响应头、响应体、状态码和错误。2xx 标为成功，网络错误和非 2xx 标为失败。卡创建发送 `card_creation.event`，普通状态更新发送 `card.update`，关闭卡发送 `card.delete`；授权、模拟退款、清算、冲正和退款步骤各创建一条交易并发送 `aggregated_transaction.create`。`aggregated_transaction.update` 保留为可管理、可初始化的渠道事件，但不用于修正既有交易，因为 mock 的交易不可变。
 
-投递记录列表、详情和 replay 管理页尚未实现。
+投递记录列表、详情和 replay 管理页已接入共享 Webhook UI；不做自动重试。

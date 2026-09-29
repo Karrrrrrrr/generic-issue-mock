@@ -20,6 +20,18 @@ type CardFindByIDWithLockRequest struct {
 	Channel   enums.Channel
 }
 
+type CardExistByRequestIDRequest struct {
+	AccountID model.ID
+	Channel   enums.Channel
+	RequestID string
+}
+
+type CardFindByRequestIDRequest struct {
+	AccountID model.ID
+	Channel   enums.Channel
+	RequestID string
+}
+
 type CardSimulationExistRequest struct {
 	ID      model.ID
 	Channel enums.Channel
@@ -31,19 +43,21 @@ type CardSimulationFindRequest struct {
 }
 
 type CardFilters struct {
-	Channel     enums.Channel
-	IDs         []model.ID
-	AccountIDs  []model.ID
-	Statuses    []enums.CardStatus
-	CardNumber  *string
-	CreatedFrom *time.Time
-	CreatedTo   *time.Time
+	Channel           enums.Channel
+	IDs               []model.ID
+	AccountIDs        []model.ID
+	VirtualAccountIDs []model.ID
+	RequestIDs        []string
+	Statuses          []enums.CardStatus
+	CardNumber        *string
+	CreatedFrom       *time.Time
+	CreatedTo         *time.Time
 }
 
 type CardListRequest struct {
 	CardFilters
 	Offset int
-	Limit  int
+	Limit  *int
 }
 
 type CardCountRequest struct {
@@ -72,6 +86,8 @@ type CardRepo interface {
 	FindForSimulation(context.Context, *CardSimulationFindRequest) (*model.Card, error)
 	Create(context.Context, *CardCreateRequest) error
 	Exist(context.Context, *CardExistRequest) (bool, error)
+	ExistByRequestID(context.Context, *CardExistByRequestIDRequest) (bool, error)
+	FindByRequestID(context.Context, *CardFindByRequestIDRequest) (*model.Card, error)
 	FindByIDWithLock(context.Context, *CardFindByIDWithLockRequest) (*model.Card, error)
 	List(context.Context, *CardListRequest) ([]*model.Card, error)
 	Count(context.Context, *CardCountRequest) (int64, error)

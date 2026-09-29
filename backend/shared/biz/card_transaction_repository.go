@@ -28,21 +28,23 @@ type CardTransactionListStagesRequest struct {
 }
 
 type CardTransactionFilters struct {
-	Channel          enums.Channel
-	IDs              []model.ID
-	AccountIDs       []model.ID
-	CardIDs          []model.ID
-	AuthorizationIDs []model.ID
-	Statuses         []enums.CardTransactionStatus
-	Types            []enums.CardTransactionType
-	CreatedFrom      *time.Time
-	CreatedTo        *time.Time
+	Channel           enums.Channel
+	IDs               []model.ID
+	AccountIDs        []model.ID
+	CardIDs           []model.ID
+	VirtualAccountIDs []model.ID
+	AuthorizationIDs  []model.ID
+	RequestIDs        []string
+	Statuses          []enums.CardTransactionStatus
+	Types             []enums.CardTransactionType
+	CreatedFrom       *time.Time
+	CreatedTo         *time.Time
 }
 
 type CardTransactionListRequest struct {
 	CardTransactionFilters
 	Offset int
-	Limit  int
+	Limit  *int
 }
 
 type CardTransactionCountRequest struct {

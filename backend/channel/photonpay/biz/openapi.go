@@ -23,7 +23,7 @@ type PhotonPayOpenAPIUsecase struct {
 	cardHolderRepo      CardHolderRepository
 	cardRepo            CardRepository
 	cardProductRepo     CardProductRepository
-	cardTransactionRepo CardTransactionRepository
+	cardTransactionRepo sharedbiz.CardTransactionRepo
 	virtualAccountRepo  VirtualAccountRepository
 }
 
@@ -33,7 +33,7 @@ func NewPhotonPayOpenAPIUsecase(injector do.Injector) (*PhotonPayOpenAPIUsecase,
 		cardHolderRepo:      do.MustInvoke[CardHolderRepository](injector),
 		cardRepo:            do.MustInvoke[CardRepository](injector),
 		cardProductRepo:     do.MustInvoke[CardProductRepository](injector),
-		cardTransactionRepo: do.MustInvoke[CardTransactionRepository](injector),
+		cardTransactionRepo: do.MustInvoke[sharedbiz.CardTransactionRepo](injector),
 		virtualAccountRepo:  do.MustInvoke[VirtualAccountRepository](injector),
 	}, nil
 }

@@ -17,6 +17,7 @@ type SlashOpenAPIUsecase struct {
 	transaction               sharedbiz.Transaction
 	cardHolderRepository      SlashCardHolderRepository
 	cardRepository            SlashCardRepository
+	sharedCardRepository      sharedbiz.CardRepo
 	cardProductRepository     SlashCardProductRepository
 	cardTransactionRepository SlashCardTransactionRepository
 	virtualAccountRepository  SlashVirtualAccountRepository
@@ -29,6 +30,7 @@ func NewSlashOpenAPIUsecase(injector do.Injector) (*SlashOpenAPIUsecase, error) 
 		transaction:               do.MustInvoke[sharedbiz.Transaction](injector),
 		cardHolderRepository:      do.MustInvoke[SlashCardHolderRepository](injector),
 		cardRepository:            do.MustInvoke[SlashCardRepository](injector),
+		sharedCardRepository:      do.MustInvoke[sharedbiz.CardRepo](injector),
 		cardProductRepository:     do.MustInvoke[SlashCardProductRepository](injector),
 		cardTransactionRepository: do.MustInvoke[SlashCardTransactionRepository](injector),
 		virtualAccountRepository:  do.MustInvoke[SlashVirtualAccountRepository](injector),

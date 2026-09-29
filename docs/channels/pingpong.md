@@ -4,7 +4,7 @@
 
 部分实现（2026-09-24）。已按 `sdk/pingpong` 接入 12 个核心 HTTP 方法和独立管理页面：账户、虚拟账户、产品、卡、授权、资金订单。完成虚拟账户供资的独立卡钱包、随机多 BIN、资金订单幂等及本地授权预占。默认只初始化渠道产品，不创建 PingPong 种子账户。
 
-**Webhook 已接入暂定协议**：按用户提供的 Issuing Webhook Markdown 填充报文，启用订阅后异步发送并保存真实结果。HTTP 200 暂视为成功，签名暂不实现；时间、大小写和 ACK 等 TODO 见下方。报表、3DS 和卡备注更新仍保持原有 501 行为。
+**Webhook 已接入暂定协议**：按用户提供的 Issuing Webhook Markdown 填充报文，启用订阅后异步发送并保存真实结果。HTTP 200 暂视为成功，签名暂不实现；时间、大小写和 ACK 等 TODO 见下方。根账户余额报表、v3 卡交易、v4 账户交易和 3DS 详情已接入本地 mock 数据；卡备注更新仍保持原有 501 行为。
 
 用户已确认预算组和普通卡的关联语义，见下一节；当前仍不是完整的 16 个 SDK 方法实现。SDK 能力清单不等于 Marxo 生产调用清单；不注册占位成功接口，也不把测试中的真实资源样例当成 mock 的 ID 格式要求。
 
@@ -61,7 +61,7 @@
 | SDK 方法 | HTTP 与路径 | 关键输入 → `data` 结构 | 当前状态 |
 | --- | --- | --- | --- |
 | `GetAccessToken` | `GET /pingpong/v2/token/get` | query `app_id`、`app_secret` → `access_token`、`expires_in`。 | 已接入 |
-| `QueryAccountsBalances` | `POST /pingpong/api/reporting/v3/account-balance` | `account_type`、`currency_list`、`subaccount_id_list`、`page_no`、`page_size` → `item_list`、`total_num`、分页字段。 | 501，待契约确认 |
+| `QueryAccountsBalances` | `POST /pingpong/api/reporting/v3/account-balance` | `account_type`、`currency_list`、`subaccount_id_list`、`page_no`、`page_size` → `item_list`、`total_num`、分页字段。 | 已接入本地 VA 余额 |
 | `QueryCardProducts` | `GET /pingpong/api/issuing/v3/card-products` | → `product_list`；保留 `card_product_code`、`bin_range`、`share` 等 SDK 字段。 | 已接入 |
 | `CreateCard` | `POST /pingpong/api/issuing/v3/cards/apply` | `request_id`、`card_product_code`、`card_currency`、`budget_id`、可选持卡人/限额等 → `card_id`；不自行增加 `card_type` 请求字段。 | 已接入 |
 | `GetCardDetails` | `GET /pingpong/api/issuing/v3/cards/details` | query `card_id` → 卡状态、预算关联、卡号/CVC、币种、销卡标记、限额和时间等详情字段。 | 已接入 |
@@ -69,13 +69,13 @@
 | `QueryCardFundingOrders` | `GET /pingpong/api/issuing/v3/card/funding/orders` | query 分页、`start_date`、`end_date`、`status`、`unique_order_id`、`card_id` → `list`、`total_num`、分页字段。注意路径是单数 `card`。 | 已接入 |
 | `QueryDedicatedCardBalance` | `GET /pingpong/api/issuing/v3/card/balance` | query `card_id` → `card_number`、`available_balance`、`currency`。 | 已接入 |
 | `CardAction` | `POST /pingpong/api/issuing/v3/cards/actions` | `card_id`、`action`、可选 `remark` → SDK 不消费 `data`；仍返回可解析的 JSON 成功 envelope。 | 状态操作已接入；备注更新 501 |
-| `QueryCardTransactions` | `GET /pingpong/api/issuing/v3/transactions` | query 卡、类型、状态、清算类型、时间与分页 → `transaction_list`、`total_num`、分页字段；金额字段为字符串。 | 501，待契约确认 |
-| `Query3DSDetails` | `GET /pingpong/api/issuing/v3/cards/3ds/details` | query `card_id` → 持卡人身份、联系信息和安全问答；没有配套的持卡人创建方法，需确认实际业务需求。 | 501，待契约确认 |
+| `QueryCardTransactions` | `GET /pingpong/api/issuing/v3/transactions` | query 卡、类型、状态、清算类型、时间与分页 → `transaction_list`、`total_num`、分页字段；金额字段为字符串。 | 已接入本地交易 |
+| `Query3DSDetails` | `GET /pingpong/api/issuing/v3/cards/3ds/details` | query `card_id` → 持卡人身份、联系信息和安全问答；没有配套的持卡人创建方法，需确认实际业务需求。 | 已接入已有本地持卡人资料 |
 | `CreateBudgetAccount` | `POST /pingpong/api/issuing/v3/budgets` | 仅 `budget_name` → `budget_id`；不增加 `account_type` 或币种请求字段。 | 已接入 |
 | `BudgetFunding` | `POST /pingpong/api/issuing/v3/budgets/funding` | `budget_id`、`action`、`amount`、`currency`、按操作提供订单键/目标预算及币种 → `record_id`。 | 已接入 |
 | `QueryBudgetFundingOrder` | `GET /pingpong/api/issuing/v3/funding/orders` | query `order_id`、`action` → `order_id`、`action`、`status`。 | 已接入 |
 | `QueryBudgetAccountBalance` | `GET /pingpong/api/issuing/v3/budget/balance` | 可选 query `budget_id`，省略查所属账户全部预算 → `balance_list`。注意路径是单数 `budget`。 | 已接入 |
-| `QueryAccountTransactions` | `GET /pingpong/api/issuing/v4/account/transactions` | query 预算/卡、入账区间、类型、方向、分页 → `transaction_list`、`total_num`、分页字段；金额为 JSON number，与 v3 卡交易不同。 | 501，待契约确认 |
+| `QueryAccountTransactions` | `GET /pingpong/api/issuing/v4/account/transactions` | query 预算/卡、入账区间、类型、方向、分页 → `transaction_list`、`total_num`、分页字段；金额为 JSON number，与 v3 卡交易不同。 | 已接入本地卡交易 |
 ### DTO、筛选和状态约束
 
 - v3 卡交易查询字段必须完整保留：`card_id`、`type`、`page_no`、`page_size`、`start_time`、`end_time`、`start_posting_date`、`end_posting_date`、`start_created_date`、`end_created_date`、`clear_type`、`status`。时间格式与交易类型/状态值不能只凭字段名称推断。
@@ -134,7 +134,7 @@
 - 当前初始化产品为 `424242,424243`、Visa、USD、24 个月、无计费的普通虚拟账户独立卡。创建虚拟账户不接受 SDK 未定义的币种字段，当前默认 USD。这些是已标明的 mock 配置，不是对真实渠道多币种能力的声明。
 - SDK 未给出 `card_type` 的值契约，详情保留字段为空并标 `Invalid:`；额度、优惠券、持卡人和备注等未实施字段仅留在 DTO，不扩充通用表。`update_remark` 不返回假成功。
 - 详情 `created_at`、订单 `created` 返回 RFC3339，卡有效期按当前 mock 约定返回 `MM/YY`；资金订单起止日期按 UTC `YYYY-MM-DD` 解析，结束日期包含整天。真实非 RFC3339 格式仍需响应样例确认。
-- 缺少生产调用证据的账户报表、两类交易报表和 3DS 使用明确的 501；不会以空成功数据隐藏缺失能力。v3/v4 报表不能直接复用同一个 DTO。
+- 账户报表、两类交易报表和 3DS 已用本地 mock 数据接入。v3/v4 报表保留各自 DTO：v3 金额为字符串，v4 金额为 JSON number。生产金额符号、方向、时间及快照来源仍需确认；当前不新增 `CardTransaction.OccurredAt` / `SettledAt`。
 
 ### 授权和后续交易的当前实现
 
@@ -151,7 +151,7 @@
 - 账户支持创建、改名、余额调整及钱包 ID 展示；虚拟账户展示钱包 ID，仍仅支持 USD 和根账户充值。
 - 卡列表展示有效期、实际卡钱包余额、冻结余额和虚拟账户关系，支持账户、卡 ID、卡号、内部状态、创建时间筛选；充值与转出仍只在卡和所属虚拟账户钱包之间。
 - 授权列表支持账户、授权 ID、卡 ID、商户、内部状态、创建时间筛选；汇总清算、撤销、退款与有符号剩余额度。详情展示卡号、授权码、商户国家/MCC、原始本地 payload 与按 ID 倒序的关联交易。
-- 交易处理查询本地记录，支持账户、交易/卡/授权 ID、内部类型/状态和时间筛选，提供原交易撤销、退款；不依赖仍返回 501 的第三方交易报表。
+- 交易处理查询本地记录，支持账户、交易/卡/授权 ID、内部类型/状态和时间筛选，提供原交易撤销、退款；OpenAPI v3/v4 报表也查询本地交易记录，但保留不同 DTO。
 - 交易模拟支持带商户名称、国家、MCC 的授权，以及独立退款和关联退款。所有模拟使用共享记账逻辑，无同步审批；启用相应订阅后异步投递 Webhook。
 - UI 使用 Shared 路由：`POST /pingpong/ui/accounts/rename`、`GET /pingpong/ui/authorizations/detail`、`GET /pingpong/ui/transactions`、`POST /pingpong/ui/transactions/stages`、`POST /pingpong/ui/simulate/refunds` 等。GET 使用 query，POST 使用 body，不混用 URI 参数；模拟入口不传账户 ID。交易阶段使用内部值 `clear/void/refund`，前端“撤销”动作映射为 `void`。
 
@@ -173,8 +173,8 @@ OpenAPI 路由和 SDK 实现不因这些 UI 能力而改变。
 - [ ] 补齐 Marxo 生产调用点，确认应用映射、USD 默认策略、产品能力、订单 ID 语义、卡类型与真实时间/错误码格式；不能把 SDK 测试当成生产调用证明。
 - [x] 按所提供文档实现五类 Webhook 报文、异步通知、日志、投递管理及重放。失败仅影响投递状态，不重复授权或扣款。
 - [ ] 确认 Webhook 时间、大小写、ACK、事件传递方式与消费端；签名暂不实现。当前通知入队与业务提交并非原子操作，后续如需崩溃恢复保障，再设计事务 outbox。
-- [ ] 完成根账户余额报表、v3 卡交易与 v4 账户交易；确认金额符号、方向、时间及快照来源，保留两个 DTO 的字段与过滤差异。
-- [ ] 根据生产需求确认 3DS、持卡人、限额与备注的持久化范围；补充独立退款入口与更多管理筛选。
+- [x] 完成根账户余额报表、v3 卡交易与 v4 账户交易的本地 mock 查询；保留两个 DTO 的字段与过滤差异。
+- [ ] 根据生产需求确认金额符号、方向、时间及快照来源；确认 3DS、持卡人、限额与备注的持久化范围；补充独立退款入口与更多管理筛选。
 - [ ] 单独修正 SDK 的 Bearer 测试断言、Resty 实例复用及无条件 debug；补齐 `tman` 依赖并隔离真实网关样例中的凭据/变更操作。当前只阅读 SDK，没有运行其真实网关测试。
 - [ ] 用户明确要求测试后，再接入离线 SDK 契约测试；`sdk/test-contract.sh` 尚不包含 PingPong。
 

@@ -11,6 +11,7 @@ import (
 	"generic-mock/pkg/cardwallet"
 	"generic-mock/pkg/randomx"
 	"generic-mock/pkg/types"
+	sharedbiz "generic-mock/shared/biz"
 
 	"go.uber.org/zap"
 )
@@ -54,8 +55,32 @@ func (u *SlashOpenAPIUsecase) ListCards(ctx context.Context, req *OpenAPIListCar
 }
 
 func (u *SlashOpenAPIUsecase) CreateCard(ctx context.Context, req *OpenAPICreateCardRequest) (*model.Card, error) {
+	if req.RequestID == "" {
+		return nil, slasherrors.ErrInvalidOperation
+	}
 	var card *model.Card
 	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
+		exists, err := u.sharedCardRepository.ExistByRequestID(txCtx, &sharedbiz.CardExistByRequestIDRequest{
+			AccountID: req.AccountID,
+			Channel:   enums.Channel_Slash,
+			RequestID: req.RequestID,
+		})
+		if err != nil {
+			zap.S().Errorw("check slash openapi card request", "error", err)
+			return slasherrors.ErrDatabaseOperation
+		}
+		if exists {
+			card, err = u.sharedCardRepository.FindByRequestID(txCtx, &sharedbiz.CardFindByRequestIDRequest{
+				AccountID: req.AccountID,
+				Channel:   enums.Channel_Slash,
+				RequestID: req.RequestID,
+			})
+			if err != nil {
+				zap.S().Errorw("find slash openapi card request", "error", err)
+				return slasherrors.ErrDatabaseOperation
+			}
+			return nil
+		}
 		if req.CardHolderID != 0 {
 			holderExists, err := u.cardHolderRepository.ExistByID(txCtx, req.CardHolderID)
 			if err != nil {

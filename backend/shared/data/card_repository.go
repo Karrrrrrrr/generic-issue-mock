@@ -36,6 +36,33 @@ func (repo *cardRepository) Exist(ctx context.Context, req *biz.CardExistRequest
 	return count > 0, err
 }
 
+func (repo *cardRepository) ExistByRequestID(ctx context.Context, req *biz.CardExistByRequestIDRequest) (bool, error) {
+	table := repo.DB(ctx).Card
+	count, err := table.WithContext(ctx).
+		Where(
+			table.AccountID.Eq(req.AccountID),
+			table.Channel.Eq(string(req.Channel)),
+			table.RequestID.Eq(req.RequestID),
+		).Count()
+	return count > 0, err
+}
+
+func (repo *cardRepository) FindByRequestID(ctx context.Context, req *biz.CardFindByRequestIDRequest) (*model.Card, error) {
+	table := repo.DB(ctx).Card
+	return table.WithContext(ctx).
+		Preload(table.Account).
+		Preload(table.Wallet).
+		Preload(table.VirtualAccount.Wallet).
+		Preload(table.CardHolder).
+		Where(
+			table.AccountID.Eq(req.AccountID),
+			table.Channel.Eq(string(req.Channel)),
+			table.RequestID.Eq(req.RequestID),
+		).
+		Order(table.ID.Desc()).
+		First()
+}
+
 func (repo *cardRepository) FindByIDWithLock(ctx context.Context, req *biz.CardFindByIDWithLockRequest) (*model.Card, error) {
 	db := repo.DB(ctx)
 	table := db.Card
@@ -57,15 +84,18 @@ func (repo *cardRepository) FindByIDWithLock(ctx context.Context, req *biz.CardF
 func (repo *cardRepository) List(ctx context.Context, req *biz.CardListRequest) ([]*model.Card, error) {
 	db := repo.DB(ctx)
 	table := db.Card
-	return table.WithContext(ctx).
+	query := table.WithContext(ctx).
 		Preload(table.Account).
 		Preload(table.Wallet).
-		Preload(table.VirtualAccount).
+		Preload(table.VirtualAccount.Wallet).
+		Preload(table.CardHolder).
 		Where(repo.buildPredicates(ctx, &req.CardFilters)...).
 		Order(table.ID.Desc()).
-		Offset(req.Offset).
-		Limit(req.Limit).
-		Find()
+		Offset(req.Offset)
+	if req.Limit != nil {
+		query = query.Limit(*req.Limit)
+	}
+	return query.Find()
 }
 
 func (repo *cardRepository) Count(ctx context.Context, req *biz.CardCountRequest) (int64, error) {
@@ -84,6 +114,12 @@ func (repo *cardRepository) buildPredicates(ctx context.Context, req *biz.CardFi
 	}
 	if len(req.AccountIDs) != 0 {
 		predicates = append(predicates, table.AccountID.In(req.AccountIDs...))
+	}
+	if len(req.VirtualAccountIDs) != 0 {
+		predicates = append(predicates, table.VirtualAccountID.In(req.VirtualAccountIDs...))
+	}
+	if len(req.RequestIDs) != 0 {
+		predicates = append(predicates, table.RequestID.In(req.RequestIDs...))
 	}
 	if len(req.Statuses) != 0 {
 		values := make([]string, 0, len(req.Statuses))

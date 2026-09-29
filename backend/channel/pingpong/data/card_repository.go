@@ -35,6 +35,7 @@ func (repo *cardRepository) Find(ctx context.Context, req *biz.CardFindRequest) 
 		Preload(table.Wallet).
 		Preload(table.Account).
 		Preload(table.VirtualAccount.Wallet).
+		Preload(table.CardHolder).
 		Where(
 			table.ID.Eq(req.ID),
 			table.Channel.Eq(string(common.Channel_PingPong)),
@@ -56,72 +57,4 @@ func (repo *cardRepository) Save(ctx context.Context, item *model.Card) error {
 		table.Status.Value(string(item.Status)),
 	)
 	return err
-}
-
-func (repo *cardRepository) List(ctx context.Context, req *biz.CardListRequest) ([]*model.Card, error) {
-	table := repo.DB(ctx).Card
-	statement := table.WithContext(ctx).Where(table.Channel.Eq(string(common.Channel_PingPong)))
-	if len(req.IDs) != 0 {
-		statement = statement.Where(table.ID.In(req.IDs...))
-	}
-	if len(req.AccountIDs) != 0 {
-		statement = statement.Where(table.AccountID.In(req.AccountIDs...))
-	}
-	if len(req.RequestIDs) != 0 {
-		statement = statement.Where(table.RequestID.In(req.RequestIDs...))
-	}
-	if req.CardNumber != nil {
-		statement = statement.Where(table.CardNumber.Like("%" + *req.CardNumber + "%"))
-	}
-	if req.CreatedFrom != nil {
-		statement = statement.Where(table.CreatedAt.Gte(*req.CreatedFrom))
-	}
-	if req.CreatedTo != nil {
-		statement = statement.Where(table.CreatedAt.Lte(*req.CreatedTo))
-	}
-	if len(req.Statuses) != 0 {
-		values := make([]string, 0, len(req.Statuses))
-		for _, value := range req.Statuses {
-			values = append(values, string(value))
-		}
-		statement = statement.Where(table.Status.In(values...))
-	}
-	statement = statement.Preload(table.Wallet)
-	statement = statement.Preload(table.Account)
-	statement = statement.Preload(table.VirtualAccount.Wallet)
-	if req.Limit != nil {
-		statement = statement.Limit(*req.Limit)
-	}
-	return statement.Order(table.ID.Desc()).Offset(req.Offset).Find()
-}
-
-func (repo *cardRepository) Count(ctx context.Context, req *biz.CardCountRequest) (int64, error) {
-	table := repo.DB(ctx).Card
-	statement := table.WithContext(ctx).Where(table.Channel.Eq(string(common.Channel_PingPong)))
-	if len(req.IDs) != 0 {
-		statement = statement.Where(table.ID.In(req.IDs...))
-	}
-	if len(req.AccountIDs) != 0 {
-		statement = statement.Where(table.AccountID.In(req.AccountIDs...))
-	}
-	if len(req.RequestIDs) != 0 {
-		statement = statement.Where(table.RequestID.In(req.RequestIDs...))
-	}
-	if req.CardNumber != nil {
-		statement = statement.Where(table.CardNumber.Like("%" + *req.CardNumber + "%"))
-	}
-	if req.CreatedFrom != nil {
-		statement = statement.Where(table.CreatedAt.Gte(*req.CreatedFrom))
-	}
-	if req.CreatedTo != nil {
-		statement = statement.Where(table.CreatedAt.Lte(*req.CreatedTo))
-	}
-	if len(req.Statuses) != 0 {
-		values := make([]string, 0, len(req.Statuses))
-		for _, value := range req.Statuses {
-			values = append(values, string(value))
-		}
-		statement = statement.Where(table.Status.In(values...))
-	}
-	return statement.Count()
 }

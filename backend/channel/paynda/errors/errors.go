@@ -12,12 +12,7 @@ const (
 )
 
 var (
-	ErrCardClosed              = kratosErrors.BadRequest("CARD_CLOSED", "已注销或注销中的卡片不能恢复或冻结")
-	ErrAccountScopeUnavailable = kratosErrors.New(
-		501,
-		"PAYNDA_ACCOUNT_SCOPE_UNAVAILABLE",
-		"account mapping for this merchant-level endpoint is not configured",
-	)
+	ErrCardClosed        = kratosErrors.BadRequest("CARD_CLOSED", "已注销或注销中的卡片不能恢复或冻结")
 	ErrDatabaseOperation = kratosErrors.InternalServer(
 		errorReasonDatabaseOperation,
 		errorMessageDatabaseOperation,

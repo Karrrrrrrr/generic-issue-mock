@@ -2,7 +2,7 @@
 
 ## 范围
 
-已实现持卡人、虚拟账户卡开卡、交易列表、卡状态更新和管理 UI。模拟授权、清算、退款和撤销仅在 UI 管理面提供，不对 OpenAPI 暴露 sandbox 模拟接口。Webhook 已支持 PhotonPay `ds-event` 的授权、验卡、冲正、退款和卡状态投递及记录；账户级同步授权配置由 `AuthorizationConfig` 管理，自动重试仍待实现。
+已实现持卡人、虚拟账户卡开卡、交易列表、卡状态更新和管理 UI。模拟授权、清算、退款和撤销仅在 UI 管理面提供，不对 OpenAPI 暴露 sandbox 模拟接口。Webhook 已支持 PhotonPay `ds-event` 的授权、验卡、冲正、退款和卡状态投递及记录；账户级同步授权配置由 `AuthorizationConfig` 管理。Webhook 只支持手动 replay，不做自动重试。
 
 PhotonPay SDK 当前没有被 Marxo 调用的授权配置 OpenAPI。mock 因此只在管理面提供 `GET/PUT /photonpay/ui/authorization-config`，请求按 `account_id` 选择配置；它持久化同步授权目标 URL、启用状态和超时，不伪造尚无调用点的 PhotonPay OpenAPI 路径。当前模拟入口执行本地共享模拟器，不读取该配置或新增同步回调。
 
@@ -80,7 +80,7 @@ curl -X POST http://127.0.0.1:8000/photonpay/vcc/openApi/v4/openCard \
 }
 ```
 
-清算任务通过交易列表轮询。当前 mock 仅支持分页，尚未实现 SDK 中的卡 ID、交易状态和时间范围过滤。
+清算任务通过交易列表轮询。当前 mock 支持分页、卡 ID、请求 ID、交易 ID、交易类型、交易状态和创建时间范围过滤。
 
 ```bash
 curl 'http://127.0.0.1:8000/photonpay/vcc/openApi/v4/pagingVccTradeOrder?pageIndex=1&pageSize=50'
@@ -94,7 +94,7 @@ SDK 保留原有 `SandBoxTransaction` 方法，但本 mock 不注册其 `/photon
 
 ### 交易列表过滤
 
-对齐 Marxo 的 `PagingVccTradeOrder` 请求后补齐 SDK 使用的 card ID、交易状态、交易时间范围和分页字段。先用 `channel/photonpay/pkg/idconv` 解析传入卡 ID；随后显式构造 repository 查询，按 `CardTransaction.ID DESC` 排序。每个可选过滤字段均应在 DTO 中声明，不能用 `gin.H` 或 raw GORM predicate 拼接。响应交易 ID 与原交易 ID 再格式化为 PhotonPay 十进制字符串。
+已接入 Marxo `PagingVccTradeOrder` 使用的卡 ID、请求 ID、交易 ID、交易类型、交易状态、创建时间范围和分页字段。传入卡 ID/交易 ID 先用 `channel/photonpay/pkg/idconv` 解析；repository 查询按 `CardTransaction.ID DESC` 排序。响应交易 ID 与原交易 ID 再格式化为 PhotonPay 十进制字符串。
 
 验证夹具应覆盖：同一张卡的授权、冲正、退款各一笔；使用 `originTransactionId` 查询退款/冲正来源；时间范围边界；空页。清算交易应返回 `settledAt`，而未清算授权不能冒充已清算。
 
@@ -140,4 +140,4 @@ curl -X POST "$MARXO_BASE_URL/api/v1/notify/ds-event" \
 
 Marxo 不使用通用成功信封，必须收到裸响应 `{"roger":true}`；连续八次不规范响应会使 PhotonPay 停止全部事件通知。因此 mock 的投递判定需要同时检查 HTTP 2xx 和该 JSON body 的 `roger=true`。提交业务 transaction 后先创建 `WebhookRecord`（`Channel=photonpay`、事件、目标、格式化 `SourceID`、原始 body、attempt 1、pending），再发送；将状态码、响应 body、投递时间或错误写回同一 record，重试不得重新生成业务交易。
 
-配置事件直接使用当前已实现的 Marxo `X-PD-NOTIFICATION-TYPE` 值：`auth`、`verification`、`void`、`refund`。卡状态和持卡人状态投递尚未实现，因此不在后端事件列表中返回。在 Marxo 开启验签时设置 `PHOTONPAY_WEBHOOK_PRIVATE_KEY`（PKCS#8 RSA PEM）；未设置时只发送事件 headers 和 body，适用于关闭验签的本地环境。投递记录 UI 已支持分页、详情和 replay：详情保存并展示报文、请求头、响应体和响应头；replay 使用原始报文和请求头再次发送，并新建一条记录保留审计历史。自动重试仍待实现。
+配置事件直接使用当前已实现的 Marxo `X-PD-NOTIFICATION-TYPE` 值：`auth`、`verification`、`void`、`refund`。卡状态和持卡人状态投递尚未实现，因此不在后端事件列表中返回。在 Marxo 开启验签时设置 `PHOTONPAY_WEBHOOK_PRIVATE_KEY`（PKCS#8 RSA PEM）；未设置时只发送事件 headers 和 body，适用于关闭验签的本地环境。投递记录 UI 已支持分页、详情和 replay：详情保存并展示报文、请求头、响应体和响应头；replay 使用原始报文和请求头再次发送，并新建一条记录保留审计历史。不做自动重试。
