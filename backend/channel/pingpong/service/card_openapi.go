@@ -152,7 +152,7 @@ func (s *PingPongOpenAPIService) GetCardDetails(ctx context.Context, req *CardRe
 	return &CardDetails{
 		CardID:            req.CardID,
 		BudgetID:          idconv.ToString(*card.VirtualAccountID),
-		CardStatus:        ping.FromGenericCardStatus(card.Status),
+		CardStatus:        ping.ConvertGenericCardStatusToCardStatus(card.Status),
 		CardNumber:        card.CardNumber,
 		CVC:               card.Cvv,
 		CardExpiryDate:    timefmt.CardExpiration(card.ExpireAt),

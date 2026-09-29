@@ -10,7 +10,7 @@ const (
 	WebhookDeliveryStatusFailed    WebhookDeliveryStatus = "failed"
 )
 
-func WebhookDeliveryStatusFromGeneric(value generic.WebhookDeliveryStatus) WebhookDeliveryStatus {
+func ConvertGenericWebhookDeliveryStatusToWebhookDeliveryStatus(value generic.WebhookDeliveryStatus) WebhookDeliveryStatus {
 	switch value {
 	case generic.WebhookDeliveryStatus_Succeeded:
 		return WebhookDeliveryStatusSucceeded
@@ -21,7 +21,7 @@ func WebhookDeliveryStatusFromGeneric(value generic.WebhookDeliveryStatus) Webho
 	}
 }
 
-func WebhookDeliveryStatusToGeneric(value WebhookDeliveryStatus) generic.WebhookDeliveryStatus {
+func ConvertWebhookDeliveryStatusToGenericWebhookDeliveryStatus(value WebhookDeliveryStatus) generic.WebhookDeliveryStatus {
 	switch value {
 	case WebhookDeliveryStatusSucceeded:
 		return generic.WebhookDeliveryStatus_Succeeded

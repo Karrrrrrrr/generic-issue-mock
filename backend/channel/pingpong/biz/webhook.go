@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"slices"
 	"time"
 
 	ping "generic-mock/channel/pingpong/enums"
@@ -206,7 +207,7 @@ func (uc *PingPongWebhookUsecase) Queue(ctx context.Context, req *QueueWebhookRe
 				record := &model.WebhookRecord{
 					AccountID: req.AccountID, Channel: common.Channel_PingPong, WebhookConfigID: config.ID,
 					Event: string(req.Event), SourceID: req.SourceID, TargetURL: config.TargetURL,
-					Payload: append([]byte(nil), req.Payload...), RequestHeaders: []byte(`{"Content-Type":["application/json"]}`),
+					Payload: slices.Clone(req.Payload), RequestHeaders: []byte(`{"Content-Type":["application/json"]}`),
 					ResponseHeaders: []byte(`{}`), Status: common.WebhookDeliveryStatus_Pending, AttemptCount: 1,
 				}
 				if err := uc.webhookRecordRepo.Create(ctx, &sharedbiz.WebhookRecordCreateRequest{Record: record}); err != nil {
@@ -262,7 +263,7 @@ func (uc *PingPongWebhookUsecase) ReplayRecord(ctx context.Context, req *ReplayW
 	replay := &model.WebhookRecord{
 		AccountID: source.AccountID, Channel: source.Channel, WebhookConfigID: source.WebhookConfigID,
 		Event: source.Event, SourceID: source.SourceID, TargetURL: source.TargetURL,
-		Payload: append([]byte(nil), source.Payload...), RequestHeaders: append([]byte(nil), source.RequestHeaders...),
+		Payload: slices.Clone(source.Payload), RequestHeaders: slices.Clone(source.RequestHeaders),
 		ResponseHeaders: []byte(`{}`), Status: common.WebhookDeliveryStatus_Pending, AttemptCount: source.AttemptCount + 1,
 	}
 	if err := uc.webhookRecordRepo.Create(ctx, &sharedbiz.WebhookRecordCreateRequest{Record: replay}); err != nil {

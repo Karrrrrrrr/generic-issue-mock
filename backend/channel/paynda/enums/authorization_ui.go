@@ -12,7 +12,7 @@ const (
 	AuthorizationStatusUnknown    AuthorizationStatus = "unknown"
 )
 
-func AuthorizationStatusFromGeneric(value common.CardTransactionStatus) AuthorizationStatus {
+func ConvertGenericTransactionStatusToAuthorizationStatus(value common.CardTransactionStatus) AuthorizationStatus {
 	switch value {
 	case common.TransactionStatus_PENDING:
 		return AuthorizationStatusPending

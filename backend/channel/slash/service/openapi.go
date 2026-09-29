@@ -169,7 +169,7 @@ func (s *SlashOpenAPIService) ListCards(ctx context.Context, req *OpenAPIListCar
 		AccountID: accountID,
 		Offset:    offset,
 		Limit:     limit,
-		Status:    types.ConvertPointer(req.FilterStatus, slash.CardStatusToGeneric),
+		Status:    types.ConvertPointer(req.FilterStatus, slash.ConvertCardStatusToGenericCardStatus),
 	})
 	if err != nil {
 		return nil, err
@@ -284,7 +284,7 @@ func (s *SlashOpenAPIService) UpdateCard(ctx context.Context, req *OpenAPIUpdate
 	item, err := s.usecase.UpdateCard(ctx, &biz.OpenAPIUpdateCardRequest{
 		AccountID: accountID,
 		ID:        id,
-		Status:    slash.CardStatusToGeneric(req.Status),
+		Status:    slash.ConvertCardStatusToGenericCardStatus(req.Status),
 	})
 	if err != nil {
 		return nil, err
@@ -423,7 +423,7 @@ func openAPICard(item *model.Card) *OpenAPICard {
 		Last4:            item.CardNumber[len(item.CardNumber)-4:],
 		ExpiryMonth:      timefmt.Month(item.ExpireAt),
 		ExpiryYear:       timefmt.Year(item.ExpireAt),
-		Status:           slash.CardStatusFromGeneric(item.Status),
+		Status:           slash.ConvertGenericCardStatusToCardStatus(item.Status),
 		IsPhysical:       item.FormType == enums.CardFormType_Physical,
 		Pan:              item.CardNumber,
 		Cvv:              item.Cvv,
@@ -444,8 +444,8 @@ func openAPITransaction(item *model.CardTransaction) *OpenAPITransaction {
 		Description:             item.MerchantName,
 		MerchantDescription:     item.MerchantName,
 		AmountCents:             int(item.TxAmount.Mul(decimal.NewFromInt(100)).IntPart()),
-		Status:                  slash.TransactionStatusFromGeneric(item.Status),
-		DetailedStatus:          slash.TransactionStatusFromGeneric(item.Status),
+		Status:                  slash.ConvertGenericTransactionStatusToTransactionStatus(item.Status),
+		DetailedStatus:          slash.ConvertGenericTransactionStatusToTransactionStatus(item.Status),
 		AccountID:               idconv.ToUUID(item.AccountID),
 		CardID:                  idconv.ToUUID(item.CardID),
 		AuthorizedAt:            authorizedAt,

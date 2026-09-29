@@ -17,11 +17,11 @@ const (
 	TransferType_Out TransferType = "OUT"
 )
 
-func TransferTypeFromString(value string) (TransferType, bool) {
-	switch TransferType(value) {
-	case TransferType_In:
+func ConvertStringToTransferType(value string) (TransferType, bool) {
+	switch value {
+	case string(TransferType_In):
 		return TransferType_In, true
-	case TransferType_Out:
+	case string(TransferType_Out):
 		return TransferType_Out, true
 	default:
 		return "", false
@@ -41,7 +41,7 @@ type CardHolderStatus string
 
 const CardHolderStatusNormal CardHolderStatus = "normal"
 
-func CardHolderStatusFromGeneric(common.CardHolderStatus) CardHolderStatus {
+func ConvertGenericCardHolderStatusToCardHolderStatus(common.CardHolderStatus) CardHolderStatus {
 	return CardHolderStatusNormal
 }
 
@@ -55,7 +55,7 @@ const (
 	TransactionStatusVoid       TransactionStatus = "void"
 )
 
-func TransactionStatusFromGeneric(value common.CardTransactionStatus) TransactionStatus {
+func ConvertGenericTransactionStatusToTransactionStatus(value common.CardTransactionStatus) TransactionStatus {
 	switch value {
 	case common.TransactionStatus_PENDING:
 		return TransactionStatusPending
@@ -90,7 +90,7 @@ func WebhookEvents() []WebhookEvent {
 	}
 }
 
-func TransactionTypeFromGeneric(value common.CardTransactionType) TransactionType {
+func ConvertGenericTransactionTypeToTransactionType(value common.CardTransactionType) TransactionType {
 	switch value {
 	case common.CardTransactionType_CLEAR:
 		return TransactionType_Settled
@@ -108,7 +108,7 @@ const (
 	SuccessMessage       = "success"
 )
 
-func CardStatusFromGeneric(value common.CardStatus) CardStatus {
+func ConvertGenericCardStatusToCardStatus(value common.CardStatus) CardStatus {
 	switch value {
 	case common.CardStatus_Frozen:
 		return CardStatus_Frozen
@@ -119,7 +119,7 @@ func CardStatusFromGeneric(value common.CardStatus) CardStatus {
 	}
 }
 
-func CardStatusToGeneric(value CardStatus) common.CardStatus {
+func ConvertCardStatusToGenericCardStatus(value CardStatus) common.CardStatus {
 	if value == CardStatus_Frozen {
 		return common.CardStatus_Frozen
 	}

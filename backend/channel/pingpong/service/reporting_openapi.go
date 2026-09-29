@@ -175,7 +175,7 @@ func (s *PingPongOpenAPIService) QueryAccountsBalances(
 		return nil, err
 	}
 	if req.AccountType != nil {
-		if !ping.AccountTypeValid(*req.AccountType) {
+		if _, valid := ping.ConvertStringToAccountType(*req.AccountType); !valid {
 			return nil, pingerrors.ErrInvalid
 		}
 	}
@@ -236,7 +236,7 @@ func (s *PingPongOpenAPIService) QueryCardTransactions(
 	var transactionTypes []common.CardTransactionType
 	if req.Type != nil {
 		var valid bool
-		transactionTypes, valid = ping.TransactionTypesToGeneric(*req.Type)
+		transactionTypes, valid = ping.ConvertStringToGenericTransactionTypes(*req.Type)
 		if !valid {
 			return nil, pingerrors.ErrInvalid
 		}
@@ -244,16 +244,19 @@ func (s *PingPongOpenAPIService) QueryCardTransactions(
 	var statuses []common.CardTransactionStatus
 	if req.Status != nil {
 		var valid bool
-		statuses, valid = ping.TransactionStatusesToGeneric(*req.Status)
+		statuses, valid = ping.ConvertStringToGenericTransactionStatuses(*req.Status)
 		if !valid {
 			return nil, pingerrors.ErrInvalid
 		}
 	}
 	if req.ClearType != nil {
-		var valid bool
-		transactionTypes, valid = ping.ApplyTransactionDirectionToGenericTypes(
+		direction, valid := ping.ConvertStringToTransactionDirection(*req.ClearType)
+		if !valid {
+			return nil, pingerrors.ErrInvalid
+		}
+		transactionTypes, valid = ping.ConvertTransactionDirectionToGenericTransactionTypes(
 			transactionTypes,
-			ping.TransactionDirection(*req.ClearType),
+			direction,
 		)
 		if !valid {
 			return nil, pingerrors.ErrInvalid
@@ -351,16 +354,19 @@ func (s *PingPongOpenAPIService) QueryAccountTransactions(
 	var transactionTypes []common.CardTransactionType
 	if req.TransactionType != nil {
 		var valid bool
-		transactionTypes, valid = ping.TransactionTypesToGeneric(*req.TransactionType)
+		transactionTypes, valid = ping.ConvertStringToGenericTransactionTypes(*req.TransactionType)
 		if !valid {
 			return nil, pingerrors.ErrInvalid
 		}
 	}
 	if req.Direction != nil {
-		var valid bool
-		transactionTypes, valid = ping.ApplyTransactionDirectionToGenericTypes(
+		direction, valid := ping.ConvertStringToTransactionDirection(*req.Direction)
+		if !valid {
+			return nil, pingerrors.ErrInvalid
+		}
+		transactionTypes, valid = ping.ConvertTransactionDirectionToGenericTransactionTypes(
 			transactionTypes,
-			ping.TransactionDirection(*req.Direction),
+			direction,
 		)
 		if !valid {
 			return nil, pingerrors.ErrInvalid

@@ -96,14 +96,14 @@ func (u *PhotonPayOpenAPIUsecase) OpenCard(ctx context.Context, req *OpenCardReq
 			VirtualAccountID:       &virtualAccount.ID,
 			WalletID:               virtualAccount.WalletID,
 			CardHolderID:           req.CardholderID,
-			FormType:               photon.CardFormFactorToGeneric(req.CardFormFactor),
+			FormType:               photon.ConvertCardFormFactorToGenericCardFormType(req.CardFormFactor),
 			RequestID:              req.RequestID,
 			LastOperationRequestID: req.RequestID,
 			LastOperationType:      common.OperationType_OpenCard,
 			LastOperationStatus:    common.OperationStatus_Succeed,
 			CardCurrency:           req.Currency,
 			CardScheme:             req.CardScheme,
-			CardType:               photon.CardTypeToGeneric(req.CardType),
+			CardType:               photon.ConvertCardTypeToGenericCardType(req.CardType),
 		}
 
 		if err := u.cardRepo.CreateCard(txCtx, card); err != nil {

@@ -175,7 +175,7 @@ func (u *PhotonPayUIUsecase) NotifyCardTransaction(ctx context.Context, req *sha
 		zap.S().Errorw("find photonpay notification transaction", "account_id", req.AccountID, "transaction_id", req.CardTransactionID, "error", err)
 		return err
 	}
-	u.dispatch(ctx, photon.WebhookEventFromGenericTransactionType(transaction.Type), transaction.ID, transaction)
+	u.dispatch(ctx, photon.ConvertGenericTransactionTypeToWebhookEvent(transaction.Type), transaction.ID, transaction)
 	return nil
 }
 
@@ -288,11 +288,11 @@ func (u *PhotonPayUIUsecase) photonPayWebhookPayload(ctx context.Context, transa
 		CreatedAt:                  transaction.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:                  transaction.UpdatedAt.UTC().Format(time.RFC3339),
 		CardID:                     strconv.FormatInt(card.ID, 10),
-		CardType:                   string(photon.CardTypeFromGeneric(card.CardType)),
+		CardType:                   string(photon.ConvertGenericCardTypeToCardType(card.CardType)),
 		TransactionID:              strconv.FormatInt(transaction.ID, 10),
 		RequestID:                  transaction.RequestID,
-		TransactionType:            string(photon.WebhookEventFromGenericTransactionType(transaction.Type)),
-		Status:                     string(photon.TransactionStatusFromGeneric(transaction.Status)),
+		TransactionType:            string(photon.ConvertGenericTransactionTypeToWebhookEvent(transaction.Type)),
+		Status:                     string(photon.ConvertGenericTransactionStatusToTransactionStatus(transaction.Status)),
 		Code:                       photon.WebhookSuccessCode,
 		Message:                    photon.WebhookSuccessMessage,
 		MCC:                        transaction.MerchantMCC,
@@ -304,7 +304,7 @@ func (u *PhotonPayUIUsecase) photonPayWebhookPayload(ctx context.Context, transa
 		TxnPrincipalChangeCurrency: string(transaction.TxCurrency),
 		MerchantName:               transaction.MerchantName,
 		MerchantLocation:           transaction.MerchantCountry,
-		TransactionStatus:          string(photon.TransactionStatusFromGeneric(transaction.Status)),
+		TransactionStatus:          string(photon.ConvertGenericTransactionStatusToTransactionStatus(transaction.Status)),
 		TransactionCountry:         transaction.MerchantCountry,
 		TransactionHappenedAt:      transaction.CreatedAt.UTC().Format(time.RFC3339),
 	}

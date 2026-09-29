@@ -1,6 +1,7 @@
 package enums
 
 import (
+	"slices"
 	"strings"
 
 	common "generic-mock/enums"
@@ -15,7 +16,7 @@ const (
 	CardInactive  CardStatus = "INACTIVE"
 )
 
-func FromGenericCardStatus(status common.CardStatus) CardStatus {
+func ConvertGenericCardStatusToCardStatus(status common.CardStatus) CardStatus {
 	switch status {
 	case common.CardStatus_Active:
 		return CardActive
@@ -28,7 +29,7 @@ func FromGenericCardStatus(status common.CardStatus) CardStatus {
 	}
 }
 
-func ToGenericCardStatus(status CardStatus) common.CardStatus {
+func ConvertCardStatusToGenericCardStatus(status CardStatus) common.CardStatus {
 	switch status {
 	case CardActive:
 		return common.CardStatus_Active
@@ -85,6 +86,13 @@ const (
 
 type TransferKind string
 
+const (
+	TransferKindCardTopUp              TransferKind = "card_top_up"
+	TransferKindCardWithdraw           TransferKind = "card_withdraw"
+	TransferKindVirtualAccountTopUp    TransferKind = "virtual_account_top_up"
+	TransferKindVirtualAccountTransfer TransferKind = "virtual_account_transfer"
+)
+
 type AccountType string
 
 const (
@@ -92,13 +100,15 @@ const (
 	AccountTypeVirtualAccount AccountType = "virtual_account"
 )
 
-func AccountTypeValid(value string) bool {
-	switch AccountType(strings.ToLower(strings.TrimSpace(value))) {
-	case AccountTypeBudget, AccountTypeVirtualAccount:
-		return true
-	default:
-		return false
+func ConvertStringToAccountType(value string) (AccountType, bool) {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if normalized == string(AccountTypeBudget) {
+		return AccountTypeBudget, true
 	}
+	if normalized == string(AccountTypeVirtualAccount) {
+		return AccountTypeVirtualAccount, true
+	}
+	return "", false
 }
 
 type TransactionDirection string
@@ -108,7 +118,18 @@ const (
 	TransactionDirectionDebit  TransactionDirection = "DEBIT"
 )
 
-func TransactionTypeToGeneric(value string) (common.CardTransactionType, bool) {
+func ConvertStringToTransactionDirection(value string) (TransactionDirection, bool) {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	if normalized == string(TransactionDirectionCredit) {
+		return TransactionDirectionCredit, true
+	}
+	if normalized == string(TransactionDirectionDebit) {
+		return TransactionDirectionDebit, true
+	}
+	return "", false
+}
+
+func ConvertStringToGenericTransactionType(value string) (common.CardTransactionType, bool) {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "auth", "authorization":
 		return common.CardTransactionType_AUTH, true
@@ -123,11 +144,11 @@ func TransactionTypeToGeneric(value string) (common.CardTransactionType, bool) {
 	}
 }
 
-func TransactionTypesToGeneric(value string) ([]common.CardTransactionType, bool) {
+func ConvertStringToGenericTransactionTypes(value string) ([]common.CardTransactionType, bool) {
 	parts := strings.Split(value, ",")
 	result := make([]common.CardTransactionType, 0, len(parts))
 	for _, item := range parts {
-		transactionType, valid := TransactionTypeToGeneric(item)
+		transactionType, valid := ConvertStringToGenericTransactionType(item)
 		if !valid {
 			return nil, false
 		}
@@ -136,7 +157,7 @@ func TransactionTypesToGeneric(value string) ([]common.CardTransactionType, bool
 	return result, true
 }
 
-func TransactionStatusToGeneric(value string) (common.CardTransactionStatus, bool) {
+func ConvertStringToGenericTransactionStatus(value string) (common.CardTransactionStatus, bool) {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "pending":
 		return common.TransactionStatus_PENDING, true
@@ -153,11 +174,11 @@ func TransactionStatusToGeneric(value string) (common.CardTransactionStatus, boo
 	}
 }
 
-func TransactionStatusesToGeneric(value string) ([]common.CardTransactionStatus, bool) {
+func ConvertStringToGenericTransactionStatuses(value string) ([]common.CardTransactionStatus, bool) {
 	parts := strings.Split(value, ",")
 	result := make([]common.CardTransactionStatus, 0, len(parts))
 	for _, item := range parts {
-		status, valid := TransactionStatusToGeneric(item)
+		status, valid := ConvertStringToGenericTransactionStatus(item)
 		if !valid {
 			return nil, false
 		}
@@ -166,12 +187,12 @@ func TransactionStatusesToGeneric(value string) ([]common.CardTransactionStatus,
 	return result, true
 }
 
-func ApplyTransactionDirectionToGenericTypes(
+func ConvertTransactionDirectionToGenericTransactionTypes(
 	transactionTypes []common.CardTransactionType,
 	value TransactionDirection,
 ) ([]common.CardTransactionType, bool) {
 	var allowed []common.CardTransactionType
-	switch TransactionDirection(strings.ToUpper(strings.TrimSpace(string(value)))) {
+	switch value {
 	case TransactionDirectionCredit:
 		allowed = []common.CardTransactionType{common.CardTransactionType_REFUND}
 	case TransactionDirectionDebit:
@@ -184,7 +205,7 @@ func ApplyTransactionDirectionToGenericTypes(
 		return nil, false
 	}
 	if len(transactionTypes) == 0 {
-		return allowed, true
+		return slices.Clone(allowed), true
 	}
 	allowedSet := make(map[common.CardTransactionType]struct{}, len(allowed))
 	for _, item := range allowed {
@@ -199,16 +220,16 @@ func ApplyTransactionDirectionToGenericTypes(
 	return result, true
 }
 
-func FromGenericTransferKind(value common.WalletTransferKind) TransferKind {
+func ConvertGenericTransferKindToTransferKind(value common.WalletTransferKind) TransferKind {
 	switch value {
 	case common.WalletTransfer_CardTopUp:
-		return "card_top_up"
+		return TransferKindCardTopUp
 	case common.WalletTransfer_CardWithdraw:
-		return "card_withdraw"
+		return TransferKindCardWithdraw
 	case common.WalletTransfer_VirtualAccountTopUp:
-		return "virtual_account_top_up"
+		return TransferKindVirtualAccountTopUp
 	case common.WalletTransfer_VirtualAccountTransfer:
-		return "virtual_account_transfer"
+		return TransferKindVirtualAccountTransfer
 	default:
 		return ""
 	}

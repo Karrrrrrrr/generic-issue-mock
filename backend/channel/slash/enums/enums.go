@@ -76,7 +76,7 @@ func WebhookEvents() []WebhookEvent {
 	}
 }
 
-func CardStatusFromGeneric(value generic.CardStatus) CardStatus {
+func ConvertGenericCardStatusToCardStatus(value generic.CardStatus) CardStatus {
 	switch value {
 	case generic.CardStatus_Frozen:
 		return CardStatus_Paused
@@ -89,7 +89,7 @@ func CardStatusFromGeneric(value generic.CardStatus) CardStatus {
 	}
 }
 
-func CardStatusToGeneric(value CardStatus) generic.CardStatus {
+func ConvertCardStatusToGenericCardStatus(value CardStatus) generic.CardStatus {
 	switch value {
 	case CardStatus_Paused:
 		return generic.CardStatus_Frozen
@@ -102,7 +102,7 @@ func CardStatusToGeneric(value CardStatus) generic.CardStatus {
 	}
 }
 
-func TransactionStatusFromGeneric(value generic.CardTransactionStatus) TransactionStatus {
+func ConvertGenericTransactionStatusToTransactionStatus(value generic.CardTransactionStatus) TransactionStatus {
 	if value == generic.TransactionStatus_FAILED {
 		return TransactionStatus_Failed
 	}
@@ -113,7 +113,7 @@ func TransactionStatusFromGeneric(value generic.CardTransactionStatus) Transacti
 	return TransactionStatus_Posted
 }
 
-func TransactionStatusToGeneric(value TransactionStatus) generic.CardTransactionStatus {
+func ConvertTransactionStatusToGenericTransactionStatus(value TransactionStatus) generic.CardTransactionStatus {
 	switch value {
 	case TransactionStatus_Pending:
 		return generic.TransactionStatus_PENDING
@@ -124,7 +124,7 @@ func TransactionStatusToGeneric(value TransactionStatus) generic.CardTransaction
 	}
 }
 
-func TransactionTypeFromGeneric(value generic.CardTransactionType) TransactionType {
+func ConvertGenericTransactionTypeToTransactionType(value generic.CardTransactionType) TransactionType {
 	switch value {
 	case generic.CardTransactionType_CLEAR:
 		return TransactionType_Clearing
@@ -137,7 +137,7 @@ func TransactionTypeFromGeneric(value generic.CardTransactionType) TransactionTy
 	}
 }
 
-func TransactionTypeToGeneric(value TransactionType) generic.CardTransactionType {
+func ConvertTransactionTypeToGenericTransactionType(value TransactionType) generic.CardTransactionType {
 	switch value {
 	case TransactionType_Clearing:
 		return generic.CardTransactionType_CLEAR
@@ -150,7 +150,7 @@ func TransactionTypeToGeneric(value TransactionType) generic.CardTransactionType
 	}
 }
 
-func CardHolderStatusFromGeneric(_ generic.CardHolderStatus) CardHolderStatus {
+func ConvertGenericCardHolderStatusToCardHolderStatus(_ generic.CardHolderStatus) CardHolderStatus {
 	return CardHolderStatus_Normal
 }
 

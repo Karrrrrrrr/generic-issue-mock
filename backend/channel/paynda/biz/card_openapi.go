@@ -230,7 +230,7 @@ func (u *PayndaOpenAPIUsecase) UpdateCardStatus(
 			zap.S().Errorw("lock paynda card status change", "error", err)
 			return payndaerrors.ErrDatabaseOperation
 		}
-		nextStatus := paynda.CardStatusToGeneric(req.Status)
+		nextStatus := paynda.ConvertCardStatusToGenericCardStatus(req.Status)
 		if (card.Status == enums.CardStatus_Deleted && nextStatus != enums.CardStatus_Deleted) ||
 			(card.Status == enums.CardStatus_Deleteing && nextStatus != enums.CardStatus_Deleteing && nextStatus != enums.CardStatus_Deleted) {
 			return payndaerrors.ErrCardClosed

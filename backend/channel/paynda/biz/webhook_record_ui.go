@@ -337,7 +337,7 @@ func (u *PayndaUIUsecase) payndaWebhookPayload(ctx context.Context, transaction 
 		CardholderID:                        holder.ID,
 		CardID:                              card.ID,
 		MaskCardNo:                          payndaMaskCardNumber(card.CardNumber),
-		Type:                                string(paynda.TransactionTypeFromGeneric(transaction.Type)),
+		Type:                                string(paynda.ConvertGenericTransactionTypeToTransactionType(transaction.Type)),
 		ApprovalCode:                        transaction.AuthorizationCode,
 		PreAuthAmount:                       transaction.TxAmount.String(),
 		PostedAmount:                        transaction.TxAmount.String(),

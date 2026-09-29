@@ -257,8 +257,8 @@ func (s *PhotonPayOpenAPIService) ListCardHolders(ctx context.Context, req *List
 			Email:                  holder.Email,
 			Mobile:                 holder.Mobile,
 			MobilePrefix:           holder.MobilePrefix,
-			Status:                 photon.CardHolderStatusFromGeneric(holder.Status),
-			CardholderReviewStatus: photon.CardHolderReviewStatusFromGeneric(holder.ReviewStatus),
+			Status:                 photon.ConvertGenericCardHolderStatusToCardHolderStatus(holder.Status),
+			CardholderReviewStatus: photon.ConvertGenericCardHolderReviewStatusToCardHolderReviewStatus(holder.ReviewStatus),
 		})
 	}
 	return &items, nil
@@ -555,7 +555,7 @@ func (s *PhotonPayOpenAPIService) FreezeCard(ctx context.Context, req *ChangeCar
 		AccountID: accountID,
 		CardID:    cardID,
 		RequestID: req.RequestID,
-		Status:    photon.FreezeStatusToGeneric(req.Status),
+		Status:    photon.ConvertFreezeStatusToGenericCardStatus(req.Status),
 		Operation: common.OperationType_FreezeCard,
 	})
 	if err != nil {
@@ -638,7 +638,7 @@ func (s *PhotonPayOpenAPIService) ListTrades(ctx context.Context, req *ListTrade
 	var typesFilter []common.CardTransactionType
 	if req.TransactionType != nil {
 		var valid bool
-		typesFilter, valid = photon.TransactionTypesToGeneric(*req.TransactionType)
+		typesFilter, valid = photon.ConvertStringToGenericTransactionTypes(*req.TransactionType)
 		if !valid {
 			return nil, photonpayerrors.ErrInvalidOperation
 		}
@@ -646,7 +646,7 @@ func (s *PhotonPayOpenAPIService) ListTrades(ctx context.Context, req *ListTrade
 	var statuses []common.CardTransactionStatus
 	if req.Status != nil {
 		var valid bool
-		statuses, valid = photon.TransactionStatusesToGeneric(*req.Status)
+		statuses, valid = photon.ConvertStringToGenericTransactionStatuses(*req.Status)
 		if !valid {
 			return nil, photonpayerrors.ErrInvalidOperation
 		}
@@ -684,13 +684,13 @@ func (s *PhotonPayOpenAPIService) ListTrades(ctx context.Context, req *ListTrade
 			TransactionID:       idconv.ToString(transaction.ID),
 			CreatedAt:           timeTypes.ISODateTime(transaction.CreatedAt.UTC()),
 			TxnDate:             timeTypes.ISODateTime(transaction.CreatedAt.UTC()),
-			TransactionType:     photon.TransactionTypeFromGeneric(transaction.Type),
+			TransactionType:     photon.ConvertGenericTransactionTypeToTransactionType(transaction.Type),
 			CardID:              idconv.ToString(transaction.CardID),
 			RequestID:           transaction.RequestID,
 			TransactionAmount:   transaction.TxAmount.InexactFloat64(),
 			TransactionCurrency: transaction.TxCurrency,
 			MerchantName:        transaction.MerchantName,
-			Status:              photon.TransactionStatusFromGeneric(transaction.Status),
+			Status:              photon.ConvertGenericTransactionStatusToTransactionStatus(transaction.Status),
 		})
 	}
 	return &items, nil
@@ -714,8 +714,8 @@ func cardHolderData(holder *model.CardHolder) *CardHolderData {
 	return &CardHolderData{
 		CardholderID:           idconv.ToString(holder.ID),
 		MemberID:               photon.MemberID,
-		Status:                 photon.CardHolderStatusFromGeneric(holder.Status),
-		CardholderReviewStatus: photon.CardHolderReviewStatusFromGeneric(holder.ReviewStatus),
+		Status:                 photon.ConvertGenericCardHolderStatusToCardHolderStatus(holder.Status),
+		CardholderReviewStatus: photon.ConvertGenericCardHolderReviewStatusToCardHolderReviewStatus(holder.ReviewStatus),
 		IdInfoRequirement:      "N",
 	}
 }
@@ -728,9 +728,9 @@ func cardData(card *model.Card) *CardData {
 		ExpirationDate: timefmt.CardExpiration(card.ExpireAt),
 		CardCurrency:   card.CardCurrency,
 		CardScheme:     card.CardScheme,
-		CardStatus:     photon.CardStatusFromGeneric(card.Status),
-		CardFormFactor: photon.CardFormFactorFromGeneric(card.FormType),
-		CardType:       photon.CardTypeFromGeneric(card.CardType),
+		CardStatus:     photon.ConvertGenericCardStatusToCardStatus(card.Status),
+		CardFormFactor: photon.ConvertGenericCardFormTypeToCardFormFactor(card.FormType),
+		CardType:       photon.ConvertGenericCardTypeToCardType(card.CardType),
 		CardholderID:   idconv.ToString(card.CardHolderID),
 		CreatedAt:      timeTypes.ISODateTime(card.CreatedAt.UTC()),
 		MaskCardNo:     maskCardNumber(card.CardNumber),
