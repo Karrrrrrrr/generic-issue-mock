@@ -19,6 +19,11 @@ export interface Account {
   currency: string;
 }
 
+export interface AccountListRequest {
+  id?: number;
+  name?: string;
+}
+
 export interface Webhook {
   id: number;
   account_id: number;
@@ -170,9 +175,9 @@ export function createManagementAPI(baseURL: string) {
     async listAll(): Promise<Account[]> {
       return (await listAll<AccountData>("accounts")).map(toAccount);
     },
-    async list(pageNumber = 1, pageSize = 20): Promise<ListResponse<Account>> {
+    async list(pageNumber = 1, pageSize = 20, filters: AccountListRequest = {}): Promise<ListResponse<Account>> {
       const result = (await request.get<Page<AccountData>>(`${baseURL}/accounts`, {
-        params: { page_number: pageNumber, page_size: pageSize },
+        params: { ...filters, page_number: pageNumber, page_size: pageSize },
       })).data;
       return { data: result.items.map(toAccount), total_items: result.total };
     },
@@ -188,8 +193,8 @@ export function createManagementAPI(baseURL: string) {
     async events() {
       return (await request.get<{ items: WebhookEvent[] }>(`${baseURL}/webhooks/events`)).data.items;
     },
-    async list(accountID?: number) {
-      return listAll<Webhook>("webhooks", { account_id: accountID });
+    async list(accountId?: number) {
+      return listAll<Webhook>("webhooks", { account_id: accountId });
     },
     async create(payload: Omit<Webhook, "id" | "created_at" | "updated_at" | "account_name">) {
       return (await request.post<Webhook>(`${baseURL}/webhooks`, payload)).data;
@@ -265,8 +270,8 @@ export function createManagementAPI(baseURL: string) {
   };
 
   const fundsApi = {
-    async list(accountID?: number): Promise<Wallet[]> {
-      return (await listAll<WalletData>("wallets", { account_id: accountID })).map(item => ({
+    async list(accountId?: number): Promise<Wallet[]> {
+      return (await listAll<WalletData>("wallets", { account_id: accountId })).map(item => ({
         ...item, kind: item.type, amount: item.available,
       }));
     },
@@ -306,7 +311,7 @@ export function createManagementAPI(baseURL: string) {
     async stage(input) {
       const endpoint = { clear: "clearings", reverse: "reversals", refund: "refunds" }[input.stage];
       await request.post(`${baseURL}/simulate/${endpoint}`, {
-        authorization_id: input.authorization.id, amount: input.amount, request_id: input.requestID,
+        authorization_id: input.authorization.id, amount: input.amount, request_id: input.requestId,
       });
     },
   };
@@ -321,13 +326,13 @@ export function createManagementAPI(baseURL: string) {
     async topUp(input) {
       await request.post(`${baseURL}/virtual-accounts/fund`, {
         virtual_account_id: input.account.id, account_id: input.account.account_id,
-        amount: input.amount, request_id: input.requestID,
+        amount: input.amount, request_id: input.requestId,
       });
     },
     async withdraw(input) {
       await request.post(`${baseURL}/virtual-accounts/fund`, {
         virtual_account_id: input.account.id, account_id: input.account.account_id,
-        amount: input.amount, request_id: input.requestID, withdraw: true,
+        amount: input.amount, request_id: input.requestId, withdraw: true,
       });
     },
   };
@@ -335,7 +340,7 @@ export function createManagementAPI(baseURL: string) {
   async function fundCard(input: CardFundingRequest) {
     await request.post(`${baseURL}/cards/fund`, {
       card_id: input.card.id, account_id: input.card.account_id,
-      kind: input.withdraw ? "card_withdraw" : "card_top_up", amount: input.amount, request_id: input.requestID,
+      kind: input.withdraw ? "card_withdraw" : "card_top_up", amount: input.amount, request_id: input.requestId,
     });
   }
 

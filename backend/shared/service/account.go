@@ -14,7 +14,8 @@ import (
 
 type ListAccountsRequest struct {
 	PageRequest
-	ID *model.ID `form:"id" binding:"omitempty,gt=0"`
+	ID   *model.ID `form:"id" binding:"omitempty,gt=0"`
+	Name *string   `form:"name"`
 }
 
 type AccountData struct {
@@ -38,6 +39,7 @@ func (s *Service) ListAccounts(ctx context.Context, req *ListAccountsRequest) (*
 	items, total, err := s.uc.ListAccounts(ctx, &biz.ListUIAccountsRequest{
 		UIPageRequest: page,
 		ID:            req.ID,
+		Name:          req.Name,
 	})
 	if err != nil {
 		return nil, err

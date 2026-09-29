@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useClientPagination } from "@/channel/pagination";
 import { onMounted, ref } from "vue";
-import { NCard, NDataTable, useMessage } from "naive-ui";
+import { NDataTable, useMessage } from "naive-ui";
 import type { CardProduct } from "./api";
 const { loadProducts, prefixLabel = "BIN" } = defineProps<{
   loadProducts: () => Promise<CardProduct[]>;
@@ -34,19 +34,17 @@ onMounted(() => void load());
         <slot name="description"><p>渠道共享的卡产品与 BIN；开卡必须显式指定产品。</p></slot>
       </div>
     </div>
-    <n-card :bordered="false">
-      <n-data-table
-        max-height="max(160px, calc(100dvh - 400px))"
-        :pagination="pagination"
-        :scroll-x="600"
-        table-layout="fixed"
-        :loading="loading"
-        :data="rows"
-        :columns="[
-          { title: prefixLabel, key: 'prefix' },
-          { title: 'ID', key: 'id' },
-        ]"
-      />
-    </n-card>
+    <n-data-table
+      max-height="max(160px, calc(100dvh - 400px))"
+      :pagination="pagination"
+      :scroll-x="600"
+      table-layout="fixed"
+      :loading="loading"
+      :data="rows"
+      :columns="[
+        { title: prefixLabel, key: 'prefix' },
+        { title: 'ID', key: 'id' },
+      ]"
+    />
   </section>
 </template>

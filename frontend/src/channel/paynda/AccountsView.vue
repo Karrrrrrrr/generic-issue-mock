@@ -8,6 +8,6 @@ import { accountApi, fundsApi } from "./api";
     :account-api="accountApi"
     :adjust-balance="fundsApi.adjustAccount"
     title="资金账户"
-    show-wallet-i-d
+    show-wallet-id
   />
 </template>

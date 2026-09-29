@@ -2,7 +2,7 @@
 import { NAlert } from "naive-ui";
 import SharedView from "@/channel/shared/VirtualAccountsView.vue";
 import { accountApi, virtualAccountApi } from "./management";
-import { requestID } from "./api";
+import { requestId } from "./api";
 </script>
 
 <template>
@@ -10,7 +10,7 @@ import { requestID } from "./api";
     :account-api="accountApi"
     :api="virtualAccountApi"
     :currency-options="['USD']"
-    :new-request-i-d="requestID"
+    :new-request-id="requestId"
   >
     <template #description>
       <n-alert type="info" :show-icon="false">

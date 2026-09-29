@@ -27,7 +27,7 @@ const loading = ref(false);
 const rows = ref<Webhook[]>([]);
 const pagination = useClientPagination(rows);
 const accounts = ref<Account[]>([]);
-const filterAccountID = ref<number | null>(null);
+const filterAccountId = ref<number | null>(null);
 const creating = ref(false);
 const editing = ref<Webhook | null>(null);
 const eventOptions = ref<WebhookEvent[]>([]);
@@ -50,7 +50,7 @@ async function load() {
   loading.value = true;
   try {
     const [items, events] = await Promise.all([
-      webhookApi.list(filterAccountID.value || undefined),
+      webhookApi.list(filterAccountId.value || undefined),
       webhookApi.events(),
     ]);
     rows.value = items;
@@ -75,7 +75,7 @@ async function openCreate() {
 }
 
 function changeAccountFilter(value: number | null) {
-  filterAccountID.value = value;
+  filterAccountId.value = value;
   void load();
 }
 
@@ -210,7 +210,7 @@ onMounted(() => void load());
     </div>
     <n-select
       class="list-filter"
-      v-model:value="filterAccountID"
+      v-model:value="filterAccountId"
       @focus="loadAccountOptions"
       :options="
         accounts.map((account) => ({ label: `${account.name} (${account.id})`, value: account.id }))

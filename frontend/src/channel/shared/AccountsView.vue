@@ -15,30 +15,33 @@ import {
   NPagination,
   NSpace,
 } from "naive-ui";
-import type { Account, ManagementAPI } from "./api";
+import type { Account, AccountListRequest, ManagementAPI } from "./api";
 
 const {
   accountApi,
   adjustBalance,
   title = "账户",
-  showWalletID = false,
+  showWalletId = false,
 } = defineProps<{
   accountApi: Pick<ManagementAPI["accountApi"], "list" | "create"> & Partial<Pick<ManagementAPI["accountApi"], "update">>;
   adjustBalance: (account: Account, amount: number) => Promise<unknown>;
   title?: string;
-  showWalletID?: boolean;
+  showWalletId?: boolean;
 }>();
 
 const { message } = createDiscreteApi(["message"]);
 const loading = ref(false);
 const visible = ref(false);
-const editingID = ref<number>();
+const editingId = ref<number>();
 const name = ref("");
 const currency = ref("USD");
 const rows = ref<Account[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
+const accountIdFilter = ref("");
+const nameFilter = ref("");
+const appliedFilters = ref<AccountListRequest>({});
 const adjustingAccount = ref<Account>();
 const adjustment = ref<number | null>(null);
 const adjusting = ref(false);
@@ -69,7 +72,7 @@ async function submitAdjustment() {
 async function load() {
   loading.value = true;
   try {
-    const response = await accountApi.list(page.value, pageSize.value);
+    const response = await accountApi.list(page.value, pageSize.value, appliedFilters.value);
     rows.value = response.data;
     total.value = response.total_items;
   } catch (error) {
@@ -79,28 +82,68 @@ async function load() {
   }
 }
 
+function updateAccountIdFilter(value: string) {
+  accountIdFilter.value = value.replace(/\D/g, "");
+}
+
+function buildFilters(): AccountListRequest | null {
+  const filters: AccountListRequest = {};
+  const id = accountIdFilter.value.trim();
+  if (id !== "") {
+    const idValue = Number(id);
+    if (!Number.isSafeInteger(idValue) || idValue <= 0) {
+      message.warning("账户 ID 必须是正整数");
+      return null;
+    }
+    filters.id = idValue;
+  }
+  const name = nameFilter.value.trim();
+  if (name !== "") {
+    filters.name = name;
+  }
+  return filters;
+}
+
+function search() {
+  const filters = buildFilters();
+  if (filters === null) {
+    return;
+  }
+  appliedFilters.value = filters;
+  page.value = 1;
+  void load();
+}
+
+function reset() {
+  accountIdFilter.value = "";
+  nameFilter.value = "";
+  appliedFilters.value = {};
+  page.value = 1;
+  void load();
+}
+
 function openCreate() {
-  editingID.value = undefined;
+  editingId.value = undefined;
   name.value = "";
   currency.value = "USD";
   visible.value = true;
 }
 
 function openEdit(account: Account) {
-  editingID.value = account.id;
+  editingId.value = account.id;
   name.value = account.name;
   visible.value = true;
 }
 
 async function submit() {
-  if (!name.value || (!editingID.value && !/^[A-Z]{3}$/.test(currency.value))) {
+  if (!name.value || (!editingId.value && !/^[A-Z]{3}$/.test(currency.value))) {
     message.warning("请填写名称和三位大写币种代码");
     return;
   }
 
   try {
-    if (editingID.value) {
-      await accountApi.update!(editingID.value, { name: name.value });
+    if (editingId.value) {
+      await accountApi.update!(editingId.value, { name: name.value });
     } else {
       await accountApi.create({ name: name.value, currency: currency.value });
     }
@@ -118,7 +161,7 @@ function changePageSize(value: number) {
 }
 
 const columns: DataTableColumns<Account> = [
-  ...(showWalletID ? [{ title: "钱包 ID", key: "wallet_id" }] : []),
+  ...(showWalletId ? [{ title: "钱包 ID", key: "wallet_id" }] : []),
   {
     title: "名称",
     key: "name",
@@ -166,6 +209,27 @@ onMounted(() => void load());
       </div>
       <n-button type="primary" @click="openCreate">新增账户</n-button>
     </div>
+    <form class="table-filters" @submit.prevent="search">
+      <div class="compact-filter-grid">
+        <n-input
+          class="compact-filter-id"
+          :value="accountIdFilter"
+          placeholder="账户 ID（精确）"
+          clearable
+          @update:value="updateAccountIdFilter"
+        />
+        <n-input
+          v-model:value="nameFilter"
+          class="compact-filter-name"
+          placeholder="名称（模糊）"
+          clearable
+        />
+      </div>
+      <div class="filter-actions">
+        <n-button attr-type="submit" type="primary" :loading="loading">查询</n-button>
+        <n-button :disabled="loading" @click="reset">重置</n-button>
+      </div>
+    </form>
     <n-data-table
       max-height="max(160px, calc(100dvh - 400px))"
       :scroll-x="1000"
@@ -187,14 +251,14 @@ onMounted(() => void load());
     <n-modal
       v-model:show="visible"
       preset="card"
-      :title="editingID ? '账户改名' : '新增账户'"
+      :title="editingId ? '账户改名' : '新增账户'"
       style="width: min(440px, calc(100vw - 32px))"
     >
       <n-form label-placement="top">
         <n-form-item label="名称">
           <n-input v-model:value="name" />
         </n-form-item>
-        <n-form-item v-if="!editingID" label="币种">
+        <n-form-item v-if="!editingId" label="币种">
           <n-input v-model:value="currency" placeholder="例如 USD" maxlength="3" />
         </n-form-item>
       </n-form>

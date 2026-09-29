@@ -3,19 +3,19 @@ import { NAlert } from "naive-ui";
 import CardTransactionSimulator from "@/channel/shared/CardTransactionSimulator.vue";
 import type { AuthorizationSimulationRequest, RefundSimulationRequest } from "@/channel/shared/simulation";
 import { loadSimulationCards, simulateAuthorization, simulateRefund } from "./management";
-import { requestID } from "./api";
+import { requestId } from "./api";
 
-let authorizationRequestID = requestID();
-let refundRequestID = requestID();
+let authorizationRequestId = requestId();
+let refundRequestId = requestId();
 
 async function authorize(request: AuthorizationSimulationRequest) {
-  await simulateAuthorization({ ...request, requestID: authorizationRequestID });
-  authorizationRequestID = requestID();
+  await simulateAuthorization({ ...request, requestId: authorizationRequestId });
+  authorizationRequestId = requestId();
 }
 
 async function refund(request: RefundSimulationRequest) {
-  await simulateRefund({ ...request, requestID: refundRequestID });
-  refundRequestID = requestID();
+  await simulateRefund({ ...request, requestId: refundRequestId });
+  refundRequestId = requestId();
 }
 </script>
 

@@ -9,7 +9,6 @@ import { h, onMounted, ref } from "vue";
 import {
   createDiscreteApi,
   NButton,
-  NCard,
   NDataTable,
   NModal,
   NSpace,
@@ -216,7 +215,6 @@ onMounted(() => void load());
       <h1>交易处理</h1>
       <p>按交易状态执行撤销或退款；清算请到授权管理。</p>
     </div>
-    <n-button @click="load">刷新</n-button>
   </div>
   <TableFilters
     v-model:values="filters"
@@ -229,18 +227,16 @@ onMounted(() => void load());
     @search="search"
     @reset="reset"
   />
-  <n-card :bordered="false">
-    <n-data-table
-      max-height="max(160px, calc(100dvh - 580px))"
-      remote
-      :pagination="pagination"
-      :scroll-x="1800"
-      table-layout="fixed"
-      :columns="columns"
-      :data="rows"
-      :loading="loading"
-    />
-  </n-card>
+  <n-data-table
+    max-height="max(160px, calc(100dvh - 580px))"
+    remote
+    :pagination="pagination"
+    :scroll-x="1800"
+    table-layout="fixed"
+    :columns="columns"
+    :data="rows"
+    :loading="loading"
+  />
   <n-modal
     :show="Boolean(refunding)"
     preset="card"

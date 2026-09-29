@@ -20,6 +20,7 @@ type AccountFindByIDWithLockRequest struct {
 type AccountFilters struct {
 	Channel enums.Channel
 	IDs     []model.ID
+	Name    *string
 }
 
 type AccountListRequest struct {

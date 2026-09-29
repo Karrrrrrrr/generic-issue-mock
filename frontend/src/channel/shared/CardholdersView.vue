@@ -2,7 +2,7 @@
 import { useRemotePagination } from "@/channel/pagination";
 import { renderEnumTag } from "@/channel/tableTags";
 import { onMounted, ref } from "vue";
-import { createDiscreteApi, NButton, NCard, NDataTable } from "naive-ui";
+import { createDiscreteApi, NDataTable } from "naive-ui";
 import type { ChannelAPI } from "@/channel/types";
 const { api, channelName } = defineProps<{ api: Pick<ChannelAPI, "listCardholders">; channelName: string }>();
 import type { Cardholder } from "@/channel/types";
@@ -65,18 +65,15 @@ onMounted(load);
       <h1>持卡人</h1>
       <p>查看 {{ channelName }} 全部账户的持卡人；持卡人创建和开卡由 OpenAPI 完成。</p>
     </div>
-    <n-button :loading="loading" @click="load">刷新</n-button>
   </div>
-  <n-card :bordered="false">
-    <n-data-table
-      max-height="max(160px, calc(100dvh - 400px))"
-      remote
-      :pagination="pagination"
-      :scroll-x="1100"
-      table-layout="fixed"
-      :loading="loading"
-      :columns="columns"
-      :data="rows"
-    />
-  </n-card>
+  <n-data-table
+    max-height="max(160px, calc(100dvh - 400px))"
+    remote
+    :pagination="pagination"
+    :scroll-x="1100"
+    table-layout="fixed"
+    :loading="loading"
+    :columns="columns"
+    :data="rows"
+  />
 </template>

@@ -15,11 +15,12 @@ import (
 
 type ListUIAccountsRequest struct {
 	UIPageRequest
-	ID *model.ID
+	ID   *model.ID
+	Name *string
 }
 
 func (req *ListUIAccountsRequest) Validate() error {
-	if req == nil || !validUIIDs([]*model.ID{req.ID}) {
+	if req == nil || !validUIIDs([]*model.ID{req.ID}) || !validUIOptionalText(req.Name) {
 		return sharederrors.ErrInvalidUIRequest
 	}
 	return req.UIPageRequest.Validate()
@@ -37,9 +38,15 @@ func (uc *ui) ListAccounts(ctx context.Context, req *ListUIAccountsRequest) ([]*
 	if err := req.Validate(); err != nil {
 		return nil, 0, err
 	}
+	name := req.Name
+	if name != nil {
+		trimmed := strings.TrimSpace(*name)
+		name = &trimmed
+	}
 	filters := AccountFilters{
 		Channel: uc.channel,
 		IDs:     types.PointerSlice(req.ID),
+		Name:    name,
 	}
 	items, err := uc.accountRepo.List(ctx, &AccountListRequest{
 		AccountFilters: filters,

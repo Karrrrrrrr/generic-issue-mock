@@ -8,54 +8,60 @@ import { cardStatusOptions, type CardStatus } from "@/channel/enums";
 import { renderAmountTag, renderEnumTag } from "@/channel/tableTags";
 import { h, onMounted, ref } from "vue";
 import {
-  createDiscreteApi,
-  NButton,
-  NCard,
-  NDataTable,
-  NForm,
-  NFormItem,
-  NInputNumber,
-  NModal,
-  NSpace,
+	createDiscreteApi,
+	NButton,
+	NDataTable,
+	NForm,
+	NFormItem,
+	NInputNumber,
+	NModal,
+	NSpace,
 } from "naive-ui";
 
 import type { Card } from "@/channel/types";
 
 import type { ChannelAPI } from "@/channel/types";
 import type { CardFundingRequest } from "./contracts";
+import CardTransactionSimulator from "./CardTransactionSimulator.vue";
+import type { AuthorizationSimulationRequest, RefundSimulationRequest } from "./simulation";
 const {
-  api,
-  accountApi,
-  fundCard,
-  showExpiry = true,
-  showReserved = false,
-  showVirtualAccount = false,
-  detailedFilters = true,
-  newRequestID,
-  authorizeCard,
-  fundingSourceLabel = "账户",
+	api,
+	accountApi,
+	fundCard,
+	showExpiry = true,
+	showReserved = false,
+	showVirtualAccount = false,
+	detailedFilters = true,
+	newRequestId,
+	simulateAuthorization,
+	simulateRefund,
+	fundingSourceLabel = "账户",
 } = defineProps<{
-  api: Pick<ChannelAPI, "listCards" | "updateCardStatus">;
-  accountApi: Pick<ManagementAPI["accountApi"], "listAll">;
-  fundCard: (request: CardFundingRequest) => Promise<unknown>;
-  showReserved?: boolean;
-  showVirtualAccount?: boolean;
-  detailedFilters?: boolean;
-  newRequestID?: () => string;
-  authorizeCard?: (card: Card) => void;
-  fundingSourceLabel?: string;
-  showExpiry?: boolean;
+	api: Pick<ChannelAPI, "listCards" | "updateCardStatus">;
+	accountApi: Pick<ManagementAPI["accountApi"], "listAll">;
+	fundCard: (request: CardFundingRequest) => Promise<unknown>;
+	showReserved?: boolean;
+	showVirtualAccount?: boolean;
+	detailedFilters?: boolean;
+	newRequestId?: () => string;
+	simulateAuthorization?: (request: AuthorizationSimulationRequest) => Promise<unknown>;
+	simulateRefund?: (request: RefundSimulationRequest) => Promise<unknown>;
+	fundingSourceLabel?: string;
+	showExpiry?: boolean;
 }>();
 
 const { message } = createDiscreteApi(["message"]);
 const loading = ref(false);
-const requestID = ref<string>();
+const requestId = ref<string>();
 const rows = ref<Card[]>([]);
 const { page, pageSize, total, pagination } = useRemotePagination(load);
 const fundingCard = ref<Card>();
 const fundingAmount = ref<number | null>(null);
 const withdrawing = ref(false);
 const funding = ref(false);
+const simulationCard = ref<Card>();
+const authorizationRequestId = ref<string>();
+const refundRequestId = ref<string>();
 
 const filterFields: FilterField[] = [
   {
@@ -149,7 +155,7 @@ function openFunding(card: Card, withdraw: boolean) {
     return;
   }
   fundingCard.value = card;
-  requestID.value = newRequestID?.();
+  requestId.value = newRequestId?.();
   fundingAmount.value = null;
   withdrawing.value = withdraw;
 }
@@ -167,7 +173,7 @@ async function submitFunding() {
   try {
     await fundCard({
       card: fundingCard.value,
-      requestID: requestID.value,
+      requestId: requestId.value,
       amount: fundingAmount.value,
       withdraw: withdrawing.value,
     });
@@ -179,6 +185,88 @@ async function submitFunding() {
   } finally {
     funding.value = false;
   }
+}
+
+function openSimulation(card: Card) {
+  if (card.card_status !== "active") {
+    message.warning("请先激活卡片，再模拟交易");
+    return;
+  }
+  simulationCard.value = card;
+  authorizationRequestId.value = newRequestId?.();
+  refundRequestId.value = newRequestId?.();
+}
+
+async function loadSimulationCards(): Promise<Card[]> {
+  const cards: Card[] = [];
+  for (let pageNumber = 1; ; pageNumber++) {
+    const result = await api.listCards({
+      page_number: pageNumber,
+      page_size: 100,
+    });
+    cards.push(...result.data);
+    if (cards.length >= result.total_items || result.data.length === 0) {
+      return cards;
+    }
+  }
+}
+
+async function submitSimulationAuthorization(request: AuthorizationSimulationRequest) {
+  if (!simulateAuthorization) {
+    return;
+  }
+  await simulateAuthorization({
+    ...request,
+    requestId: authorizationRequestId.value,
+  });
+}
+
+async function submitSimulationRefund(request: RefundSimulationRequest) {
+  if (!simulateRefund) {
+    return;
+  }
+  await simulateRefund({
+    ...request,
+    request_id: refundRequestId.value,
+  });
+}
+
+function completeSimulation() {
+  simulationCard.value = undefined;
+  void load();
+}
+
+function renderActions(card: Card) {
+  return h(
+    NSpace,
+    {
+      size: 8,
+    },
+    {
+      default: () => [
+        ...(simulateAuthorization && simulateRefund ? [h(NButton, {
+          size: "small",
+          disabled: card.card_status !== "active",
+          onClick: () => openSimulation(card),
+        }, { default: () => "模拟交易" })] : []),
+        h(NButton, {
+          size: "small",
+          disabled: card.card_status !== "active",
+          onClick: () => openFunding(card, false),
+        }, { default: () => "充值" }),
+        h(NButton, {
+          size: "small",
+          disabled: card.card_status !== "active",
+          onClick: () => openFunding(card, true),
+        }, { default: () => "转出" }),
+        h(NButton, {
+          size: "small",
+          disabled: statusAction(card).status === null,
+          onClick: () => changeStatus(card),
+        }, { default: () => statusAction(card).label }),
+      ],
+    },
+  );
 }
 
 const columns = [
@@ -232,55 +320,7 @@ const columns = [
   {
     title: "操作",
     key: "actions",
-    render: (card: Card) =>
-      h(
-        NSpace,
-        {
-          size: 8,
-        },
-        {
-          default: () => [
-            ...(authorizeCard ? [h(NButton, {
-              size: "small",
-              disabled: card.card_status !== "active",
-              onClick: () => authorizeCard(card),
-            }, { default: () => "模拟授权" })] : []),
-            h(
-              NButton,
-              {
-                size: "small",
-                disabled: card.card_status !== "active",
-                onClick: () => openFunding(card, false),
-              },
-              {
-                default: () => "充值",
-              },
-            ),
-            h(
-              NButton,
-              {
-                size: "small",
-                disabled: card.card_status !== "active",
-                onClick: () => openFunding(card, true),
-              },
-              {
-                default: () => "转出",
-              },
-            ),
-            h(
-              NButton,
-              {
-                size: "small",
-                disabled: statusAction(card).status === null,
-                onClick: () => changeStatus(card),
-              },
-              {
-                default: () => statusAction(card).label,
-              },
-            ),
-          ],
-        },
-      ),
+    render: renderActions,
   },
 ];
 
@@ -294,7 +334,6 @@ defineExpose({ reload: load });
       <h1>卡片管理</h1>
       <p>充值从{{ fundingSourceLabel }}钱包扣款；转出退回{{ fundingSourceLabel }}钱包。</p>
     </div>
-    <n-button :loading="loading" @click="load">刷新</n-button>
   </div>
   <slot name="description" />
   <TableFilters
@@ -309,18 +348,16 @@ defineExpose({ reload: load });
     @search="search"
     @reset="reset"
   />
-  <n-card :bordered="false">
-    <n-data-table
-      max-height="max(160px, calc(100dvh - 580px))"
-      remote
-      :pagination="pagination"
-      :scroll-x="1600"
-      table-layout="fixed"
-      :loading="loading"
-      :columns="columns"
-      :data="rows"
-    />
-  </n-card>
+  <n-data-table
+    max-height="max(160px, calc(100dvh - 580px))"
+    remote
+    :pagination="pagination"
+    :scroll-x="1600"
+    table-layout="fixed"
+    :loading="loading"
+    :columns="columns"
+    :data="rows"
+  />
   <n-modal
     :show="Boolean(fundingCard)"
     preset="card"
@@ -348,5 +385,26 @@ defineExpose({ reload: load });
     <template #action>
       <n-button type="primary" :loading="funding" @click="submitFunding">确认</n-button>
     </template>
+  </n-modal>
+  <n-modal
+    :show="Boolean(simulationCard)"
+    preset="card"
+    title="模拟交易"
+    style="width: min(760px, calc(100vw - 32px))"
+    @update:show="
+      (shown) => {
+        if (!shown) simulationCard = undefined;
+      }
+    "
+  >
+    <CardTransactionSimulator
+      v-if="simulationCard && simulateAuthorization && simulateRefund"
+      :key="simulationCard.id"
+      :initial-card-id="simulationCard.id"
+      :load-cards="loadSimulationCards"
+      :authorize="submitSimulationAuthorization"
+      :refund="submitSimulationRefund"
+      @completed="completeSimulation"
+    />
   </n-modal>
 </template>

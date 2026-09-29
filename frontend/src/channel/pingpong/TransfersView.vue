@@ -2,7 +2,6 @@
 import { ref } from "vue";
 import {
   NButton,
-  NCard,
   NDataTable,
   NInput,
   NSpace,
@@ -74,27 +73,25 @@ function query() {
         资金订单
       </h1>
     </div>
-    <n-card :bordered="false">
-      <n-space class="ping-toolbar">
-        <n-input
-          v-model:value="accountFilter"
-          placeholder="账户 ID"
-          clearable
-          style="width: 180px"
-        />
-        <n-button @click="query">
-          查询
-        </n-button>
-      </n-space>
-      <n-data-table
-        :bordered="true"
-        remote
-        :columns="columns"
-        :data="rows"
-        :loading="loading"
-        :pagination="pagination"
-        :scroll-x="1330"
+    <n-space class="ping-toolbar">
+      <n-input
+        v-model:value="accountFilter"
+        placeholder="账户 ID"
+        clearable
+        style="width: 180px"
       />
-    </n-card>
+      <n-button @click="query">
+        查询
+      </n-button>
+    </n-space>
+    <n-data-table
+      :bordered="true"
+      remote
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :pagination="pagination"
+      :scroll-x="1330"
+    />
   </section>
 </template>

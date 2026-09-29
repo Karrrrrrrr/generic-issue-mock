@@ -6,8 +6,8 @@ export interface SimulationCard {
 }
 
 export interface AuthorizationSimulationRequest {
-  requestID?: string;
-  cardID: number;
+  requestId?: string;
+  cardId: number;
   amount: number;
   currency: string;
   merchantName: string;

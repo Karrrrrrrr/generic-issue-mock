@@ -181,7 +181,6 @@ onMounted(() => void load());
         <h1>Webhook 投递记录</h1>
         <p>查看投递结果、请求与响应报文，支持重新投递。</p>
       </div>
-      <n-button :loading="loading" @click="load">刷新</n-button>
     </div>
     <TableFilters
       v-model:values="filters"

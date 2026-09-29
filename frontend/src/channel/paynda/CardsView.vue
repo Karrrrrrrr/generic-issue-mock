@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import SharedView from "@/channel/shared/CardsView.vue";
-import { api, accountApi, fundCard } from "./api";
+import { api, accountApi, fundCard, refundApi } from "./api";
 </script>
 
 <template>
@@ -8,6 +8,8 @@ import { api, accountApi, fundCard } from "./api";
     :api="api"
     :account-api="accountApi"
     :fund-card="fundCard"
+    :simulate-authorization="api.simulateAuthorization"
+    :simulate-refund="refundApi.simulate"
     :show-expiry="false"
   />
 </template>

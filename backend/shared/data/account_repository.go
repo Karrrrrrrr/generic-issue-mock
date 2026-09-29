@@ -67,6 +67,9 @@ func (repo *accountRepository) buildPredicates(ctx context.Context, req *biz.Acc
 	if len(req.IDs) != 0 {
 		predicates = append(predicates, table.ID.In(req.IDs...))
 	}
+	if req.Name != nil {
+		predicates = append(predicates, table.Name.Like("%"+*req.Name+"%"))
+	}
 	return predicates
 }
 

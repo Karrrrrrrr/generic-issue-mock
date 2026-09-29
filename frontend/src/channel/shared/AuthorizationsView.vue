@@ -3,7 +3,6 @@ import { computed, h, onMounted, reactive, ref } from "vue";
 import {
   NAlert,
   NButton,
-  NCard,
   NCollapse,
   NCollapseItem,
   NDataTable,
@@ -29,16 +28,16 @@ const {
   api,
   accountApi,
   detailedFilters = true,
-  newRequestID,
+  newRequestId,
   showNotificationStatus = false,
 } = defineProps<{
   api: AuthorizationAPI;
   accountApi: Pick<ManagementAPI["accountApi"], "listAll">;
   detailedFilters?: boolean;
-  newRequestID?: () => string;
+  newRequestId?: () => string;
   showNotificationStatus?: boolean;
 }>();
-const requestIDs = reactive<Partial<Record<SimulationStage, string>>>({});
+const requestIds = reactive<Partial<Record<SimulationStage, string>>>({});
 const message = useMessage();
 const loading = ref(false);
 const rows = ref<Authorization[]>([]);
@@ -251,9 +250,9 @@ async function load() {
 
 function openDetail(row: Authorization) {
   selected.value = row;
-  requestIDs.clear = newRequestID?.();
-  requestIDs.reverse = newRequestID?.();
-  requestIDs.refund = newRequestID?.();
+  requestIds.clear = newRequestId?.();
+  requestIds.reverse = newRequestId?.();
+  requestIds.refund = newRequestId?.();
   detail.value = undefined;
   transactionPagination.value.onUpdatePage(1);
   void loadDetail();
@@ -300,9 +299,9 @@ async function simulateStage(stage: SimulationStage, amount: number) {
     authorization: row,
     stage,
     amount,
-    requestID: requestIDs[stage],
+    requestId: requestIds[stage],
   });
-  requestIDs[stage] = newRequestID?.();
+  requestIds[stage] = newRequestId?.();
 }
 
 async function refreshSimulation() {
@@ -310,9 +309,9 @@ async function refreshSimulation() {
     await Promise.all([loadDetail(), load()]);
     return;
   }
-  const selectedID = selected.value?.id;
+  const selectedId = selected.value?.id;
   await load();
-  selected.value = rows.value.find((row) => row.id === selectedID);
+  selected.value = rows.value.find((row) => row.id === selectedId);
   detail.value = selected.value;
 }
 
@@ -325,9 +324,6 @@ onMounted(load);
       <h1>授权管理</h1>
       <p>查看授权汇总和关联交易，从详情发起清算、撤销或退款。</p>
     </div>
-    <n-button :loading="loading" @click="load">
-      刷新列表
-    </n-button>
   </div>
   <slot name="description" />
   <TableFilters
@@ -342,18 +338,16 @@ onMounted(load);
     @search="search"
     @reset="reset"
   />
-  <n-card :bordered="false">
-    <n-data-table
-      max-height="max(160px, calc(100dvh - 580px))"
-      :pagination="pagination"
-      :scroll-x="1900"
-      :row-key="(row: Authorization) => row.id"
-      table-layout="fixed"
-      :loading="loading"
-      :columns="columns"
-      :data="rows"
-    />
-  </n-card>
+  <n-data-table
+    max-height="max(160px, calc(100dvh - 580px))"
+    :pagination="pagination"
+    :scroll-x="1900"
+    :row-key="(row: Authorization) => row.id"
+    table-layout="fixed"
+    :loading="loading"
+    :columns="columns"
+    :data="rows"
+  />
   <n-modal
     :show="Boolean(selected)"
     preset="card"

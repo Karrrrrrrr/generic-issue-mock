@@ -6,7 +6,6 @@ import { computed, h, onMounted, ref } from "vue";
 import {
   createDiscreteApi,
   NButton,
-  NCard,
   NDataTable,
   NForm,
   NFormItem,
@@ -22,21 +21,31 @@ const {
   api,
   accountApi,
   currencyOptions = ["USD", "GBP", "JPY", "CNY"],
-  showWalletID = true,
-  newRequestID,
+  showWalletId = true,
+  newRequestId,
 } = defineProps<{
   api: VirtualAccountAPI;
   accountApi: Pick<ManagementAPI["accountApi"], "listAll">;
   currencyOptions?: string[];
-  showWalletID?: boolean;
-  newRequestID?: () => string;
+  showWalletId?: boolean;
+  newRequestId?: () => string;
 }>();
 const { message } = createDiscreteApi(["message"]);
 const rows = ref<ManagedVirtualAccount[]>([]);
-const accountFilter = ref<number | null>(null);
-const filteredRows = computed(() => rows.value.filter((row) => !accountFilter.value || row.account_id === accountFilter.value));
+const accountFilter = ref("");
+const filteredRows = computed(() => {
+  const value = accountFilter.value.trim();
+  if (value === "") {
+    return rows.value;
+  }
+  const accountId = Number(value);
+  if (!Number.isSafeInteger(accountId) || accountId <= 0) {
+    return [];
+  }
+  return rows.value.filter((row) => row.account_id === accountId);
+});
 const pagination = useClientPagination(filteredRows);
-const requestID = ref<string>();
+const requestId = ref<string>();
 const fundingAccount = ref<ManagedVirtualAccount>();
 const fundingAmount = ref<number | null>(null);
 const withdrawing = ref(false);
@@ -44,7 +53,7 @@ const funding = ref(false);
 
 function openFunding(account: ManagedVirtualAccount, withdraw: boolean) {
   fundingAccount.value = account;
-  requestID.value = newRequestID?.();
+  requestId.value = newRequestId?.();
   fundingAmount.value = null;
   withdrawing.value = withdraw;
 }
@@ -63,7 +72,7 @@ async function submitFunding() {
     await operation({
       account: fundingAccount.value,
       amount: fundingAmount.value,
-      requestID: requestID.value,
+      requestId: requestId.value,
     });
     fundingAccount.value = undefined;
     message.success("资金划转完成");
@@ -78,7 +87,7 @@ async function submitFunding() {
 const visible = ref(false);
 const saving = ref(false);
 const name = ref("");
-const accountID = ref<number | null>(null);
+const accountId = ref<number | null>(null);
 const accounts = ref<{ label: string; value: number }[]>([]);
 const currency = ref("USD");
 const currencies = currencyOptions.map((value) => ({ label: value, value }));
@@ -104,7 +113,7 @@ const columns = [
     title: "名称",
     key: "name",
   },
-  ...(showWalletID ? [{ title: "钱包 ID", key: "wallet_id" }] : []),
+  ...(showWalletId ? [{ title: "钱包 ID", key: "wallet_id" }] : []),
   {
     title: "操作",
     key: "actions",
@@ -149,14 +158,14 @@ async function load() {
 }
 
 async function create() {
-  if (!name.value.trim() || !accountID.value) {
+  if (!name.value.trim() || !accountId.value) {
     message.warning("请填写名称及所属账户");
     return;
   }
   saving.value = true;
   try {
     await api.create({
-      account_id: accountID.value,
+      account_id: accountId.value,
       name: name.value.trim(),
       currency: currency.value,
     });
@@ -177,11 +186,15 @@ async function openCreate() {
       label: account.name + " · " + account.id,
       value: account.id,
     }));
-    accountID.value = null;
+    accountId.value = null;
     visible.value = true;
   } catch (error) {
     message.error(error instanceof Error ? error.message : "加载账户失败");
   }
+}
+
+function updateAccountFilter(value: string) {
+  accountFilter.value = value.replace(/\D/g, "");
 }
 
 onMounted(load);
@@ -191,26 +204,38 @@ onMounted(load);
   <div class="page-heading">
     <h1>虚拟账户</h1>
     <n-space>
-      <n-button @click="load">刷新</n-button>
       <n-button type="primary" @click="openCreate">新增虚拟账户</n-button>
     </n-space>
   </div>
   <slot name="description" />
-  <n-input-number v-model:value="accountFilter" :min="1" :precision="0" placeholder="按账户 ID 筛选" clearable />
-  <n-card :bordered="false">
-    <n-data-table
-      max-height="max(160px, calc(100dvh - 400px))"
-      :pagination="pagination"
-      :scroll-x="1400"
-      table-layout="fixed"
-      :columns="columns"
-      :data="filteredRows"
-    />
-  </n-card>
-  <n-modal v-model:show="visible" preset="card" title="新增虚拟账户">
+  <form class="table-filters" @submit.prevent>
+    <div class="compact-filter-grid">
+      <n-input
+        class="compact-filter-id"
+        :value="accountFilter"
+        placeholder="按账户 ID 筛选"
+        clearable
+        @update:value="updateAccountFilter"
+      />
+    </div>
+  </form>
+  <n-data-table
+    max-height="max(160px, calc(100dvh - 400px))"
+    :pagination="pagination"
+    :scroll-x="1400"
+    table-layout="fixed"
+    :columns="columns"
+    :data="filteredRows"
+  />
+  <n-modal
+    v-model:show="visible"
+    preset="card"
+    style="width: min(520px, calc(100vw - 32px))"
+    title="新增虚拟账户"
+  >
     <n-form>
       <n-form-item label="所属账户">
-        <n-select v-model:value="accountID" :options="accounts" filterable />
+        <n-select v-model:value="accountId" :options="accounts" filterable />
       </n-form-item>
       <n-form-item label="名称">
         <n-input v-model:value="name" />

@@ -182,7 +182,12 @@ html[data-theme="dark"] .page-heading p {
 }
 
 .route-page {
+    width: 100%;
     min-width: 0;
+}
+
+.route-page > section {
+    width: 100%;
 }
 
 .table-filters {
@@ -203,6 +208,23 @@ html[data-theme="dark"] .page-heading p {
     min-width: 0;
 }
 
+.compact-filter-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.compact-filter-id {
+    width: 220px;
+    max-width: 100%;
+}
+
+.compact-filter-name {
+    width: 280px;
+    max-width: 100%;
+}
+
 .filter-date-range {
     grid-column: span 2;
 }
@@ -212,6 +234,13 @@ html[data-theme="dark"] .page-heading p {
     justify-content: flex-end;
     gap: 12px;
     margin-top: 16px;
+}
+
+@media (max-width: 640px) {
+    .compact-filter-id,
+    .compact-filter-name {
+        width: 100%;
+    }
 }
 
 .route-page .list-filter {
@@ -228,6 +257,7 @@ html[data-theme="dark"] .table-filters {
 }
 
 .route-page .n-data-table {
+    width: 100%;
     min-width: 0;
     max-width: 100%;
 }

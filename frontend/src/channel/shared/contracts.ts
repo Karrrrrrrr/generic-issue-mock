@@ -6,7 +6,7 @@ export interface CardFundingRequest {
   card: Card;
   amount: number;
   withdraw: boolean;
-  requestID?: string;
+  requestId?: string;
 }
 
 export interface AuthorizationTransaction {
@@ -48,7 +48,7 @@ export interface AuthorizationAPI {
     authorization: Authorization;
     stage: SimulationStage;
     amount: number;
-    requestID?: string;
+    requestId?: string;
   }) => Promise<unknown>;
 }
 
@@ -65,7 +65,7 @@ export interface ManagedVirtualAccount {
 export interface VirtualAccountFundingRequest {
   account: ManagedVirtualAccount;
   amount: number;
-  requestID?: string;
+  requestId?: string;
 }
 
 export interface VirtualAccountAPI {

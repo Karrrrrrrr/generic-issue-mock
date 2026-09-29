@@ -21,6 +21,7 @@ const props = withDefaults(
   defineProps<{
     cards: SimulationCard[];
     authorize: (request: AuthorizationSimulationRequest) => Promise<unknown>;
+    initialCardId?: number | null;
     selectCard?: boolean;
     merchantDetails?: boolean;
     disabled?: boolean;
@@ -29,6 +30,7 @@ const props = withDefaults(
     selectCard: true,
     merchantDetails: true,
     disabled: false,
+    initialCardId: null,
   },
 );
 const emit = defineEmits<{
@@ -38,7 +40,7 @@ const emit = defineEmits<{
 const message = useMessage();
 const { submitting, result, submit } = useSimulation();
 const form = reactive({
-  cardID: null as number | null,
+  cardId: null as number | null,
   amount: 100 as number | null,
   currency: "USD",
   merchantName: "Amazon",
@@ -51,7 +53,7 @@ const options = computed(() => props.cards.map((card) => ({
   value: card.id,
   disabled: card.disabled,
 })));
-const card = computed(() => props.cards.find((item) => item.id === form.cardID));
+const card = computed(() => props.cards.find((item) => item.id === form.cardId));
 const currencyOptions = computed(() => [...new Set([
   "USD", "EUR", "GBP", ...props.cards.map((item) => item.currency),
 ])].map((currency) => ({
@@ -60,10 +62,21 @@ const currencyOptions = computed(() => [...new Set([
 })));
 
 watch(() => props.cards, (cards) => {
-  if (!cards.some((item) => item.id === form.cardID && !item.disabled)) {
-    form.cardID = cards.find((item) => !item.disabled)?.id ?? null;
+  const initial = cards.find((item) => item.id === props.initialCardId && !item.disabled);
+  if (initial) {
+    form.cardId = initial.id;
+    return;
+  }
+  if (!cards.some((item) => item.id === form.cardId && !item.disabled)) {
+    form.cardId = cards.find((item) => !item.disabled)?.id ?? null;
   }
 }, { immediate: true });
+watch(() => props.initialCardId, (cardId) => {
+  const initial = props.cards.find((item) => item.id === cardId && !item.disabled);
+  if (initial) {
+    form.cardId = initial.id;
+  }
+});
 watch(card, (selected) => {
   if (selected) {
     form.currency = selected.currency;
@@ -86,7 +99,7 @@ async function submitAuthorization() {
     return;
   }
   const request: AuthorizationSimulationRequest = {
-    cardID: card.value.id,
+    cardId: card.value.id,
     amount: form.amount,
     currency: form.currency,
     merchantName: form.merchantName.trim(),
@@ -109,7 +122,7 @@ async function submitAuthorization() {
     <div class="form-grid">
       <n-form-item v-if="selectCard" class="form-wide" label="卡" required>
         <n-select
-          v-model:value="form.cardID"
+          v-model:value="form.cardId"
           :options="options"
           filterable
           placeholder="选择卡"

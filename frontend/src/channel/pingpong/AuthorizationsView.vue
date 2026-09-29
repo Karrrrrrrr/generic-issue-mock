@@ -2,14 +2,14 @@
 import { NAlert } from "naive-ui";
 import SharedView from "@/channel/shared/AuthorizationsView.vue";
 import { accountApi, authorizationApi } from "./management";
-import { requestID } from "./api";
+import { requestId } from "./api";
 </script>
 
 <template>
   <SharedView
     :account-api="accountApi"
     :api="authorizationApi"
-    :new-request-i-d="requestID"
+    :new-request-id="requestId"
   >
     <template #description>
       <n-alert type="warning" :show-icon="false">
