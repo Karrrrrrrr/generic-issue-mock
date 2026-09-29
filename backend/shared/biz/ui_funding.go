@@ -2,7 +2,6 @@ package biz
 
 import (
 	"context"
-	"sort"
 
 	"generic-mock/enums"
 	"generic-mock/model"
@@ -274,42 +273,34 @@ func (uc *ui) transferUIWalletFunds(ctx context.Context, req *uiTransferRequest)
 			return previous, nil
 		}
 	}
-	ids := []model.ID{req.SourceWalletID, req.TargetWalletID}
-	sort.Slice(ids, func(left, right int) bool { return ids[left] < ids[right] })
-	wallets := make(map[model.ID]*model.Wallet, len(ids))
-	for _, walletID := range ids {
-		exists, err := uc.walletRepo.Exist(ctx, &WalletExistRequest{
-			ID:        walletID,
-			AccountID: req.AccountID,
-			Channel:   uc.channel,
-		})
-		if err != nil {
-			zap.S().Errorw("check shared UI transfer wallet", "error", err)
-			return nil, sharederrors.ErrDatabaseOperation
-		}
-		if !exists {
-			return nil, sharederrors.ErrWalletNotFound
-		}
-		wallet, err := uc.walletRepo.FindByIDWithLock(ctx, &WalletFindByIDWithLockRequest{
-			ID:        walletID,
-			AccountID: req.AccountID,
-			Channel:   uc.channel,
-		})
-		if err != nil {
-			zap.S().Errorw("lock shared UI transfer wallet", "error", err)
-			return nil, sharederrors.ErrDatabaseOperation
-		}
+	locked, err := uc.walletRepo.ListByIDsWithLock(ctx, &WalletListByIDsWithLockRequest{
+		IDs: []model.ID{
+			req.SourceWalletID,
+			req.TargetWalletID,
+		},
+		AccountID: req.AccountID,
+		Channel:   uc.channel,
+	})
+	if err != nil {
+		zap.S().Errorw("lock shared UI transfer wallets", "error", err)
+		return nil, sharederrors.ErrDatabaseOperation
+	}
+	if len(locked) != 2 {
+		return nil, sharederrors.ErrWalletNotFound
+	}
+	wallets := make(map[model.ID]*model.Wallet, len(locked))
+	for _, wallet := range locked {
 		if wallet.Currency != req.Currency {
 			return nil, sharederrors.ErrWalletCurrencyMismatch
 		}
 		expectedType := req.SourceWalletType
-		if walletID == req.TargetWalletID {
+		if wallet.ID == req.TargetWalletID {
 			expectedType = req.TargetWalletType
 		}
 		if wallet.Type != expectedType {
 			return nil, sharederrors.ErrInvalidWallet
 		}
-		wallets[walletID] = wallet
+		wallets[wallet.ID] = wallet
 	}
 	source := wallets[req.SourceWalletID]
 	target := wallets[req.TargetWalletID]

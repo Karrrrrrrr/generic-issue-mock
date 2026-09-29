@@ -115,7 +115,7 @@ func (uc *PingPongOpenAPIUsecase) CreateCard(ctx context.Context, req *CreateCar
 			zap.S().Errorw("advance pingpong card sequence", "error", err)
 			return pingerrors.ErrDatabase
 		}
-		if err := uc.walletRepo.Create(ctx, assignment.Wallet); err != nil {
+		if err := uc.sharedWalletRepo.Create(ctx, &sharedbiz.WalletCreateRequest{Wallet: assignment.Wallet}); err != nil {
 			zap.S().Errorw("create pingpong card wallet", "error", err)
 			return pingerrors.ErrDatabase
 		}

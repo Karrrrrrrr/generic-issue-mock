@@ -63,19 +63,23 @@ func (uc *PingPongOpenAPIUsecase) FundCard(ctx context.Context, req *CardFunding
 		if !ok || card.CardType != common.CardType_VirtualAccountSingle {
 			return pingerrors.ErrInvalid
 		}
+		sourceID := fundingID
+		targetID := card.WalletID
+		kind := common.WalletTransfer_CardTopUp
+		if req.Withdraw {
+			sourceID = card.WalletID
+			targetID = fundingID
+			kind = common.WalletTransfer_CardWithdraw
+		}
 		transfer := &openAPIWalletTransferRequest{
 			AccountID: req.AccountID,
 			CardID:    &card.ID,
-			SourceID:  fundingID,
-			TargetID:  card.WalletID,
-			Kind:      common.WalletTransfer_CardTopUp,
+			SourceID:  sourceID,
+			TargetID:  targetID,
+			Kind:      kind,
 			Currency:  card.CardCurrency,
 			Amount:    req.Amount,
 			RequestID: &req.RequestID,
-		}
-		if req.Withdraw {
-			types.Swap(&transfer.SourceID, &transfer.TargetID)
-			transfer.Kind = common.WalletTransfer_CardWithdraw
 		}
 		previous, err := uc.findPreviousTransfer(ctx, transfer)
 		if err != nil {
@@ -191,24 +195,27 @@ func (uc *PingPongOpenAPIUsecase) transferWalletFunds(ctx context.Context, req *
 	if req.SourceID <= 0 || req.TargetID <= 0 || req.SourceID == req.TargetID {
 		return nil, pingerrors.ErrInvalid
 	}
-	ids := []model.ID{req.SourceID, req.TargetID}
-	if ids[0] > ids[1] {
-		types.Swap(&ids[0], &ids[1])
+	locked, err := uc.sharedWalletRepo.ListByIDsWithLock(ctx, &sharedbiz.WalletListByIDsWithLockRequest{
+		AccountID: req.AccountID,
+		Channel:   common.Channel_PingPong,
+		IDs: []model.ID{
+			req.SourceID,
+			req.TargetID,
+		},
+	})
+	if err != nil {
+		zap.S().Errorw("lock pingpong transfer wallets", "error", err)
+		return nil, pingerrors.ErrDatabase
 	}
-	wallets := make(map[model.ID]*model.Wallet)
-	for _, id := range ids {
-		wallet, err := uc.walletRepo.Lock(ctx, &WalletLockRequest{
-			AccountID: req.AccountID,
-			ID:        id,
-		})
-		if err != nil {
-			zap.S().Errorw("lock pingpong transfer wallet", "error", err)
-			return nil, pingerrors.ErrDatabase
-		}
-		wallets[id] = wallet
+	wallets := make(map[model.ID]*model.Wallet, len(locked))
+	for _, wallet := range locked {
+		wallets[wallet.ID] = wallet
 	}
 	source := wallets[req.SourceID]
 	target := wallets[req.TargetID]
+	if source == nil || target == nil {
+		return nil, pingerrors.ErrInvalid
+	}
 	if source.Currency != req.Currency || target.Currency != req.Currency {
 		return nil, pingerrors.ErrInvalid
 	}
@@ -235,7 +242,15 @@ func (uc *PingPongOpenAPIUsecase) transferWalletFunds(ctx context.Context, req *
 	result.SourceAfter = source.Available
 	result.TargetAfter = target.Available
 	for _, wallet := range []*model.Wallet{source, target} {
-		if err := uc.walletRepo.Save(ctx, wallet); err != nil {
+		if err := uc.sharedWalletRepo.UpdateBalance(ctx, &sharedbiz.WalletUpdateBalanceRequest{
+			ID:         wallet.ID,
+			AccountID:  wallet.AccountID,
+			Channel:    wallet.Channel,
+			Available:  wallet.Available,
+			PendingOut: wallet.PendingOut,
+			In:         wallet.In,
+			Out:        wallet.Out,
+		}); err != nil {
 			zap.S().Errorw("save pingpong transfer wallet", "error", err)
 			return nil, pingerrors.ErrDatabase
 		}

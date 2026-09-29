@@ -47,6 +47,19 @@ func (repo *walletRepository) FindByIDWithLock(ctx context.Context, req *biz.Wal
 		).First()
 }
 
+func (repo *walletRepository) ListByIDsWithLock(ctx context.Context, req *biz.WalletListByIDsWithLockRequest) ([]*model.Wallet, error) {
+	table := repo.DB(ctx).Wallet
+	return table.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where(
+			table.ID.In(req.IDs...),
+			table.AccountID.Eq(req.AccountID),
+			table.Channel.Eq(string(req.Channel)),
+		).
+		Order(table.ID.Asc()).
+		Find()
+}
+
 func (repo *walletRepository) UpdateBalance(ctx context.Context, req *biz.WalletUpdateBalanceRequest) error {
 	table := repo.DB(ctx).Wallet
 	_, err := table.WithContext(ctx).

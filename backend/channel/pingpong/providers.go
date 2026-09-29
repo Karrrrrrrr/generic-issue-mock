@@ -14,7 +14,6 @@ func RegisterProviders(injector do.Injector) {
 	do.Provide(injector, data.NewVirtualAccountRepository)
 	do.Provide(injector, data.NewCardRepository)
 	do.Provide(injector, data.NewProductRepository)
-	do.Provide(injector, data.NewWalletRepository)
 	do.Provide(injector, data.NewTransferRepository)
 	do.Provide(injector, data.NewAuthorizationRepository)
 	do.Provide(injector, data.NewCardTransactionRepository)

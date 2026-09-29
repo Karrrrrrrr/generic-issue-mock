@@ -8,6 +8,7 @@ import (
 	common "generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/types"
+	sharedbiz "generic-mock/shared/biz"
 
 	"go.uber.org/zap"
 )
@@ -43,7 +44,7 @@ func (uc *PingPongOpenAPIUsecase) CreateVirtualAccount(ctx context.Context, req 
 			Type:      common.WalletType_VirtualAccount,
 			Currency:  common.Currency_USD,
 		}
-		if err := uc.walletRepo.Create(ctx, wallet); err != nil {
+		if err := uc.sharedWalletRepo.Create(ctx, &sharedbiz.WalletCreateRequest{Wallet: wallet}); err != nil {
 			zap.S().Errorw("create pingpong virtual account wallet", "error", err)
 			return pingerrors.ErrDatabase
 		}

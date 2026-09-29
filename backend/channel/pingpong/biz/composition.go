@@ -14,7 +14,7 @@ type PingPongOpenAPIUsecase struct {
 	sharedCardRepo            sharedbiz.CardRepo
 	sharedCardTransactionRepo sharedbiz.CardTransactionRepo
 	cardProductRepo           PingPongProductRepository
-	walletRepo                PingPongWalletRepository
+	sharedWalletRepo          sharedbiz.WalletRepo
 	walletTransferRepo        PingPongTransferRepository
 }
 
@@ -29,7 +29,7 @@ func NewOpenAPIUsecase(injector do.Injector) (*PingPongOpenAPIUsecase, error) {
 		sharedCardRepo:            do.MustInvoke[sharedbiz.CardRepo](injector),
 		sharedCardTransactionRepo: do.MustInvoke[sharedbiz.CardTransactionRepo](injector),
 		cardProductRepo:           do.MustInvoke[PingPongProductRepository](injector),
-		walletRepo:                do.MustInvoke[PingPongWalletRepository](injector),
+		sharedWalletRepo:          do.MustInvoke[sharedbiz.WalletRepo](injector),
 		walletTransferRepo:        do.MustInvoke[PingPongTransferRepository](injector),
 	}, nil
 }
