@@ -15,10 +15,10 @@ import (
 	"gorm.io/gorm"
 )
 
-const slashSeedCardProductPrefix = "424242"
-const payndaSeedCardProductPrefix = "523456"
-const photonSeedCardProductPrefix = "543210"
-const pingpongSeedCardProductPrefix = "424242,424243"
+const slashSeedCardProductPrefix = "100000"
+const photonSeedCardProductPrefix = "110000"
+const payndaSeedCardProductPrefix = "120000"
+const pingpongSeedCardProductPrefix = "130000,130001"
 
 func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 	accounts, err := seedChannelAccounts(ctx, db)

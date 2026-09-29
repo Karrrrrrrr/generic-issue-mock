@@ -110,7 +110,7 @@ bash sdk/test-contract.sh
 
 `CardProduct` 是渠道级配置，不包含 `AccountID`；产品查询按 `Channel` 隔离，唯一索引为 `(channel, prefix)`。同渠道账户共享产品及发卡序列，创建账户不再复制产品；卡片仍按账户隔离，且只能引用同渠道产品。
 
-`CardProduct.Prefix` 使用英文逗号分隔的数字前缀字符串，例如 `424242,555555`。**只有 PingPong 渠道允许多前缀**；Slash、PhotonPay、Paynda 及其他渠道仍只允许单前缀（例如 `424242`），配置逗号列表会拒绝开卡。开卡前校验所有候选项，从中随机选择一个作为 `Card.CardBin`，卡号也使用同一个前缀；产品的 `NextCardNumber` 仍在所有候选 BIN、所有账户间共享。空项、非数字或超出卡号长度容量的配置不会被静默忽略。现有单前缀数据和已发行卡片无需改写。
+`CardProduct.Prefix` 使用英文逗号分隔的数字前缀字符串，例如 `130000,130001`。默认种子 BIN 采用六位数字，前两位表示渠道，后四位表示该渠道的 BIN 序号，例如 Slash `100000`、PhotonPay `110000`、Paynda `120000`、PingPong `130000,130001`。**只有 PingPong 渠道允许多前缀**；Slash、PhotonPay、Paynda 及其他渠道仍只允许单前缀（例如 `100000`），配置逗号列表会拒绝开卡。开卡前校验所有候选项，从中随机选择一个作为 `Card.CardBin`，卡号也使用同一个前缀；产品的 `NextCardNumber` 仍在所有候选 BIN、所有账户间共享。空项、非数字或超出卡号长度容量的配置不会被静默忽略。现有单前缀数据和已发行卡片无需改写。
 
 通用卡类型有三种：`single` 为无 VA 的独立卡，`share` 与 VA 共用钱包，`virtual_account_single` 关联 VA 但持有独立卡钱包。PingPong 的虚拟账户关联普通卡采用第三种类型，VA 仅为资金来源；余额展示和交易扣款始终使用 `Card.WalletID`，不能根据 VA 关联判定共享。`pkg/cardwallet` 已提供钱包分配与供资钱包解析，现有两类卡保留原语义。
 
