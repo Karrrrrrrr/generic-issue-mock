@@ -37,6 +37,15 @@ export interface Webhook {
 
 export type WebhookEvent = string;
 
+export interface AuthorizationConfig {
+  account_id: number;
+  account_name: string;
+  target_url: string;
+  enabled: boolean;
+  timeout_millis: number;
+  updated_at: string;
+}
+
 export interface CardProduct {
   id: number;
   prefix: string;
@@ -208,6 +217,24 @@ export function createManagementAPI(baseURL: string) {
     },
   };
 
+  const authorizationConfigApi = {
+    async get(accountId: number) {
+      return (await request.get<AuthorizationConfig>(`${baseURL}/authorization-config`, {
+        params: {
+          account_id: accountId,
+        },
+      })).data;
+    },
+    async update(
+      payload: Pick<
+        AuthorizationConfig,
+        "account_id" | "target_url" | "enabled" | "timeout_millis"
+      >,
+    ) {
+      return (await request.post<AuthorizationConfig>(`${baseURL}/authorization-config`, payload)).data;
+    },
+  };
+
   const managementApi = {
     async cardProducts(page: PageRequest): Promise<ListResponse<CardProduct>> {
       const result = (await request.get<Page<CardProduct>>(`${baseURL}/card-products`, { params: page })).data;
@@ -356,8 +383,17 @@ export function createManagementAPI(baseURL: string) {
   }
 
   return {
-    fundCard, virtualAccountApi, authorizationApi, accountApi, webhookApi,
-    managementApi, refundApi, api, fundsApi, webhookRecordApi,
+    fundCard,
+    virtualAccountApi,
+    authorizationApi,
+    accountApi,
+    webhookApi,
+    authorizationConfigApi,
+    managementApi,
+    refundApi,
+    api,
+    fundsApi,
+    webhookRecordApi,
   };
 }
 

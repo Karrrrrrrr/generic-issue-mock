@@ -125,6 +125,10 @@ export const router = createRouter({
           path: "authorization",
           component: () => import("@/channel/photonpay/AuthorizationView.vue"),
         },
+        {
+          path: "authorization-config",
+          component: () => import("@/channel/photonpay/AuthorizationConfigView.vue"),
+        },
         { path: "webhooks", component: () => import("@/channel/photonpay/WebhooksView.vue") },
         {
           path: "webhook-records",
