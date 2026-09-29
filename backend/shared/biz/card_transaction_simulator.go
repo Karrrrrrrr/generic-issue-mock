@@ -16,15 +16,16 @@ import (
 )
 
 type SimulateAuthorizationReq struct {
-	Channel         enums.Channel
-	CardID          model.ID
-	Amount          decimal.Decimal
-	Currency        enums.Currency
-	MerchantName    *string
-	MerchantCountry *string
-	MerchantMCC     *string
-	RequestID       *string
-	Notificator     Notificator
+	Channel                enums.Channel
+	CardID                 model.ID
+	Amount                 decimal.Decimal
+	Currency               enums.Currency
+	MerchantName           *string
+	MerchantCountry        *string
+	MerchantMCC            *string
+	RequestID              *string
+	Notificator            Notificator
+	AuthorizationRequester AuthorizationRequester
 }
 
 func (req *SimulateAuthorizationReq) Validate() error {
@@ -194,6 +195,14 @@ type notifySimulationRequest struct {
 	Notificator Notificator
 }
 
+type requestAuthorizationSimulationRequest struct {
+	AccountID       model.ID
+	Card            *model.Card
+	Authorization   *model.Authorization
+	CardTransaction *model.CardTransaction
+	Requester       AuthorizationRequester
+}
+
 type CardTransactionSimulator interface {
 	SimulateAuthorization(context.Context, *SimulateAuthorizationReq) (*CardTransactionSimulationResult, error)
 	SimulateClearing(context.Context, *SimulateClearingReq) (*CardTransactionSimulationResult, error)
@@ -350,6 +359,15 @@ func (simulator *cardTransactionSimulator) SimulateAuthorization(ctx context.Con
 			CardTransaction: transaction,
 			Remaining:       req.Amount,
 		}
+		if err := simulator.requestAuthorization(ctx, &requestAuthorizationSimulationRequest{
+			AccountID:       accountID,
+			Card:            card,
+			Authorization:   authorization,
+			CardTransaction: transaction,
+			Requester:       req.AuthorizationRequester,
+		}); err != nil {
+			return err
+		}
 		return nil
 	})
 	if err != nil {
@@ -372,6 +390,48 @@ func (simulator *cardTransactionSimulator) SimulateAuthorization(ctx context.Con
 		Notificator: req.Notificator,
 	})
 	return result, nil
+}
+
+func (simulator *cardTransactionSimulator) requestAuthorization(
+	ctx context.Context,
+	req *requestAuthorizationSimulationRequest,
+) error {
+	if req.Requester == nil {
+		return nil
+	}
+	decision, err := req.Requester.RequestAuthorization(ctx, &AuthorizationRequest{
+		AccountID:       req.AccountID,
+		Channel:         req.CardTransaction.Channel,
+		Card:            req.Card,
+		Authorization:   req.Authorization,
+		CardTransaction: req.CardTransaction,
+	})
+	if err != nil {
+		return err
+	}
+	if decision == nil || !decision.Approved {
+		reason := ""
+		if decision != nil {
+			reason = decision.Reason
+		}
+		zap.S().Infow(
+			"shared simulated authorization declined",
+			"account_id",
+			req.AccountID,
+			"channel",
+			req.CardTransaction.Channel,
+			"card_id",
+			req.Card.ID,
+			"authorization_id",
+			req.Authorization.ID,
+			"transaction_id",
+			req.CardTransaction.ID,
+			"reason",
+			reason,
+		)
+		return sharederrors.ErrAuthorizationDeclined
+	}
+	return nil
 }
 
 func (simulator *cardTransactionSimulator) SimulateClearing(ctx context.Context, req *SimulateClearingReq) (*CardTransactionSimulationResult, error) {

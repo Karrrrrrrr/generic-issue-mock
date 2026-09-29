@@ -12,6 +12,7 @@ type NewUIRequest struct {
 	WebhookReplayer                       UIWebhookReplayer
 	Channel                               enums.Channel
 	Notificator                           Notificator
+	AuthorizationRequester                AuthorizationRequester
 	CreateVirtualAccountOnAccountCreation *bool
 }
 
@@ -49,6 +50,7 @@ type ui struct {
 	webhookRecordRepo           WebhookRecordRepo
 	channel                     enums.Channel
 	notificator                 Notificator
+	authorizationRequester      AuthorizationRequester
 	createAccountVirtualAccount bool
 	accountRepo                 AccountRepo
 	cardProductRepo             CardProductRepo
@@ -100,6 +102,7 @@ func (factory *UIFactory) New(req *NewUIRequest) (UI, error) {
 	uc.webhookReplayer = req.WebhookReplayer
 	uc.channel = req.Channel
 	uc.notificator = req.Notificator
+	uc.authorizationRequester = req.AuthorizationRequester
 	uc.createAccountVirtualAccount = req.CreateVirtualAccountOnAccountCreation != nil && *req.CreateVirtualAccountOnAccountCreation
 	return &uc, nil
 }

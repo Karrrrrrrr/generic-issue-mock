@@ -22,9 +22,11 @@ func RegisterProviders(injector do.Injector) {
 	do.Provide(injector, data.NewAuthorizationConfigRepository)
 	do.Provide(injector, data.NewWebhookRecordRepository)
 	do.Provide(injector, data.NewWebhookClient)
+	do.Provide(injector, data.NewAuthorizationClient)
 	do.Provide(injector, biz.NewPhotonPayOpenAPIUsecase)
 	do.Provide(injector, biz.NewPhotonPayUIUsecase)
 	do.Provide(injector, biz.NewPhotonPayWebhookNotificator)
+	do.Provide(injector, biz.NewPhotonPayAuthorizationRequester)
 	do.Provide(injector, service.NewPhotonPayOpenAPIService)
 	do.Provide(injector, service.NewPhotonPayUIService)
 }

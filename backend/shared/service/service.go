@@ -13,6 +13,7 @@ type NewRequest struct {
 	WebhookReplayer                       biz.UIWebhookReplayer
 	Channel                               enums.Channel
 	Notificator                           biz.Notificator
+	AuthorizationRequester                biz.AuthorizationRequester
 	CreateVirtualAccountOnAccountCreation *bool
 }
 
@@ -37,6 +38,7 @@ func (factory *Factory) New(req *NewRequest) (*Service, error) {
 		WebhookReplayer:                       req.WebhookReplayer,
 		Channel:                               req.Channel,
 		Notificator:                           req.Notificator,
+		AuthorizationRequester:                req.AuthorizationRequester,
 		CreateVirtualAccountOnAccountCreation: req.CreateVirtualAccountOnAccountCreation,
 	})
 	if err != nil {

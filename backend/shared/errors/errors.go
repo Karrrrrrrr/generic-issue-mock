@@ -19,6 +19,8 @@ var (
 	ErrAuthorizationNotFound        = kratoserrors.NotFound("AUTHORIZATION_NOT_FOUND", "authorization not found for card in account and channel")
 	ErrInvalidAuthorization         = kratoserrors.BadRequest("INVALID_AUTHORIZATION", "invalid authorization for simulation")
 	ErrInsufficientCardBalance      = kratoserrors.BadRequest("INSUFFICIENT_CARD_BALANCE", "insufficient available card wallet balance")
+	ErrAuthorizationRequestFailed   = kratoserrors.BadRequest("AUTHORIZATION_REQUEST_FAILED", "authorization request failed")
+	ErrAuthorizationDeclined        = kratoserrors.BadRequest("AUTHORIZATION_DECLINED", "authorization declined")
 	ErrSimulationRequestConflict    = kratoserrors.Conflict("SIMULATION_REQUEST_CONFLICT", "simulation request ID has already been used with different parameters")
 	ErrInvalidBalanceChange         = kratoserrors.BadRequest("INVALID_BALANCE_CHANGE", "invalid wallet balance change")
 	ErrWalletNotFound               = kratoserrors.NotFound("WALLET_NOT_FOUND", "wallet not found in account and channel")

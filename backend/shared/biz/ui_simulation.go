@@ -37,15 +37,16 @@ func (uc *ui) SimulateAuthorization(ctx context.Context, req *UISimulateAuthoriz
 		return nil, sharederrors.ErrUIUnsupported
 	}
 	return uc.simulator.SimulateAuthorization(ctx, &SimulateAuthorizationReq{
-		Channel:         uc.channel,
-		Notificator:     uc.notificator,
-		CardID:          req.CardID,
-		Amount:          req.Amount,
-		Currency:        req.Currency,
-		MerchantName:    req.MerchantName,
-		MerchantCountry: req.MerchantCountry,
-		MerchantMCC:     req.MerchantMCC,
-		RequestID:       req.RequestID,
+		Channel:                uc.channel,
+		Notificator:            uc.notificator,
+		AuthorizationRequester: uc.authorizationRequester,
+		CardID:                 req.CardID,
+		Amount:                 req.Amount,
+		Currency:               req.Currency,
+		MerchantName:           req.MerchantName,
+		MerchantCountry:        req.MerchantCountry,
+		MerchantMCC:            req.MerchantMCC,
+		RequestID:              req.RequestID,
 	})
 }
 

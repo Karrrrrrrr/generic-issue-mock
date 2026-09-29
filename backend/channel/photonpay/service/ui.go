@@ -17,6 +17,7 @@ func NewPhotonPayUIService(injector do.Injector) (*PhotonPayUIService, error) {
 	factory := do.MustInvoke[*sharedservice.Factory](injector)
 	uc := do.MustInvoke[*biz.PhotonPayUIUsecase](injector)
 	notificator := do.MustInvoke[*biz.PhotonPayWebhookNotificator](injector)
+	authorizationRequester := do.MustInvoke[*biz.PhotonPayAuthorizationRequester](injector)
 
 	adapter := &sharedUIWebhookAdapter{
 		notificator: notificator,
@@ -25,6 +26,7 @@ func NewPhotonPayUIService(injector do.Injector) (*PhotonPayUIService, error) {
 	management, err := factory.New(&sharedservice.NewRequest{
 		Channel:                               enums.Channel_PhotonPay,
 		Notificator:                           notificator,
+		AuthorizationRequester:                authorizationRequester,
 		WebhookEventCatalog:                   adapter,
 		WebhookReplayer:                       adapter,
 		CreateVirtualAccountOnAccountCreation: &createVirtualAccount,

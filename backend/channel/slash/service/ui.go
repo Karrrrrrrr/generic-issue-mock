@@ -20,12 +20,14 @@ func NewSlashUIService(injector do.Injector) (*SlashUIService, error) {
 		usecase:        do.MustInvoke[*biz.SlashUIUsecase](injector),
 		webhookUsecase: do.MustInvoke[*biz.SlashWebhookUsecase](injector),
 	}
+	authorizationRequester := do.MustInvoke[*biz.SlashAuthorizationRequester](injector)
 	adapter := &sharedUIWebhookAdapter{webhookUsecase: s.webhookUsecase}
 	management, err := factory.New(&sharedservice.NewRequest{
-		Channel:             enums.Channel_Slash,
-		Notificator:         s.webhookUsecase,
-		WebhookEventCatalog: adapter,
-		WebhookReplayer:     adapter,
+		Channel:                enums.Channel_Slash,
+		Notificator:            s.webhookUsecase,
+		AuthorizationRequester: authorizationRequester,
+		WebhookEventCatalog:    adapter,
+		WebhookReplayer:        adapter,
 	})
 	if err != nil {
 		return nil, err
