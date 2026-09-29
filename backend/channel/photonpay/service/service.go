@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/base64"
+	stderrors "errors"
 	"mime/multipart"
 	"strings"
 	"time"
@@ -17,13 +18,17 @@ import (
 	"generic-mock/pkg/timefmt"
 	"generic-mock/pkg/types"
 	timeTypes "generic-mock/pkg/types/time"
+	sharedbiz "generic-mock/shared/biz"
+	sharederrors "generic-mock/shared/errors"
 
 	kratosErrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/samber/do/v2"
 )
 
 type PhotonPayOpenAPIService struct {
-	usecase *biz.PhotonPayOpenAPIUsecase
+	usecase     *biz.PhotonPayOpenAPIUsecase
+	cardIssuer  *sharedbiz.CardIssuer
+	notificator *biz.PhotonPayWebhookNotificator
 }
 
 type OpenAPIAccountRequest struct {
@@ -32,7 +37,9 @@ type OpenAPIAccountRequest struct {
 
 func NewPhotonPayOpenAPIService(injector do.Injector) (*PhotonPayOpenAPIService, error) {
 	return &PhotonPayOpenAPIService{
-		usecase: do.MustInvoke[*biz.PhotonPayOpenAPIUsecase](injector),
+		usecase:     do.MustInvoke[*biz.PhotonPayOpenAPIUsecase](injector),
+		cardIssuer:  do.MustInvoke[*sharedbiz.CardIssuer](injector),
+		notificator: do.MustInvoke[*biz.PhotonPayWebhookNotificator](injector),
 	}, nil
 }
 
@@ -357,19 +364,51 @@ func (s *PhotonPayOpenAPIService) OpenCard(ctx context.Context, req *OpenCardReq
 	if formFactor == "" {
 		formFactor = photon.CardFormFactor_Virtual
 	}
-	card, err := s.usecase.OpenCard(ctx, &biz.OpenCardRequest{
-		AccountID:        accountID,
-		CardBin:          req.CardBin,
-		Currency:         req.CardCurrency,
-		CardScheme:       req.CardScheme,
-		CardType:         req.CardType,
-		CardFormFactor:   formFactor,
-		CardholderID:     cardholderID,
-		RequestID:        req.RequestID,
-		ExpirationMonths: types.Value(req.CardExpirationDate),
+	card, err := s.usecase.GetRequestResult(ctx, &biz.RequestResultResourceRequest{
+		AccountID: accountID,
+		RequestID: req.RequestID,
 	})
 	if err != nil {
-		return nil, err
+		if !kratosErrors.IsNotFound(err) {
+			return nil, err
+		}
+		product, err := s.usecase.FindCardProductByBinPrefix(ctx, req.CardBin)
+		if err != nil {
+			return nil, err
+		}
+		virtualAccount, err := s.usecase.FindDefaultVirtualAccount(ctx, accountID)
+		if err != nil {
+			return nil, err
+		}
+		cardScheme := req.CardScheme
+		if cardScheme == "" {
+			cardScheme = photon.CardScheme
+		}
+		months := types.Value(req.CardExpirationDate)
+		if months == 0 {
+			months = 24
+		}
+		result, err := s.cardIssuer.Issue(ctx, &sharedbiz.IssueCardReq{
+			IssueCardHolder: &sharedbiz.IssueCardHolder{
+				ID: &cardholderID,
+			},
+			Channel:          common.Channel_PhotonPay,
+			AccountID:        accountID,
+			CardType:         common.CardType_Share,
+			VirtualAccountID: &virtualAccount.ID,
+			CardProductID:    product.ID,
+			Currency:         req.CardCurrency,
+			CardScheme:       cardScheme,
+			FormType:         photon.ConvertCardFormFactorToGenericCardFormType(formFactor),
+			Status:           common.CardStatus_Active,
+			ExpireAt:         time.Now().UTC().AddDate(0, months, 0),
+			RequestID:        &req.RequestID,
+			Notificator:      s.notificator,
+		})
+		if err != nil {
+			return nil, convertPhotonPayIssueCardError(err)
+		}
+		card = result.Card
 	}
 
 	return &OpenCardData{
@@ -377,6 +416,20 @@ func (s *PhotonPayOpenAPIService) OpenCard(ctx context.Context, req *OpenCardReq
 		RequestID:  card.RequestID,
 		Status:     photon.OperationStatus_Succeed,
 	}, nil
+}
+
+func convertPhotonPayIssueCardError(err error) error {
+	switch {
+	case stderrors.Is(err, sharederrors.ErrAccountNotFound),
+		stderrors.Is(err, sharederrors.ErrCardHolderNotFound),
+		stderrors.Is(err, sharederrors.ErrCardProductNotFound),
+		stderrors.Is(err, sharederrors.ErrVirtualAccountNotFound):
+		return photonpayerrors.ErrResourceNotFound
+	case stderrors.Is(err, sharederrors.ErrDatabaseOperation):
+		return photonpayerrors.ErrDatabaseOperation
+	default:
+		return photonpayerrors.ErrInvalidOperation
+	}
 }
 
 type CardIDRequest struct {
@@ -561,6 +614,12 @@ func (s *PhotonPayOpenAPIService) FreezeCard(ctx context.Context, req *ChangeCar
 	if err != nil {
 		return nil, err
 	}
+	_ = s.notificator.NotifyCardStatus(ctx, &sharedbiz.NotifyCardStatusReq{
+		AccountID: accountID,
+		Channel:   common.Channel_PhotonPay,
+		CardID:    card.ID,
+		Status:    card.Status,
+	})
 
 	return cardData(card), nil
 }
@@ -589,6 +648,12 @@ func (s *PhotonPayOpenAPIService) CancelCard(ctx context.Context, req *CancelCar
 	if err != nil {
 		return nil, err
 	}
+	_ = s.notificator.NotifyCardStatus(ctx, &sharedbiz.NotifyCardStatusReq{
+		AccountID: accountID,
+		Channel:   common.Channel_PhotonPay,
+		CardID:    card.ID,
+		Status:    card.Status,
+	})
 
 	return cardData(card), nil
 }

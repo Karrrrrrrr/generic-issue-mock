@@ -18,24 +18,3 @@ func (u *PhotonPayOpenAPIUsecase) ListCardProducts(ctx context.Context) ([]*mode
 
 	return products, nil
 }
-
-func (u *PhotonPayOpenAPIUsecase) getCardProductByBinPrefix(
-	ctx context.Context,
-	prefix string,
-) (*model.CardProduct, error) {
-	exists, err := u.cardProductRepo.ExistByPrefix(ctx, prefix)
-	if err != nil {
-		zap.S().Errorw("check photonpay card product", "error", err)
-		return nil, photonpayerrors.ErrDatabaseOperation
-	}
-	if !exists {
-		return nil, photonpayerrors.ErrResourceNotFound
-	}
-	product, err := u.cardProductRepo.FindByPrefixForUpdate(ctx, prefix)
-	if err != nil {
-		zap.S().Errorw("lock photonpay card product", "error", err)
-		return nil, photonpayerrors.ErrDatabaseOperation
-	}
-
-	return product, nil
-}

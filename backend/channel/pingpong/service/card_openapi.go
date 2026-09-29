@@ -11,6 +11,7 @@ import (
 	"generic-mock/channel/pingpong/pkg/idconv"
 	common "generic-mock/enums"
 	"generic-mock/pkg/timefmt"
+	sharedbiz "generic-mock/shared/biz"
 )
 
 type Amount struct {
@@ -115,17 +116,34 @@ func (s *PingPongOpenAPIService) CreateCard(ctx context.Context, req *CreateCard
 	if err != nil {
 		return nil, pingerrors.ErrInvalid
 	}
-	card, err := s.uc.CreateCard(ctx, &biz.CreateCardRequest{
-		Notificator:      s.webhook,
-		AccountID:        accountID,
-		ProductID:        productID,
-		VirtualAccountID: virtualAccountID,
-		Currency:         req.CardCurrency,
-		RequestID:        req.RequestID,
-		RawRequest:       raw,
+	card, exists, err := s.uc.FindCardByRequestID(ctx, &biz.FindCardByRequestIDRequest{
+		AccountID:  accountID,
+		RequestID:  req.RequestID,
+		RawRequest: raw,
 	})
 	if err != nil {
 		return nil, err
+	}
+	if !exists {
+		result, err := s.cardIssuer.Issue(ctx, &sharedbiz.IssueCardReq{
+			Channel:          common.Channel_PingPong,
+			AccountID:        accountID,
+			CardType:         common.CardType_VirtualAccountSingle,
+			VirtualAccountID: &virtualAccountID,
+			CardProductID:    productID,
+			Currency:         req.CardCurrency,
+			CardScheme:       common.CardScheme_Visa,
+			FormType:         common.CardFormType_Virtual,
+			Status:           common.CardStatus_Active,
+			ExpireAt:         time.Now().UTC().AddDate(2, 0, 0),
+			RequestID:        &req.RequestID,
+			RawRequest:       raw,
+			Notificator:      s.webhook,
+		})
+		if err != nil {
+			return nil, convertPingPongIssueCardError(err)
+		}
+		card = result.Card
 	}
 	return &CardIDData{CardID: idconv.ToString(card.ID)}, nil
 }

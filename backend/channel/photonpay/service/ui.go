@@ -16,12 +16,15 @@ type PhotonPayUIService struct {
 func NewPhotonPayUIService(injector do.Injector) (*PhotonPayUIService, error) {
 	factory := do.MustInvoke[*sharedservice.Factory](injector)
 	uc := do.MustInvoke[*biz.PhotonPayUIUsecase](injector)
-	s := &PhotonPayUIService{usecase: uc}
-	adapter := &sharedUIWebhookAdapter{uc: uc}
+	notificator := do.MustInvoke[*biz.PhotonPayWebhookNotificator](injector)
+
+	adapter := &sharedUIWebhookAdapter{
+		notificator: notificator,
+	}
 	createVirtualAccount := true
 	management, err := factory.New(&sharedservice.NewRequest{
 		Channel:                               enums.Channel_PhotonPay,
-		Notificator:                           uc,
+		Notificator:                           notificator,
 		WebhookEventCatalog:                   adapter,
 		WebhookReplayer:                       adapter,
 		CreateVirtualAccountOnAccountCreation: &createVirtualAccount,
@@ -29,6 +32,9 @@ func NewPhotonPayUIService(injector do.Injector) (*PhotonPayUIService, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.Shared = management
-	return s, nil
+
+	return &PhotonPayUIService{
+		usecase: uc,
+		Shared:  management,
+	}, nil
 }

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"strings"
@@ -11,15 +12,18 @@ import (
 	pingerrors "generic-mock/channel/pingpong/errors"
 	"generic-mock/channel/pingpong/pkg/idconv"
 	"generic-mock/model"
+	sharedbiz "generic-mock/shared/biz"
+	sharederrors "generic-mock/shared/errors"
 
 	"github.com/samber/do/v2"
 	"github.com/shopspring/decimal"
 )
 
 type PingPongOpenAPIService struct {
-	uc      *biz.PingPongOpenAPIUsecase
-	webhook *biz.PingPongWebhookUsecase
-	apps    map[string]string
+	uc         *biz.PingPongOpenAPIUsecase
+	webhook    *biz.PingPongWebhookUsecase
+	cardIssuer *sharedbiz.CardIssuer
+	apps       map[string]string
 }
 
 func NewOpenAPIService(injector do.Injector) (*PingPongOpenAPIService, error) {
@@ -38,9 +42,10 @@ func NewOpenAPIService(injector do.Injector) (*PingPongOpenAPIService, error) {
 		}
 	}
 	return &PingPongOpenAPIService{
-		uc:      do.MustInvoke[*biz.PingPongOpenAPIUsecase](injector),
-		apps:    apps,
-		webhook: do.MustInvoke[*biz.PingPongWebhookUsecase](injector),
+		uc:         do.MustInvoke[*biz.PingPongOpenAPIUsecase](injector),
+		apps:       apps,
+		webhook:    do.MustInvoke[*biz.PingPongWebhookUsecase](injector),
+		cardIssuer: do.MustInvoke[*sharedbiz.CardIssuer](injector),
 	}, nil
 }
 
@@ -103,4 +108,18 @@ func (s *PingPongOpenAPIService) RejectUnsupportedOperation(ctx context.Context,
 		return nil, err
 	}
 	return nil, pingerrors.ErrUnsupported
+}
+
+func convertPingPongIssueCardError(err error) error {
+	switch {
+	case stderrors.Is(err, sharederrors.ErrAccountNotFound),
+		stderrors.Is(err, sharederrors.ErrCardHolderNotFound),
+		stderrors.Is(err, sharederrors.ErrCardProductNotFound),
+		stderrors.Is(err, sharederrors.ErrVirtualAccountNotFound):
+		return pingerrors.ErrNotFound
+	case stderrors.Is(err, sharederrors.ErrDatabaseOperation):
+		return pingerrors.ErrDatabase
+	default:
+		return pingerrors.ErrInvalid
+	}
 }

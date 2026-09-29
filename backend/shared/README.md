@@ -4,7 +4,7 @@
 
 `shared/biz` 处理已经归一化的开卡、模拟授权、清算、退款和撤销请求，不解释任何渠道协议，也不在内部查找“默认渠道账户”。渠道层负责解析外部 ID、选择产品/虚拟账户、校验协议参数，以及将共享错误映射为渠道错误码。
 
-Slash、Paynda、PhotonPay、PingPong 的 UI 模拟授权、清算、退款和撤销已接入 `CardTransactionSimulator`。各渠道不再自行写入模拟授权、交易阶段或修改钱包。模拟操作仅通过 UI 管理接口提供，不向 OpenAPI 暴露，也不在 OpenAPI usecase 中注入模拟器；OpenAPI 仍通过原查询协议读取 UI 创建的交易。`CardIssuer` 尚未替换各渠道开卡入口。
+Slash、Paynda、PhotonPay、PingPong 的 UI 模拟授权、清算、退款和撤销已接入 `CardTransactionSimulator`，四个渠道的开卡入口已接入 `CardIssuer`。各渠道不再自行写入模拟授权、交易阶段、开卡钱包或卡号序列。模拟操作仅通过 UI 管理接口提供，不向 OpenAPI 暴露，也不在 OpenAPI usecase 中注入模拟器；OpenAPI 仍通过原查询协议读取 UI 创建的交易。
 
 ## 渠道接入约定
 

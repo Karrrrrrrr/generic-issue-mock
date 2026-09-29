@@ -2,14 +2,10 @@ package biz
 
 import (
 	"context"
-	"time"
 
 	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/enums"
 	"generic-mock/model"
-	"generic-mock/pkg/cardnumber"
-	"generic-mock/pkg/cardwallet"
-	"generic-mock/pkg/randomx"
 	"generic-mock/pkg/types"
 	sharedbiz "generic-mock/shared/biz"
 
@@ -23,13 +19,9 @@ type OpenAPIListCardsRequest struct {
 	Status    *enums.CardStatus
 }
 
-type OpenAPICreateCardRequest struct {
-	VirtualAccountID *model.ID
-	AccountID        model.ID
-	CardHolderID     model.ID
-	CardProductID    model.ID
-	Currency         enums.Currency
-	RequestID        string
+type OpenAPICardRequestIDRequest struct {
+	AccountID model.ID
+	RequestID string
 }
 
 type OpenAPIUpdateCardRequest struct {
@@ -54,138 +46,35 @@ func (u *SlashOpenAPIUsecase) ListCards(ctx context.Context, req *OpenAPIListCar
 	return items, nil
 }
 
-func (u *SlashOpenAPIUsecase) CreateCard(ctx context.Context, req *OpenAPICreateCardRequest) (*model.Card, error) {
+func (u *SlashOpenAPIUsecase) FindCardByRequestID(
+	ctx context.Context,
+	req *OpenAPICardRequestIDRequest,
+) (*model.Card, bool, error) {
 	if req.RequestID == "" {
-		return nil, slasherrors.ErrInvalidOperation
+		return nil, false, slasherrors.ErrInvalidOperation
 	}
-	var card *model.Card
-	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		exists, err := u.sharedCardRepository.ExistByRequestID(txCtx, &sharedbiz.CardExistByRequestIDRequest{
-			AccountID: req.AccountID,
-			Channel:   enums.Channel_Slash,
-			RequestID: req.RequestID,
-		})
-		if err != nil {
-			zap.S().Errorw("check slash openapi card request", "error", err)
-			return slasherrors.ErrDatabaseOperation
-		}
-		if exists {
-			card, err = u.sharedCardRepository.FindByRequestID(txCtx, &sharedbiz.CardFindByRequestIDRequest{
-				AccountID: req.AccountID,
-				Channel:   enums.Channel_Slash,
-				RequestID: req.RequestID,
-			})
-			if err != nil {
-				zap.S().Errorw("find slash openapi card request", "error", err)
-				return slasherrors.ErrDatabaseOperation
-			}
-			return nil
-		}
-		if req.CardHolderID != 0 {
-			holderExists, err := u.cardHolderRepository.ExistByID(txCtx, req.CardHolderID)
-			if err != nil {
-				zap.S().Errorw("check slash openapi card holder", "error", err)
-
-				return slasherrors.ErrDatabaseOperation
-			}
-			if !holderExists {
-				return slasherrors.ErrResourceNotFound
-			}
-		}
-
-		productExists, err := u.cardProductRepository.ExistByID(txCtx, req.CardProductID)
-		if err != nil {
-			zap.S().Errorw("check slash openapi card product", "error", err)
-
-			return slasherrors.ErrDatabaseOperation
-		}
-		if !productExists {
-			return slasherrors.ErrResourceNotFound
-		}
-
-		cardProduct, err := u.cardProductRepository.FindByIDForUpdate(txCtx, req.CardProductID)
-		if err != nil {
-			zap.S().Errorw("lock slash openapi card product", "error", err)
-
-			return slasherrors.ErrDatabaseOperation
-		}
-
-		cardProduct.NextCardNumber++
-		generatedCard, ok := cardnumber.Generate(cardnumber.GenerateRequest{
-			Channel:  enums.Channel_Slash,
-			Prefix:   cardProduct.Prefix,
-			Sequence: cardProduct.NextCardNumber,
-		})
-		if !ok {
-			return slasherrors.ErrInvalidOperation
-		}
-		if err := u.cardProductRepository.Save(txCtx, cardProduct); err != nil {
-			zap.S().Errorw("advance slash openapi card product sequence", "error", err)
-
-			return slasherrors.ErrDatabaseOperation
-		}
-
-		card = &model.Card{
-			Channel:                enums.Channel_Slash,
-			AccountID:              req.AccountID,
-			CardProductID:          cardProduct.ID,
-			CardBin:                generatedCard.Bin,
-			CardNumber:             generatedCard.Number,
-			Cvv:                    randomx.Digits(3),
-			ExpireAt:               time.Now().UTC().AddDate(2, 0, 0),
-			Status:                 enums.CardStatus_Active,
-			CardHolderID:           req.CardHolderID,
-			FormType:               enums.CardFormType_Virtual,
-			CardCurrency:           req.Currency,
-			CardScheme:             enums.CardScheme_Visa,
-			CardType:               enums.CardType_Single,
-			RequestID:              req.RequestID,
-			LastOperationRequestID: req.RequestID,
-		}
-		var virtualAccount *model.VirtualAccount
-		if req.VirtualAccountID != nil {
-			virtual, err := u.GetVirtualAccount(txCtx, &ResourceRequest{
-				AccountID: &req.AccountID,
-				ID:        *req.VirtualAccountID,
-			})
-			if err != nil {
-				return err
-			}
-			virtualAccount = virtual
-			card.CardType = enums.CardType_Share
-		}
-		assignment, ok := cardwallet.Prepare(cardwallet.PrepareRequest{
-			AccountID:      card.AccountID,
-			Channel:        card.Channel,
-			CardType:       card.CardType,
-			Currency:       card.CardCurrency,
-			VirtualAccount: virtualAccount,
-		})
-		if !ok {
-			return slasherrors.ErrInvalidOperation
-		}
-		if assignment.CreateWallet {
-			if err := u.walletRepository.Create(txCtx, assignment.Wallet); err != nil {
-				zap.S().Errorw("create slash openapi card wallet", "error", err)
-				return slasherrors.ErrDatabaseOperation
-			}
-		}
-		card.VirtualAccountID = assignment.VirtualAccountID
-		card.WalletID = assignment.Wallet.ID
-		card.Wallet = assignment.Wallet
-		if err := u.cardRepository.Create(txCtx, card); err != nil {
-			zap.S().Errorw("create slash openapi card", "error", err)
-
-			return slasherrors.ErrDatabaseOperation
-		}
-
-		return nil
+	exists, err := u.sharedCardRepository.ExistByRequestID(ctx, &sharedbiz.CardExistByRequestIDRequest{
+		AccountID: req.AccountID,
+		Channel:   enums.Channel_Slash,
+		RequestID: req.RequestID,
 	})
 	if err != nil {
-		return nil, err
+		zap.S().Errorw("check slash openapi card request", "error", err)
+		return nil, false, slasherrors.ErrDatabaseOperation
 	}
-
-	return card, nil
+	if !exists {
+		return nil, false, nil
+	}
+	card, err := u.sharedCardRepository.FindByRequestID(ctx, &sharedbiz.CardFindByRequestIDRequest{
+		AccountID: req.AccountID,
+		Channel:   enums.Channel_Slash,
+		RequestID: req.RequestID,
+	})
+	if err != nil {
+		zap.S().Errorw("find slash openapi card request", "error", err)
+		return nil, false, slasherrors.ErrDatabaseOperation
+	}
+	return card, true, nil
 }
 
 func (u *SlashOpenAPIUsecase) GetCard(ctx context.Context, req *ResourceRequest) (*model.Card, error) {

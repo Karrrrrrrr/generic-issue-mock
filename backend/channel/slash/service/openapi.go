@@ -3,15 +3,19 @@ package service
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"time"
 
 	"generic-mock/channel/slash/biz"
 	slash "generic-mock/channel/slash/enums"
+	slasherrors "generic-mock/channel/slash/errors"
 	"generic-mock/channel/slash/pkg/idconv"
 	"generic-mock/enums"
 	"generic-mock/model"
 	"generic-mock/pkg/timefmt"
 	"generic-mock/pkg/types"
+	sharedbiz "generic-mock/shared/biz"
+	sharederrors "generic-mock/shared/errors"
 
 	"github.com/samber/do/v2"
 	"github.com/shopspring/decimal"
@@ -20,12 +24,14 @@ import (
 type SlashOpenAPIService struct {
 	usecase        *biz.SlashOpenAPIUsecase
 	webhookUsecase *biz.SlashWebhookUsecase
+	cardIssuer     *sharedbiz.CardIssuer
 }
 
 func NewSlashOpenAPIService(injector do.Injector) (*SlashOpenAPIService, error) {
 	return &SlashOpenAPIService{
 		usecase:        do.MustInvoke[*biz.SlashOpenAPIUsecase](injector),
 		webhookUsecase: do.MustInvoke[*biz.SlashWebhookUsecase](injector),
+		cardIssuer:     do.MustInvoke[*sharedbiz.CardIssuer](injector),
 	}, nil
 }
 
@@ -219,23 +225,58 @@ func (s *SlashOpenAPIService) CreateCard(ctx context.Context, req *OpenAPICreate
 		}
 		virtualAccountID = &parsed
 	}
-	item, err := s.usecase.CreateCard(ctx, &biz.OpenAPICreateCardRequest{
-		VirtualAccountID: virtualAccountID,
-		AccountID:        accountID,
-		CardProductID:    cardProductID,
-		Currency:         enums.Currency_USD,
-		RequestID:        req.IdempotencyKey,
+	item, exists, err := s.usecase.FindCardByRequestID(ctx, &biz.OpenAPICardRequestIDRequest{
+		AccountID: accountID,
+		RequestID: req.IdempotencyKey,
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.webhookUsecase.Dispatch(ctx, toWebhookDispatchRequest(&webhookDispatchRequest{
-		AccountID:  item.AccountID,
-		Event:      slash.WebhookEventCardCreate,
-		ResourceID: item.ID,
-	}))
+	if !exists {
+		cardType := enums.CardType_Single
+		if virtualAccountID != nil {
+			cardType = enums.CardType_Share
+		}
+		result, err := s.cardIssuer.Issue(ctx, &sharedbiz.IssueCardReq{
+			Channel:          enums.Channel_Slash,
+			AccountID:        accountID,
+			CardType:         cardType,
+			VirtualAccountID: virtualAccountID,
+			CardProductID:    cardProductID,
+			Currency:         enums.Currency_USD,
+			CardScheme:       enums.CardScheme_Visa,
+			FormType:         enums.CardFormType_Virtual,
+			Status:           enums.CardStatus_Active,
+			ExpireAt:         time.Now().UTC().AddDate(2, 0, 0),
+			RequestID:        &req.IdempotencyKey,
+			Notificator:      sharedbiz.NoopNotificator{},
+		})
+		if err != nil {
+			return nil, convertSlashIssueCardError(err)
+		}
+		item = result.Card
+		s.webhookUsecase.Dispatch(ctx, toWebhookDispatchRequest(&webhookDispatchRequest{
+			AccountID:  item.AccountID,
+			Event:      slash.WebhookEventCardCreate,
+			ResourceID: item.ID,
+		}))
+	}
 
 	return openAPICard(item), nil
+}
+
+func convertSlashIssueCardError(err error) error {
+	switch {
+	case stderrors.Is(err, sharederrors.ErrAccountNotFound),
+		stderrors.Is(err, sharederrors.ErrCardHolderNotFound),
+		stderrors.Is(err, sharederrors.ErrCardProductNotFound),
+		stderrors.Is(err, sharederrors.ErrVirtualAccountNotFound):
+		return slasherrors.ErrResourceNotFound
+	case stderrors.Is(err, sharederrors.ErrDatabaseOperation):
+		return slasherrors.ErrDatabaseOperation
+	default:
+		return slasherrors.ErrInvalidOperation
+	}
 }
 
 type OpenAPIIDRequest struct {

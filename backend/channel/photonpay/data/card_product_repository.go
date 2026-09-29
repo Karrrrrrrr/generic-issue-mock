@@ -31,13 +31,10 @@ func (r *cardProductRepository) ExistByPrefix(ctx context.Context, prefix string
 	return count > 0, err
 }
 
-func (r *cardProductRepository) FindByPrefixForUpdate(ctx context.Context, prefix string) (*model.CardProduct, error) {
+func (r *cardProductRepository) FindByPrefix(ctx context.Context, prefix string) (*model.CardProduct, error) {
 	db := r.repository.DB(ctx)
 
-	return db.CardProduct.WithContext(ctx).Clauses(clause.Locking{
-		Strength: "UPDATE",
-		Table:    clause.Table{Name: clause.CurrentTable},
-	}).Where(
+	return db.CardProduct.WithContext(ctx).Where(
 		db.CardProduct.Channel.Eq(string(enums.Channel_PhotonPay)),
 		db.CardProduct.Prefix.Eq(prefix),
 	).Order(db.CardProduct.ID.Desc()).First()

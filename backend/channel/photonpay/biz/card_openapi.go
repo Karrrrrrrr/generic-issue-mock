@@ -2,13 +2,10 @@ package biz
 
 import (
 	"context"
-	"time"
 
-	photon "generic-mock/channel/photonpay/enums"
 	photonpayerrors "generic-mock/channel/photonpay/errors"
 	common "generic-mock/enums"
 	"generic-mock/model"
-	"generic-mock/pkg/cardnumber"
 	"generic-mock/pkg/randomx"
 	"generic-mock/pkg/types"
 
@@ -18,18 +15,6 @@ import (
 type RequestResultResourceRequest struct {
 	AccountID model.ID
 	RequestID string
-}
-
-type OpenCardRequest struct {
-	AccountID        model.ID
-	CardBin          string
-	Currency         common.Currency
-	CardScheme       common.CardScheme
-	CardType         photon.CardType
-	CardFormFactor   photon.CardFormFactor
-	CardholderID     model.ID
-	RequestID        string
-	ExpirationMonths int
 }
 
 type ChangeCardStatusRequest struct {
@@ -44,81 +29,6 @@ type UpdateCardRequest struct {
 	AccountID model.ID
 	CardID    model.ID
 	RequestID string
-}
-
-func (u *PhotonPayOpenAPIUsecase) OpenCard(ctx context.Context, req *OpenCardRequest) (*model.Card, error) {
-	var card *model.Card
-	err := u.transaction.InTx(ctx, func(txCtx context.Context) error {
-		holderResource := &ResourceRequest{
-			AccountID: &req.AccountID,
-			ID:        req.CardholderID,
-		}
-		if err := u.requireCardHolder(txCtx, holderResource); err != nil {
-			return err
-		}
-		product, err := u.getCardProductByBinPrefix(txCtx, req.CardBin)
-		if err != nil {
-			return err
-		}
-		product.NextCardNumber++
-		generatedCard, ok := cardnumber.Generate(cardnumber.GenerateRequest{
-			Channel:  common.Channel_PhotonPay,
-			Prefix:   product.Prefix,
-			Sequence: product.NextCardNumber,
-		})
-		if !ok {
-			return photonpayerrors.ErrInvalidOperation
-		}
-		if err := u.cardProductRepo.Save(txCtx, product); err != nil {
-			zap.S().Errorw("advance photonpay card product sequence", "error", err)
-
-			return photonpayerrors.ErrDatabaseOperation
-		}
-		virtualAccount, err := u.virtualAccountRepo.FindByAccountID(txCtx, req.AccountID)
-		if err != nil {
-			zap.S().Errorw("find photonpay account virtual account", "error", err)
-			return photonpayerrors.ErrDatabaseOperation
-		}
-
-		months := req.ExpirationMonths
-		if months == 0 {
-			months = 24
-		}
-		card = &model.Card{
-			AccountID:              req.AccountID,
-			Channel:                common.Channel_PhotonPay,
-			CardProductID:          product.ID,
-			CardBin:                generatedCard.Bin,
-			CardNumber:             generatedCard.Number,
-			Cvv:                    randomx.Digits(3),
-			ExpireAt:               time.Now().UTC().AddDate(0, months, 0),
-			Status:                 common.CardStatus_Active,
-			VirtualAccountID:       &virtualAccount.ID,
-			WalletID:               virtualAccount.WalletID,
-			CardHolderID:           req.CardholderID,
-			FormType:               photon.ConvertCardFormFactorToGenericCardFormType(req.CardFormFactor),
-			RequestID:              req.RequestID,
-			LastOperationRequestID: req.RequestID,
-			LastOperationType:      common.OperationType_OpenCard,
-			LastOperationStatus:    common.OperationStatus_Succeed,
-			CardCurrency:           req.Currency,
-			CardScheme:             req.CardScheme,
-			CardType:               photon.ConvertCardTypeToGenericCardType(req.CardType),
-		}
-
-		if err := u.cardRepo.CreateCard(txCtx, card); err != nil {
-			zap.S().Errorw("create photonpay card", "error", err)
-
-			return photonpayerrors.ErrDatabaseOperation
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return card, nil
 }
 
 func (u *PhotonPayOpenAPIUsecase) GetCard(ctx context.Context, req *ResourceRequest) (*model.Card, error) {
@@ -149,6 +59,38 @@ func (u *PhotonPayOpenAPIUsecase) ListCards(ctx context.Context, req *ListReques
 	}
 
 	return cards, nil
+}
+
+func (u *PhotonPayOpenAPIUsecase) FindCardProductByBinPrefix(
+	ctx context.Context,
+	prefix string,
+) (*model.CardProduct, error) {
+	exists, err := u.cardProductRepo.ExistByPrefix(ctx, prefix)
+	if err != nil {
+		zap.S().Errorw("check photonpay card product", "error", err)
+		return nil, photonpayerrors.ErrDatabaseOperation
+	}
+	if !exists {
+		return nil, photonpayerrors.ErrResourceNotFound
+	}
+	product, err := u.cardProductRepo.FindByPrefix(ctx, prefix)
+	if err != nil {
+		zap.S().Errorw("find photonpay card product", "error", err)
+		return nil, photonpayerrors.ErrDatabaseOperation
+	}
+	return product, nil
+}
+
+func (u *PhotonPayOpenAPIUsecase) FindDefaultVirtualAccount(
+	ctx context.Context,
+	accountID model.ID,
+) (*model.VirtualAccount, error) {
+	virtualAccount, err := u.virtualAccountRepo.FindByAccountID(ctx, accountID)
+	if err != nil {
+		zap.S().Errorw("find photonpay account virtual account", "error", err)
+		return nil, photonpayerrors.ErrDatabaseOperation
+	}
+	return virtualAccount, nil
 }
 
 func (u *PhotonPayOpenAPIUsecase) GetRequestResult(ctx context.Context, req *RequestResultResourceRequest) (*model.Card, error) {
