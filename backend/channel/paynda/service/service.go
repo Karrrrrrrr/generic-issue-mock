@@ -9,8 +9,10 @@ import (
 	paynda "generic-mock/channel/paynda/enums"
 	payndaerrors "generic-mock/channel/paynda/errors"
 	"generic-mock/channel/paynda/pkg/idconv"
+	"generic-mock/channel/paynda/pkg/timeconv"
 	common "generic-mock/enums"
 	"generic-mock/model"
+	"generic-mock/pkg/timefmt"
 	"generic-mock/pkg/types"
 	timeTypes "generic-mock/pkg/types/time"
 
@@ -276,13 +278,12 @@ func (s *PayndaOpenAPIService) CreateCard(ctx context.Context, req *PayndaCreate
 	if err != nil {
 		return nil, err
 	}
-	expireAt := time.Now().UTC().AddDate(2, 0, 0)
-	if req.ExpirationDate != "" {
-		value, err := time.Parse("01/06", req.ExpirationDate)
-		if err != nil {
-			return nil, payndaerrors.ErrInvalidOperation
-		}
-		expireAt = value.UTC()
+	expireAt, valid := timeconv.ParseCardExpiration(
+		req.ExpirationDate,
+		time.Now().UTC().AddDate(2, 0, 0),
+	)
+	if !valid {
+		return nil, payndaerrors.ErrInvalidOperation
 	}
 	item, err := s.usecase.CreateCard(ctx, &biz.PayndaCreateCardRequest{
 		AccountID:     accountID,
@@ -980,7 +981,7 @@ func payndaCardSensitiveData(item *model.Card) *PayndaCardSensitiveData {
 		UpdateTime:     timeTypes.DateTime(item.UpdatedAt.UTC()),
 		CardID:         idconv.ToString(item.ID),
 		CVV:            item.Cvv,
-		ExpirationDate: item.ExpireAt.Format("01/06"),
+		ExpirationDate: timefmt.CardExpiration(item.ExpireAt),
 		CardNo:         item.CardNumber,
 	}
 }

@@ -1,6 +1,9 @@
 package timeparse
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 var dateLayouts = []string{
 	"2006-01-02",
@@ -20,4 +23,14 @@ func ParseDate(value string) (*time.Time, error) {
 	}
 
 	return nil, ErrUnsupportedDateLayout
+}
+
+func ParseOptionalDate(value *string) (*time.Time, error) {
+	if value == nil {
+		return nil, nil
+	}
+	if strings.TrimSpace(*value) == "" {
+		return nil, ErrUnsupportedDateLayout
+	}
+	return ParseDate(*value)
 }

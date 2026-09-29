@@ -25,3 +25,15 @@ func FromOptionalString(value *string) (*int64, error) {
 	}
 	return &id, nil
 }
+
+func FromStringList(values []string) ([]int64, error) {
+	result := make([]int64, 0, len(values))
+	for _, value := range values {
+		id, err := FromString(value)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, id)
+	}
+	return result, nil
+}

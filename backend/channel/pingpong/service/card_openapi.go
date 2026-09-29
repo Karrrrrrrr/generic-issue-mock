@@ -10,6 +10,7 @@ import (
 	pingerrors "generic-mock/channel/pingpong/errors"
 	"generic-mock/channel/pingpong/pkg/idconv"
 	common "generic-mock/enums"
+	"generic-mock/pkg/timefmt"
 )
 
 type Amount struct {
@@ -154,7 +155,7 @@ func (s *PingPongOpenAPIService) GetCardDetails(ctx context.Context, req *CardRe
 		CardStatus:        ping.FromGenericCardStatus(card.Status),
 		CardNumber:        card.CardNumber,
 		CVC:               card.Cvv,
-		CardExpiryDate:    card.ExpireAt.Format("01/06"),
+		CardExpiryDate:    timefmt.CardExpiration(card.ExpireAt),
 		WithdrawalAllowed: true,
 		Cancelled:         card.Status == common.CardStatus_Deleted,
 		BillingCurrency:   card.CardCurrency,

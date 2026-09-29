@@ -10,6 +10,7 @@ import (
 	"generic-mock/channel/slash/pkg/idconv"
 	"generic-mock/enums"
 	"generic-mock/model"
+	"generic-mock/pkg/timefmt"
 	"generic-mock/pkg/types"
 
 	"github.com/samber/do/v2"
@@ -420,8 +421,8 @@ func openAPICard(item *model.Card) *OpenAPICard {
 		AccountID:        idconv.ToUUID(item.AccountID),
 		VirtualAccountID: idconv.ToOptionalUUID(item.VirtualAccountID),
 		Last4:            item.CardNumber[len(item.CardNumber)-4:],
-		ExpiryMonth:      item.ExpireAt.Format("01"),
-		ExpiryYear:       item.ExpireAt.Format("2006"),
+		ExpiryMonth:      timefmt.Month(item.ExpireAt),
+		ExpiryYear:       timefmt.Year(item.ExpireAt),
 		Status:           slash.CardStatusFromGeneric(item.Status),
 		IsPhysical:       item.FormType == enums.CardFormType_Physical,
 		Pan:              item.CardNumber,

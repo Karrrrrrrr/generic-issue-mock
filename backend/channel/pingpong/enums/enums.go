@@ -1,6 +1,10 @@
 package enums
 
-import common "generic-mock/enums"
+import (
+	"strings"
+
+	common "generic-mock/enums"
+)
 
 type CardStatus string
 
@@ -80,6 +84,120 @@ const (
 )
 
 type TransferKind string
+
+type AccountType string
+
+const (
+	AccountTypeBudget         AccountType = "budget"
+	AccountTypeVirtualAccount AccountType = "virtual_account"
+)
+
+func AccountTypeValid(value string) bool {
+	switch AccountType(strings.ToLower(strings.TrimSpace(value))) {
+	case AccountTypeBudget, AccountTypeVirtualAccount:
+		return true
+	default:
+		return false
+	}
+}
+
+type TransactionDirection string
+
+const (
+	TransactionDirectionCredit TransactionDirection = "CREDIT"
+	TransactionDirectionDebit  TransactionDirection = "DEBIT"
+)
+
+func TransactionTypeToGeneric(value string) (common.CardTransactionType, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "auth", "authorization":
+		return common.CardTransactionType_AUTH, true
+	case "clear", "clearing", "settlement":
+		return common.CardTransactionType_CLEAR, true
+	case "void", "reverse", "reversal":
+		return common.CardTransactionType_VOID, true
+	case "refund":
+		return common.CardTransactionType_REFUND, true
+	default:
+		return "", false
+	}
+}
+
+func TransactionTypesToGeneric(value string) ([]common.CardTransactionType, bool) {
+	parts := strings.Split(value, ",")
+	result := make([]common.CardTransactionType, 0, len(parts))
+	for _, item := range parts {
+		transactionType, valid := TransactionTypeToGeneric(item)
+		if !valid {
+			return nil, false
+		}
+		result = append(result, transactionType)
+	}
+	return result, true
+}
+
+func TransactionStatusToGeneric(value string) (common.CardTransactionStatus, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "pending":
+		return common.TransactionStatus_PENDING, true
+	case "authorized":
+		return common.TransactionStatus_AUTHORIZED, true
+	case "succeed", "success", "completed":
+		return common.TransactionStatus_SUCCEED, true
+	case "failed", "declined":
+		return common.TransactionStatus_FAILED, true
+	case "void", "reversed":
+		return common.TransactionStatus_VOID, true
+	default:
+		return "", false
+	}
+}
+
+func TransactionStatusesToGeneric(value string) ([]common.CardTransactionStatus, bool) {
+	parts := strings.Split(value, ",")
+	result := make([]common.CardTransactionStatus, 0, len(parts))
+	for _, item := range parts {
+		status, valid := TransactionStatusToGeneric(item)
+		if !valid {
+			return nil, false
+		}
+		result = append(result, status)
+	}
+	return result, true
+}
+
+func ApplyTransactionDirectionToGenericTypes(
+	transactionTypes []common.CardTransactionType,
+	value TransactionDirection,
+) ([]common.CardTransactionType, bool) {
+	var allowed []common.CardTransactionType
+	switch TransactionDirection(strings.ToUpper(strings.TrimSpace(string(value)))) {
+	case TransactionDirectionCredit:
+		allowed = []common.CardTransactionType{common.CardTransactionType_REFUND}
+	case TransactionDirectionDebit:
+		allowed = []common.CardTransactionType{
+			common.CardTransactionType_AUTH,
+			common.CardTransactionType_CLEAR,
+			common.CardTransactionType_VOID,
+		}
+	default:
+		return nil, false
+	}
+	if len(transactionTypes) == 0 {
+		return allowed, true
+	}
+	allowedSet := make(map[common.CardTransactionType]struct{}, len(allowed))
+	for _, item := range allowed {
+		allowedSet[item] = struct{}{}
+	}
+	result := make([]common.CardTransactionType, 0, len(transactionTypes))
+	for _, item := range transactionTypes {
+		if _, ok := allowedSet[item]; ok {
+			result = append(result, item)
+		}
+	}
+	return result, true
+}
 
 func FromGenericTransferKind(value common.WalletTransferKind) TransferKind {
 	switch value {

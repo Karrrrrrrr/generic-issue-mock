@@ -11,9 +11,10 @@ import (
 	photon "generic-mock/channel/photonpay/enums"
 	photonpayerrors "generic-mock/channel/photonpay/errors"
 	"generic-mock/channel/photonpay/pkg/idconv"
+	"generic-mock/channel/photonpay/pkg/queryconv"
 	common "generic-mock/enums"
 	"generic-mock/model"
-	"generic-mock/pkg/timeparse"
+	"generic-mock/pkg/timefmt"
 	"generic-mock/pkg/types"
 	timeTypes "generic-mock/pkg/types/time"
 
@@ -152,8 +153,8 @@ func (s *PhotonPayOpenAPIService) CreateCardHolder(ctx context.Context, req *Cre
 	if err != nil {
 		return nil, err
 	}
-	dateOfBirth, err := timeparse.ParseDate(req.DateOfBirth)
-	if err != nil {
+	dateOfBirth, valid := queryconv.RequiredDate(req.DateOfBirth)
+	if !valid {
 		return nil, photonpayerrors.ErrInvalidDateOfBirth
 	}
 
@@ -650,13 +651,13 @@ func (s *PhotonPayOpenAPIService) ListTrades(ctx context.Context, req *ListTrade
 			return nil, photonpayerrors.ErrInvalidOperation
 		}
 	}
-	createdFrom, err := parsePhotonPayQueryTime(req.CreatedAtStart)
-	if err != nil {
-		return nil, err
+	createdFrom, valid := queryconv.OptionalTime(req.CreatedAtStart)
+	if !valid {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
-	createdTo, err := parsePhotonPayQueryTime(req.CreatedAtEnd)
-	if err != nil {
-		return nil, err
+	createdTo, valid := queryconv.OptionalTime(req.CreatedAtEnd)
+	if !valid {
+		return nil, photonpayerrors.ErrInvalidOperation
 	}
 	if createdFrom != nil && createdTo != nil && createdFrom.After(*createdTo) {
 		return nil, photonpayerrors.ErrInvalidOperation
@@ -695,20 +696,6 @@ func (s *PhotonPayOpenAPIService) ListTrades(ctx context.Context, req *ListTrade
 	return &items, nil
 }
 
-func parsePhotonPayQueryTime(value *string) (*time.Time, error) {
-	if value == nil {
-		return nil, nil
-	}
-	if strings.TrimSpace(*value) == "" {
-		return nil, photonpayerrors.ErrInvalidOperation
-	}
-	parsed, err := timeparse.ParseDate(*value)
-	if err != nil {
-		return nil, photonpayerrors.ErrInvalidOperation
-	}
-	return parsed, nil
-}
-
 type UploadRequest struct {
 	OpenAPIAccountRequest
 	BusinessKey string                `uri:"businessKey" binding:"required"`
@@ -738,7 +725,7 @@ func cardData(card *model.Card) *CardData {
 		CardID:         idconv.ToString(card.ID),
 		CardNo:         card.CardNumber,
 		CVV:            card.Cvv,
-		ExpirationDate: card.ExpireAt.Format("01/06"),
+		ExpirationDate: timefmt.CardExpiration(card.ExpireAt),
 		CardCurrency:   card.CardCurrency,
 		CardScheme:     card.CardScheme,
 		CardStatus:     photon.CardStatusFromGeneric(card.Status),

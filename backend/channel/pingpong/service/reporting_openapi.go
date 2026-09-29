@@ -2,15 +2,16 @@ package service
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"generic-mock/channel/pingpong/biz"
+	ping "generic-mock/channel/pingpong/enums"
 	pingerrors "generic-mock/channel/pingpong/errors"
 	"generic-mock/channel/pingpong/pkg/idconv"
+	"generic-mock/channel/pingpong/pkg/queryconv"
 	common "generic-mock/enums"
 	"generic-mock/model"
-	"generic-mock/pkg/timeparse"
+	"generic-mock/pkg/timefmt"
 	"generic-mock/pkg/types"
 
 	"github.com/shopspring/decimal"
@@ -174,9 +175,7 @@ func (s *PingPongOpenAPIService) QueryAccountsBalances(
 		return nil, err
 	}
 	if req.AccountType != nil {
-		switch strings.ToLower(strings.TrimSpace(*req.AccountType)) {
-		case "budget", "virtual_account":
-		default:
+		if !ping.AccountTypeValid(*req.AccountType) {
 			return nil, pingerrors.ErrInvalid
 		}
 	}
@@ -184,7 +183,7 @@ func (s *PingPongOpenAPIService) QueryAccountsBalances(
 	if err != nil {
 		return nil, err
 	}
-	virtualAccountIDs, err := parseIDList(req.SubaccountIDList)
+	virtualAccountIDs, err := idconv.FromStringList(req.SubaccountIDList)
 	if err != nil {
 		return nil, err
 	}
@@ -234,21 +233,42 @@ func (s *PingPongOpenAPIService) QueryCardTransactions(
 	if err != nil {
 		return nil, err
 	}
-	transactionTypes, err := parsePingPongTransactionTypes(req.Type)
-	if err != nil {
-		return nil, err
+	var transactionTypes []common.CardTransactionType
+	if req.Type != nil {
+		var valid bool
+		transactionTypes, valid = ping.TransactionTypesToGeneric(*req.Type)
+		if !valid {
+			return nil, pingerrors.ErrInvalid
+		}
 	}
-	statuses, err := parsePingPongTransactionStatuses(req.Status)
-	if err != nil {
-		return nil, err
+	var statuses []common.CardTransactionStatus
+	if req.Status != nil {
+		var valid bool
+		statuses, valid = ping.TransactionStatusesToGeneric(*req.Status)
+		if !valid {
+			return nil, pingerrors.ErrInvalid
+		}
 	}
-	transactionTypes, err = applyPingPongDirection(transactionTypes, req.ClearType)
-	if err != nil {
-		return nil, err
+	if req.ClearType != nil {
+		var valid bool
+		transactionTypes, valid = ping.ApplyTransactionDirectionToGenericTypes(
+			transactionTypes,
+			ping.TransactionDirection(*req.ClearType),
+		)
+		if !valid {
+			return nil, pingerrors.ErrInvalid
+		}
 	}
-	createdFrom, createdTo, err := resolvePingPongCardTransactionRange(req)
-	if err != nil {
-		return nil, err
+	createdFrom, createdTo, valid := queryconv.CardTransactionTimeRange(queryconv.CardTransactionTimeRangeRequest{
+		StartTime:        req.StartTime,
+		StartCreatedDate: req.StartCreatedDate,
+		StartPostingDate: req.StartPostingDate,
+		EndTime:          req.EndTime,
+		EndCreatedDate:   req.EndCreatedDate,
+		EndPostingDate:   req.EndPostingDate,
+	})
+	if !valid {
+		return nil, pingerrors.ErrInvalid
 	}
 	page, limit, err := req.PageRequest.resolvePagination()
 	if err != nil {
@@ -295,7 +315,7 @@ func (s *PingPongOpenAPIService) Query3DSDetails(ctx context.Context, req *Three
 		data.FirstName = holder.FirstName
 		data.LastName = holder.LastName
 		if holder.DateOfBirth != nil {
-			data.DateOfBirth = holder.DateOfBirth.Format("2006-01-02")
+			data.DateOfBirth = timefmt.Date(*holder.DateOfBirth)
 		}
 		data.CallPrefix = holder.MobilePrefix
 		data.Mobile = holder.Mobile
@@ -328,21 +348,31 @@ func (s *PingPongOpenAPIService) QueryAccountTransactions(
 	if virtualAccountID == nil && cardID == nil {
 		return nil, pingerrors.ErrInvalid
 	}
-	transactionTypes, err := parsePingPongTransactionTypes(req.TransactionType)
-	if err != nil {
-		return nil, err
+	var transactionTypes []common.CardTransactionType
+	if req.TransactionType != nil {
+		var valid bool
+		transactionTypes, valid = ping.TransactionTypesToGeneric(*req.TransactionType)
+		if !valid {
+			return nil, pingerrors.ErrInvalid
+		}
 	}
-	transactionTypes, err = applyPingPongDirection(transactionTypes, req.Direction)
-	if err != nil {
-		return nil, err
+	if req.Direction != nil {
+		var valid bool
+		transactionTypes, valid = ping.ApplyTransactionDirectionToGenericTypes(
+			transactionTypes,
+			ping.TransactionDirection(*req.Direction),
+		)
+		if !valid {
+			return nil, pingerrors.ErrInvalid
+		}
 	}
-	createdFrom, err := parsePingPongOptionalTime(req.PostingStartTime)
-	if err != nil {
-		return nil, err
+	createdFrom, valid := queryconv.OptionalTime(req.PostingStartTime)
+	if !valid {
+		return nil, pingerrors.ErrInvalid
 	}
-	createdTo, err := parsePingPongOptionalTime(req.PostingEndTime)
-	if err != nil {
-		return nil, err
+	createdTo, valid := queryconv.OptionalTime(req.PostingEndTime)
+	if !valid {
+		return nil, pingerrors.ErrInvalid
 	}
 	if createdFrom != nil && createdTo != nil && createdFrom.After(*createdTo) {
 		return nil, pingerrors.ErrInvalid
@@ -380,148 +410,6 @@ func resolveJSONPagination(pageValue *int, sizeValue *int) (int, int, error) {
 		return 0, 0, pingerrors.ErrInvalid
 	}
 	return page, size, nil
-}
-
-func parseIDList(values []string) ([]model.ID, error) {
-	result := make([]model.ID, 0, len(values))
-	for _, value := range values {
-		id, err := idconv.FromString(value)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, id)
-	}
-	return result, nil
-}
-
-func parsePingPongOptionalTime(value *string) (*time.Time, error) {
-	if value == nil {
-		return nil, nil
-	}
-	if strings.TrimSpace(*value) == "" {
-		return nil, pingerrors.ErrInvalid
-	}
-	parsed, err := timeparse.ParseDate(*value)
-	if err != nil {
-		return nil, pingerrors.ErrInvalid
-	}
-	return parsed, nil
-}
-
-func resolvePingPongCardTransactionRange(req *CardTransactionsRequest) (*time.Time, *time.Time, error) {
-	fromValues := []*string{req.StartTime, req.StartCreatedDate, req.StartPostingDate}
-	toValues := []*string{req.EndTime, req.EndCreatedDate, req.EndPostingDate}
-	var from *time.Time
-	var to *time.Time
-	for _, value := range fromValues {
-		parsed, err := parsePingPongOptionalTime(value)
-		if err != nil {
-			return nil, nil, err
-		}
-		if parsed != nil && (from == nil || parsed.After(*from)) {
-			from = parsed
-		}
-	}
-	for _, value := range toValues {
-		parsed, err := parsePingPongOptionalTime(value)
-		if err != nil {
-			return nil, nil, err
-		}
-		if parsed != nil && (to == nil || parsed.Before(*to)) {
-			to = parsed
-		}
-	}
-	if from != nil && to != nil && from.After(*to) {
-		return nil, nil, pingerrors.ErrInvalid
-	}
-	return from, to, nil
-}
-
-func parsePingPongTransactionTypes(value *string) ([]common.CardTransactionType, error) {
-	if value == nil {
-		return nil, nil
-	}
-	parts := strings.Split(*value, ",")
-	result := make([]common.CardTransactionType, 0, len(parts))
-	for _, item := range parts {
-		switch strings.ToLower(strings.TrimSpace(item)) {
-		case "auth", "authorization":
-			result = append(result, common.CardTransactionType_AUTH)
-		case "clear", "clearing", "settlement":
-			result = append(result, common.CardTransactionType_CLEAR)
-		case "void", "reverse", "reversal":
-			result = append(result, common.CardTransactionType_VOID)
-		case "refund":
-			result = append(result, common.CardTransactionType_REFUND)
-		default:
-			return nil, pingerrors.ErrInvalid
-		}
-	}
-	return result, nil
-}
-
-func parsePingPongTransactionStatuses(value *string) ([]common.CardTransactionStatus, error) {
-	if value == nil {
-		return nil, nil
-	}
-	parts := strings.Split(*value, ",")
-	result := make([]common.CardTransactionStatus, 0, len(parts))
-	for _, item := range parts {
-		switch strings.ToLower(strings.TrimSpace(item)) {
-		case "pending":
-			result = append(result, common.TransactionStatus_PENDING)
-		case "authorized":
-			result = append(result, common.TransactionStatus_AUTHORIZED)
-		case "succeed", "success", "completed":
-			result = append(result, common.TransactionStatus_SUCCEED)
-		case "failed", "declined":
-			result = append(result, common.TransactionStatus_FAILED)
-		case "void", "reversed":
-			result = append(result, common.TransactionStatus_VOID)
-		default:
-			return nil, pingerrors.ErrInvalid
-		}
-	}
-	return result, nil
-}
-
-func applyPingPongDirection(
-	transactionTypes []common.CardTransactionType,
-	value *string,
-) ([]common.CardTransactionType, error) {
-	if value == nil {
-		return transactionTypes, nil
-	}
-	if strings.TrimSpace(*value) == "" {
-		return nil, pingerrors.ErrInvalid
-	}
-	var allowed map[common.CardTransactionType]struct{}
-	switch strings.ToUpper(strings.TrimSpace(*value)) {
-	case "CREDIT":
-		allowed = map[common.CardTransactionType]struct{}{common.CardTransactionType_REFUND: {}}
-	case "DEBIT":
-		allowed = map[common.CardTransactionType]struct{}{
-			common.CardTransactionType_AUTH:  {},
-			common.CardTransactionType_CLEAR: {},
-			common.CardTransactionType_VOID:  {},
-		}
-	default:
-		return nil, pingerrors.ErrInvalid
-	}
-	if len(transactionTypes) == 0 {
-		result := make([]common.CardTransactionType, 0, len(allowed))
-		for item := range allowed {
-			result = append(result, item)
-		}
-		return result, nil
-	}
-	result := make([]common.CardTransactionType, 0, len(transactionTypes))
-	for _, item := range transactionTypes {
-		if _, ok := allowed[item]; ok {
-			result = append(result, item)
-		}
-	}
-	return result, nil
 }
 
 func toCardTransactionsData(items []biz.TransactionReportItem, total int64, page int, limit int) *CardTransactionsData {
