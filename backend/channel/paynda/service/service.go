@@ -776,21 +776,23 @@ type PayndaTransactionsRequest struct {
 }
 
 type PayndaTransactionData struct {
-	ID                string                 `json:"id"`
-	CreateTime        timeTypes.DateTime     `json:"createTime"`
-	UpdateTime        timeTypes.DateTime     `json:"updateTime"`
-	CardID            string                 `json:"cardId"`
-	MaskCardNo        string                 `json:"maskCardNo"`
-	Type              paynda.TransactionType `json:"type"`
-	ApprovalCode      string                 `json:"approvalCode"`
-	PreAuthAmount     string                 `json:"preAuthAmount"`
-	PostedAmount      string                 `json:"postedAmount"`
-	Currency          common.Currency        `json:"currency"`
-	TransactionTime   timeTypes.DateTime     `json:"transactionTime"`
-	AuthorizationTime *timeTypes.DateTime    `json:"authorizationTime,omitempty"`
-	MerchantMcc       string                 `json:"merchantMcc"`
-	MerchantName      string                 `json:"merchantName"`
-	DeclineMessage    string                 `json:"declineMessage"`
+	ID                                  string                 `json:"id"`
+	CreateTime                          timeTypes.DateTime     `json:"createTime"`
+	UpdateTime                          timeTypes.DateTime     `json:"updateTime"`
+	CardID                              string                 `json:"cardId"`
+	MaskCardNo                          string                 `json:"maskCardNo"`
+	Type                                paynda.TransactionType `json:"type"`
+	ApprovalCode                        string                 `json:"approvalCode"`
+	PreAuthAmount                       string                 `json:"preAuthAmount"`
+	PostedAmount                        string                 `json:"postedAmount"`
+	Currency                            common.Currency        `json:"currency"`
+	OriginalCurrencyCode                common.Currency        `json:"originalCurrencyCode"`
+	TransactionAmountInOriginalCurrency string                 `json:"transactionAmountInOriginalCurrency"`
+	TransactionTime                     timeTypes.DateTime     `json:"transactionTime"`
+	AuthorizationTime                   *timeTypes.DateTime    `json:"authorizationTime,omitempty"`
+	MerchantMcc                         string                 `json:"merchantMcc"`
+	MerchantName                        string                 `json:"merchantName"`
+	DeclineMessage                      string                 `json:"declineMessage"`
 }
 
 type PayndaTransactionsData struct {
@@ -1044,19 +1046,21 @@ func payndaTransactionData(item *biz.PayndaCardTransactionDetail) *PayndaTransac
 		authorizationTime = &value
 	}
 	return &PayndaTransactionData{
-		ID:                idconv.ToString(item.Transaction.ID),
-		CreateTime:        timeTypes.DateTime(item.Transaction.CreatedAt.UTC()),
-		UpdateTime:        timeTypes.DateTime(item.Transaction.UpdatedAt.UTC()),
-		CardID:            idconv.ToString(item.Transaction.CardID),
-		Type:              paynda.ConvertGenericTransactionTypeToTransactionType(item.Transaction.Type),
-		ApprovalCode:      item.Transaction.AuthorizationCode,
-		PreAuthAmount:     item.Transaction.TxAmount.String(),
-		PostedAmount:      item.Transaction.TxAmount.String(),
-		Currency:          item.Transaction.Currency,
-		TransactionTime:   transactionTime,
-		AuthorizationTime: authorizationTime,
-		MerchantMcc:       item.Transaction.MerchantMCC,
-		MerchantName:      item.Transaction.MerchantName,
+		ID:                                  idconv.ToString(item.Transaction.ID),
+		CreateTime:                          timeTypes.DateTime(item.Transaction.CreatedAt.UTC()),
+		UpdateTime:                          timeTypes.DateTime(item.Transaction.UpdatedAt.UTC()),
+		CardID:                              idconv.ToString(item.Transaction.CardID),
+		Type:                                paynda.ConvertGenericTransactionTypeToTransactionType(item.Transaction.Type),
+		ApprovalCode:                        item.Transaction.AuthorizationCode,
+		PreAuthAmount:                       item.Transaction.TxAmount.String(),
+		PostedAmount:                        item.Transaction.TxAmount.String(),
+		Currency:                            item.Transaction.Currency,
+		OriginalCurrencyCode:                item.Transaction.TxCurrency,
+		TransactionAmountInOriginalCurrency: item.Transaction.TxAmount.String(),
+		TransactionTime:                     transactionTime,
+		AuthorizationTime:                   authorizationTime,
+		MerchantMcc:                         item.Transaction.MerchantMCC,
+		MerchantName:                        item.Transaction.MerchantName,
 	}
 }
 
