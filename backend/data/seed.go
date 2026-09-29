@@ -19,6 +19,8 @@ const slashSeedCardProductPrefix = "100000"
 const photonSeedCardProductPrefix = "110000"
 const payndaSeedCardProductPrefix = "120000"
 const pingpongSeedCardProductPrefix = "130000,130001"
+const photonPayMarxoEventWebhookURL = "http://127.0.0.1:18080/api/v1/notify/ds-event"
+const photonPayMarxoAuthorizationWebhookURL = "http://127.0.0.1:18080/api/v1/notify/ds-authorization"
 
 func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 	accounts, err := seedChannelAccounts(ctx, db)
@@ -29,6 +31,9 @@ func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 		return err
 	}
 	if err := seedAuthorizationConfigs(ctx, db, accounts); err != nil {
+		return err
+	}
+	if err := seedDefaultVirtualAccounts(ctx, db, accounts); err != nil {
 		return err
 	}
 	items := []*model.CardProduct{
@@ -65,45 +70,72 @@ func SeedInitialData(ctx context.Context, db *gorm.DB) error {
 		return err
 	}
 
-	var wallet model.Wallet
-	result := db.WithContext(ctx).Where(&model.Wallet{
-		AccountID: accounts[enums.Channel_Slash].ID,
-		Channel:   enums.Channel_Slash,
-		Type:      enums.WalletType_VirtualAccount,
-		Currency:  enums.Currency_USD,
-	}).First(&wallet)
-	if result.Error == gorm.ErrRecordNotFound {
-		wallet = model.Wallet{
-			AccountID: accounts[enums.Channel_Slash].ID,
-			Channel:   enums.Channel_Slash,
-			Available: decimal.NewFromInt(1_000_000),
-			Type:      enums.WalletType_VirtualAccount,
-			Currency:  enums.Currency_USD,
-		}
-		if err := db.WithContext(ctx).Create(&wallet).Error; err != nil {
-			return err
-		}
-	} else if result.Error != nil {
-		return result.Error
+	return nil
+}
+
+type defaultVirtualAccountSeed struct {
+	channel enums.Channel
+	name    string
+}
+
+func seedDefaultVirtualAccounts(
+	ctx context.Context,
+	db *gorm.DB,
+	accounts map[enums.Channel]*model.Account,
+) error {
+	seeds := []defaultVirtualAccountSeed{
+		{
+			channel: enums.Channel_Slash,
+			name:    "Slash Primary",
+		},
+		{
+			channel: enums.Channel_PhotonPay,
+			name:    "PhotonPay Primary",
+		},
 	}
 
-	var account model.VirtualAccount
-	result = db.WithContext(ctx).Where(&model.VirtualAccount{
-		AccountID: accounts[enums.Channel_Slash].ID,
-		Channel:   enums.Channel_Slash,
-		Name:      "Slash Primary",
-	}).First(&account)
-	if result.Error == gorm.ErrRecordNotFound {
-		if err := db.WithContext(ctx).Create(&model.VirtualAccount{
-			AccountID: accounts[enums.Channel_Slash].ID,
-			Channel:   enums.Channel_Slash,
-			WalletID:  wallet.ID,
-			Name:      "Slash Primary",
-		}).Error; err != nil {
-			return err
+	for _, seed := range seeds {
+		account := accounts[seed.channel]
+		var wallet model.Wallet
+		result := db.WithContext(ctx).Where(&model.Wallet{
+			AccountID: account.ID,
+			Channel:   seed.channel,
+			Type:      enums.WalletType_VirtualAccount,
+			Currency:  enums.Currency_USD,
+		}).First(&wallet)
+		if result.Error == gorm.ErrRecordNotFound {
+			wallet = model.Wallet{
+				AccountID: account.ID,
+				Channel:   seed.channel,
+				Available: decimal.NewFromInt(1_000_000),
+				Type:      enums.WalletType_VirtualAccount,
+				Currency:  enums.Currency_USD,
+			}
+			if err := db.WithContext(ctx).Create(&wallet).Error; err != nil {
+				return err
+			}
+		} else if result.Error != nil {
+			return result.Error
 		}
-	} else if result.Error != nil {
-		return result.Error
+
+		var virtualAccount model.VirtualAccount
+		result = db.WithContext(ctx).Where(&model.VirtualAccount{
+			AccountID: account.ID,
+			Channel:   seed.channel,
+			Name:      seed.name,
+		}).First(&virtualAccount)
+		if result.Error == gorm.ErrRecordNotFound {
+			if err := db.WithContext(ctx).Create(&model.VirtualAccount{
+				AccountID: account.ID,
+				Channel:   seed.channel,
+				WalletID:  wallet.ID,
+				Name:      seed.name,
+			}).Error; err != nil {
+				return err
+			}
+		} else if result.Error != nil {
+			return result.Error
+		}
 	}
 
 	return nil
@@ -136,7 +168,7 @@ func seedWebhookConfigs(
 			AccountID: accounts[enums.Channel_PhotonPay].ID,
 			Channel:   enums.Channel_PhotonPay,
 			Event:     string(event),
-			TargetURL: "http://127.0.0.1:18080/photonpay/webhooks/" + string(event),
+			TargetURL: photonPayMarxoEventWebhookURL,
 			Enabled:   true,
 		}
 		if err := db.WithContext(ctx).Where(&model.WebhookConfig{
@@ -184,7 +216,7 @@ func seedAuthorizationConfigs(
 		{
 			AccountID:     accounts[enums.Channel_PhotonPay].ID,
 			Channel:       enums.Channel_PhotonPay,
-			TargetURL:     "http://127.0.0.1:18080/photonpay/authorizations",
+			TargetURL:     photonPayMarxoAuthorizationWebhookURL,
 			Enabled:       true,
 			TimeoutMillis: 500,
 		},
