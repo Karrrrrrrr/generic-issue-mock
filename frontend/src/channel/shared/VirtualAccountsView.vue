@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useClientPagination } from "@/channel/pagination";
+import { useRemotePagination } from "@/channel/pagination";
 import { renderAmountTag } from "@/channel/tableTags";
 import type { ManagementAPI } from "./api";
-import { computed, h, onMounted, ref } from "vue";
+import { h, onMounted, ref } from "vue";
 import {
   createDiscreteApi,
   NButton,
@@ -33,18 +33,9 @@ const {
 const { message } = createDiscreteApi(["message"]);
 const rows = ref<ManagedVirtualAccount[]>([]);
 const accountFilter = ref("");
-const filteredRows = computed(() => {
-  const value = accountFilter.value.trim();
-  if (value === "") {
-    return rows.value;
-  }
-  const accountId = Number(value);
-  if (!Number.isSafeInteger(accountId) || accountId <= 0) {
-    return [];
-  }
-  return rows.value.filter((row) => row.account_id === accountId);
-});
-const pagination = useClientPagination(filteredRows);
+const appliedAccountId = ref<number>();
+const { page, pageSize, total, pagination } = useRemotePagination(load);
+const loading = ref(false);
 const requestId = ref<string>();
 const fundingAccount = ref<ManagedVirtualAccount>();
 const fundingAmount = ref<number | null>(null);
@@ -150,10 +141,19 @@ const columns = [
 ];
 
 async function load() {
+  loading.value = true;
   try {
-    rows.value = await api.list();
+    const response = await api.list({
+      page_number: page.value,
+      page_size: pageSize.value,
+      account_id: appliedAccountId.value,
+    });
+    rows.value = response.data;
+    total.value = response.total_items;
   } catch (error) {
     message.error(error instanceof Error ? error.message : "加载失败");
+  } finally {
+    loading.value = false;
   }
 }
 
@@ -197,6 +197,29 @@ function updateAccountFilter(value: string) {
   accountFilter.value = value.replace(/\D/g, "");
 }
 
+function search() {
+  const value = accountFilter.value.trim();
+  if (value === "") {
+    appliedAccountId.value = undefined;
+  } else {
+    const accountId = Number(value);
+    if (!Number.isSafeInteger(accountId) || accountId <= 0) {
+      message.warning("账户 ID 必须是正整数");
+      return;
+    }
+    appliedAccountId.value = accountId;
+  }
+  page.value = 1;
+  void load();
+}
+
+function reset() {
+  accountFilter.value = "";
+  appliedAccountId.value = undefined;
+  page.value = 1;
+  void load();
+}
+
 onMounted(load);
 </script>
 
@@ -208,7 +231,7 @@ onMounted(load);
     </n-space>
   </div>
   <slot name="description" />
-  <form class="table-filters" @submit.prevent>
+  <form class="table-filters" @submit.prevent="search">
     <div class="compact-filter-grid">
       <n-input
         class="compact-filter-id"
@@ -218,6 +241,10 @@ onMounted(load);
         @update:value="updateAccountFilter"
       />
     </div>
+    <div class="filter-actions">
+      <n-button attr-type="submit" type="primary" :loading="loading">查询</n-button>
+      <n-button :disabled="loading" @click="reset">重置</n-button>
+    </div>
   </form>
   <n-data-table
     max-height="max(160px, calc(100dvh - 400px))"
@@ -225,7 +252,8 @@ onMounted(load);
     :scroll-x="1400"
     table-layout="fixed"
     :columns="columns"
-    :data="filteredRows"
+    :data="rows"
+    :loading="loading"
   />
   <n-modal
     v-model:show="visible"

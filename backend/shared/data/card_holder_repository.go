@@ -38,13 +38,15 @@ func (repo *cardHolderRepository) Exist(ctx context.Context, req *biz.CardHolder
 func (repo *cardHolderRepository) List(ctx context.Context, req *biz.CardHolderListRequest) ([]*model.CardHolder, error) {
 	db := repo.DB(ctx)
 	table := db.CardHolder
-	return table.WithContext(ctx).
+	query := table.WithContext(ctx).
 		Preload(table.Account).
 		Where(repo.buildPredicates(ctx, &req.CardHolderFilters)...).
 		Order(table.ID.Desc()).
-		Offset(req.Offset).
-		Limit(req.Limit).
-		Find()
+		Offset(req.Offset)
+	if req.Limit != nil {
+		query = query.Limit(*req.Limit)
+	}
+	return query.Find()
 }
 
 func (repo *cardHolderRepository) Count(ctx context.Context, req *biz.CardHolderCountRequest) (int64, error) {

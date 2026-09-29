@@ -211,7 +211,8 @@ func (uc *PingPongWebhookUsecase) Queue(ctx context.Context, req *QueueWebhookRe
 			zap.S().Errorw("lock pingpong webhook owner", "error", err)
 			return pingerrors.ErrDatabase
 		}
-		for offset := 0; ; offset += 100 {
+		limit := 100
+		for offset := 0; ; offset += limit {
 			configs, err := uc.webhookConfigRepo.List(ctx, &sharedbiz.WebhookConfigListRequest{
 				WebhookConfigFilters: sharedbiz.WebhookConfigFilters{
 					AccountIDs: []model.ID{
@@ -223,7 +224,7 @@ func (uc *PingPongWebhookUsecase) Queue(ctx context.Context, req *QueueWebhookRe
 					},
 				},
 				Offset: offset,
-				Limit:  100,
+				Limit:  &limit,
 			})
 			if err != nil {
 				zap.S().Errorw("list pingpong webhook subscriptions", "error", err)

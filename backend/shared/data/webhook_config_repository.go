@@ -23,13 +23,15 @@ func NewWebhookConfigRepository(injector do.Injector) (biz.WebhookConfigRepo, er
 func (repo *webhookConfigRepository) List(ctx context.Context, req *biz.WebhookConfigListRequest) ([]*model.WebhookConfig, error) {
 	db := repo.DB(ctx)
 	table := db.WebhookConfig
-	return table.WithContext(ctx).
+	query := table.WithContext(ctx).
 		Preload(table.Account).
 		Where(repo.buildPredicates(ctx, &req.WebhookConfigFilters)...).
 		Order(table.ID.Desc()).
-		Offset(req.Offset).
-		Limit(req.Limit).
-		Find()
+		Offset(req.Offset)
+	if req.Limit != nil {
+		query = query.Limit(*req.Limit)
+	}
+	return query.Find()
 }
 
 func (repo *webhookConfigRepository) Count(ctx context.Context, req *biz.WebhookConfigCountRequest) (int64, error) {

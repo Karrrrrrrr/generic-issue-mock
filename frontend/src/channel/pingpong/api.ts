@@ -106,17 +106,8 @@ export const api = {
   },
 };
 export async function accountOptions() {
-  const accounts: Account[] = [];
-  for (let page = 1;; page++) {
-    const result = await api.get<Page<Account>>("accounts", {
-      page_number: page,
-      page_size: 100,
-    });
-    accounts.push(...result.items);
-    if (accounts.length >= result.total || result.items.length === 0) {
-      break;
-    }
-  }
+  const result = await api.get<Page<Account>>("accounts");
+  const accounts = result.items;
   return accounts.map(account => ({
     label: `${account.name} · ${account.id}`,
     value: account.id,

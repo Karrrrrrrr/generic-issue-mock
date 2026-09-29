@@ -46,7 +46,7 @@ type AuthorizationFilters struct {
 type AuthorizationListRequest struct {
 	AuthorizationFilters
 	Offset int
-	Limit  int
+	Limit  *int
 }
 
 type AuthorizationCountRequest struct {

@@ -31,7 +31,7 @@ type CardProductFilters struct {
 type CardProductListRequest struct {
 	CardProductFilters
 	Offset int
-	Limit  int
+	Limit  *int
 }
 
 type CardProductCountRequest struct {

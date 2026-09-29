@@ -9,10 +9,13 @@ import (
 
 type PageRequest struct {
 	PageNumber *int `form:"page_number" binding:"omitempty,min=1,max=1000000"`
-	PageSize   *int `form:"page_size" binding:"omitempty,min=1,max=200"`
+	PageSize   *int `form:"page_size" binding:"omitempty,min=1"`
 }
 
 func (req PageRequest) toBizPage() (biz.UIPageRequest, error) {
+	if req.PageNumber == nil && req.PageSize == nil {
+		return biz.UIPageRequest{}, nil
+	}
 	page := 1
 	size := 20
 	if req.PageNumber != nil {
@@ -21,12 +24,12 @@ func (req PageRequest) toBizPage() (biz.UIPageRequest, error) {
 	if req.PageSize != nil {
 		size = *req.PageSize
 	}
-	if page < 1 || page > 1000000 || size < 1 || size > 200 {
+	if page < 1 || page > 1000000 || size < 1 {
 		return biz.UIPageRequest{}, sharederrors.ErrInvalidUIRequest
 	}
 	return biz.UIPageRequest{
 		Offset: (page - 1) * size,
-		Limit:  size,
+		Limit:  &size,
 	}, nil
 }
 

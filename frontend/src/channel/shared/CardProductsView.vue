@@ -1,22 +1,28 @@
 <script setup lang="ts">
-import { useClientPagination } from "@/channel/pagination";
+import { useRemotePagination } from "@/channel/pagination";
 import { onMounted, ref } from "vue";
 import { NDataTable, useMessage } from "naive-ui";
 import type { CardProduct } from "./api";
+import type { ListResponse, PageRequest } from "@/channel/types";
 const { loadProducts, prefixLabel = "BIN" } = defineProps<{
-  loadProducts: () => Promise<CardProduct[]>;
+  loadProducts: (page: PageRequest) => Promise<ListResponse<CardProduct>>;
   prefixLabel?: string;
 }>();
 
 const rows = ref<CardProduct[]>([]);
-const pagination = useClientPagination(rows);
+const { page, pageSize, total, pagination } = useRemotePagination(load);
 const loading = ref(false);
 const message = useMessage();
 
 async function load() {
   loading.value = true;
   try {
-    rows.value = await loadProducts();
+    const response = await loadProducts({
+      page_number: page.value,
+      page_size: pageSize.value,
+    });
+    rows.value = response.data;
+    total.value = response.total_items;
   } catch (error) {
     message.error(error instanceof Error ? error.message : "加载卡产品失败");
   } finally {

@@ -26,7 +26,7 @@ type AccountFilters struct {
 type AccountListRequest struct {
 	AccountFilters
 	Offset int
-	Limit  int
+	Limit  *int
 }
 
 type AccountCountRequest struct {

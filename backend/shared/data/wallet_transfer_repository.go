@@ -23,13 +23,15 @@ func NewWalletTransferRepository(injector do.Injector) (biz.WalletTransferRepo, 
 func (repo *walletTransferRepository) List(ctx context.Context, req *biz.WalletTransferListRequest) ([]*model.WalletTransfer, error) {
 	db := repo.DB(ctx)
 	table := db.WalletTransfer
-	return table.WithContext(ctx).
+	query := table.WithContext(ctx).
 		Preload(table.Account).
 		Where(repo.buildPredicates(ctx, &req.WalletTransferFilters)...).
 		Order(table.ID.Desc()).
-		Offset(req.Offset).
-		Limit(req.Limit).
-		Find()
+		Offset(req.Offset)
+	if req.Limit != nil {
+		query = query.Limit(*req.Limit)
+	}
+	return query.Find()
 }
 
 func (repo *walletTransferRepository) Count(ctx context.Context, req *biz.WalletTransferCountRequest) (int64, error) {

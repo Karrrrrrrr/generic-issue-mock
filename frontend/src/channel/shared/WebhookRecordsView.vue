@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import TableFilters, { type FilterField } from "@/channel/TableFilters.vue";
 import { useTableFilters } from "@/channel/tableFilters";
+import { pageSizes } from "@/channel/pagination";
 
 import { formatDateTime } from "@/channel/dateTime";
 import { formatEnumLabel, renderEnumTag } from "@/channel/tableTags";
@@ -207,7 +208,7 @@ onMounted(() => void load());
       v-model:page="page"
       :page-size="pageSize"
       :item-count="total"
-      :page-sizes="[10, 20, 50]"
+      :page-sizes="pageSizes"
       show-size-picker
       @update:page="load"
       @update:page-size="changePageSize"

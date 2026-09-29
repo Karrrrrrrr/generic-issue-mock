@@ -56,7 +56,7 @@ func (uc *ui) ListCards(ctx context.Context, req *ListUICardsRequest) ([]*model.
 	items, err := uc.cardRepo.List(ctx, &CardListRequest{
 		CardFilters: filters,
 		Offset:      req.Offset,
-		Limit:       &req.Limit,
+		Limit:       req.Limit,
 	})
 	if err != nil {
 		zap.S().Errorw("list shared UI card", "channel", uc.channel, "error", err)

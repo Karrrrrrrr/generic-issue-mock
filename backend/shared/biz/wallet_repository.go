@@ -47,7 +47,7 @@ type WalletFilters struct {
 type WalletListRequest struct {
 	WalletFilters
 	Offset int
-	Limit  int
+	Limit  *int
 }
 
 type WalletCountRequest struct {

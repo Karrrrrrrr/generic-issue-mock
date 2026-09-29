@@ -28,7 +28,7 @@ type VirtualAccountFilters struct {
 type VirtualAccountListRequest struct {
 	VirtualAccountFilters
 	Offset int
-	Limit  int
+	Limit  *int
 }
 
 type VirtualAccountCountRequest struct {

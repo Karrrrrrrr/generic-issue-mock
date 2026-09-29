@@ -17,7 +17,7 @@ type WebhookConfigFilters struct {
 type WebhookConfigListRequest struct {
 	WebhookConfigFilters
 	Offset int
-	Limit  int
+	Limit  *int
 }
 
 type WebhookConfigCountRequest struct {

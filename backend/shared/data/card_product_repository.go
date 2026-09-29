@@ -55,12 +55,14 @@ func (repo *cardProductRepository) UpdateSeq(ctx context.Context, req *biz.CardP
 func (repo *cardProductRepository) List(ctx context.Context, req *biz.CardProductListRequest) ([]*model.CardProduct, error) {
 	db := repo.DB(ctx)
 	table := db.CardProduct
-	return table.WithContext(ctx).
+	query := table.WithContext(ctx).
 		Where(repo.buildPredicates(ctx, &req.CardProductFilters)...).
 		Order(table.ID.Desc()).
-		Offset(req.Offset).
-		Limit(req.Limit).
-		Find()
+		Offset(req.Offset)
+	if req.Limit != nil {
+		query = query.Limit(*req.Limit)
+	}
+	return query.Find()
 }
 
 func (repo *cardProductRepository) Count(ctx context.Context, req *biz.CardProductCountRequest) (int64, error) {

@@ -1,4 +1,4 @@
-import type { Card, Cardholder, ChannelAPI, ListResponse, Transaction } from "@/channel/types";
+import type { Card, Cardholder, ChannelAPI, ListResponse, PageRequest, Transaction } from "@/channel/types";
 import { authorizationPayload, request } from "@/channel/shared";
 import type { RefundSimulationRequest } from "@/channel/shared/simulation";
 import type { WebhookDeliveryStatus } from "@/channel/enums";
@@ -88,12 +88,20 @@ export interface WebhookRecordListRequest {
   created_to?: string;
 }
 
+export interface WalletListRequest extends PageRequest {
+  account_id?: number;
+}
+
+export interface WebhookListRequest extends PageRequest {
+  account_id?: number;
+  event?: string;
+}
+
 interface Page<Item> {
   items: Item[];
   total: number;
 }
 
-type Query = Record<string, string | number | undefined>;
 type AccountData = Omit<Account, "balance"> & { available: string };
 type VirtualAccountData = Omit<ManagedVirtualAccount, "balance"> & { available: string };
 type CardData = Omit<Card, "card_currency" | "card_status" | "balance" | "reserved" | "funding_source" | "virtual_account_id"> & {
@@ -160,20 +168,10 @@ function toWebhookRecord(item: WebhookRecordData): WebhookRecord {
 }
 
 export function createManagementAPI(baseURL: string) {
-  async function listAll<Item>(resource: string, filters: Query = {}): Promise<Item[]> {
-    const items: Item[] = [];
-    for (let page = 1; ; page++) {
-      const result = (await request.get<Page<Item>>(`${baseURL}/${resource}`, {
-        params: { ...filters, page_number: page, page_size: 100 },
-      })).data;
-      items.push(...result.items);
-      if (items.length >= result.total || result.items.length === 0) return items;
-    }
-  }
-
   const accountApi = {
     async listAll(): Promise<Account[]> {
-      return (await listAll<AccountData>("accounts")).map(toAccount);
+      const result = (await request.get<Page<AccountData>>(`${baseURL}/accounts`)).data;
+      return result.items.map(toAccount);
     },
     async list(pageNumber = 1, pageSize = 20, filters: AccountListRequest = {}): Promise<ListResponse<Account>> {
       const result = (await request.get<Page<AccountData>>(`${baseURL}/accounts`, {
@@ -193,8 +191,9 @@ export function createManagementAPI(baseURL: string) {
     async events() {
       return (await request.get<{ items: WebhookEvent[] }>(`${baseURL}/webhooks/events`)).data.items;
     },
-    async list(accountId?: number) {
-      return listAll<Webhook>("webhooks", { account_id: accountId });
+    async list(query: WebhookListRequest): Promise<ListResponse<Webhook>> {
+      const result = (await request.get<Page<Webhook>>(`${baseURL}/webhooks`, { params: query })).data;
+      return { data: result.items, total_items: result.total };
     },
     async create(payload: Omit<Webhook, "id" | "created_at" | "updated_at" | "account_name">) {
       return (await request.post<Webhook>(`${baseURL}/webhooks`, payload)).data;
@@ -210,13 +209,18 @@ export function createManagementAPI(baseURL: string) {
   };
 
   const managementApi = {
-    async cardProducts() {
-      return listAll<CardProduct>("card-products");
+    async cardProducts(page: PageRequest): Promise<ListResponse<CardProduct>> {
+      const result = (await request.get<Page<CardProduct>>(`${baseURL}/card-products`, { params: page })).data;
+      return { data: result.items, total_items: result.total };
     },
-    async virtualAccounts(): Promise<VirtualAccount[]> {
-      return (await listAll<VirtualAccountData & { created_at: string }>("virtual-accounts")).map(item => ({
-        ...item, balance: item.available,
-      }));
+    async virtualAccounts(page: PageRequest): Promise<ListResponse<VirtualAccount>> {
+      const result = (await request.get<Page<VirtualAccountData & { created_at: string }>>(`${baseURL}/virtual-accounts`, {
+        params: page,
+      })).data;
+      return {
+        data: result.items.map(item => ({ ...item, balance: item.available })),
+        total_items: result.total,
+      };
     },
   };
 
@@ -270,10 +274,12 @@ export function createManagementAPI(baseURL: string) {
   };
 
   const fundsApi = {
-    async list(accountId?: number): Promise<Wallet[]> {
-      return (await listAll<WalletData>("wallets", { account_id: accountId })).map(item => ({
-        ...item, kind: item.type, amount: item.available,
-      }));
+    async list(query: WalletListRequest): Promise<ListResponse<Wallet>> {
+      const result = (await request.get<Page<WalletData>>(`${baseURL}/wallets`, { params: query })).data;
+      return {
+        data: result.items.map(item => ({ ...item, kind: item.type, amount: item.available })),
+        total_items: result.total,
+      };
     },
     async adjustAccount(account: Account, amount: number) {
       await request.post(`${baseURL}/accounts/adjust`, {
@@ -295,8 +301,9 @@ export function createManagementAPI(baseURL: string) {
   };
 
   const authorizationApi: AuthorizationAPI = {
-    async list(filters) {
-      return listAll<Authorization>("authorizations", filters);
+    async list(query) {
+      const result = (await request.get<Page<Authorization>>(`${baseURL}/authorizations`, { params: query })).data;
+      return { data: result.items, total_items: result.total };
     },
     async detail(authorization) {
       const item = (await request.get<AuthorizationDetailData>(`${baseURL}/authorizations/detail`, {
@@ -317,8 +324,12 @@ export function createManagementAPI(baseURL: string) {
   };
 
   const virtualAccountApi: VirtualAccountAPI = {
-    async list() {
-      return (await listAll<VirtualAccountData>("virtual-accounts")).map(item => ({ ...item, balance: item.available }));
+    async list(query) {
+      const result = (await request.get<Page<VirtualAccountData>>(`${baseURL}/virtual-accounts`, { params: query })).data;
+      return {
+        data: result.items.map(item => ({ ...item, balance: item.available })),
+        total_items: result.total,
+      };
     },
     async create(input) {
       await request.post(`${baseURL}/virtual-accounts`, input);

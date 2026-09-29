@@ -15,7 +15,7 @@ import {
 } from "naive-ui";
 import TableFilters, { type FilterField } from "@/channel/TableFilters.vue";
 import { useTableFilters } from "@/channel/tableFilters";
-import { useClientPagination } from "@/channel/pagination";
+import { useClientPagination, useRemotePagination } from "@/channel/pagination";
 import { formatDateTime } from "@/channel/dateTime";
 import { formatEnumLabel, renderAmountTag, renderEnumTag } from "@/channel/tableTags";
 import type { ManagementAPI } from "./api";
@@ -41,7 +41,7 @@ const requestIds = reactive<Partial<Record<SimulationStage, string>>>({});
 const message = useMessage();
 const loading = ref(false);
 const rows = ref<Authorization[]>([]);
-const pagination = useClientPagination(rows);
+const { page, pageSize, total, pagination } = useRemotePagination(load);
 const selected = ref<Authorization>();
 const detail = ref<Authorization>();
 const detailLoading = ref(false);
@@ -224,7 +224,7 @@ const {
 } = useTableFilters({
   loadAccounts: () => accountApi.listAll(),
   onSearch: () => {
-    pagination.value.onUpdatePage(1);
+    page.value = 1;
     void load();
   },
 });
@@ -233,9 +233,14 @@ async function load() {
   const currentRequest = ++listRequest;
   loading.value = true;
   try {
-    const response = await api.list(appliedFilters.value);
+    const response = await api.list({
+      ...appliedFilters.value,
+      page_number: page.value,
+      page_size: pageSize.value,
+    });
     if (currentRequest === listRequest) {
-      rows.value = response;
+      rows.value = response.data;
+      total.value = response.total_items;
     }
   } catch (error) {
     if (currentRequest === listRequest) {

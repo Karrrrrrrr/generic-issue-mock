@@ -11,11 +11,11 @@ import (
 
 type UIPageRequest struct {
 	Offset int
-	Limit  int
+	Limit  *int
 }
 
 func (req UIPageRequest) Validate() error {
-	if req.Offset < 0 || req.Limit <= 0 || req.Limit > 200 {
+	if req.Offset < 0 || (req.Limit != nil && *req.Limit <= 0) {
 		return sharederrors.ErrInvalidUIRequest
 	}
 	return nil

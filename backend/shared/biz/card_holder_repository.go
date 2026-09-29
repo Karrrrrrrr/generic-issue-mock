@@ -22,7 +22,7 @@ type CardHolderFilters struct {
 type CardHolderListRequest struct {
 	CardHolderFilters
 	Offset int
-	Limit  int
+	Limit  *int
 }
 
 type CardHolderCountRequest struct {

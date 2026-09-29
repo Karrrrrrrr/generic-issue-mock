@@ -46,14 +46,16 @@ func (repo *virtualAccountRepository) Find(ctx context.Context, req *biz.Virtual
 func (repo *virtualAccountRepository) List(ctx context.Context, req *biz.VirtualAccountListRequest) ([]*model.VirtualAccount, error) {
 	db := repo.DB(ctx)
 	table := db.VirtualAccount
-	return table.WithContext(ctx).
+	query := table.WithContext(ctx).
 		Preload(table.Account).
 		Preload(table.Wallet).
 		Where(repo.buildPredicates(ctx, &req.VirtualAccountFilters)...).
 		Order(table.ID.Desc()).
-		Offset(req.Offset).
-		Limit(req.Limit).
-		Find()
+		Offset(req.Offset)
+	if req.Limit != nil {
+		query = query.Limit(*req.Limit)
+	}
+	return query.Find()
 }
 
 func (repo *virtualAccountRepository) Count(ctx context.Context, req *biz.VirtualAccountCountRequest) (int64, error) {

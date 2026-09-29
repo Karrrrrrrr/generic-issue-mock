@@ -198,17 +198,8 @@ function openSimulation(card: Card) {
 }
 
 async function loadSimulationCards(): Promise<Card[]> {
-  const cards: Card[] = [];
-  for (let pageNumber = 1; ; pageNumber++) {
-    const result = await api.listCards({
-      page_number: pageNumber,
-      page_size: 100,
-    });
-    cards.push(...result.data);
-    if (cards.length >= result.total_items || result.data.length === 0) {
-      return cards;
-    }
-  }
+  const result = await api.listCards();
+  return result.data;
 }
 
 async function submitSimulationAuthorization(request: AuthorizationSimulationRequest) {

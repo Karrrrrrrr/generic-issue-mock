@@ -21,7 +21,7 @@ type WalletTransferFilters struct {
 type WalletTransferListRequest struct {
 	WalletTransferFilters
 	Offset int
-	Limit  int
+	Limit  *int
 }
 
 type WalletTransferCountRequest struct {

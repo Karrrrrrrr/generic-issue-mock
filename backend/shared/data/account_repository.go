@@ -44,13 +44,15 @@ func (repo *accountRepository) FindByIDWithLock(ctx context.Context, req *biz.Ac
 func (repo *accountRepository) List(ctx context.Context, req *biz.AccountListRequest) ([]*model.Account, error) {
 	db := repo.DB(ctx)
 	table := db.Account
-	return table.WithContext(ctx).
+	query := table.WithContext(ctx).
 		Preload(table.Wallet).
 		Where(repo.buildPredicates(ctx, &req.AccountFilters)...).
 		Order(table.ID.Desc()).
-		Offset(req.Offset).
-		Limit(req.Limit).
-		Find()
+		Offset(req.Offset)
+	if req.Limit != nil {
+		query = query.Limit(*req.Limit)
+	}
+	return query.Find()
 }
 
 func (repo *accountRepository) Count(ctx context.Context, req *biz.AccountCountRequest) (int64, error) {

@@ -1,6 +1,6 @@
 import type { TransactionStatus, TransactionType } from "@/channel/enums";
 import type { SimulationStage } from "./simulation";
-import type { Card } from "@/channel/types";
+import type { Card, ListResponse, PageRequest } from "@/channel/types";
 
 export interface CardFundingRequest {
   card: Card;
@@ -41,8 +41,10 @@ export interface Authorization {
   transactions?: AuthorizationTransaction[];
 }
 
+export type AuthorizationListRequest = PageRequest & Record<string, string | number | undefined>;
+
 export interface AuthorizationAPI {
-  list: (filters: Record<string, string | undefined>) => Promise<Authorization[]>;
+  list: (query: AuthorizationListRequest) => Promise<ListResponse<Authorization>>;
   detail?: (authorization: Authorization) => Promise<Authorization>;
   stage: (request: {
     authorization: Authorization;
@@ -62,6 +64,10 @@ export interface ManagedVirtualAccount {
   currency: string;
 }
 
+export interface VirtualAccountListRequest extends PageRequest {
+  account_id?: number;
+}
+
 export interface VirtualAccountFundingRequest {
   account: ManagedVirtualAccount;
   amount: number;
@@ -69,7 +75,7 @@ export interface VirtualAccountFundingRequest {
 }
 
 export interface VirtualAccountAPI {
-  list: () => Promise<ManagedVirtualAccount[]>;
+  list: (query: VirtualAccountListRequest) => Promise<ListResponse<ManagedVirtualAccount>>;
   create: (request: { account_id: number; name: string; currency: string }) => Promise<unknown>;
   topUp: (request: VirtualAccountFundingRequest) => Promise<unknown>;
   withdraw?: (request: VirtualAccountFundingRequest) => Promise<unknown>;

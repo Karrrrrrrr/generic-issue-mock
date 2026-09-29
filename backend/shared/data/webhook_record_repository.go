@@ -23,13 +23,15 @@ func NewWebhookRecordRepository(injector do.Injector) (biz.WebhookRecordRepo, er
 func (repo *webhookRecordRepository) List(ctx context.Context, req *biz.WebhookRecordListRequest) ([]*model.WebhookRecord, error) {
 	db := repo.DB(ctx)
 	table := db.WebhookRecord
-	return table.WithContext(ctx).
+	query := table.WithContext(ctx).
 		Preload(table.Account).
 		Where(repo.buildPredicates(ctx, &req.WebhookRecordFilters)...).
 		Order(table.ID.Desc()).
-		Offset(req.Offset).
-		Limit(req.Limit).
-		Find()
+		Offset(req.Offset)
+	if req.Limit != nil {
+		query = query.Limit(*req.Limit)
+	}
+	return query.Find()
 }
 
 func (repo *webhookRecordRepository) Count(ctx context.Context, req *biz.WebhookRecordCountRequest) (int64, error) {

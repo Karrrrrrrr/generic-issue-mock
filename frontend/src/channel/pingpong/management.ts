@@ -27,12 +27,8 @@ export async function simulateRefund(input: RefundSimulationRequest & { requestI
 }
 
 export async function loadSimulationCards(): Promise<Card[]> {
-  const cards: Card[] = [];
-  for (let page = 1; ; page++) {
-    const result = await cardApi.listCards({ page_number: page, page_size: 100 });
-    cards.push(...result.data);
-    if (cards.length >= result.total_items || result.data.length === 0) return cards;
-  }
+	const result = await cardApi.listCards();
+	return result.data;
 }
 
 export const authorizationApi: AuthorizationAPI = management.authorizationApi;

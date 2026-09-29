@@ -80,13 +80,15 @@ func (repo *walletRepository) UpdateBalance(ctx context.Context, req *biz.Wallet
 func (repo *walletRepository) List(ctx context.Context, req *biz.WalletListRequest) ([]*model.Wallet, error) {
 	db := repo.DB(ctx)
 	table := db.Wallet
-	return table.WithContext(ctx).
+	query := table.WithContext(ctx).
 		Preload(table.Account).
 		Where(repo.buildPredicates(ctx, &req.WalletFilters)...).
 		Order(table.ID.Desc()).
-		Offset(req.Offset).
-		Limit(req.Limit).
-		Find()
+		Offset(req.Offset)
+	if req.Limit != nil {
+		query = query.Limit(*req.Limit)
+	}
+	return query.Find()
 }
 
 func (repo *walletRepository) Count(ctx context.Context, req *biz.WalletCountRequest) (int64, error) {

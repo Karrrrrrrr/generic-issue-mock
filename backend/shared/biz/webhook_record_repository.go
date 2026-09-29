@@ -21,7 +21,7 @@ type WebhookRecordFilters struct {
 type WebhookRecordListRequest struct {
 	WebhookRecordFilters
 	Offset int
-	Limit  int
+	Limit  *int
 }
 
 type WebhookRecordCountRequest struct {

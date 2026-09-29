@@ -5,6 +5,7 @@ import {
   shallowRef,
 } from "vue";
 import { useMessage } from "naive-ui";
+import { pageSizes } from "@/channel/pagination";
 import { api, type Page } from "./api";
 export function useList<Item>(resource: string) {
   const message = useMessage();
@@ -18,7 +19,7 @@ export function useList<Item>(resource: string) {
     pageSize: 20,
     itemCount: 0,
     showSizePicker: true,
-    pageSizes: [10, 20, 50, 100],
+    pageSizes,
     onUpdatePage(page: number) {
       pagination.page = page;
       void load();

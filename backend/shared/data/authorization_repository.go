@@ -72,16 +72,18 @@ func (repo *authorizationRepository) FindForSimulation(ctx context.Context, req 
 func (repo *authorizationRepository) List(ctx context.Context, req *biz.AuthorizationListRequest) ([]*model.Authorization, error) {
 	db := repo.DB(ctx)
 	table := db.Authorization
-	return table.WithContext(ctx).
+	query := table.WithContext(ctx).
 		Preload(table.Account).
 		Preload(table.CardTransactions.
 			Where(db.CardTransaction.Channel.Eq(string(req.Channel))).
 			Order(db.CardTransaction.ID.Desc())).
 		Where(repo.buildPredicates(ctx, &req.AuthorizationFilters)...).
 		Order(table.ID.Desc()).
-		Offset(req.Offset).
-		Limit(req.Limit).
-		Find()
+		Offset(req.Offset)
+	if req.Limit != nil {
+		query = query.Limit(*req.Limit)
+	}
+	return query.Find()
 }
 
 func (repo *authorizationRepository) Count(ctx context.Context, req *biz.AuthorizationCountRequest) (int64, error) {

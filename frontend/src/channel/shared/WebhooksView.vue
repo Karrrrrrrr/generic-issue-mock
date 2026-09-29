@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useClientPagination } from "@/channel/pagination";
+import { useRemotePagination } from "@/channel/pagination";
 import { formatDateTime } from "@/channel/dateTime";
 import { renderEnumTag } from "@/channel/tableTags";
 import { h, onMounted, ref } from "vue";
@@ -25,7 +25,7 @@ const { accountApi, webhookApi } = defineProps<{
 const { dialog, message } = createDiscreteApi(["dialog", "message"]);
 const loading = ref(false);
 const rows = ref<Webhook[]>([]);
-const pagination = useClientPagination(rows);
+const { page, pageSize, total, pagination } = useRemotePagination(load);
 const accounts = ref<Account[]>([]);
 const filterAccountId = ref<number | null>(null);
 const creating = ref(false);
@@ -49,11 +49,16 @@ async function loadAccountOptions() {
 async function load() {
   loading.value = true;
   try {
-    const [items, events] = await Promise.all([
-      webhookApi.list(filterAccountId.value || undefined),
+    const [response, events] = await Promise.all([
+      webhookApi.list({
+        page_number: page.value,
+        page_size: pageSize.value,
+        account_id: filterAccountId.value || undefined,
+      }),
       webhookApi.events(),
     ]);
-    rows.value = items;
+    rows.value = response.data;
+    total.value = response.total_items;
     eventOptions.value = events;
   } catch (error) {
     message.error(error instanceof Error ? error.message : "无法加载 Webhook 配置");
@@ -76,6 +81,7 @@ async function openCreate() {
 
 function changeAccountFilter(value: number | null) {
   filterAccountId.value = value;
+  page.value = 1;
   void load();
 }
 

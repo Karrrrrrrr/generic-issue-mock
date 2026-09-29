@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatDateTime } from "@/channel/dateTime";
+import { pageSizes } from "@/channel/pagination";
 import { renderAmountTag } from "@/channel/tableTags";
 import { h, onMounted, ref } from "vue";
 import {
@@ -243,7 +244,7 @@ onMounted(() => void load());
       v-model:page="page"
       :page-size="pageSize"
       :item-count="total"
-      :page-sizes="[10, 20, 50]"
+      :page-sizes="pageSizes"
       show-size-picker
       @update:page="load"
       @update:page-size="changePageSize"
