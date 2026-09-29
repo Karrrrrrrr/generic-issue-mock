@@ -10,31 +10,33 @@ import {
   createDiscreteApi,
   NButton,
   NDataTable,
-  NModal,
   NSpace,
-  NTag,
 } from "naive-ui";
 
-import TransactionStageForm from "./TransactionStageForm.vue";
 import type { Transaction } from "@/channel/types";
-import { useSimulation } from "@/channel/shared/useSimulation";
 import { transactionStatusOptions, transactionTypeOptions } from "@/channel/enums";
-import { simulationStages, type SimulationStage } from "@/channel/shared/simulation";
+import AuthorizationDetailModal from "@/channel/shared/AuthorizationDetailModal.vue";
+import type { Authorization, AuthorizationAPI } from "@/channel/shared/contracts";
 
 import type { ChannelAPI } from "@/channel/types";
-const { api, accountApi } = defineProps<{
-  api: Pick<ChannelAPI, "listTransactions" | "applyTransactionStep">;
+const {
+  api,
+  accountApi,
+  authorizationApi,
+  newRequestId,
+} = defineProps<{
+  api: Pick<ChannelAPI, "listTransactions">;
+  authorizationApi: AuthorizationAPI;
   accountApi: Pick<ManagementAPI["accountApi"], "listAll">;
+  newRequestId?: () => string;
 
 }>();
 
 const { message } = createDiscreteApi(["message"]);
 const rows = ref<Transaction[]>([]);
 const loading = ref(false);
-const { submitting: simulationBusy, submit: submitSimulation } = useSimulation();
 const { page, pageSize, total, pagination } = useRemotePagination(load);
-const refunding = ref<Transaction | null>(null);
-const refundBusy = ref(false);
+const selectedAuthorization = ref<Authorization>();
 
 const filterFields: FilterField[] = [
   {
@@ -94,72 +96,38 @@ async function load() {
   }
 }
 
-async function apply(transaction: Transaction, action: SimulationStage) {
-  const title = simulationStages.find((stage) => stage.key === action)!.title;
-  if (await submitSimulation(
-    () => api.applyTransactionStep(transaction.id, action),
-    `已创建${title}交易`,
-  )) {
-    await load();
+function openOperation(row: Transaction) {
+  if (!row.authorization_id) {
+    message.warning("这笔交易没有关联授权，不能打开授权详情");
+    return;
   }
-}
-
-function openRefund(row: Transaction) {
-  refunding.value = row;
-}
-
-async function simulateRefund(amount: number) {
-  const transaction = refunding.value;
-  if (!transaction) {
-    throw new Error("请先选择交易");
-  }
-  await api.applyTransactionStep(transaction.id, "refund", amount);
-}
-
-function closeRefund(shown: boolean) {
-  if (!shown && !refundBusy.value) {
-    refunding.value = null;
-  }
-}
-
-function completeRefund() {
-  refunding.value = null;
-  void load();
+  selectedAuthorization.value = {
+    id: row.authorization_id,
+    account_id: row.account_id,
+    account_name: row.account_name,
+    card_id: row.card_id,
+    status: row.status,
+    amount: row.amount,
+    remaining: row.amount,
+    currency: row.currency,
+    merchant_name: row.merchant_name,
+    created_at: row.transacted_at,
+  };
 }
 
 function actions(row: Transaction) {
-  if (row.transaction_type === "auth" && row.status === "authorized")
-    return [
-      h(
-        NButton,
-        {
-          size: "small",
-          disabled: simulationBusy.value,
-          onClick: () => apply(row, "reverse"),
-        },
-        { default: () => "撤销" },
-      ),
-    ];
-  if (row.transaction_type === "clear" && row.status === "succeed")
-    return [
-      h(
-        NButton,
-        {
-          size: "small",
-          type: "warning",
-          onClick: () => openRefund(row),
-        },
-        { default: () => "退款" },
-      ),
-    ];
-  return [h(
-    NTag,
-    {
-      size: "small",
-      bordered: true,
-    },
-    { default: () => "已处理" },
-  )];
+  return [
+    h(
+      NButton,
+      {
+        size: "small",
+        type: "primary",
+        ghost: true,
+        onClick: () => openOperation(row),
+      },
+      { default: () => "操作" },
+    ),
+  ];
 }
 
 const columns = [
@@ -213,7 +181,7 @@ onMounted(() => void load());
   <div class="page-heading">
     <div>
       <h1>交易处理</h1>
-      <p>按交易状态执行撤销或退款；清算请到授权管理。</p>
+      <p>从交易记录发起清算、撤销或退款，具体合法性由后端校验。</p>
     </div>
   </div>
   <TableFilters
@@ -237,26 +205,10 @@ onMounted(() => void load());
     :data="rows"
     :loading="loading"
   />
-  <n-modal
-    :show="Boolean(refunding)"
-    preset="card"
-    title="模拟退款"
-    style="width: min(480px, 90vw)"
-    :closable="!refundBusy"
-    :mask-closable="!refundBusy"
-    :close-on-esc="!refundBusy"
-    @update:show="closeRefund"
-  >
-    <p>{{ refunding?.merchant_name }} · {{ refunding?.currency }} {{ refunding?.amount }}</p>
-    <TransactionStageForm
-      v-if="refunding"
-      :key="refunding.id"
-      stage="refund"
-      :currency="refunding.currency"
-      :initial-amount="Number(refunding.amount)"
-      :simulate="simulateRefund"
-      @busy="refundBusy = $event"
-      @completed="completeRefund"
-    />
-  </n-modal>
+  <AuthorizationDetailModal
+    v-model="selectedAuthorization"
+    :api="authorizationApi"
+    :new-request-id="newRequestId"
+    @refreshed="load"
+  />
 </template>
