@@ -249,17 +249,12 @@ func (s *SlashOpenAPIService) CreateCard(ctx context.Context, req *OpenAPICreate
 			Status:           enums.CardStatus_Active,
 			ExpireAt:         time.Now().UTC().AddDate(2, 0, 0),
 			RequestID:        &req.IdempotencyKey,
-			Notificator:      sharedbiz.NoopNotificator{},
+			Notificator:      s.webhookUsecase,
 		})
 		if err != nil {
 			return nil, convertSlashIssueCardError(err)
 		}
 		item = result.Card
-		s.webhookUsecase.Dispatch(ctx, toWebhookDispatchRequest(&webhookDispatchRequest{
-			AccountID:  item.AccountID,
-			Event:      slash.WebhookEventCardCreate,
-			ResourceID: item.ID,
-		}))
 	}
 
 	return openAPICard(item), nil
@@ -330,15 +325,12 @@ func (s *SlashOpenAPIService) UpdateCard(ctx context.Context, req *OpenAPIUpdate
 	if err != nil {
 		return nil, err
 	}
-	event := slash.WebhookEventCardUpdate
-	if req.Status == slash.CardStatus_Closed {
-		event = slash.WebhookEventCardDelete
-	}
-	s.webhookUsecase.Dispatch(ctx, toWebhookDispatchRequest(&webhookDispatchRequest{
-		AccountID:  item.AccountID,
-		Event:      event,
-		ResourceID: item.ID,
-	}))
+	_ = s.webhookUsecase.NotifyCardStatus(ctx, &sharedbiz.NotifyCardStatusReq{
+		AccountID: item.AccountID,
+		Channel:   enums.Channel_Slash,
+		CardID:    item.ID,
+		Status:    item.Status,
+	})
 
 	return openAPICard(item), nil
 }

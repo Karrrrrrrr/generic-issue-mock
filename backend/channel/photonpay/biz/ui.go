@@ -1,10 +1,6 @@
 package biz
 
-import (
-	sharedbiz "generic-mock/shared/biz"
-
-	"github.com/samber/do/v2"
-)
+import "github.com/samber/do/v2"
 
 type PhotonPayUIUsecase struct {
 	authorizationConfigRepo AuthorizationConfigRepository
@@ -12,7 +8,6 @@ type PhotonPayUIUsecase struct {
 }
 
 type PhotonPayWebhookNotificator struct {
-	sharedbiz.NoopNotificator
 	cardRepo            CardRepository
 	cardTransactionRepo CardTransactionRepository
 	webhookRepo         WebhookConfigRepository

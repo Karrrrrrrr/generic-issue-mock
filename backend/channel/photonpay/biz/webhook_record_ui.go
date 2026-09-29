@@ -211,6 +211,13 @@ func (n *PhotonPayWebhookNotificator) NotifyCardTransaction(ctx context.Context,
 	return nil
 }
 
+func (n *PhotonPayWebhookNotificator) NotifyCardFunding(_ context.Context, req *sharedbiz.NotifyCardFundingReq) error {
+	if req == nil || req.Channel != enums.Channel_PhotonPay || req.AccountID <= 0 {
+		return photonpayerrors.ErrInvalidOperation
+	}
+	return nil
+}
+
 func (n *PhotonPayWebhookNotificator) dispatchPayload(ctx context.Context, req *photonPayDispatchPayloadRequest) {
 	configs, err := n.webhookRepo.List(ctx, &WebhookConfigListRequest{
 		AccountIDs: []model.ID{req.AccountID},

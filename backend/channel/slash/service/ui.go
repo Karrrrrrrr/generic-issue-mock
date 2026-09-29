@@ -3,14 +3,12 @@ package service
 import (
 	"generic-mock/channel/slash/biz"
 	"generic-mock/enums"
-	sharedbiz "generic-mock/shared/biz"
 	sharedservice "generic-mock/shared/service"
 
 	"github.com/samber/do/v2"
 )
 
 type SlashUIService struct {
-	sharedbiz.NoopNotificator
 	Shared         *sharedservice.Service
 	usecase        *biz.SlashUIUsecase
 	webhookUsecase *biz.SlashWebhookUsecase
@@ -25,7 +23,7 @@ func NewSlashUIService(injector do.Injector) (*SlashUIService, error) {
 	adapter := &sharedUIWebhookAdapter{webhookUsecase: s.webhookUsecase}
 	management, err := factory.New(&sharedservice.NewRequest{
 		Channel:             enums.Channel_Slash,
-		Notificator:         s,
+		Notificator:         s.webhookUsecase,
 		WebhookEventCatalog: adapter,
 		WebhookReplayer:     adapter,
 	})

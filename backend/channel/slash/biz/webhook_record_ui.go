@@ -7,8 +7,10 @@ import (
 
 	slash "generic-mock/channel/slash/enums"
 	slasherrors "generic-mock/channel/slash/errors"
+	"generic-mock/channel/slash/pkg/idconv"
 	"generic-mock/enums"
 	"generic-mock/model"
+	sharedbiz "generic-mock/shared/biz"
 
 	"github.com/samber/do/v2"
 	"go.uber.org/zap"
@@ -32,12 +34,67 @@ type SlashWebhookUsecase struct {
 	webhookClient           SlashWebhookClient
 }
 
+var _ sharedbiz.Notificator = (*SlashWebhookUsecase)(nil)
+
 func NewSlashWebhookUsecase(injector do.Injector) (*SlashWebhookUsecase, error) {
 	return &SlashWebhookUsecase{
 		webhookConfigRepository: do.MustInvoke[SlashWebhookConfigRepository](injector),
 		webhookRecordRepository: do.MustInvoke[SlashWebhookRecordRepository](injector),
 		webhookClient:           do.MustInvoke[SlashWebhookClient](injector),
 	}, nil
+}
+
+func (u *SlashWebhookUsecase) NotifyIssueCard(ctx context.Context, req *sharedbiz.NotifyIssueCardReq) error {
+	if req == nil || req.Channel != enums.Channel_Slash || req.AccountID <= 0 || req.CardID <= 0 {
+		return slasherrors.ErrInvalidOperation
+	}
+	resourceID := idconv.ToUUID(req.CardID)
+	u.Dispatch(ctx, &DispatchWebhookRequest{
+		AccountID: req.AccountID,
+		Event:     slash.WebhookEventCardCreate,
+		EntityID:  resourceID,
+		EventID:   resourceID,
+	})
+	return nil
+}
+
+func (u *SlashWebhookUsecase) NotifyCardStatus(ctx context.Context, req *sharedbiz.NotifyCardStatusReq) error {
+	if req == nil || req.Channel != enums.Channel_Slash || req.AccountID <= 0 || req.CardID <= 0 {
+		return slasherrors.ErrInvalidOperation
+	}
+	event := slash.WebhookEventCardUpdate
+	if req.Status == enums.CardStatus_Deleted {
+		event = slash.WebhookEventCardDelete
+	}
+	resourceID := idconv.ToUUID(req.CardID)
+	u.Dispatch(ctx, &DispatchWebhookRequest{
+		AccountID: req.AccountID,
+		Event:     event,
+		EntityID:  resourceID,
+		EventID:   resourceID,
+	})
+	return nil
+}
+
+func (u *SlashWebhookUsecase) NotifyCardTransaction(ctx context.Context, req *sharedbiz.NotifyCardTransactionReq) error {
+	if req == nil || req.Channel != enums.Channel_Slash || req.AccountID <= 0 || req.CardTransactionID <= 0 {
+		return slasherrors.ErrInvalidOperation
+	}
+	transactionID := idconv.ToUUID(req.CardTransactionID)
+	u.Dispatch(ctx, &DispatchWebhookRequest{
+		AccountID: req.AccountID,
+		Event:     slash.WebhookEventTransactionCreate,
+		EntityID:  transactionID,
+		EventID:   transactionID,
+	})
+	return nil
+}
+
+func (u *SlashWebhookUsecase) NotifyCardFunding(_ context.Context, req *sharedbiz.NotifyCardFundingReq) error {
+	if req == nil || req.Channel != enums.Channel_Slash || req.AccountID <= 0 {
+		return slasherrors.ErrInvalidOperation
+	}
+	return nil
 }
 
 func (u *SlashWebhookUsecase) ReplayRecord(ctx context.Context, req *ReplayWebhookRecordRequest) (*model.WebhookRecord, error) {

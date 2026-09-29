@@ -23,21 +23,11 @@ type Notificator interface {
 
 type NoopNotificator struct{}
 
-var _ Notificator = NoopNotificator{}
-
-func (NoopNotificator) NotifyIssueCard(context.Context, *NotifyIssueCardReq) error {
-	return nil
-}
-
 type NotifyCardStatusReq struct {
 	AccountID model.ID
 	Channel   enums.Channel
 	CardID    model.ID
 	Status    enums.CardStatus
-}
-
-func (NoopNotificator) NotifyCardStatus(context.Context, *NotifyCardStatusReq) error {
-	return nil
 }
 
 type NotifyCardTransactionReq struct {
@@ -49,16 +39,8 @@ type NotifyCardTransactionReq struct {
 	Type              enums.CardTransactionType
 }
 
-func (NoopNotificator) NotifyCardTransaction(context.Context, *NotifyCardTransactionReq) error {
-	return nil
-}
-
 type NotifyCardFundingReq struct {
 	AccountID        model.ID
 	Channel          enums.Channel
 	WalletTransferID model.ID
-}
-
-func (NoopNotificator) NotifyCardFunding(context.Context, *NotifyCardFundingReq) error {
-	return nil
 }
