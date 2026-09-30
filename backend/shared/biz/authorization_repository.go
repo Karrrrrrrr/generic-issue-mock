@@ -69,10 +69,15 @@ type AuthorizationCreateRequest struct {
 	Authorization *model.Authorization
 }
 
+type AuthorizationSaveRequest struct {
+	Authorization *model.Authorization
+}
+
 type AuthorizationRepo interface {
 	ExistForSimulation(context.Context, *AuthorizationSimulationExistRequest) (bool, error)
 	FindForSimulation(context.Context, *AuthorizationSimulationFindRequest) (*model.Authorization, error)
 	Create(context.Context, *AuthorizationCreateRequest) error
+	Save(context.Context, *AuthorizationSaveRequest) error
 	ExistForCard(context.Context, *AuthorizationExistForCardRequest) (bool, error)
 	FindByIDWithLock(context.Context, *AuthorizationFindByIDWithLockRequest) (*model.Authorization, error)
 	List(context.Context, *AuthorizationListRequest) ([]*model.Authorization, error)

@@ -77,8 +77,13 @@ type CardTransactionCreateRequest struct {
 	CardTransaction *model.CardTransaction
 }
 
+type CardTransactionSaveRequest struct {
+	CardTransaction *model.CardTransaction
+}
+
 type CardTransactionRepo interface {
 	Create(context.Context, *CardTransactionCreateRequest) error
+	Save(context.Context, *CardTransactionSaveRequest) error
 	ExistByRequestID(context.Context, *CardTransactionExistByRequestIDRequest) (bool, error)
 	FindByRequestID(context.Context, *CardTransactionFindByRequestIDRequest) (*model.CardTransaction, error)
 	ListStages(context.Context, *CardTransactionListStagesRequest) ([]*model.CardTransaction, error)

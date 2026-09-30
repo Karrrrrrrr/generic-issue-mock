@@ -30,6 +30,9 @@ func toSimulationData(result *biz.CardTransactionSimulationResult) *SimulationDa
 		Remaining:       result.Remaining,
 		Replayed:        result.Replayed,
 	}
+	if result.AuthorizationResult != nil {
+		data.AuthorizationResult = toAuthorizationResultData(result.AuthorizationResult)
+	}
 	if result.Authorization != nil {
 		data.Transaction.AuthorizedAt = &result.Authorization.CreatedAt
 	}

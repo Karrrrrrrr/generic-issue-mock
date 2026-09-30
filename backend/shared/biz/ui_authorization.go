@@ -121,6 +121,10 @@ type UIAuthorizationAmounts struct {
 
 func CalculateUIAuthorizationAmounts(item *model.Authorization) UIAuthorizationAmounts {
 	result := UIAuthorizationAmounts{Remaining: item.Amount}
+	if item.Status == enums.TransactionStatus_FAILED {
+		result.Remaining = decimal.Zero
+		return result
+	}
 	for _, stage := range item.CardTransactions {
 		if stage.AccountID != item.AccountID || stage.Channel != item.Channel || stage.AuthorizationID != item.ID || stage.CardID != item.CardID {
 			continue

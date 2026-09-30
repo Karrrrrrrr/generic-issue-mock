@@ -25,6 +25,10 @@ func (repo *authorizationRepository) Create(ctx context.Context, req *biz.Author
 	return repo.DB(ctx).Authorization.WithContext(ctx).Create(req.Authorization)
 }
 
+func (repo *authorizationRepository) Save(ctx context.Context, req *biz.AuthorizationSaveRequest) error {
+	return repo.DB(ctx).Authorization.WithContext(ctx).Save(req.Authorization)
+}
+
 func (repo *authorizationRepository) ExistForCard(ctx context.Context, req *biz.AuthorizationExistForCardRequest) (bool, error) {
 	table := repo.DB(ctx).Authorization
 	count, err := table.WithContext(ctx).

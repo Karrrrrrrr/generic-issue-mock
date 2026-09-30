@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"generic-mock/enums"
@@ -267,11 +268,18 @@ func (simulator *cardTransactionSimulator) SimulateAuthorization(ctx context.Con
 			return err
 		}
 		if previous != nil {
-			if previous.Type != enums.CardTransactionType_AUTH || previous.Status != enums.TransactionStatus_AUTHORIZED ||
+			if previous.Type != enums.CardTransactionType_AUTH ||
 				previous.CardID != req.CardID || previous.Currency != req.Currency || !previous.TxAmount.Equal(req.Amount) ||
 				previous.MerchantName != types.Value(req.MerchantName) ||
 				previous.MerchantCountry != types.Value(req.MerchantCountry) || previous.MerchantMCC != types.Value(req.MerchantMCC) {
 				return sharederrors.ErrSimulationRequestConflict
+			}
+			if previous.Status != enums.TransactionStatus_AUTHORIZED && previous.Status != enums.TransactionStatus_FAILED {
+				return sharederrors.ErrSimulationRequestConflict
+			}
+			if previous.Status == enums.TransactionStatus_FAILED {
+				result, err = simulator.replayFailedAuthorization(ctx, previous)
+				return err
 			}
 			result, err = simulator.replayTransaction(ctx, previous)
 			return err
@@ -360,14 +368,57 @@ func (simulator *cardTransactionSimulator) SimulateAuthorization(ctx context.Con
 			CardTransaction: transaction,
 			Remaining:       req.Amount,
 		}
-		if err := simulator.requestAuthorization(ctx, &requestAuthorizationSimulationRequest{
+		authorizationResult, err := simulator.requestAuthorization(ctx, &requestAuthorizationSimulationRequest{
 			AccountID:       accountID,
 			Card:            card,
 			Authorization:   authorization,
 			CardTransaction: transaction,
 			Requester:       req.AuthorizationRequester,
-		}); err != nil {
+		})
+		if err != nil {
 			return err
+		}
+		if authorizationResult != nil && !authorizationResult.Approved {
+			rawPayload := marshalAuthorizationResultRawPayload(authorizationResult)
+			authorization.Status = enums.TransactionStatus_FAILED
+			authorization.RawPayload = rawPayload
+			transaction.Status = enums.TransactionStatus_FAILED
+			transaction.RawPayload = rawPayload
+			if err := simulator.balanceChanger.CancelBalanceChange(ctx, &TccBalanceChangeReq{
+				AccountID:      accountID,
+				Channel:        req.Channel,
+				WalletID:       card.WalletID,
+				Currency:       req.Currency,
+				Amount:         req.Amount,
+				CheckAvailable: false,
+			}); err != nil {
+				return err
+			}
+			if err := simulator.authorizationRepo.Save(ctx, &AuthorizationSaveRequest{
+				Authorization: authorization,
+			}); err != nil {
+				zap.S().Errorw("save failed shared simulated authorization",
+					"account_id", accountID,
+					"channel", req.Channel,
+					"authorization_id", authorization.ID,
+					"error", err,
+				)
+				return sharederrors.ErrDatabaseOperation
+			}
+			if err := simulator.cardTransactionRepo.Save(ctx, &CardTransactionSaveRequest{
+				CardTransaction: transaction,
+			}); err != nil {
+				zap.S().Errorw("save failed shared simulated authorization transaction",
+					"account_id", accountID,
+					"channel", req.Channel,
+					"authorization_id", authorization.ID,
+					"transaction_id", transaction.ID,
+					"error", err,
+				)
+				return sharederrors.ErrDatabaseOperation
+			}
+			result.AuthorizationResult = authorizationResult
+			result.Remaining = decimal.Zero
 		}
 		return nil
 	})
@@ -386,19 +437,21 @@ func (simulator *cardTransactionSimulator) SimulateAuthorization(ctx context.Con
 		)
 		return nil, sharederrors.ErrDatabaseOperation
 	}
-	simulator.notifyTransaction(ctx, &notifySimulationRequest{
-		Result:      result,
-		Notificator: req.Notificator,
-	})
+	if result.CardTransaction.Status == enums.TransactionStatus_AUTHORIZED {
+		simulator.notifyTransaction(ctx, &notifySimulationRequest{
+			Result:      result,
+			Notificator: req.Notificator,
+		})
+	}
 	return result, nil
 }
 
 func (simulator *cardTransactionSimulator) requestAuthorization(
 	ctx context.Context,
 	req *requestAuthorizationSimulationRequest,
-) error {
+) (*AuthorizationResult, error) {
 	if req.Requester == nil {
-		return nil
+		return nil, nil
 	}
 	decision, err := req.Requester.RequestAuthorization(ctx, &AuthorizationRequest{
 		AccountID:       req.AccountID,
@@ -408,7 +461,14 @@ func (simulator *cardTransactionSimulator) requestAuthorization(
 		CardTransaction: req.CardTransaction,
 	})
 	if err != nil {
-		return err
+		var authorizationErr *AuthorizationFailureError
+		if errors.As(err, &authorizationErr) {
+			if authorizationErr.Result == nil {
+				return simulator.authorizationResultFromDecision(req, nil), nil
+			}
+			return authorizationErr.Result, nil
+		}
+		return nil, err
 	}
 	if decision == nil || !decision.Approved {
 		result := simulator.authorizationResultFromDecision(req, decision)
@@ -427,12 +487,9 @@ func (simulator *cardTransactionSimulator) requestAuthorization(
 			"reason",
 			result.Reason,
 		)
-		return NewAuthorizationFailureError(
-			result,
-			sharederrors.ErrAuthorizationDeclined,
-		)
+		return result, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func (simulator *cardTransactionSimulator) authorizationResultFromDecision(
@@ -468,6 +525,108 @@ func (simulator *cardTransactionSimulator) authorizationResultFromDecision(
 		result.Message = "third-party authorization declined"
 	}
 	return result
+}
+
+type authorizationRawPayload struct {
+	Attempted       bool                      `json:"attempted"`
+	Approved        bool                      `json:"approved"`
+	FailedSide      AuthorizationFailureSide  `json:"failed_side,omitempty"`
+	Reason          string                    `json:"reason,omitempty"`
+	Message         string                    `json:"message,omitempty"`
+	AccountID       model.ID                  `json:"account_id,omitempty"`
+	CardID          model.ID                  `json:"card_id,omitempty"`
+	Amount          decimal.Decimal           `json:"amount"`
+	Currency        enums.Currency            `json:"currency,omitempty"`
+	MerchantName    string                    `json:"merchant_name,omitempty"`
+	MerchantCountry string                    `json:"merchant_country,omitempty"`
+	MerchantMCC     string                    `json:"merchant_mcc,omitempty"`
+	Exchange        *authorizationRawExchange `json:"exchange,omitempty"`
+}
+
+type authorizationRawExchange struct {
+	TargetURL       string          `json:"target_url,omitempty"`
+	StatusCode      int             `json:"status_code,omitempty"`
+	RequestPayload  json.RawMessage `json:"request_payload,omitempty"`
+	RequestHeaders  json.RawMessage `json:"request_headers,omitempty"`
+	ResponseBody    string          `json:"response_body,omitempty"`
+	ResponseHeaders json.RawMessage `json:"response_headers,omitempty"`
+}
+
+func marshalAuthorizationResultRawPayload(result *AuthorizationResult) []byte {
+	if result == nil {
+		return []byte("{}")
+	}
+	payload := authorizationRawPayload{
+		Attempted:       result.Attempted,
+		Approved:        result.Approved,
+		FailedSide:      result.FailureSide,
+		Reason:          result.Reason,
+		Message:         result.Message,
+		AccountID:       result.AccountID,
+		CardID:          result.CardID,
+		Amount:          result.Amount,
+		Currency:        result.Currency,
+		MerchantName:    result.MerchantName,
+		MerchantCountry: result.MerchantCountry,
+		MerchantMCC:     result.MerchantMCC,
+	}
+	if result.Exchange != nil {
+		payload.Exchange = &authorizationRawExchange{
+			TargetURL:       result.Exchange.TargetURL,
+			StatusCode:      result.Exchange.StatusCode,
+			RequestPayload:  jsonRawMessage(result.Exchange.RequestPayload),
+			RequestHeaders:  jsonRawMessage(result.Exchange.RequestHeaders),
+			ResponseBody:    result.Exchange.ResponseBody,
+			ResponseHeaders: jsonRawMessage(result.Exchange.ResponseHeaders),
+		}
+	}
+	rawPayload, err := json.Marshal(payload)
+	if err != nil {
+		return []byte("{}")
+	}
+	return rawPayload
+}
+
+func authorizationResultFromRawPayload(rawPayload []byte) *AuthorizationResult {
+	if !json.Valid(rawPayload) {
+		return nil
+	}
+	var payload authorizationRawPayload
+	if err := json.Unmarshal(rawPayload, &payload); err != nil {
+		return nil
+	}
+	result := &AuthorizationResult{
+		Attempted:       payload.Attempted,
+		Approved:        payload.Approved,
+		FailureSide:     payload.FailedSide,
+		Reason:          payload.Reason,
+		Message:         payload.Message,
+		AccountID:       payload.AccountID,
+		CardID:          payload.CardID,
+		Amount:          payload.Amount,
+		Currency:        payload.Currency,
+		MerchantName:    payload.MerchantName,
+		MerchantCountry: payload.MerchantCountry,
+		MerchantMCC:     payload.MerchantMCC,
+	}
+	if payload.Exchange != nil {
+		result.Exchange = &AuthorizationExchange{
+			TargetURL:       payload.Exchange.TargetURL,
+			StatusCode:      payload.Exchange.StatusCode,
+			RequestPayload:  payload.Exchange.RequestPayload,
+			RequestHeaders:  payload.Exchange.RequestHeaders,
+			ResponseBody:    payload.Exchange.ResponseBody,
+			ResponseHeaders: payload.Exchange.ResponseHeaders,
+		}
+	}
+	return result
+}
+
+func jsonRawMessage(value []byte) json.RawMessage {
+	if !json.Valid(value) {
+		return nil
+	}
+	return json.RawMessage(value)
 }
 
 func (simulator *cardTransactionSimulator) SimulateClearing(ctx context.Context, req *SimulateClearingReq) (*CardTransactionSimulationResult, error) {
@@ -1134,6 +1293,33 @@ func (simulator *cardTransactionSimulator) replayTransaction(ctx context.Context
 		CardTransaction: transaction,
 		Remaining:       state.Remaining,
 		Replayed:        true,
+	}, nil
+}
+
+func (simulator *cardTransactionSimulator) replayFailedAuthorization(
+	ctx context.Context,
+	transaction *model.CardTransaction,
+) (*CardTransactionSimulationResult, error) {
+	authorization, err := simulator.authorizationRepo.Find(ctx, &AuthorizationFindRequest{
+		ID:        transaction.AuthorizationID,
+		AccountID: transaction.AccountID,
+		Channel:   transaction.Channel,
+	})
+	if err != nil {
+		zap.S().Errorw("find shared failed authorization replay",
+			"account_id", transaction.AccountID,
+			"channel", transaction.Channel,
+			"authorization_id", transaction.AuthorizationID,
+			"error", err,
+		)
+		return nil, sharederrors.ErrDatabaseOperation
+	}
+	return &CardTransactionSimulationResult{
+		Authorization:       authorization,
+		CardTransaction:     transaction,
+		AuthorizationResult: authorizationResultFromRawPayload(authorization.RawPayload),
+		Remaining:           decimal.Zero,
+		Replayed:            true,
 	}, nil
 }
 

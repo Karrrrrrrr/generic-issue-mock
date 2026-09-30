@@ -153,7 +153,7 @@ async function submitAuthorization() {
     },
   );
   authorizationResult.value = data?.authorization_result ?? null;
-  if (!data || authorizationResult.value && !authorizationResult.value.approved) {
+  if (!data) {
     return;
   }
   emit("completed");

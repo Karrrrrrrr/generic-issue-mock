@@ -278,7 +278,7 @@ async function refreshSimulation() {
           <TransactionStageOperations
             :operation-key="detail.id"
             :currency="detail.currency"
-            :disabled="saving || detailLoading"
+            :disabled="saving || detailLoading || detail.status !== 'authorized'"
             :simulate="simulateStage"
             @busy="saving = $event"
             @completed="refreshSimulation"
@@ -308,7 +308,7 @@ async function refreshSimulation() {
               </n-collapse-item>
             </n-collapse>
             <n-empty v-else description="未留存原始授权报文" size="small" />
-            <p class="authorization-hint">当前未记录同步授权回调的请求、响应及响应码，不将交易通知投递记录作为授权回调展示。</p>
+            <p class="authorization-hint">同步授权失败时会留存失败来源、原因、请求报文和响应信息。</p>
           </section>
         </template>
         <div v-else class="authorization-detail-placeholder">正在加载授权详情…</div>

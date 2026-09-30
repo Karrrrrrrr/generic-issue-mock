@@ -24,6 +24,10 @@ func (repo *cardTransactionRepository) Create(ctx context.Context, req *biz.Card
 	return repo.DB(ctx).CardTransaction.WithContext(ctx).Create(req.CardTransaction)
 }
 
+func (repo *cardTransactionRepository) Save(ctx context.Context, req *biz.CardTransactionSaveRequest) error {
+	return repo.DB(ctx).CardTransaction.WithContext(ctx).Save(req.CardTransaction)
+}
+
 func (repo *cardTransactionRepository) ExistByRequestID(ctx context.Context, req *biz.CardTransactionExistByRequestIDRequest) (bool, error) {
 	table := repo.DB(ctx).CardTransaction
 	count, err := table.WithContext(ctx).
